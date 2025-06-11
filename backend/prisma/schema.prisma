@@ -2,36 +2,37 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Empresa {
-  id              Int       @id @default(autoincrement())
-  nombre          String
-  rfc             String?   @unique
-  emailContacto   String?
-  direccion       String?
-  fechaCreacion   DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  rfc           String?  @unique
+  emailContacto String?
+  direccion     String?
+  fechaCreacion DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  usuarios        Usuario[] 
-  productos       Producto[]
+  usuarios    Usuario[]
+  productos   Producto[]
+  proveedores Proveedor[]
+  pedidos     PedidoInventario[]
 }
 
 model Usuario {
-  id          Int      @id @default(autoincrement())
-  empresaId   Int
-  nombre      String
-  email       String   @unique
-  password    String
-  rol         Rol
-  activo      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  
-  empresa     Empresa  @relation(fields: [empresaId], references: [id])
+  id        Int      @id @default(autoincrement())
+  empresaId Int
+  nombre    String
+  email     String   @unique
+  password  String
+  rol       Rol
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
 }
 
 enum Rol {
@@ -51,15 +52,43 @@ model Producto {
   creadoEn    DateTime @default(now())
 
   movimientos MovimientoInventario[]
+  pedidos     PedidoInventario[]
+  proveedor   Proveedor?             @relation(fields: [proveedorId], references: [id])
+  proveedorId Int?
 }
-
 
 model MovimientoInventario {
   id         Int      @id @default(autoincrement())
-  tipo       String   
+  tipo       String
   cantidad   Int
   producto   Producto @relation(fields: [productoId], references: [id])
   productoId Int
   fecha      DateTime @default(now())
   motivo     String?
+}
+
+model Proveedor {
+  id        Int     @id @default(autoincrement())
+  nombre    String
+  email     String?
+  telefono  String?
+  empresaId Int
+  empresa   Empresa @relation(fields: [empresaId], references: [id])
+
+  productos Producto[]
+  pedidos   PedidoInventario[]
+}
+
+model PedidoInventario {
+  id          Int      @id @default(autoincrement())
+  productoId  Int
+  proveedorId Int
+  cantidad    Int
+  fechaPedido DateTime @default(now())
+  estado      String   @default("pendiente") // pendiente, enviado, recibido
+  empresaId   Int
+
+  producto  Producto  @relation(fields: [productoId], references: [id])
+  proveedor Proveedor @relation(fields: [proveedorId], references: [id])
+  empresa   Empresa   @relation(fields: [empresaId], references: [id])
 }

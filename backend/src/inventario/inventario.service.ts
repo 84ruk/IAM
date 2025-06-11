@@ -5,6 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class InventarioService {
   constructor(private prisma: PrismaService) {}
 
+
   async getKpis(empresaId: number) {
     const productos = await this.prisma.producto.findMany({
       where: { empresaId },
@@ -33,6 +34,8 @@ export class InventarioService {
     };
   }
 
+
+
     async getAlertas(empresaId: number) {
     const productos = await this.prisma.producto.findMany({
       where: { empresaId },
@@ -58,7 +61,7 @@ export class InventarioService {
 
   const hoy = new Date();
   const fechaSugerida = new Date(hoy);
-  fechaSugerida.setDate(hoy.getDate() + 3); // Ejemplo de sugerir compra a 3 días, se ajustara segun necesidades
+  fechaSugerida.setDate(hoy.getDate() + 3); // Ejemplo de sugerir compra a 3 días
 
   const fichas = productos
     .filter(p => p.stock < 5)
@@ -74,6 +77,97 @@ export class InventarioService {
 
   return fichas;
 }
+
+
+async predecirQuiebre(empresaId: number) {
+  const productos = await this.prisma.producto.findMany({
+    where: { empresaId },
+    select: {
+      id: true,
+      nombre: true,
+      stock: true,
+    },
+  });
+
+  const hoy = new Date();
+  const fechaInicio = new Date();
+  fechaInicio.setDate(hoy.getDate() - 15); // últimos 15 días
+
+  const movimientos = await this.prisma.movimientoInventario.findMany({
+    where: {
+      tipo: 'SALIDA',
+      fecha: { gte: fechaInicio },
+      producto: { empresaId },
+    },
+    select: {
+      cantidad: true,
+      productoId: true,
+      fecha: true,
+    },
+  });
+
+  const porProducto = productos.map(p => {
+    const salidas = movimientos.filter(m => m.productoId === p.id);
+    const totalDias = 15;
+
+    const totalSalidas = salidas.reduce((acc, m) => acc + m.cantidad, 0);
+    const promedioDiario = totalSalidas / totalDias;
+
+    const diasRestantes = promedioDiario > 0
+      ? Math.floor(p.stock / promedioDiario)
+      : null;
+
+    return {
+      productoId: p.id,
+      nombre: p.nombre,
+      stockActual: p.stock,
+      promedioSalidasDiarias: +promedioDiario.toFixed(2),
+      diasEstimadosAntesDeAgotarStock: diasRestantes,
+    };
+  });
+
+  return porProducto.filter(p => p.diasEstimadosAntesDeAgotarStock !== null);
+}
+
+async getSerieHistorica(productoId: number, dias: number = 30) {
+  const fechaInicio = new Date();
+  fechaInicio.setDate(fechaInicio.getDate() - dias);
+
+  const movimientos = await this.prisma.movimientoInventario.findMany({
+    where: {
+      productoId,
+      tipo: 'SALIDA',
+      fecha: {
+        gte: fechaInicio,
+      },
+    },
+    select: {
+      fecha: true,
+      cantidad: true,
+    },
+  });
+
+  // Agrupar por día
+  const mapa = new Map<string, number>();
+
+  for (let i = 0; i <= dias; i++) {
+    const fecha = new Date(fechaInicio);
+    fecha.setDate(fechaInicio.getDate() + i);
+    const key = fecha.toISOString().split('T')[0];
+    mapa.set(key, 0);
+  }
+
+  movimientos.forEach(mov => {
+    const key = mov.fecha.toISOString().split('T')[0];
+    mapa.set(key, (mapa.get(key) || 0) + mov.cantidad);
+  });
+
+  return Array.from(mapa.entries()).map(([fecha, salidas]) => ({
+    fecha,
+    salidas,
+  }));
+}
+
 
 }
 

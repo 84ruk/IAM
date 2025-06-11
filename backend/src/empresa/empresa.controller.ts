@@ -35,4 +35,6 @@ export class EmpresaController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.empresaService.remove(id);
   }
+
+  
 }
