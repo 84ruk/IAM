@@ -1,11 +1,13 @@
 // src/app/layout.tsx
 import './globals.css'
-import { ReactNode } from 'react'
+import { montserrat } from './fonts'
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body className={`${montserrat.className} bg-gray-50`}>
+        {children}
+      </body>
     </html>
   )
 }
