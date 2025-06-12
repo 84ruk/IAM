@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #ffffff;
@@ -23,4 +26,30 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+
+/* src/styles/globals.css  
+.input, .btn-primary, .label, .form-container
+Estilos que se repiten en muchas pantallas (login, registro, formularios)
+*/
+
+.input {
+  @apply w-full rounded-md border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#72EFDD] transition-all;
+}
+
+.label {
+  @apply block text-sm font-medium text-gray-700 mb-1;
+}
+
+.btn-primary {
+  @apply w-full bg-[#8E94F2] text-white py-2 px-4 rounded-md hover:bg-[#7076db] transition-all;
+}
+
+.btn-link {
+  @apply text-sm text-[#8E94F2] hover:underline;
+}
+
+.form-container {
+  @apply max-w-md w-full mx-auto mt-16 bg-white p-6 rounded-lg shadow-md;
 }

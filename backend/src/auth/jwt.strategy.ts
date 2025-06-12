@@ -6,8 +6,10 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: process.env.JWT_SECRET || 'supersecreto123',
+      jwtFromRequest: ExtractJwt.fromExtractors([
+    (req) => req?.cookies?.jwt, // Cambia 'jwt' por el nombre de tu cookie si es diferente
+  ]),
+  secretOrKey: process.env.JWT_SECRET || 'supersecreto123',
     });
   }
 
