@@ -9,8 +9,10 @@ import { MovimientoModule } from './movimiento/movimiento.module';
 import { InventarioModule } from './inventario/inventario.module';
 import { PedidoModule } from './pedido/pedido.module';
 import { ProveedorModule } from './proveedor/proveedor.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+
 @Module({
-  imports: [AuthModule, UsersModule, EmpresaModule, ProductoModule, MovimientoModule, InventarioModule, PedidoModule, ProveedorModule],
+  imports: [AuthModule, UsersModule, EmpresaModule, ProductoModule, MovimientoModule, InventarioModule, PedidoModule, ProveedorModule, DashboardModule],
   controllers: [AppController],
   providers: [AppService],
 })

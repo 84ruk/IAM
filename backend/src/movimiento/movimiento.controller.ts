@@ -1,20 +1,20 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req, Get, Param } from '@nestjs/common';
 import { MovimientoService } from './movimiento.service';
-import { CreateMovimientoDto } from './dto/create-movimiento.dto';
+import { CrearMovimientoDto } from './dto/crear-movimiento.dto';
 import { AuthGuard } from '@nestjs/passport';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('movimientos')
 export class MovimientoController {
-  constructor(private readonly service: MovimientoService) {}
+  constructor(private readonly movimientoService: MovimientoService) {}
 
   @Post()
-  create(@Body() dto: CreateMovimientoDto) {
-    return this.service.create(dto);
+  crear(@Body() dto: CrearMovimientoDto, @Req() req: any) {
+    return this.movimientoService.registrar(dto, req.user.empresaId);
   }
 
-  @Get()
-  findAll() {
-    return this.service.findAll();
+  @Get('producto/:id')
+  obtenerPorProducto(@Param('id') id: string, @Req() req: any) {
+    return this.movimientoService.obtenerPorProducto(Number(id), req.user.empresaId);
   }
 }

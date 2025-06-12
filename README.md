@@ -7,11 +7,19 @@
 - Thunder Client para pruebas
 - GitHub para control de versiones
 
-## 🚀 Requisitos previos
+## 🚀 Tecnologias Utilizadas
 
-- Node.js ≥ 18
-- Docker + Docker Compose
-- Git
+- **NestJS** – Framework backend en Node.js
+- **Prisma ORM** – Acceso y modelado de base de datos
+- **PostgreSQL** – Motor de base de datos
+- **Docker** – Contenedores y despliegue
+- **TypeScript** – Tipado estático
+- **JWT** – Autenticación
+- **Thunder Client** – Testeo de API
+- **Next.js (futuro)** – Frontend moderno
+- **BullMQ + Redis (plan futuro)** – Procesamiento en background
+- **IA externa (plan futuro)** – Predicción de quiebre de stock y marketing inteligente
+
 
 ## 🐳 Iniciar base de datos con Docker
 
