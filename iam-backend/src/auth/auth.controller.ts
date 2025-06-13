@@ -9,6 +9,7 @@ import {
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -38,5 +39,10 @@ export class AuthController {
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('jwt');
     return { message: 'Sesión cerrada' };
+  }
+
+  @Post('register-empresa')
+    async registerEmpresa(@Body() dto: RegisterEmpresaDto) {
+    return this.authService.registerEmpresa(dto);
   }
 }
