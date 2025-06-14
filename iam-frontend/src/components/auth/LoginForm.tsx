@@ -16,13 +16,16 @@ export default function LoginForm() {
     setError('');
 
     try {
-      
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
+      console.log('URL de respuesta:', url);
+      const res = await fetch(url , {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
+     
+      console.log('URL de respuesta:', url);
       console.log( res);
       if (!res.ok) throw new Error('Credenciales incorrectas');
       router.push('/dashboard');
