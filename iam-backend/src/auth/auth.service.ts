@@ -1,10 +1,17 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
+
+interface JwtUserPayload {
+  id: number;
+  email: string;
+  rol: string;
+  empresaId: number;
+} 
 
 @Injectable()
 export class AuthService {
@@ -16,7 +23,7 @@ export class AuthService {
 
   async validateUser(email: string, password: string) {
     const user = await this.usersService.findByEmail(email);
-    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    if (!user) throw new NotFoundException('Usuario no El correo proporcionado no está registrado');
 
     const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) throw new UnauthorizedException('Contraseña incorrecta');
@@ -24,21 +31,32 @@ export class AuthService {
     return user;
   }
 
-  async login(user: any) {
+  async login(user: JwtUserPayload) {
     const payload = {
       sub: user.id,
       email: user.email,
       rol: user.rol,
       empresaId: user.empresaId,
     };
+
+    if (!user) {
+      throw new NotFoundException('El correo proporcionado no está registrado');
+    }
     return {
       access_token: this.jwtService.sign(payload),
     };
   }
 
 
-
+//BORRAR
   async registerEmpresa(dto: RegisterEmpresaDto) {
+    const existingUser = await this.prisma.usuario.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Ya existe un usuario registrado con este correo');
+    }
   // 1. Crear empresa
     const empresa = await this.prisma.empresa.create({
       data: {
@@ -60,7 +78,28 @@ export class AuthService {
       },
     });
 
-    // 3. Retornar JWT
     return this.login(usuario);
+  }
+
+  async getCurrentUser(res: any) {
+    const token = res?.cookies?.jwt;
+    console.log('Token recibido:', res)
+      
+
+    if (!token) {
+      throw new UnauthorizedException('No autorizado');
+    }
+
+    try {
+      const payload = this.jwtService.verify(token);
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+      return user;
+    }
+    catch (error) {
+      throw new UnauthorizedException('Token inválido o expirado');
+    }
   }
 }

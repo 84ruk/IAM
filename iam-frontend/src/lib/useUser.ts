@@ -9,4 +9,9 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-export const useUser = () => useSWR('/auth/me', fetcher)
+export const useUser = () =>
+  useSWR('/auth/me', fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    refreshInterval: 0, 
+  })

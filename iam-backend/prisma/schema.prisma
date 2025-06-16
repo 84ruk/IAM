@@ -92,3 +92,20 @@ model PedidoInventario {
   proveedor Proveedor @relation(fields: [proveedorId], references: [id])
   empresa   Empresa   @relation(fields: [empresaId], references: [id])
 }
+
+model SensorLectura {
+  id          Int      @id @default(autoincrement())
+  tipo        SensorTipo
+  valor       Float
+  unidad      String
+  productoId  Int?
+  producto    Producto? @relation(fields: [productoId], references: [id])
+  fecha       DateTime @default(now())
+}
+
+enum SensorTipo {
+  PESO
+  TEMPERATURA
+  HUMEDAD
+  RFID
+}

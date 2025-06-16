@@ -25,4 +25,14 @@ export class UsersService {
       where: { email },
     });
   }
+
+  async findById(id: number) {
+    return this.prisma.usuario.findUnique({
+      where: { id },
+    });
+  }
+
+  async findAll() {
+    return this.prisma.usuario.findMany();
+  }
 }

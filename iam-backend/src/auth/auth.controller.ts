@@ -4,12 +4,14 @@ import {
   Body,
   Res,
   HttpCode,
-  UnauthorizedException,
+  Get,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterEmpresaDto } from './dto/register-empresa.dto';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { JwtUser } from './interfaces/jwt-user.interface';
 
 @Controller('auth')
 export class AuthController {
@@ -17,19 +19,20 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(
+    @Body() dto: LoginDto, 
+    @Res({ passthrough: true }) res: Response
+  ) {
     const user = await this.authService.validateUser(dto.email, dto.password);
-    if (!user) throw new UnauthorizedException('Credenciales inválidas');
-
     const token = await this.authService.login(user);
 
-    // Set cookie segura
-    res.cookie('jwt', token, {
+    const cookieOptions = {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: false, // True en producción con HTTPS
+      sameSite: 'lax' as const, // para evitar CSRF
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 1000 * 60 * 60, // 1 hora
-    });
+    };
+    res.cookie('jwt', token, cookieOptions);
 
     return { message: 'Login exitoso' };
   }
@@ -37,12 +40,23 @@ export class AuthController {
   @Post('logout')
   @HttpCode(200)
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('jwt');
+
+    res.clearCookie('jwt', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
     return { message: 'Sesión cerrada' };
   }
 
   @Post('register-empresa')
-    async registerEmpresa(@Body() dto: RegisterEmpresaDto) {
+  async registerEmpresa(@Body() dto: RegisterEmpresaDto) {
     return this.authService.registerEmpresa(dto);
+  }
+
+  @Get('me')
+  @HttpCode(200)
+  getMe(@CurrentUser() user: JwtUser) {
+    return user;
   }
 }
