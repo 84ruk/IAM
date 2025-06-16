@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EstadoPedido } from '@prisma/client';
 
 @Injectable()
 export class DashboardService {
@@ -24,7 +25,7 @@ export class DashboardService {
     });
 
     const pedidosPendientes = await this.prisma.pedidoInventario.count({
-      where: { empresaId, estado: 'pendiente' },
+      where: { empresaId, estado: EstadoPedido.PENDIENTE },
     });
 
     return {

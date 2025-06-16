@@ -35,7 +35,7 @@ export class AuthController {
     res.cookie('jwt', token, cookieOptions);
 
     return { message: 'Login exitoso' };
-  }
+  }git
 
   @Post('logout')
   @HttpCode(200)

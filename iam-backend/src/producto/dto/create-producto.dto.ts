@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { UnidadMedida } from '@prisma/client';
+import { IsString, IsOptional, IsNumber, IsEnum } from 'class-validator';
 
 export class CreateProductoDto {
   @IsString()
@@ -17,4 +18,8 @@ export class CreateProductoDto {
 
   @IsNumber()
   empresaId: number;
+
+  @IsEnum(UnidadMedida)
+  unidad: UnidadMedida;
+  
 }

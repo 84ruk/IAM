@@ -47,24 +47,54 @@ model Producto {
   descripcion String?
   precio      Float
   stock       Int      @default(0)
+  unidad      String //Validar en servicio que nunca sea negativo 
   empresaId   Int
-  empresa     Empresa  @relation(fields: [empresaId], references: [id])
-  creadoEn    DateTime @default(now())
+  proveedorId Int?
 
+
+  creadoEn    DateTime @default(now())
+  actualizadoEn DateTime  @updatedAt
+
+  sensores  SensorLectura[]
   movimientos MovimientoInventario[]
   pedidos     PedidoInventario[]
+  empresa     Empresa  @relation(fields: [empresaId], references: [id])
   proveedor   Proveedor?             @relation(fields: [proveedorId], references: [id])
-  proveedorId Int?
+
+  codigoBarras   String?   @unique  // para lectores de código de barras
+  rfid           String?   @unique  // para sensores RFID
+  ubicacion      String?            // para saber dónde está dentro del almacén
+  temperaturaOptima Float?          // si requiere frío o cuidado especial
+  humedadOptima    Float?           // si es sensible a humedad
+
+  // integraciones ERP / IA
+  sku            String? @unique
+  categoria      String?            // para filtros y dashboards
+}
+
+enum UnidadMedida {
+  PIEZA
+  KG
+  LITRO
+  CAJA
+  OTRO
 }
 
 model MovimientoInventario {
   id         Int      @id @default(autoincrement())
-  tipo       String
+  tipo       TipoMovimiento
   cantidad   Int
-  producto   Producto @relation(fields: [productoId], references: [id])
+  
   productoId Int
   fecha      DateTime @default(now())
   motivo     String?
+
+  producto   Producto @relation(fields: [productoId], references: [id])
+}
+
+enum TipoMovimiento {
+  ENTRADA
+  SALIDA
 }
 
 model Proveedor {
@@ -73,8 +103,9 @@ model Proveedor {
   email     String?
   telefono  String?
   empresaId Int
-  empresa   Empresa @relation(fields: [empresaId], references: [id])
 
+
+  empresa   Empresa @relation(fields: [empresaId], references: [id])
   productos Producto[]
   pedidos   PedidoInventario[]
 }
@@ -85,12 +116,18 @@ model PedidoInventario {
   proveedorId Int
   cantidad    Int
   fechaPedido DateTime @default(now())
-  estado      String   @default("pendiente") // pendiente, enviado, recibido
+  estado      EstadoPedido   @default(PENDIENTE) // pendiente, enviado, recibido
   empresaId   Int
 
   producto  Producto  @relation(fields: [productoId], references: [id])
   proveedor Proveedor @relation(fields: [proveedorId], references: [id])
   empresa   Empresa   @relation(fields: [empresaId], references: [id])
+}
+
+enum EstadoPedido {
+  PENDIENTE
+  ENVIADO
+  RECIBIDO 
 }
 
 model SensorLectura {
@@ -99,6 +136,7 @@ model SensorLectura {
   valor       Float
   unidad      String
   productoId  Int?
+
   producto    Producto? @relation(fields: [productoId], references: [id])
   fecha       DateTime @default(now())
 }
