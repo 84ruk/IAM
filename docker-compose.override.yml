@@ -31,7 +31,6 @@ services:
     volumes:
       - ./iam-backend:/app
       - /app/node_modules
-    command: npm run start:dev
     environment:
       - PORT=3001
     ports:
