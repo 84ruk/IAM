@@ -70,6 +70,8 @@ model Producto {
   // integraciones ERP / IA
   sku            String? @unique
   categoria      String?            // para filtros y dashboards
+
+  @@index([empresaId, categoria])
 }
 
 enum UnidadMedida {
@@ -122,6 +124,8 @@ model PedidoInventario {
   producto  Producto  @relation(fields: [productoId], references: [id])
   proveedor Proveedor @relation(fields: [proveedorId], references: [id])
   empresa   Empresa   @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId, estado])
 }
 
 enum EstadoPedido {
@@ -139,6 +143,10 @@ model SensorLectura {
 
   producto    Producto? @relation(fields: [productoId], references: [id])
   fecha       DateTime @default(now())
+
+  @@index([productoId, tipo]) 
+  @@index([productoId, fecha]) //Para grafica
+
 }
 
 enum SensorTipo {

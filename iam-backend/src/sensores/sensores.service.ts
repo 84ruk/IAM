@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateSensorLecturaDto } from './dto/create-sensor.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
-
+//EDIDTAR
 @Injectable()
 export class SensoresService {
   constructor(private prisma: PrismaService) {}

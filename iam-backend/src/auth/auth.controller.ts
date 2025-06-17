@@ -26,16 +26,17 @@ export class AuthController {
     const user = await this.authService.validateUser(dto.email, dto.password);
     const token = await this.authService.login(user);
 
-    const cookieOptions = {
+
+      const cookieOptions = {
       httpOnly: true,
       sameSite: 'lax' as const, // para evitar CSRF
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production', // habilitar en producción
       maxAge: 1000 * 60 * 60, // 1 hora
     };
     res.cookie('jwt', token, cookieOptions);
-
-    return { message: 'Login exitoso' };
-  }git
+ 
+    return { message: 'Login exitoso', token }; //QUITAR TOKEN
+  }
 
   @Post('logout')
   @HttpCode(200)
@@ -50,6 +51,7 @@ export class AuthController {
   }
 
   @Post('register-empresa')
+  @HttpCode(201)
   async registerEmpresa(@Body() dto: RegisterEmpresaDto) {
     return this.authService.registerEmpresa(dto);
   }

@@ -3,13 +3,17 @@ import { ProductoService } from './producto.service';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { UpdateProductoDto } from './dto/update-producto.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Rol } from '@prisma/client';
 
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('productos')
 export class ProductoController {
   constructor(private readonly productoService: ProductoService) {}
 
   @Post()
+  @Roles(Rol.ADMIN) // Puedes ajustar los roles según tus necesidades
   async create(@Body() dto: CreateProductoDto, @Req() req: any) {
     const empresaId = req.user.empresaId; 
     return this.productoService.create(dto, empresaId);
