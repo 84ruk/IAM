@@ -1,113 +1,91 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EstadoPedido } from '@prisma/client';
 
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
+  // KPIs principales
   async getKpis(empresaId: number) {
-    const totalProductos = await this.prisma.producto.count({ where: { empresaId } });
-
-    const productos = await this.prisma.producto.findMany({
-      where: { empresaId },
-      select: { stock: true },
-    });
-
-    const stockTotal = productos.reduce((sum, p) => sum + p.stock, 0);
-    const stockBajo = productos.filter((p) => p.stock < 10).length;
-
-    const movimientosRecientes = await this.prisma.movimientoInventario.findMany({
-      where: { producto: { empresaId } },
-      include: { producto: true },
-      orderBy: { fecha: 'desc' },
-      take: 10,
-    });
-
-    const pedidosPendientes = await this.prisma.pedidoInventario.count({
-      where: { empresaId, estado: EstadoPedido.PENDIENTE },
-    });
-
+    const [totalProductos, stockTotal, pedidosPendientes] = await Promise.all([
+      this.prisma.producto.count({ where: { empresaId } }),
+      this.prisma.producto.aggregate({
+        where: { empresaId },
+        _sum: { stock: true },
+      }),
+      this.prisma.pedidoInventario.count({
+        where: { empresaId, estado: 'PENDIENTE' },
+      }),
+    ]);
     return {
       totalProductos,
-      stockTotal,
-      stockBajo,
+      stockTotal: stockTotal._sum.stock || 0,
       pedidosPendientes,
-      movimientosRecientes,
     };
   }
 
-
-
-async getStockChart(empresaId: number) {
-  // Stock total agrupado 
-  const stockPorCategoria = await this.prisma.producto.groupBy({
-    by: ['categoria'],
-    where: { empresaId },
-    _sum: { stock: true },
-  });
-
-  stockPorCategoria.map(item => ({
-  categoria: item.categoria ?? 'Sin categoría',
-  total: item._sum.stock,
-}))
-
-
-  // Los 5 productos con menor stock
-  const productosBajoStock = await this.prisma.producto.findMany({
-    where: { empresaId },
-    orderBy: { stock: 'asc' },
-    /* distinct: ['nombre'] */
-    take: 5,
-    select: {
-      nombre: true,
-      stock: true,
-    },
-  });
-
-  // Movimientos por día en los últimos 7 días
-  const hoy = new Date();
-  const hace7Dias = new Date(hoy);
-  hace7Dias.setDate(hoy.getDate() - 6);
-  hace7Dias.setHours(0, 0, 0, 0);
-
-  const movimientos = await this.prisma.movimientoInventario.findMany({
-    where: {
-      producto: { empresaId },
-      fecha: { gte: hace7Dias },
-    },
-    select: {
-      fecha: true,
-      tipo: true,
-      cantidad: true,
-    },
-  });
-
-  // Agrupar movimientos por día
-  const movimientosPorDia: Record<string, { entradas: number; salidas: number }> = {};
-  for (let i = 0; i < 7; i++) {
-    const fecha = new Date(hace7Dias);
-    fecha.setDate(hace7Dias.getDate() + i);
-    const clave = fecha.toISOString().split('T')[0];
-    movimientosPorDia[clave] = { entradas: 0, salidas: 0 };
+  // Stock por producto
+  async getStockPorProducto(empresaId: number) {
+    return this.prisma.producto.findMany({
+      where: { empresaId },
+      select: { id: true, nombre: true, stock: true, categoria: true },
+      orderBy: { nombre: 'asc' },
+    });
   }
 
-  for (const mov of movimientos) {
-    const clave = mov.fecha.toISOString().split('T')[0];
-    if (!movimientosPorDia[clave]) continue;
-
-    if (mov.tipo === 'ENTRADA') movimientosPorDia[clave].entradas += mov.cantidad;
-    else if (mov.tipo === 'SALIDA') movimientosPorDia[clave].salidas += mov.cantidad;
+  // Movimientos recientes
+  async getMovimientosRecientes(empresaId: number, take = 10) {
+    return this.prisma.movimientoInventario.findMany({
+      where: { empresaId },
+      orderBy: { fecha: 'desc' },
+      take,
+      include: {
+        producto: { select: { nombre: true } },
+      },
+    });
   }
 
-  return {
-    stockPorCategoria,
-    productosBajoStock,
-    movimientosPorDia: Object.entries(movimientosPorDia).map(([fecha, valores]) => ({
-      fecha,
-      ...valores,
-    })),
-  };
-}
+  // Pedidos pendientes
+  async getPedidosPendientes(empresaId: number) {
+    return this.prisma.pedidoInventario.findMany({
+      where: { empresaId, estado: 'PENDIENTE' },
+      orderBy: { fechaPedido: 'desc' },
+      include: {
+        producto: { select: { nombre: true } },
+        proveedor: { select: { nombre: true } },
+      },
+    });
+  }
 
+  // Lecturas recientes de sensores por producto
+  async getLecturasSensores(empresaId: number, take = 20) {
+    return this.prisma.sensorLectura.findMany({
+      where: {
+        producto: { empresaId },
+      },
+      orderBy: { fecha: 'desc' },
+      take,
+      include: {
+        producto: { select: { nombre: true } },
+      },
+    });
+  }
+
+  // Toda la información del dashboard
+  async getDashboardData(empresaId: number) {
+    const [kpis, stockPorProducto, movimientosRecientes, pedidosPendientes, lecturasSensores] = await Promise.all([
+      this.getKpis(empresaId),
+      this.getStockPorProducto(empresaId),
+      this.getMovimientosRecientes(empresaId),
+      this.getPedidosPendientes(empresaId),
+      this.getLecturasSensores(empresaId),
+    ]);
+    return {
+      kpis,
+      stockPorProducto,
+      movimientosRecientes,
+      pedidosPendientes,
+      lecturasSensores,
+    };
+  }
 }

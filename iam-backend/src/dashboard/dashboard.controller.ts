@@ -16,6 +16,6 @@ export class DashboardController {
 
   @Get('stock-chart')
   getStockChart(@CurrentUser() user: JwtUser) {
-    return this.dashboardService.getStockChart(user.empresaId);
+    return this.dashboardService.getDashboardData(user.empresaId);
   }
 }

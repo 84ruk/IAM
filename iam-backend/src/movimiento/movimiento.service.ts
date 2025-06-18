@@ -57,6 +57,7 @@ export class MovimientoService {
         tipo: dto.tipo,
         cantidad: dto.cantidad,
         motivo: dto.motivo,
+        empresaId: dto.empresaId,
       },
     });
   }

@@ -8,18 +8,19 @@ datasource db {
 }
 
 model Empresa {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   nombre        String
-  rfc           String?  @unique
+  rfc           String?   @unique
   emailContacto String?
   direccion     String?
-  fechaCreacion DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  fechaCreacion DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  usuarios    Usuario[]
-  productos   Producto[]
-  proveedores Proveedor[]
-  pedidos     PedidoInventario[]
+  usuarios      Usuario[]
+  productos     Producto[]
+  proveedores   Proveedor[]
+  pedidos       PedidoInventario[]
+  movimientos   MovimientoInventario[] // relación inversa
 }
 
 model Usuario {
@@ -42,56 +43,51 @@ enum Rol {
 }
 
 model Producto {
-  id          Int      @id @default(autoincrement())
-  nombre      String
-  descripcion String?
-  precio      Float
-  stock       Int      @default(0)
-  unidad      String //Validar en servicio que nunca sea negativo 
-  empresaId   Int
-  proveedorId Int?
+  id             Int       @id @default(autoincrement())
+  nombre         String
+  descripcion    String?
+  precioCompra   Float
+  precioVenta     Float    
+  stockMinimo    Int       @default(10)
+  stock          Int       @default(0)
+  unidad         String
+  empresaId      Int
+  proveedorId    Int?
 
+  creadoEn       DateTime  @default(now())
+  actualizadoEn  DateTime  @updatedAt
 
-  creadoEn    DateTime @default(now())
-  actualizadoEn DateTime  @updatedAt
+  sensores       SensorLectura[]
+  movimientos    MovimientoInventario[]
+  pedidos        PedidoInventario[]
+  empresa        Empresa   @relation(fields: [empresaId], references: [id])
+  proveedor      Proveedor? @relation(fields: [proveedorId], references: [id])
 
-  sensores  SensorLectura[]
-  movimientos MovimientoInventario[]
-  pedidos     PedidoInventario[]
-  empresa     Empresa  @relation(fields: [empresaId], references: [id])
-  proveedor   Proveedor?             @relation(fields: [proveedorId], references: [id])
+  codigoBarras   String?   @unique
+  rfid           String?   @unique
+  ubicacion      String?
+  temperaturaOptima Float?
+  humedadOptima    Float?
 
-  codigoBarras   String?   @unique  // para lectores de código de barras
-  rfid           String?   @unique  // para sensores RFID
-  ubicacion      String?            // para saber dónde está dentro del almacén
-  temperaturaOptima Float?          // si requiere frío o cuidado especial
-  humedadOptima    Float?           // si es sensible a humedad
-
-  // integraciones ERP / IA
-  sku            String? @unique
-  categoria      String?            // para filtros y dashboards
+  sku            String?   @unique
+  categoria      String?
 
   @@index([empresaId, categoria])
 }
 
-enum UnidadMedida {
-  PIEZA
-  KG
-  LITRO
-  CAJA
-  OTRO
-}
-
 model MovimientoInventario {
-  id         Int      @id @default(autoincrement())
-  tipo       TipoMovimiento
-  cantidad   Int
-  
-  productoId Int
-  fecha      DateTime @default(now())
-  motivo     String?
+  id          Int           @id @default(autoincrement())
+  tipo        TipoMovimiento
+  cantidad    Int
+  productoId  Int
+  empresaId   Int
+  fecha       DateTime      @default(now())
+  motivo      String?
+  descripcion String?
+  createdAt   DateTime      @default(now())
 
-  producto   Producto @relation(fields: [productoId], references: [id])
+  producto    Producto       @relation(fields: [productoId], references: [id])
+  empresa     Empresa        @relation(fields: [empresaId], references: [id])
 }
 
 enum TipoMovimiento {
@@ -100,30 +96,29 @@ enum TipoMovimiento {
 }
 
 model Proveedor {
-  id        Int     @id @default(autoincrement())
-  nombre    String
-  email     String?
-  telefono  String?
-  empresaId Int
+  id         Int        @id @default(autoincrement())
+  nombre     String
+  email      String?
+  telefono   String?
+  empresaId  Int
 
-
-  empresa   Empresa @relation(fields: [empresaId], references: [id])
-  productos Producto[]
-  pedidos   PedidoInventario[]
+  empresa    Empresa     @relation(fields: [empresaId], references: [id])
+  productos  Producto[]
+  pedidos    PedidoInventario[]
 }
 
 model PedidoInventario {
-  id          Int      @id @default(autoincrement())
-  productoId  Int
-  proveedorId Int
-  cantidad    Int
-  fechaPedido DateTime @default(now())
-  estado      EstadoPedido   @default(PENDIENTE) // pendiente, enviado, recibido
-  empresaId   Int
+  id           Int           @id @default(autoincrement())
+  productoId   Int
+  proveedorId  Int
+  cantidad     Int
+  fechaPedido  DateTime       @default(now())
+  estado       EstadoPedido   @default(PENDIENTE)
+  empresaId    Int
 
-  producto  Producto  @relation(fields: [productoId], references: [id])
-  proveedor Proveedor @relation(fields: [proveedorId], references: [id])
-  empresa   Empresa   @relation(fields: [empresaId], references: [id])
+  producto     Producto       @relation(fields: [productoId], references: [id])
+  proveedor    Proveedor      @relation(fields: [proveedorId], references: [id])
+  empresa      Empresa        @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId, estado])
 }
@@ -131,22 +126,21 @@ model PedidoInventario {
 enum EstadoPedido {
   PENDIENTE
   ENVIADO
-  RECIBIDO 
+  RECIBIDO
 }
 
 model SensorLectura {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   tipo        SensorTipo
   valor       Float
   unidad      String
   productoId  Int?
+  fecha       DateTime    @default(now())
 
-  producto    Producto? @relation(fields: [productoId], references: [id])
-  fecha       DateTime @default(now())
+  producto    Producto?   @relation(fields: [productoId], references: [id])
 
-  @@index([productoId, tipo]) 
-  @@index([productoId, fecha]) //Para grafica
-
+  @@index([productoId, tipo])
+  @@index([productoId, fecha])
 }
 
 enum SensorTipo {

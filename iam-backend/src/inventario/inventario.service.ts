@@ -13,7 +13,7 @@ export class InventarioService {
 
     const totalProductos = productos.length;
     const totalUnidades = productos.reduce((acc, p) => acc + p.stock, 0);
-    const valorTotal = productos.reduce((acc, p) => acc + (p.precio * p.stock), 0);
+    const valorTotal = productos.reduce((acc, p) => acc + (p.precioVenta * p.stock), 0);
 
     const movimientos = await this.prisma.movimientoInventario.findMany({
       where: { producto: { empresaId } },

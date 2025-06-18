@@ -1,4 +1,5 @@
-import { IsInt, IsEnum, Min, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsEnum, Min, IsOptional, IsString, IsNumber } from 'class-validator';
 
 export enum TipoMovimiento {
   ENTRADA = 'ENTRADA',
@@ -6,6 +7,7 @@ export enum TipoMovimiento {
 }
 
 export class CrearMovimientoDto {
+  
   @IsInt()
   productoId: number;
 
@@ -15,6 +17,10 @@ export class CrearMovimientoDto {
   @IsInt()
   @Min(1)
   cantidad: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  empresaId: number;
 
   @IsOptional()
   @IsString()

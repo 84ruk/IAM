@@ -8,10 +8,11 @@ export class ProductoService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateProductoDto, empresaId: number) {
+  // Elimina cualquier empresaId que venga en el dto por seguridad
   return this.prisma.producto.create({
     data: {
       ...dto,
-      empresaId, //Envio desde JWT
+      empresaId,
     },
   });
 }

@@ -1,25 +1,77 @@
-import { UnidadMedida } from '@prisma/client';
-import { IsString, IsOptional, IsNumber, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  Min,
+  IsEnum,
+} from 'class-validator'
+import { Type } from 'class-transformer'
 
 export class CreateProductoDto {
   @IsString()
-  nombre: string;
+  @IsNotEmpty()
+  nombre: string
 
   @IsOptional()
   @IsString()
-  descripcion?: string;
+  descripcion?: string
 
+  @Type(() => Number)
   @IsNumber()
-  precio: number;
+  @Min(0)
+  precioCompra: number
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  precioVenta: number
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
-  stock?: number;
+  @Min(0)
+  stock?: number
 
+  @IsOptional()
+  @Type(() => Number)
   @IsNumber()
-  empresaId: number;
+  @Min(0)
+  stockMinimo?: number
 
-  @IsEnum(UnidadMedida)
-  unidad: UnidadMedida;
-  
+  @IsString()
+  @IsNotEmpty()
+  @IsEnum(['UNIDAD', 'KILO', 'LITRO', 'CAJA', 'PAQUETE'])
+  unidad: string
+
+  @IsOptional()
+  @IsString()
+  categoria?: string
+
+  @IsOptional()
+  @IsString()
+  codigoBarras?: string
+
+  @IsOptional()
+  @IsString()
+  rfid?: string
+
+  @IsOptional()
+  @IsString()
+  ubicacion?: string
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  temperaturaOptima?: number
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  humedadOptima?: number
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  proveedorId?: number
 }
