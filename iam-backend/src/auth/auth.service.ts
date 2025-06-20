@@ -42,9 +42,7 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException('El correo proporcionado no está registrado');
     }
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
+    return this.jwtService.sign(payload);
   }
 
 
@@ -83,7 +81,6 @@ export class AuthService {
 
   async getCurrentUser(res: any) {
     const token = res?.cookies?.jwt;
-    console.log('Token recibido:', res)
       
 
     if (!token) {

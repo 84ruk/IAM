@@ -14,4 +14,5 @@ export const useUser = () =>
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     refreshInterval: 0, 
+    dedupingInterval: 60000, // 1 minuto
   })

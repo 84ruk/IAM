@@ -9,7 +9,9 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
-  @Get('kpis')
+  @Get('kpis') //POR ALGUNA EXTRAÑA RAZON SIEMPRE MARCA UNAUTHORIZED
+  // Asegúrate de que el guardia JWT esté configurado correctamente
+
   getKpis(@CurrentUser() user: JwtUser) {
     return this.dashboardService.getKpis(user.empresaId);
   }

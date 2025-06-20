@@ -17,7 +17,6 @@ export default function LoginForm() {
 
     try {
       const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
-      console.log('URL de respuesta:', url);
       const res = await fetch(url , {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -25,8 +24,7 @@ export default function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
      
-      console.log('URL de respuesta:', url);
-      console.log( res);
+      
       if (!res.ok) throw new Error('Credenciales incorrectas');
       router.push('/dashboard');
     } catch (err: any) {

@@ -5,13 +5,16 @@ import {
   Res,
   HttpCode,
   Get,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterEmpresaDto } from './dto/register-empresa.dto';
-import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtUser } from './interfaces/jwt-user.interface';
+import { AuthGuard } from '@nestjs/passport';
+import { CurrentUser } from './decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -35,7 +38,7 @@ export class AuthController {
     };
     res.cookie('jwt', token, cookieOptions);
  
-    return { message: 'Login exitoso', token }; //QUITAR TOKEN
+    return { message: 'Login exitoso', token }; //QUITAR TOKEN por que se va al front
   }
 
   @Post('logout')
@@ -56,9 +59,11 @@ export class AuthController {
     return this.authService.registerEmpresa(dto);
   }
 
+
+  @UseGuards(AuthGuard('jwt'))
   @Get('me')
   @HttpCode(200)
-  getMe(@CurrentUser() user: JwtUser) {
-    return user;
+  async getMe(@CurrentUser() user: JwtUser) {
+    return user; // El usuario ya está validado por el guardia JWT
   }
 }
