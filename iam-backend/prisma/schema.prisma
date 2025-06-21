@@ -20,7 +20,7 @@ model Empresa {
   productos     Producto[]
   proveedores   Proveedor[]
   pedidos       PedidoInventario[]
-  movimientos   MovimientoInventario[] // relación inversa
+  movimientos   MovimientoInventario[] 
 }
 
 model Usuario {
@@ -37,6 +37,7 @@ model Usuario {
 }
 
 enum Rol {
+  SUPERADMIN
   ADMIN
   EMPLEADO
   PROVEEDOR
@@ -54,8 +55,6 @@ model Producto {
   empresaId      Int
   proveedorId    Int?
 
-  creadoEn       DateTime  @default(now())
-  actualizadoEn  DateTime  @updatedAt
 
   sensores       SensorLectura[]
   movimientos    MovimientoInventario[]
@@ -66,11 +65,15 @@ model Producto {
   codigoBarras   String?   @unique
   rfid           String?   @unique
   ubicacion      String?
-  temperaturaOptima Float?
-  humedadOptima    Float?
-
   sku            String?   @unique
   categoria      String?
+ 
+ //Alimentos
+  temperaturaOptima Float?
+  humedadOptima    Float?
+ 
+  creadoEn       DateTime  @default(now())
+  actualizadoEn  DateTime  @updatedAt
 
   @@index([empresaId, categoria])
 }

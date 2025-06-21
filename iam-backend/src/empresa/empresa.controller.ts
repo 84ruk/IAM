@@ -16,7 +16,7 @@ export class EmpresaController {
  
   //PROBAR
   @Post()
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.SUPERADMIN)
   create(@Body() dto: CreateEmpresaDto) {
     return this.empresaService.create(dto);
   }

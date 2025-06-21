@@ -5,73 +5,81 @@ import {
   IsNumber,
   Min,
   IsEnum,
-} from 'class-validator'
-import { Type } from 'class-transformer'
+  IsIn,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateProductoDto {
-  @IsString()
-  @IsNotEmpty()
-  nombre: string
+  @IsString({ message: 'nombre debe ser un texto' })
+  @IsNotEmpty({ message: 'nombre es requerido' })
+  nombre: string;
 
   @IsOptional()
-  @IsString()
-  descripcion?: string
+  @IsString({ message: 'descripcion debe ser un texto' })
+  descripcion?: string;
 
   @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  precioCompra: number
+  @IsNumber({}, { message: 'precioCompra debe ser un número' })
+  @Min(0, { message: 'precioCompra no puede ser negativo' })
+  precioCompra: number;
 
   @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  precioVenta: number
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  stock?: number
+  @IsNumber({}, { message: 'precioVenta debe ser un número' })
+  @Min(0, { message: 'precioVenta no puede ser negativo' })
+  precioVenta: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  stockMinimo?: number
-
-  @IsString()
-  @IsNotEmpty()
-  @IsEnum(['UNIDAD', 'KILO', 'LITRO', 'CAJA', 'PAQUETE'])
-  unidad: string
-
-  @IsOptional()
-  @IsString()
-  categoria?: string
-
-  @IsOptional()
-  @IsString()
-  codigoBarras?: string
-
-  @IsOptional()
-  @IsString()
-  rfid?: string
-
-  @IsOptional()
-  @IsString()
-  ubicacion?: string
+  @IsNumber({}, { message: 'stock debe ser un número' })
+  @Min(0, { message: 'stock no puede ser negativo' })
+  stock?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
-  temperaturaOptima?: number
+  @IsNumber({}, { message: 'stockMinimo debe ser un número' })
+  @Min(0, { message: 'stockMinimo no puede ser negativo' })
+  stockMinimo?: number;
+
+  @IsString({ message: 'unidad debe ser un texto' })
+  @IsNotEmpty({ message: 'unidad es requerida' })
+  @IsIn(['UNIDAD', 'KILO', 'LITRO', 'CAJA', 'PAQUETE'], {
+    message: 'unidad debe ser UNIDAD, KILO, LITRO, CAJA o PAQUETE',
+  })
+  unidad: string;
+
+  @IsOptional()
+  @IsString({ message: 'categoria debe ser un texto' })
+  categoria?: string;
+
+  @IsOptional()
+  @IsString({ message: 'codigoBarras debe ser un texto' })
+  codigoBarras?: string;
+
+  @IsOptional()
+  @IsString({ message: 'rfid debe ser un texto' })
+  rfid?: string;
+
+  @IsOptional()
+  @IsString({ message: 'ubicacion debe ser un texto' })
+  ubicacion?: string;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
-  humedadOptima?: number
+  @IsNumber({}, { message: 'temperaturaOptima debe ser un número' })
+  temperaturaOptima?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
-  proveedorId?: number
+  @IsNumber({}, { message: 'humedadOptima debe ser un número' })
+  humedadOptima?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'proveedorId debe ser un número' })
+  proveedorId?: number;
+
+  @IsOptional()
+  @IsString({ message: 'sku debe ser un texto' })
+  sku?: string;
+  
 }

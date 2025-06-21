@@ -31,11 +31,13 @@ export default function DashboardPage() {
 
   if (userLoading || kpisLoading) {
     // ... loading UI ...
+    return <div className="p-4 text-gray-500">Cargando...</div>
   }
 
   if (error) {
     return <div className="p-4 text-red-500">Error al cargar los datos.</div>
   }
+  
 
   // ... resto del componente ...
 }

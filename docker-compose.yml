@@ -42,6 +42,7 @@ services:
       DATABASE_URL: postgres://myuser:mypassword@db:5432/inventario_iam
       JWT_SECRET: supersecreto123
       PORT: 3001
+      FRONTEND_URL: http://localhost:3000ççç
     depends_on:
       - db
 

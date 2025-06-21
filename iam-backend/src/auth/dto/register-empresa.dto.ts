@@ -1,5 +1,5 @@
 // auth/dto/register-empresa.dto.ts
-import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, isString, MinLength } from 'class-validator';
 
 export class RegisterEmpresaDto {
   @IsNotEmpty()
@@ -7,6 +7,9 @@ export class RegisterEmpresaDto {
 
   @IsEmail()
   email: string;
+
+  @IsString()
+  industria: string;
 
   @IsNotEmpty()
   nombreUsuario: string;

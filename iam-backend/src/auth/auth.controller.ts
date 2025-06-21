@@ -15,6 +15,9 @@ import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { JwtUser } from './interfaces/jwt-user.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { Roles } from './decorators/roles.decorator';
+import { RolesGuard } from './guards/roles.guard';
+
 
 @Controller('auth')
 export class AuthController {
@@ -53,6 +56,8 @@ export class AuthController {
     return { message: 'Sesión cerrada' };
   }
 
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
   @Post('register-empresa')
   @HttpCode(201)
   async registerEmpresa(@Body() dto: RegisterEmpresaDto) {
