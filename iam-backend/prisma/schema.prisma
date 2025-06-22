@@ -7,6 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum TipoIndustria {
+  GENERICA
+  ROPA
+  ALIMENTOS
+  ELECTRONICA
+  FARMACIA
+}
+
 model Empresa {
   id            Int       @id @default(autoincrement())
   nombre        String
@@ -15,6 +23,7 @@ model Empresa {
   direccion     String?
   fechaCreacion DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  TipoIndustria   TipoIndustria   @default(GENERICA)
 
   usuarios      Usuario[]
   productos     Producto[]
@@ -43,6 +52,21 @@ enum Rol {
   PROVEEDOR
 }
 
+
+enum TipoProducto {
+  GENERICO
+  ROPA
+  ALIMENTO
+  ELECTRONICO
+}
+enum UnidadMedida {
+  UNIDAD
+  KILO
+  LITRO
+  CAJA
+  PAQUETE
+}
+
 model Producto {
   id             Int       @id @default(autoincrement())
   nombre         String
@@ -51,9 +75,10 @@ model Producto {
   precioVenta     Float    
   stockMinimo    Int       @default(10)
   stock          Int       @default(0)
-  unidad         String
+  unidad         UnidadMedida   @default(UNIDAD)
   empresaId      Int
   proveedorId    Int?
+  tipoProducto    TipoProducto    @default(GENERICO)
 
 
   sensores       SensorLectura[]
@@ -62,12 +87,21 @@ model Producto {
   empresa        Empresa   @relation(fields: [empresaId], references: [id])
   proveedor      Proveedor? @relation(fields: [proveedorId], references: [id])
 
+
+//Avanzados
   codigoBarras   String?   @unique
   rfid           String?   @unique
   ubicacion      String?
   sku            String?   @unique
   categoria      String?
  
+
+
+
+  //Solo para ropa
+  talla           String?
+  color           String?
+
  //Alimentos
   temperaturaOptima Float?
   humedadOptima    Float?

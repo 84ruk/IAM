@@ -71,7 +71,7 @@ export class AuthService {
         nombre: dto.nombreUsuario,
         email: dto.email,
         password: hashedPassword,
-        rol: 'ADMIN',
+        rol: 'SUPERADMIN',
         empresaId: empresa.id,
       },
     });

@@ -56,8 +56,6 @@ export class AuthController {
     return { message: 'Sesión cerrada' };
   }
 
-  @Roles('ADMIN')
-  @UseGuards(RolesGuard)
   @Post('register-empresa')
   @HttpCode(201)
   async registerEmpresa(@Body() dto: RegisterEmpresaDto) {

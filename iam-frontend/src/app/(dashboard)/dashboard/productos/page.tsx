@@ -13,9 +13,13 @@ export default function ProductosPage() {
   const { data: productos, isLoading, error } = useSWR('/productos', fetcher)
   const [filtro, setFiltro] = useState('')
 
-  const productosFiltrados = productos?.filter((p: any) =>
-    p.nombre.toLowerCase().includes(filtro.toLowerCase())
-  )
+const productosFiltrados =
+  Array.isArray(productos) && productos.length > 0
+    ? productos.filter((p: any) =>
+        p.nombre.toLowerCase().includes(filtro.toLowerCase())
+      )
+    : []
+
 
   return (
     <div className="p-6">
@@ -57,27 +61,35 @@ export default function ProductosPage() {
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody>
-              {productosFiltrados?.map((producto: any) => (
-                <tr key={producto.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2">{producto.nombre}</td>
-                  <td className="px-4 py-2">{producto.stock}</td>
-                  <td className="px-4 py-2">${producto.precioCompra.toFixed(2)}</td>
-                  <td className="px-4 py-2">${producto.precioVenta.toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">
-                    <button className="text-sm text-[#8E94F2] hover:underline">Editar</button>
-                    <button className="ml-2 text-sm text-red-500 hover:underline">Eliminar</button>
-                  </td>
-                </tr>
-              ))}
-              {productosFiltrados?.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-3 text-center text-gray-400">
-                    No se encontraron productos
-                  </td>
-                </tr>
-              )}
-            </tbody>
+              <tbody>
+                {productosFiltrados?.map((producto: any) => (
+                  <tr key={producto.id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-2">{producto.nombre}</td>
+                    <td className="px-4 py-2">{producto.stock}</td>
+                    <td className="px-4 py-2">${producto.precioCompra.toFixed(2)}</td>
+                    <td className="px-4 py-2">${producto.precioVenta.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right">
+                      <button className="text-sm text-[#8E94F2] hover:underline">Editar</button>
+                      <button className="ml-2 text-sm text-red-500 hover:underline">Eliminar</button>
+                    </td>
+                  </tr>
+                ))}
+                {productos && productos.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-3 text-center text-gray-500 italic">
+                      Aún no hay productos registrados. Comienza creando tu primer producto.
+                    </td>
+                  </tr>
+                )}
+                {productosFiltrados?.length === 0 && productos?.length > 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-3 text-center text-gray-400">
+                      No se encontraron productos con ese nombre.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+
           </table>
         </div>
       )}

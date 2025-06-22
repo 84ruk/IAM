@@ -132,10 +132,10 @@ export default function NuevoProductoPage() {
           </select>
         </div>
 
-        {renderInput('Categoría (opcional)', 'categoria')}
+        {renderInput('Categoría (opcional) Agregar Enum', 'categoria')}
         {renderInput('Código de barras (opcional)', 'codigoBarras')}
-        {renderInput('RFID', 'rfid')}
-        {renderInput('Ubicación Agregar Enum por empresas', 'ubicacion')}
+        {renderInput('RFID (opcional)', 'rfid')}
+        {renderInput('Ubicación (Opcional)Agregar Enum por empresas', 'ubicacion')}
 
         <div className="grid grid-cols-2 gap-4">
           {renderInput('Temperatura óptima (opcional)', 'temperaturaOptima', 'number')}

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:15
-    container_name: IAM
+    container_name: IAM_DB
     environment:
       POSTGRES_USER: myuser
       POSTGRES_PASSWORD: mypassword
@@ -14,29 +14,38 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   frontend:
+    container_name: iam-frontend
     build:
       context: ./iam-frontend
-      dockerfile: Dockerfile.dev
+    working_dir: /app
+    command: npm run dev
     volumes:
       - ./iam-frontend:/app
       - /app/node_modules
-    command: npm run dev
     ports:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
 
   backend:
+    container_name: iam-backend
     build:
       context: ./iam-backend
       dockerfile: Dockerfile.dev
+    working_dir: /app
+    command: npx prisma generate && npx prisma migrate dev --name init --skip-generate &&  npm run start:dev 
     volumes:
       - ./iam-backend:/app
       - /app/node_modules
+    ports:
+      - "3001:3001"
     environment:
       DATABASE_URL: postgres://myuser:mypassword@db:5432/inventario_iam
       JWT_SECRET: supersecreto123
       PORT: 3001
-    ports:
-      - "3001:3001"
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      - db
 
+volumes:
+  pgdata:

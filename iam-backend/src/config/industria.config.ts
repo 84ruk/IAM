@@ -1,7 +1,7 @@
 import { CreateProductoDto } from "src/producto/dto/create-producto.dto"
 
 
-export type IndustriaKey = 'ALIMENTOS' | 'ROPA' | 'ELECTRÓNICA' | 'OTRO'
+export type IndustriaKey = 'ALIMENTOS' | 'ROPA' | 'ELECTRÓNICA' | 'GENERICA'
 
 type CampoProducto = keyof CreateProductoDto
 
@@ -27,8 +27,8 @@ export const INDUSTRIAS: Record<IndustriaKey, IndustriaConfig> = {
     label: 'Electrónica',
     camposRelevantes: ['sku', 'codigoBarras', 'rfid'],
   },
-  OTRO: {
-    label: 'Otro',
-    camposRelevantes: ['descripcion'],
+  GENERICA: {
+    label: 'GENERICA',
+    camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion', 'talla', 'color', 'categoria', 'sku', 'codigoBarras', 'rfid' ],
   },
 }

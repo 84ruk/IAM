@@ -1,16 +1,23 @@
+# Imagen base
 FROM node:20-alpine
 
+# Establece el directorio de trabajo
 WORKDIR /app
 
+# Copia archivos de dependencias
 COPY package*.json ./
-COPY prisma ./prisma
 
-RUN npm install -g @nestjs/cli && \
-    npm install && \
-    npx prisma generate
+# Instala TODAS las dependencias (incluyendo las de desarrollo)
+RUN npm install
 
+# Copia todo el código fuente
 COPY . .
 
+# Genera el cliente Prisma
+RUN npx prisma generate
+
+# Expone el puerto del backend (NestJS dev server)
 EXPOSE 3001
 
-CMD ["npm", "run", "start:docker"]
+# Comando de desarrollo con ts-node
+CMD ["npm", "run", "start:dev"]

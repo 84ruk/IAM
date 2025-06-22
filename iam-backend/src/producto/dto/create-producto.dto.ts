@@ -8,15 +8,21 @@ import {
   IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { TipoProducto, UnidadMedida } from "@prisma/client";
 
 export class CreateProductoDto {
   @IsString({ message: 'nombre debe ser un texto' })
   @IsNotEmpty({ message: 'nombre es requerido' })
   nombre: string;
-
+  
   @IsOptional()
   @IsString({ message: 'descripcion debe ser un texto' })
   descripcion?: string;
+  
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'proveedorId debe ser un número' })
+  proveedorId?: number;
 
   @Type(() => Number)
   @IsNumber({}, { message: 'precioCompra debe ser un número' })
@@ -42,10 +48,10 @@ export class CreateProductoDto {
 
   @IsString({ message: 'unidad debe ser un texto' })
   @IsNotEmpty({ message: 'unidad es requerida' })
-  @IsIn(['UNIDAD', 'KILO', 'LITRO', 'CAJA', 'PAQUETE'], {
+  @IsEnum(UnidadMedida, {
     message: 'unidad debe ser UNIDAD, KILO, LITRO, CAJA o PAQUETE',
   })
-  unidad: string;
+  unidad: UnidadMedida;
 
   @IsOptional()
   @IsString({ message: 'categoria debe ser un texto' })
@@ -73,13 +79,21 @@ export class CreateProductoDto {
   @IsNumber({}, { message: 'humedadOptima debe ser un número' })
   humedadOptima?: number;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber({}, { message: 'proveedorId debe ser un número' })
-  proveedorId?: number;
 
   @IsOptional()
   @IsString({ message: 'sku debe ser un texto' })
   sku?: string;
   
+  @IsOptional()
+  @IsString({ message: 'talla debe ser un texto' })
+  talla?: string;
+
+  @IsOptional()
+  @IsString({ message: 'color debe ser un texto' })
+  color?: string;
+
+  @IsOptional()
+  @IsEnum(TipoProducto, { message: 'categoria debe ser GENERICO, ROPA, ALIMENTO o ELECTRONICO' })
+  tipoProducto?: TipoProducto;
+
 }

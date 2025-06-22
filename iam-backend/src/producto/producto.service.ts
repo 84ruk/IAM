@@ -25,6 +25,9 @@ export class ProductoService {
       ...dto,
       empresaId,
       proveedorId: dto.proveedorId || null, 
+      codigoBarras: dto.codigoBarras?.trim() || null,
+      rfid: dto.rfid?.trim() || null,
+      sku: dto.sku?.trim() || null,
     };
 
     return this.prisma.producto.create({
