@@ -11,6 +11,7 @@ interface JwtUserPayload {
   email: string;
   rol: string;
   empresaId: number;
+  tipoIndustria?: string; 
 } 
 
 @Injectable()
@@ -32,16 +33,31 @@ export class AuthService {
   }
 
   async login(user: JwtUserPayload) {
+
+    if (!user) {
+      throw new NotFoundException('El correo proporcionado no está registrado');
+    }
+    if (!user.empresaId) {
+      throw new BadRequestException('El usuario no está vinculado a una empresa');
+    }
+    if (!user.rol) {
+      throw new BadRequestException('El usuario no tiene un rol asignado');
+    }
+
+    const empresa = await this.prisma.empresa.findUnique({
+      where: { id: user.empresaId },
+      select: { TipoIndustria: true },
+    });
+
     const payload = {
       sub: user.id,
       email: user.email,
       rol: user.rol,
       empresaId: user.empresaId,
+      tipoIndustria: empresa?.TipoIndustria || 'GENERICA', 
     };
 
-    if (!user) {
-      throw new NotFoundException('El correo proporcionado no está registrado');
-    }
+    
     return this.jwtService.sign(payload);
   }
 

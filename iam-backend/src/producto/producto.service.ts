@@ -16,6 +16,13 @@ export class ProductoService {
         },
       });
 
+/* if (dto.tipoProducto === 'ALIMENTO') {
+if (dto.temperaturaOptima === undefined || dto.humedadOptima === undefined) {
+throw new BadRequestException('Los alimentos deben tener temperatura y humedad óptimas.')
+}
+} */
+
+
       if (!proveedor) {
         throw new BadRequestException('El proveedor no existe o no pertenece a tu empresa');
       }

@@ -1,68 +1,47 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CrearMovimientoDto, TipoMovimiento } from './dto/crear-movimiento.dto';
+import { CrearMovimientoDto } from './dto/crear-movimiento.dto';
+import { TipoMovimiento } from '@prisma/client';
 
 @Injectable()
 export class MovimientoService {
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: CrearMovimientoDto) {
-    const producto = await this.prisma.producto.findUnique({
-      where: { id: dto.productoId },
-    });
 
-    if (!producto) throw new NotFoundException('Producto no encontrado');
+    async registrar(dto: CrearMovimientoDto, empresaId: number) {
+    return this.prisma.$transaction(async (tx) => {
+      const producto = await tx.producto.findFirst({
+        where: { id: dto.productoId, empresaId },
+      });
 
-    // actualizar stock según tipo
-    const nuevoStock =
-      dto.tipo === 'ENTRADA'
-        ? producto.stock + dto.cantidad
-        : producto.stock - dto.cantidad;
+      if (!producto) throw new NotFoundException('Producto no encontrado');
 
-    if (nuevoStock < 0) throw new Error('Stock insuficiente');
+      if (dto.tipo === TipoMovimiento.SALIDA && producto.stock < dto.cantidad) {
+        throw new BadRequestException('Stock insuficiente para realizar la salida');
+      }
 
-    return this.prisma.$transaction([
-      this.prisma.movimientoInventario.create({ data: dto }),
-      this.prisma.producto.update({
-        where: { id: dto.productoId },
+      const nuevoStock =
+        dto.tipo === TipoMovimiento.ENTRADA
+          ? producto.stock + dto.cantidad
+          : producto.stock - dto.cantidad;
+
+      await tx.producto.update({
+        where: { id: producto.id },
         data: { stock: nuevoStock },
-      }),
-    ]);
-  }
+      });
 
-  async registrar(dto: CrearMovimientoDto, empresaId: number) {
-    const producto = await this.prisma.producto.findFirst({
-      where: { id: dto.productoId, empresaId },
-    });
+      const data = {
+        ...dto,
+        empresaId,
+      };
 
-    if (!producto) throw new NotFoundException('Producto no encontrado');
-
-    if (dto.tipo === TipoMovimiento.SALIDA && producto.stock < dto.cantidad) {
-      throw new BadRequestException('Stock insuficiente para realizar la salida');
-    }
-
-    const nuevoStock =
-      dto.tipo === TipoMovimiento.ENTRADA
-        ? producto.stock + dto.cantidad
-        : producto.stock - dto.cantidad;
-
-    await this.prisma.producto.update({
-      where: { id: producto.id },
-      data: { stock: nuevoStock },
-    });
-
-    return this.prisma.movimientoInventario.create({
-      data: {
-        productoId: dto.productoId,
-        tipo: dto.tipo,
-        cantidad: dto.cantidad,
-        motivo: dto.motivo,
-        empresaId: dto.empresaId,
-      },
+      return tx.movimientoInventario.create({
+        data
+      });
     });
   }
 
-    async obtenerPorProducto(productoId: number, empresaId: number) {
+  async obtenerPorProducto(productoId: number, empresaId: number) {
     const producto = await this.prisma.producto.findFirst({
       where: { id: productoId, empresaId },
     });
@@ -74,9 +53,26 @@ export class MovimientoService {
     });
   }
 
-  findAll() {
-    return this.prisma.movimientoInventario.findMany({
-      include: { producto: true },
-    });
-  }
+    async findAll(empresaId: number, tipo?: TipoMovimiento) {
+      return this.prisma.movimientoInventario.findMany({
+        where: {
+          empresaId,
+          ...(tipo && { tipo }), // solo si se filtra
+        },
+        include: {
+          producto: {
+            select: {
+              nombre: true,
+            },
+          },
+        },
+        orderBy: {
+          fecha: 'desc',
+        },
+      });
+    }
+
+
+
+
 }

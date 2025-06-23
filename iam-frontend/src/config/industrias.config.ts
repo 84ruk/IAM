@@ -1,10 +1,17 @@
-import { TipoIndustria } from "@prisma/client"
-import { CreateProductoDto } from "src/producto/dto/create-producto.dto"
+// src/config/industrias.config.ts
 
+export type TipoIndustria = 'ALIMENTOS' | 'ROPA' | 'ELECTRONICA' | 'GENERICA' | 'FARMACIA'
 
-  
-
-type CampoProducto = keyof CreateProductoDto
+type CampoProducto = 
+  | 'temperaturaOptima'
+  | 'humedadOptima'
+  | 'ubicacion'
+  | 'talla'
+  | 'color'
+  | 'categoria'
+  | 'sku'
+  | 'codigoBarras'
+  | 'rfid'
 
 export interface IndustriaConfig {
   label: string
@@ -30,7 +37,11 @@ export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
   },
   GENERICA: {
     label: 'GENERICA',
-    camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion', 'talla', 'color', 'categoria', 'sku', 'codigoBarras', 'rfid' ],
+    camposRelevantes: [
+      'temperaturaOptima', 'humedadOptima', 'ubicacion',
+      'talla', 'color', 'categoria',
+      'sku', 'codigoBarras', 'rfid'
+    ],
   },
   FARMACIA: {
     label: 'Farmacia',

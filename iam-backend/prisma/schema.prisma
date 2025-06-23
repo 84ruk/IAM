@@ -112,6 +112,7 @@ model Producto {
   @@index([empresaId, categoria])
 }
 
+
 model MovimientoInventario {
   id          Int           @id @default(autoincrement())
   tipo        TipoMovimiento

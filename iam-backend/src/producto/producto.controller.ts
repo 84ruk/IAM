@@ -38,9 +38,11 @@ export class ProductoController {
   }
 
   @Get()
-  async findAll(@CurrentUser() user: JwtUser) {
+  getAll(@CurrentUser() user: JwtUser) {
     return this.productoService.findAll(user.empresaId);
   }
+
+
 
   @Get(':id')
   async findOne(

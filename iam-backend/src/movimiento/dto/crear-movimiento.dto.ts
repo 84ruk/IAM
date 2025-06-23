@@ -1,28 +1,35 @@
+import {
+  IsEnum,
+  IsInt,
+  Min,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { TipoMovimiento } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsInt, IsEnum, Min, IsOptional, IsString, IsNumber } from 'class-validator';
-
-export enum TipoMovimiento {
-  ENTRADA = 'ENTRADA',
-  SALIDA = 'SALIDA',
-}
 
 export class CrearMovimientoDto {
-  
-  @IsInt()
-  productoId: number;
-
-  @IsEnum(TipoMovimiento)
+  @IsEnum(TipoMovimiento, {
+    message: 'tipo debe ser ENTRADA o SALIDA',
+  })
   tipo: TipoMovimiento;
 
-  @IsInt()
-  @Min(1)
+  @Type(() => Number)
+  @IsInt({ message: 'cantidad debe ser un número entero' })
+  @Min(1, { message: 'cantidad debe ser al menos 1' })
   cantidad: number;
 
   @Type(() => Number)
-  @IsNumber()
-  empresaId: number;
+  @IsInt({ message: 'productoId debe ser un número entero' })
+  @Min(1, { message: 'productoId no válido' })
+  productoId: number;
 
   @IsOptional()
-  @IsString()
+  @IsString({ message: 'motivo debe ser un texto' })
   motivo?: string;
+
+  @IsOptional()
+  @IsString({ message: 'descripcion debe ser un texto' })
+  descripcion?: string;
 }

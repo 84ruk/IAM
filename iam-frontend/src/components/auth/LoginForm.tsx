@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
+import { Input } from '../ui/Input';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -43,6 +43,7 @@ export default function LoginForm() {
         onChange={e => setEmail(e.target.value)}
         required
       />
+
       <Input
         label="Contraseña"
         name="password"
@@ -51,6 +52,7 @@ export default function LoginForm() {
         onChange={e => setPassword(e.target.value)}
         required
       />
+
       {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
       <Button type="submit">Iniciar sesión</Button>
       <div className="mt-4 text-center">
