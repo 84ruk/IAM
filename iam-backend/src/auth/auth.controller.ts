@@ -29,33 +29,48 @@ export class AuthController {
     @Body() dto: LoginDto, 
     @Res({ passthrough: true }) res: Response
   ) {
-    console.log('Login request received');
-
+    console.log('Login request received for email:', dto.email);
 
     const user = await this.authService.validateUser(dto.email, dto.password);
     const token = await this.authService.login(user);
 
+    console.log('Token generated successfully for user:', user.email);
 
-      const cookieOptions = {
+    // Configuración de la cookie según el entorno
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isLocalhost = process.env.NODE_ENV === 'development';
+    
+    const cookieOptions = {
       httpOnly: true,
-      sameSite: 'none' as const, // Permitir cross-domain
-      secure: true, // Siempre secure en producción
-      maxAge: 1000 * 60 * 60, // 1 hora
+      sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+      secure: isProduction, // true en producción, false en localhost
+      maxAge: 1000 * 60 * 60 * 24, // 24 horas en lugar de 1 hora
+      path: '/',
     };
+
+    console.log('Setting cookie with options:', cookieOptions);
     res.cookie('jwt', token, cookieOptions);
+    
+    console.log('Cookie set successfully');
  
-    return { message: 'Login exitoso', token }; //QUITAR TOKEN por que se va al front
+    return { message: 'Login exitoso' }; // Removido el token del body
   }
 
   @Post('logout')
   @HttpCode(200)
   logout(@Res({ passthrough: true }) res: Response) {
+    console.log('Logout request received');
 
+    const isProduction = process.env.NODE_ENV === 'production';
+    
     res.clearCookie('jwt', {
       httpOnly: true,
-      sameSite: 'none',
-      secure: true,
+      sameSite: isProduction ? 'none' : 'lax',
+      secure: isProduction,
+      path: '/',
     });
+    
+    console.log('Cookie cleared successfully');
     return { message: 'Sesión cerrada' };
   }
 
@@ -70,6 +85,7 @@ export class AuthController {
   @Get('me')
   @HttpCode(200)
   async getMe(@CurrentUser() user: JwtUser) {
+    console.log('Auth/me request received for user:', user.email);
     return user; // El usuario ya está validado por el guardia JWT
   }
 }
