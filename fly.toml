@@ -1,0 +1,49 @@
+# fly.toml app configuration file generated for iam-backend on 2025-06-27T18:20:00Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = "iam-backend"
+primary_region = "mad"
+
+[build]
+  dockerfile = "iam-backend/Dockerfile"
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health/database"
+
+[machine]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+[metrics]
+  port = 9091
+  path = "/metrics" 
