@@ -1,8 +1,11 @@
 import { requireAuth } from '@/lib/ssrAuth'
 import ProductoDetalleClient from './ProductoDetalleClient'
 
-export default async function DetalleProductoPage() {
+export const dynamic = 'force-dynamic'
+
+export default async function ProductoDetallePage() {
   const user = await requireAuth()
   if (!user) return null
+
   return <ProductoDetalleClient />
 } 
