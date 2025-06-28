@@ -3,7 +3,7 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 
 app = "iam-backend-baruk"
-primary_region = "mad"
+primary_region = "cdg"
 
 [build]
   dockerfile = "iam-backend/Dockerfile"
