@@ -39,15 +39,21 @@ export default function LoginForm() {
       await mutate();
       // Esperar a que el usuario esté autenticado
       let intentos = 0;
+      let autenticado = false;
       while (intentos < 10) {
         const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, { credentials: 'include' });
-        if (meRes.ok) break;
+        if (meRes.ok) {
+          autenticado = true;
+          break;
+        }
         await new Promise(resolve => setTimeout(resolve, 100));
         intentos++;
       }
-      
-      // Redirigir y recargar la página para asegurar que el contexto detecte la cookie
-      window.location.href = '/dashboard';
+      if (autenticado) {
+        router.push('/dashboard');
+      } else {
+        setError('No se pudo autenticar. Intenta nuevamente.');
+      }
       
     } catch (err: any) {
       setError(err.message);
