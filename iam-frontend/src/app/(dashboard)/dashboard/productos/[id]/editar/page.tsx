@@ -4,6 +4,7 @@ import EditarProductoClient from './EditarProductoClient'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default async function EditarProductoPage({ params }: { params: { id: string } }) {
-  return <EditarProductoClient id={params.id} />
+export default async function EditarProductoPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  return <EditarProductoClient id={id} />
 }

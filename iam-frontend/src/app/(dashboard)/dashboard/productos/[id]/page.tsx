@@ -4,6 +4,7 @@ import ProductoDetalleClient from './ProductoDetalleClient'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default async function ProductoDetallePage({ params }: { params: { id: string } }) {
-  return <ProductoDetalleClient id={params.id} />
+export default async function ProductoDetallePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  return <ProductoDetalleClient id={id} />
 } 
