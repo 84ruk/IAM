@@ -47,7 +47,7 @@ export class AuthController {
     
     res.cookie('jwt', token, cookieOptions);
     
-    console.log('Cookie set successfully with options:', cookieOptions);
+    console.log('Login successful');
  
     return { message: 'Login exitoso' };
   }
@@ -85,7 +85,6 @@ export class AuthController {
   @Get('me')
   @HttpCode(200)
   async getMe(@CurrentUser() user: JwtUser) {
-    console.log('Auth/me request received for user:', user.email);
     return user;
   }
 }
