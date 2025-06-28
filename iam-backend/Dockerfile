@@ -5,19 +5,19 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copia los archivos necesarios para instalar dependencias
-COPY package*.json ./
+COPY iam-backend/package*.json ./
 
 # Instala dependencias (sin las dev)
 RUN npm ci --only=production
 
 # Copia el esquema de Prisma antes de generar el cliente
-COPY prisma ./prisma
+COPY iam-backend/prisma ./prisma
 
 # Genera el cliente de Prisma
 RUN npx prisma generate
 
-# Copia el resto del código
-COPY . .
+# Copia el resto del código del backend
+COPY iam-backend/ .
 
 # Compila el código TypeScript
 RUN npm run build
