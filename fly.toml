@@ -1,8 +1,8 @@
-# fly.toml app configuration file generated for iam-backend on 2025-06-27T18:20:00Z
+# fly.toml app configuration file generated for iam-backend-baruk on 2025-06-27T18:20:00Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 
-app = "iam-backend"
+app = "iam-backend-baruk"
 primary_region = "mad"
 
 [build]
