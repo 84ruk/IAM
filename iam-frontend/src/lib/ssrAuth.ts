@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 
 export async function requireAuth() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const jwt = cookieStore.get('jwt')?.value
 
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
