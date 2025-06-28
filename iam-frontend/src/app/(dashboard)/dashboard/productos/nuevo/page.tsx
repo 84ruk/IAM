@@ -1,5 +1,3 @@
-'use client'
-
 import FormularioProducto from '@/components/productos/FormularioProducto'
 import { useRouter } from 'next/navigation'
 import { requireAuth } from '@/lib/ssrAuth'

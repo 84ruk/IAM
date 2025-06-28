@@ -1,7 +1,4 @@
 // src/app/dashboard/movimientos/nuevo/page.tsx
-'use client'
-
-import React, { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'

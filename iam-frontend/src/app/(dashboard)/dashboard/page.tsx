@@ -1,5 +1,3 @@
-'use client'
-
 import useSWR from 'swr'
 import { format } from 'date-fns'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ComposedChart, AreaChart, Area } from 'recharts'

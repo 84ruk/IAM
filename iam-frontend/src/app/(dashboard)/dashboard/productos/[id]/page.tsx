@@ -1,5 +1,3 @@
-'use client'
-
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2, Package, AlertTriangle, TrendingUp, DollarSign, Calendar, CheckCircle, XCircle, Tag, Eye } from 'lucide-react'

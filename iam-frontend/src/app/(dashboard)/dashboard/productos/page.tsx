@@ -1,7 +1,4 @@
 // dashboard/productos/page.tsx
-'use client'
-
-import useSWR from 'swr'
 import Link from 'next/link'
 import { useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'

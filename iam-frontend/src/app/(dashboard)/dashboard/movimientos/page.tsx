@@ -1,7 +1,4 @@
 // src/app/dashboard/movimientos/page.tsx
-'use client'
-
-import useSWR from 'swr'
 import { Movimiento, MovimientosResponse } from '@/types/movimiento'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
