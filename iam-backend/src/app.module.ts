@@ -11,10 +11,12 @@ import { PedidoModule } from './pedido/pedido.module';
 import { ProveedorModule } from './proveedor/proveedor.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SensoresModule } from './sensores/sensores.module';
+import { AdminModule } from './admin/admin.module';
+import { PrismaService } from './prisma/prisma.service';
 
 @Module({
-  imports: [AuthModule, UsersModule, EmpresaModule, ProductoModule, MovimientoModule, InventarioModule, PedidoModule, ProveedorModule, DashboardModule, SensoresModule],
+  imports: [AuthModule, UsersModule, EmpresaModule, ProductoModule, MovimientoModule, InventarioModule, PedidoModule, ProveedorModule, DashboardModule, SensoresModule, AdminModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}

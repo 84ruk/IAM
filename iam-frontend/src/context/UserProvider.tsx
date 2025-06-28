@@ -20,7 +20,6 @@ const UserContext = createContext<UserContextType>({
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const { data: user, isLoading, error, mutate } = useUser();
-  console.log('UserProvider user:', user, 'isLoading:', isLoading, 'error:', error)
 
   return (
     <UserContext.Provider value={{ user, isLoading, error, mutate }}>

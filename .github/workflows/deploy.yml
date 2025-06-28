@@ -1,0 +1,101 @@
+name: Deploy IAM System
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install Backend Dependencies
+      run: |
+        cd iam-backend
+        npm ci
+    
+    - name: Install Frontend Dependencies
+      run: |
+        cd iam-frontend
+        npm ci
+    
+    - name: Run Backend Tests
+      run: |
+        cd iam-backend
+        npm run test
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        JWT_SECRET: test_secret
+    
+    - name: Run Frontend Tests
+      run: |
+        cd iam-frontend
+        npm run test
+    
+    - name: Build Backend
+      run: |
+        cd iam-backend
+        npm run build
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        JWT_SECRET: test_secret
+    
+    - name: Build Frontend
+      run: |
+        cd iam-frontend
+        npm run build
+      env:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+
+  deploy-staging:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Aquí irían los comandos para desplegar en staging
+        # Por ejemplo, usando Railway, Heroku, o tu plataforma preferida
+
+  deploy-production:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Production
+      run: |
+        echo "Deploying to production environment..."
+        # Aquí irían los comandos para desplegar en producción
+        # Por ejemplo, usando Railway, Heroku, o tu plataforma preferida 

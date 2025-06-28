@@ -1,52 +1,58 @@
 version: '3.8'
 
 services:
-  db:
+  # Base de datos PostgreSQL
+  postgres:
     image: postgres:15
-    container_name: IAM_DB
+    container_name: iam_postgres
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: inventario_iam
-    ports:
-      - "5433:5432"
+      POSTGRES_DB: iam_db
+      POSTGRES_USER: iam_user
+      POSTGRES_PASSWORD: iam_password
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  frontend:
-    container_name: iam-frontend
-    build:
-      context: ./iam-frontend
-    working_dir: /app
-    command: npm run dev
-    volumes:
-      - ./iam-frontend:/app
-      - /app/node_modules
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      - "5432:5432"
+    networks:
+      - iam_network
 
+  # Backend NestJS
   backend:
-    container_name: iam-backend
     build:
       context: ./iam-backend
-      args:
-        DATABASE_URL: postgres://myuser:mypassword@db:5432/inventario_iam
-    working_dir: /app
-    command: ./wait-for.sh db:5432 -- sh -c "npx prisma migrate deploy && npm run start:dev"
-    volumes:
-      - ./iam-backend:/app
-      - /app/node_modules
+      dockerfile: Dockerfile
+    container_name: iam_backend
+    environment:
+      DATABASE_URL: postgresql://iam_user:iam_password@postgres:5432/iam_db
+      JWT_SECRET: your_jwt_secret_here
+      PORT: 3001
     ports:
       - "3001:3001"
-    environment:
-      DATABASE_URL: postgres://myuser:mypassword@db:5432/inventario_iam
-      JWT_SECRET: supersecreto123
-      PORT: 3001
-      FRONTEND_URL: http://localhost:3000
     depends_on:
-      - db
+      - postgres
+    networks:
+      - iam_network
+    restart: unless-stopped
+
+  # Frontend Next.js
+  frontend:
+    build:
+      context: ./iam-frontend
+      dockerfile: Dockerfile
+    container_name: iam_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - iam_network
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  postgres_data:
+
+networks:
+  iam_network:
+    driver: bridge

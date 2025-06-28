@@ -1,6 +1,6 @@
 export interface JwtUser {
   id: number;
   email: string;
-  rol: 'ADMIN' | 'EMPLEADO' | 'PROVEEDOR';
+  rol: 'SUPERADMIN' | 'ADMIN' | 'EMPLEADO' | 'PROVEEDOR';
   empresaId: number;
 }

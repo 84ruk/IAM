@@ -6,7 +6,7 @@ export type CampoProducto =
   | 'ubicacion'
   | 'talla'
   | 'color'
-  | 'categoria'
+  | 'etiqueta'
   | 'sku'
   | 'codigoBarras'
   | 'rfid'
@@ -27,7 +27,7 @@ export const INDUSTRIAS: Record<string, IndustriaConfig> = {
   },
   ROPA: {
     label: 'Ropa',
-    camposRelevantes: ['talla', 'color', 'categoria'],
+    camposRelevantes: ['talla', 'color', 'etiqueta'],
   },
   ELECTRÓNICA: {
     label: 'Electrónica',
@@ -41,7 +41,7 @@ export const INDUSTRIAS: Record<string, IndustriaConfig> = {
       'ubicacion',
       'talla',
       'color',
-      'categoria',
+      'etiqueta',
       'sku',
       'codigoBarras',
       'rfid',

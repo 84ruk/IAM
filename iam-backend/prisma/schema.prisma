@@ -67,6 +67,18 @@ enum UnidadMedida {
   PAQUETE
 }
 
+enum EstadoProducto {
+  ACTIVO
+  INACTIVO
+  ELIMINADO
+}
+
+enum EstadoProveedor {
+  ACTIVO
+  INACTIVO
+  ELIMINADO
+}
+
 model Producto {
   id             Int       @id @default(autoincrement())
   nombre         String
@@ -79,7 +91,7 @@ model Producto {
   empresaId      Int
   proveedorId    Int?
   tipoProducto    TipoProducto    @default(GENERICO)
-
+  estado          EstadoProducto  @default(ACTIVO)
 
   sensores       SensorLectura[]
   movimientos    MovimientoInventario[]
@@ -93,7 +105,7 @@ model Producto {
   rfid           String?   @unique
   ubicacion      String?
   sku            String?   @unique
-  categoria      String?
+  etiqueta       String?
  
 
 
@@ -109,7 +121,7 @@ model Producto {
   creadoEn       DateTime  @default(now())
   actualizadoEn  DateTime  @updatedAt
 
-  @@index([empresaId, categoria])
+  @@index([empresaId, etiqueta])
 }
 
 
@@ -122,6 +134,7 @@ model MovimientoInventario {
   fecha       DateTime      @default(now())
   motivo      String?
   descripcion String?
+  estado      EstadoMovimiento @default(ACTIVO)
   createdAt   DateTime      @default(now())
 
   producto    Producto       @relation(fields: [productoId], references: [id])
@@ -133,16 +146,25 @@ enum TipoMovimiento {
   SALIDA
 }
 
+enum EstadoMovimiento {
+  ACTIVO
+  ELIMINADO
+}
+
 model Proveedor {
   id         Int        @id @default(autoincrement())
   nombre     String
   email      String?
   telefono   String?
   empresaId  Int
+  estado     EstadoProveedor @default(ACTIVO)
 
   empresa    Empresa     @relation(fields: [empresaId], references: [id])
   productos  Producto[]
   pedidos    PedidoInventario[]
+
+  @@unique([empresaId, nombre])
+  @@unique([empresaId, email])
 }
 
 model PedidoInventario {

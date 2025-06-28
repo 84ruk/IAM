@@ -42,10 +42,5 @@ RUN npm install --omit=dev
 # Expone el puerto donde NestJS corre (por defecto 3001 en tu proyecto)
 EXPOSE 3001
 
-# Copia el script wait-for.sh
-COPY wait-for.sh /wait-for.sh
-RUN chmod +x /wait-for.sh
-
-
 # Comando para correr la app
 CMD ["node", "dist/main"]

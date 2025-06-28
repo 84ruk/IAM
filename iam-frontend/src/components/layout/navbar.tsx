@@ -2,9 +2,11 @@
 
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/lib/useUser'
-import { LogOut } from 'lucide-react'
+import { LogOut, Settings } from 'lucide-react'
+import Link from 'next/link'
 
 const ROL_MAP: Record<string, string> = {
+  SUPERADMIN: 'Super Administrador',
   ADMIN: 'Administrador',
   EMPLEADO: 'Empleado',
   PROVEEDOR: 'Proveedor',
@@ -23,6 +25,8 @@ export default function Navbar() {
     router.push('/login')
   }
 
+  const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN'
+
   return (
     <header className="w-full px-6 py-4 bg-white shadow-sm flex items-center justify-between border-b border-gray-100">
       <div>
@@ -35,13 +39,24 @@ export default function Navbar() {
       </div>
 
       {user && (
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-[#8E94F2] hover:bg-[#7278e0] transition rounded-xl"
-        >
-          <LogOut size={16} />
-          Cerrar sesión
-        </button>
+        <div className="flex items-center gap-3">
+          {isAdmin && (
+            <Link
+              href="/admin/users"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-[#8E94F2] bg-[#8E94F2]/10 hover:bg-[#8E94F2]/20 transition rounded-xl"
+            >
+              <Settings size={16} />
+              Administración
+            </Link>
+          )}
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-[#8E94F2] hover:bg-[#7278e0] transition rounded-xl"
+          >
+            <LogOut size={16} />
+            Cerrar sesión
+          </button>
+        </div>
       )}
     </header>
   )

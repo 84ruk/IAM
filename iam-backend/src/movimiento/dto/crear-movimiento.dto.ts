@@ -26,6 +26,12 @@ export class CrearMovimientoDto {
   productoId: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'proveedorId debe ser un número entero' })
+  @Min(1, { message: 'proveedorId no válido' })
+  proveedorId?: number;
+
+  @IsOptional()
   @IsString({ message: 'motivo debe ser un texto' })
   motivo?: string;
 

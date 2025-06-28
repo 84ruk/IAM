@@ -1,23 +1,26 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
-import { AuthGuard } from '@nestjs/passport';
-import { JwtUser } from 'src/auth/interfaces/jwt-user.interface';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Rol } from '@prisma/client';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { JwtUser } from 'src/auth/interfaces/jwt-user.interface';
 
-@UseGuards(AuthGuard('jwt'))
 @Controller('dashboard')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
-  @Get('kpis') //POR ALGUNA EXTRAÑA RAZON SIEMPRE MARCA UNAUTHORIZED
-  // Asegúrate de que el guardia JWT esté configurado correctamente
-
-  getKpis(@CurrentUser() user: JwtUser) {
+  @Get('kpis')
+  @Roles(Rol.ADMIN, Rol.EMPLEADO, Rol.SUPERADMIN)
+  async getKpis(@CurrentUser() user: JwtUser) {
     return this.dashboardService.getKpis(user.empresaId);
   }
 
-  @Get('stock-chart')
-  getStockChart(@CurrentUser() user: JwtUser) {
+  @Get('data')
+  @Roles(Rol.ADMIN, Rol.EMPLEADO, Rol.SUPERADMIN)
+  async getDashboardData(@CurrentUser() user: JwtUser) {
     return this.dashboardService.getDashboardData(user.empresaId);
   }
 }

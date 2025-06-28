@@ -1,37 +1,82 @@
-import { Controller, Post, Get, Put, Delete, Param, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Param, Body, UseGuards, Patch, ParseIntPipe } from '@nestjs/common';
 import { ProveedorService } from './proveedor.service';
 import { CrearProveedorDto } from './dto/crear-proveedor.dto';
 import { ActualizarProveedorDto } from './dto/actualizar-proveedor.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { JwtUser } from '../auth/interfaces/jwt-user.interface';
+import { Rol } from '@prisma/client';
 
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('proveedores')
 export class ProveedorController {
   constructor(private readonly proveedorService: ProveedorService) {}
 
   @Post()
-  crear(@Body() dto: CrearProveedorDto, @Req() req: any) {
-    const empresaId = req.user.empresaId;
-    return this.proveedorService.crear(dto, empresaId);
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  crear(@Body() dto: CrearProveedorDto, @CurrentUser() user: JwtUser) {
+    return this.proveedorService.crear(dto, user.empresaId);
   }
 
   @Get()
-  obtenerTodos(@Req() req: any) {
-    return this.proveedorService.obtenerTodos(req.user.empresaId);
+  obtenerTodos(@CurrentUser() user: JwtUser) {
+    return this.proveedorService.obtenerTodos(user.empresaId);
+  }
+
+  @Get('inactivos')
+  obtenerInactivos(@CurrentUser() user: JwtUser) {
+    return this.proveedorService.obtenerInactivos(user.empresaId);
+  }
+
+  @Get('eliminados')
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  obtenerEliminados(@CurrentUser() user: JwtUser) {
+    return this.proveedorService.obtenerEliminados(user.empresaId);
   }
 
   @Get(':id')
-  obtenerUno(@Param('id') id: string, @Req() req: any) {
-    return this.proveedorService.obtenerUno(Number(id), req.user.empresaId);
+  obtenerUno(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.proveedorService.obtenerUno(id, user.empresaId);
   }
 
   @Put(':id')
-  actualizar(@Param('id') id: string, @Body() dto: ActualizarProveedorDto, @Req() req: any) {
-    return this.proveedorService.actualizar(Number(id), dto, req.user.empresaId);
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  actualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarProveedorDto, @CurrentUser() user: JwtUser) {
+    return this.proveedorService.actualizar(id, dto, user.empresaId);
   }
 
+  @Patch(':id/desactivar')
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  desactivar(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.proveedorService.desactivar(id, user.empresaId);
+  }
+
+  @Patch(':id/reactivar')
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  reactivar(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.proveedorService.reactivar(id, user.empresaId);
+  }
+
+  // Endpoint para "eliminar" - soft delete
   @Delete(':id')
-  eliminar(@Param('id') id: string, @Req() req: any) {
-    return this.proveedorService.eliminar(Number(id), req.user.empresaId);
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  softDelete(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.proveedorService.softDelete(id, user.empresaId, user.rol);
+  }
+
+  // Endpoint para restaurar un proveedor eliminado
+  @Patch(':id/restaurar')
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  restaurar(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.proveedorService.restaurar(id, user.empresaId, user.rol);
+  }
+
+  // Endpoint para eliminar permanentemente
+  @Delete(':id/permanent')
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  eliminar(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtUser) {
+    return this.proveedorService.eliminar(id, user.empresaId, user.rol);
   }
 }

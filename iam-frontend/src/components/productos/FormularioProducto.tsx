@@ -8,13 +8,14 @@ import { INDUSTRIAS } from '@/config/industrias.config'
 import { useUserContext } from '@/context/UserProvider'
 
 import { FormErrorAlert } from '@/components/ui/FormErrorAlert'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Button from '../ui/Button'
 import { Input } from '../ui/Input'
 import Select from '../ui/Select'
 import { useParams, useRouter } from 'next/navigation'
-import { watch } from 'node:fs/promises'
 import { getErrorMessage } from '@/lib/form-utils'
+import { ChevronDownIcon, ChevronUpIcon, Package, DollarSign, Tag, Settings, Barcode } from 'lucide-react'
+import { TipoProductoConfig } from '@/types/enums'
 
 const UNIDADES = ['UNIDAD', 'KILO', 'LITRO', 'CAJA', 'PAQUETE']
 const TIPOS_PRODUCTO = ['GENERICO', 'ROPA', 'ALIMENTO', 'ELECTRONICO']
@@ -27,7 +28,7 @@ const baseSchema = z
     stock: z.coerce.number({ invalid_type_error: 'Debe ser un número válido' }).int({ message: 'Debe ser un número entero' }).nonnegative({ message: 'El stock no puede ser negativo' }),
     unidad: z.string().min(1, { message: 'La unidad es obligatoria' }),
     tipoProducto: z.string().min(1, { message: 'El tipo de producto es obligatorio' }),
-    proveedorId: z.string().optional(),
+    proveedorId: z.coerce.number({ invalid_type_error: 'Debe ser un número válido' }).optional(),
   })
 
 
@@ -48,15 +49,7 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
 
   const schema = baseSchema
   .extend(camposIndustria)
-  .refine(data => {
-    if (data.precioVenta < data.precioCompra * 1.1) {
-      return false
-    }
-    return true
-  }, {
-    message: 'El precio de venta debe ser al menos un 10% mayor que el precio de compra',
-    path: ['precioVenta'],
-  })
+ 
 
   const {
     register,
@@ -70,6 +63,9 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
 
   const [serverErrors, setServerErrors] = useState<string[]>([])
   const [proveedores, setProveedores] = useState<{ id: number, nombre: string }[]>([])
+  const [eliminandoProducto, setEliminandoProducto] = useState(false)
+  const [mostrarOpcionales, setMostrarOpcionales] = useState(false)
+  const [mostrarAvanzadas, setMostrarAvanzadas] = useState(false)
 
   useEffect(() => {
     const fetchProveedores = async () => {
@@ -98,6 +94,16 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
           Object.entries(data).forEach(([key, value]) => {
             setValue(key as any, value)
           })
+          
+          // Ajustar altura del textarea de descripción después de cargar datos
+          if (data.descripcion) {
+            setTimeout(() => {
+              const textarea = document.querySelector('textarea[name="descripcion"]') as HTMLTextAreaElement;
+              if (textarea) {
+                adjustTextareaHeight(textarea);
+              }
+            }, 150); // Aumentamos el timeout para asegurar que el DOM esté completamente renderizado
+          }
         }
       } catch (error) {
         console.error('Error cargando producto')
@@ -108,12 +114,28 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
 
   const onSubmit = async (values: any) => {
     setServerErrors([])
+    
+    // Limpiar valores vacíos antes de enviar
+    const cleanedValues = Object.fromEntries(
+      Object.entries(values).map(([key, value]) => {
+        // Si el valor es string vacío, null o undefined, no incluirlo
+        if (value === '' || value === null || value === undefined) {
+          return [key, undefined]
+        }
+        // Si es proveedorId y es 0 o string vacío, no incluirlo
+        if (key === 'proveedorId' && (value === 0 || value === '')) {
+          return [key, undefined]
+        }
+        return [key, value]
+      }).filter(([_, value]) => value !== undefined)
+    )
+    
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos${productoId ? `/${productoId}` : ''}`, {
-        method: productoId ? 'PUT' : 'POST',
+        method: productoId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(values),
+        body: JSON.stringify(cleanedValues),
       })
 
       const data = await res.json()
@@ -133,7 +155,77 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
     }
   }
 
-  const renderCampo = (campo: string, label: string, type: string = 'text', optional = true) => (
+  const eliminarProducto = async () => {
+    if (!productoId) return
+    
+    const confirmar = confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción lo ocultará del inventario pero podrás restaurarlo desde la papelera.')
+    if (!confirmar) return
+
+    try {
+      setEliminandoProducto(true)
+      setServerErrors([])
+      
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos/${productoId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      
+      if (!res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data.message)) {
+          setServerErrors(data.message)
+        } else if (typeof data.message === 'string') {
+          setServerErrors([data.message])
+        } else {
+          setServerErrors(['Error al eliminar el producto'])
+        }
+        return
+      }
+      
+      // Redirigir a la lista de productos después de eliminar
+      router.push('/dashboard/productos')
+    } catch (err: any) {
+      setServerErrors(['Error de conexión. Verifica tu conexión a internet.'])
+    } finally {
+      setEliminandoProducto(false)
+    }
+  }
+
+  // Función optimizada para ajustar altura del textarea (debounced)
+  const adjustTextareaHeight = useMemo(() => {
+    let timeoutId: NodeJS.Timeout
+    return (textarea: HTMLTextAreaElement) => {
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => {
+        textarea.style.height = 'auto'
+        textarea.style.height = Math.max(80, textarea.scrollHeight) + 'px'
+      }, 100) // Debounce de 100ms para evitar cálculos excesivos
+    }
+  }, [])
+
+  const renderCampo = (campo: string, label: string, type: string = 'text', optional = true) => {
+    // Caso especial para descripción - usar textarea
+    if (campo === 'descripcion') {
+      return (
+        <div key={campo} className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {label} {!optional && <span className="text-red-500">*</span>}
+          </label>
+          <textarea
+            {...register(campo)}
+            placeholder={label + (optional ? ' (opcional)' : '')}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent resize-none transition-all duration-200 min-h-[80px]"
+            style={{ minHeight: '80px' }}
+            onInput={(e) => adjustTextareaHeight(e.target as HTMLTextAreaElement)}
+          />
+          {typeof errors[campo]?.message === 'string' && (
+            <p className="mt-1 text-sm text-red-600">{errors[campo]?.message}</p>
+          )}
+        </div>
+      )
+    }
+
+    return (
     <Input
       key={campo}
       label={label}
@@ -144,64 +236,238 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
       type={type}
     />
   )
+  }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">{modo === 'editar' ? 'Editar producto' : 'Nuevo producto'}</h1>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-white p-6 rounded-lg shadow-md">
-  <FormErrorAlert errors={serverErrors} className="mb-4" />
+    <div className="p-6 max-w-4xl mx-auto">
+      {/* Header mejorado */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          {modo === 'editar' ? 'Editar producto' : 'Nuevo producto'}
+        </h1>
+        <p className="text-gray-600">
+          {modo === 'editar' 
+            ? 'Modifica la información del producto. Los campos marcados con * son obligatorios.'
+            : 'Completa la información del nuevo producto. Los campos marcados con * son obligatorios.'
+          }
+        </p>
+      </div>
 
-  {/*Sección: Datos obligatorios */}
-  <div>
-    <h2 className="text-lg font-semibold text-gray-700 mb-2">Datos obligatorios</h2>
-    {renderCampo('nombre', 'Nombre', 'text', false)}
-    {renderCampo('precioCompra', 'Precio de Compra', 'number', false)}
-    {renderCampo('precioVenta', 'Precio de Venta', 'number', false)}
-    {renderCampo('stock', 'Stock', 'number', false)}
+      {/* Alerta del código de barras */}
+      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
+        <Barcode className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+        <div>
+          <span className="font-semibold text-green-700">Lector de código de barras disponible</span>
+          <p className="text-green-700 text-sm mt-1">
+            Puedes escanear un código de barras directamente en cualquier campo. 
+            El sistema detectará automáticamente el código y rellenará los campos correspondientes.
+          </p>
+        </div>
+      </div>
 
-    <Select
-      label="Unidad de medida"
-      options={UNIDADES}
-      {...register('unidad')}
-      error={getErrorMessage(errors.unidad)}
-    />
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        <FormErrorAlert errors={serverErrors} className="mb-6" />
 
-    <Select
-      label="Tipo de producto"
-      options={TIPOS_PRODUCTO}
-      {...register('tipoProducto')}
-      error={getErrorMessage(errors.tipoProducto)}
-    />
-  </div>
+        {/* Información básica */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Package className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">Información básica</h2>
+              <p className="text-sm text-gray-600">Datos esenciales del producto</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {renderCampo('nombre', 'Nombre del producto *', 'text', false)}
+            {renderCampo('descripcion', 'Descripción', 'text', true)}
+            
+            <Select
+              label="Unidad de medida *"
+              options={UNIDADES}
+              {...register('unidad')}
+              error={getErrorMessage(errors.unidad)}
+            />
 
-  {/* Sección: Datos opcionales */}
-  <div className="border-t pt-4">
-    <h2 className="text-lg font-semibold text-gray-700 mb-2">Datos opcionales</h2>
+            <Select
+              label="Tipo de producto *"
+              options={TIPOS_PRODUCTO.map(tipo => ({
+                value: tipo,
+                label: TipoProductoConfig[tipo as keyof typeof TipoProductoConfig]?.label || tipo
+              }))}
+              {...register('tipoProducto')}
+              error={getErrorMessage(errors.tipoProducto)}
+            />
+          </div>
+        </div>
 
-    <Select
-      label="Proveedor"
-      options={proveedores.map(p => ({ value: String(p.id), label: p.nombre }))}
-      {...register('proveedorId')}
-      error={getErrorMessage(errors.proveedorId)}
-      optional
-    />
+        {/* Precios y stock */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <DollarSign className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">Precios y stock</h2>
+              <p className="text-sm text-gray-600">Información comercial y de inventario</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Input
+              label="Precio de compra *"
+              placeholder="0.00"
+              {...register('precioCompra')}
+              error={getErrorMessage(errors.precioCompra)}
+              type="number"
+              step="0.01"
+              min="0"
+            />
+            <Input
+              label="Precio de venta *"
+              placeholder="0.00"
+              {...register('precioVenta')}
+              error={getErrorMessage(errors.precioVenta)}
+              type="number"
+              step="0.01"
+              min="0"
+            />
+            {renderCampo('stock', 'Stock actual *', 'number', false)}
+          </div>
+        </div>
 
-    {config.camposRelevantes.map((campo) => {
-      const type = ['precioCompra', 'precioVenta', 'stock', 'stockMinimo', 'temperaturaOptima', 'humedadOptima'].includes(campo) ? 'number' : 'text'
-      const label = campo.charAt(0).toUpperCase() + campo.slice(1).replace(/([A-Z])/g, ' $1')
-      return renderCampo(campo, label, type, true) // forzar que se muestre como opcional
-    })}
-  </div>
+        {/* Datos opcionales colapsables */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div 
+            className="p-6 cursor-pointer hover:bg-gray-50 transition-colors rounded-t-xl"
+            onClick={() => setMostrarOpcionales(!mostrarOpcionales)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Tag className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-800">Información adicional</h2>
+                  <p className="text-sm text-gray-600">Categorización y proveedor (opcional)</p>
+                </div>
+              </div>
+              {mostrarOpcionales ? (
+                <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+              ) : (
+                <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+              )}
+            </div>
+          </div>
+          
+          {mostrarOpcionales && (
+            <div className="px-6 pb-6 border-t border-gray-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                {renderCampo('etiqueta', 'Etiqueta', 'text', true)}
+                
+                <Select
+                  label="Proveedor"
+                  options={proveedores.map(p => ({ value: String(p.id), label: p.nombre }))}
+                  {...register('proveedorId')}
+                  error={getErrorMessage(errors.proveedorId)}
+                  optional
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
-  <Button
-    type="submit"
-    disabled={isSubmitting}
-    className="bg-[#8E94F2] hover:bg-[#7278e0] text-white text-sm font-medium px-4 py-2 rounded-xl transition disabled:opacity-50"
-  >
-    {isSubmitting ? 'Guardando...' : modo === 'editar' ? 'Actualizar producto' : 'Guardar producto'}
-  </Button>
-</form>
+        {/* Configuración avanzada colapsable */}
+        {config.camposRelevantes.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div 
+              className="p-6 cursor-pointer hover:bg-gray-50 transition-colors rounded-t-xl"
+              onClick={() => setMostrarAvanzadas(!mostrarAvanzadas)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Settings className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-800">Configuración avanzada</h2>
+                                         <p className="text-sm text-gray-600">Campos específicos para {config.label.toLowerCase()}</p>
+                  </div>
+                </div>
+                {mostrarAvanzadas ? (
+                  <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+                ) : (
+                  <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                )}
+              </div>
+            </div>
+            
+            {mostrarAvanzadas && (
+              <div className="px-6 pb-6 border-t border-gray-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                  {config.camposRelevantes.map((campo) => {
+                    const type = ['precioCompra', 'precioVenta', 'stock', 'stockMinimo', 'temperaturaOptima', 'humedadOptima'].includes(campo) ? 'number' : 'text'
+                    const label = campo.charAt(0).toUpperCase() + campo.slice(1).replace(/([A-Z])/g, ' $1')
+                    return renderCampo(campo, label, type, true)
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
+        {/* Botones de acción */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                              <Button
+                  type="submit"
+                  disabled={isSubmitting || eliminandoProducto}
+                  className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-[#8E94F2] hover:bg-[#7278e0] focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 rounded-xl shadow-md hover:shadow-lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Package className="w-4 h-4" />
+                      {modo === 'editar' ? 'Actualizar producto' : 'Guardar producto'}
+                    </>
+                  )}
+                </Button>
+                
+                {modo === 'editar' && (
+                  <Button
+                    type="button"
+                    onClick={eliminarProducto}
+                    disabled={isSubmitting || eliminandoProducto}
+                    className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 rounded-xl shadow-md hover:shadow-lg"
+                  >
+                    {eliminandoProducto ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Eliminando...
+                      </>
+                    ) : (
+                      <>
+                        <Package className="w-4 h-4" />
+                        Eliminar producto
+                      </>
+                    )}
+                  </Button>
+                )}
+            </div>
+            
+            <p className="text-sm text-gray-500">
+              {modo === 'editar' ? 'Los cambios se guardarán inmediatamente' : 'El producto se agregará al inventario'}
+            </p>
+          </div>
+        </div>
+      </form>
     </div>
   )
 }

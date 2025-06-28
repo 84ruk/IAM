@@ -54,8 +54,8 @@ export class CreateProductoDto {
   unidad: UnidadMedida;
 
   @IsOptional()
-  @IsString({ message: 'categoria debe ser un texto' })
-  categoria?: string;
+  @IsString({ message: 'etiqueta debe ser un texto' })
+  etiqueta?: string;
 
   @IsOptional()
   @IsString({ message: 'codigoBarras debe ser un texto' })

@@ -16,7 +16,7 @@ export default function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 h-screen hidden md:flex flex-col justify-between py-6 px-4 shadow-sm">
+    <aside className="w-64 bg-white border-r border-gray-200 h-screen hidden md:flex flex-col justify-between py-6 shadow-sm">
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-[#8E94F2]">IAM</h2>
         <nav className="space-y-1">

@@ -8,7 +8,7 @@ type CampoProducto =
   | 'ubicacion'
   | 'talla'
   | 'color'
-  | 'categoria'
+  | 'etiqueta'
   | 'sku'
   | 'codigoBarras'
   | 'rfid'
@@ -29,7 +29,7 @@ export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
   },
   ROPA: {
     label: 'Ropa',
-    camposRelevantes: ['talla', 'color', 'categoria'],
+    camposRelevantes: ['talla', 'color', 'etiqueta'],
   },
   ELECTRONICA: {
     label: 'Electrónica',
@@ -39,13 +39,13 @@ export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
     label: 'GENERICA',
     camposRelevantes: [
       'temperaturaOptima', 'humedadOptima', 'ubicacion',
-      'talla', 'color', 'categoria',
+      'talla', 'color', 'etiqueta',
       'sku', 'codigoBarras', 'rfid'
     ],
   },
   FARMACIA: {
     label: 'Farmacia',
-    camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion', 'categoria', 'codigoBarras', 'rfid'],
+    camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion', 'etiqueta', 'codigoBarras', 'rfid'],
     sensoresActivos: true,
     mostrarTemperaturaHumedad: true,
   }
