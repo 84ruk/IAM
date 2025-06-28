@@ -64,18 +64,29 @@ export class AuthController {
 
     const isProduction = process.env.NODE_ENV === 'production';
     
+    // Configuración de cookies para limpiar
     const clearCookieOptions: any = {
       httpOnly: true,
       sameSite: isProduction ? 'none' as const : 'lax' as const,
       secure: isProduction,
       path: '/',
+      expires: new Date(0), // Expirar inmediatamente
     };
     
+    // Solo agregar domain en producción
     if (isProduction) {
       clearCookieOptions.domain = '.fly.dev';
     }
     
+    // Limpiar la cookie JWT
     res.clearCookie('jwt', clearCookieOptions);
+    
+    // También limpiar sin domain como respaldo
+    res.clearCookie('jwt', {
+      httpOnly: true,
+      path: '/',
+      expires: new Date(0),
+    });
     
     console.log('Cookie cleared successfully');
     return { message: 'Sesión cerrada' };
