@@ -8,8 +8,12 @@ import { Producto } from '@/types/producto'
 import VolverAtras from '@/components/ui/VolverAtras'
 import Link from 'next/link'
 import { Eye } from 'lucide-react'
+import { requireAuth } from '@/lib/ssrAuth'
 
-export default function EditarProductoPage() {
+export default async function EditarProductoPage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   const params = useParams()
   const [producto, setProducto] = useState<Producto | null>(null)
   const [showStockModal, setShowStockModal] = useState(false)

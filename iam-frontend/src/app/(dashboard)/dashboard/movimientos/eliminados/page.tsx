@@ -22,6 +22,7 @@ import VolverAtras from '@/components/ui/VolverAtras'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { pluralizarUnidad } from '@/lib/pluralization'
+import { requireAuth } from '@/lib/ssrAuth'
 
 const fetcher = (url: string) =>
   fetch(url, {
@@ -35,9 +36,12 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-export default function MovimientosEliminadosPage() {
+export default async function MovimientosEliminadosPage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   const router = useRouter()
-  const { data: user } = useUser()
+  const { data: userData } = useUser()
   
   const [movimientos, setMovimientos] = useState<Movimiento[]>([])
   const [isLoading, setIsLoading] = useState(true)

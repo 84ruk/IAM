@@ -9,8 +9,35 @@ async function bootstrap() {
 
   app.use(cookieParser()); 
 
+  // Agregar header para Private Network Access (PNA)
+  app.use((req, res, next) => {
+    if (req.headers['access-control-request-private-network']) {
+      res.header('Access-Control-Allow-Private-Network', 'true');
+    }
+    next();
+  });
+
+  // Configuración CORS para múltiples orígenes
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3002',
+    'http://localhost:3003',
+    'https://iam-frontend-six.vercel.app',
+    'https://iam-frontend.vercel.app'
+  ];
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: function (origin, callback) {
+      // Permitir requests sin origin (como mobile apps o Postman)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.log('CORS blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',

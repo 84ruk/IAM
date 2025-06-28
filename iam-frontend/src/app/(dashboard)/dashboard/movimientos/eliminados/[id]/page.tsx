@@ -10,8 +10,11 @@ import VolverAtras from '@/components/ui/VolverAtras';
 import { Movimiento } from '@/types/movimiento';
 import { Package, Calendar, MessageCircle, FileText, Eye, CheckCircle, XCircle, Mail, Phone, RotateCcw, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { requireAuth } from '@/lib/ssrAuth'
 
-export default function MovimientoEliminadoDetallePage() {
+export default async function MovimientoEliminadoDetallePage() {
+  const user = await requireAuth()
+  if (!user) return null
   const params = useParams();
   const router = useRouter();
   const [movimiento, setMovimiento] = useState<Movimiento | null>(null);

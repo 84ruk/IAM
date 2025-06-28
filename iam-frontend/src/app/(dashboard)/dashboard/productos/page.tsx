@@ -43,6 +43,7 @@ import ProductFilters from '@/components/productos/ProductFilters'
 import PopularTags from '@/components/productos/PopularTags'
 import EmptyState from '@/components/productos/EmptyState'
 import Pagination from '@/components/ui/Pagination'
+import { requireAuth } from '@/lib/ssrAuth'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
@@ -58,7 +59,10 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-export default function ProductosPage() {
+export default async function ProductosPage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   const router = useRouter()
   
   // Estados de filtros avanzados

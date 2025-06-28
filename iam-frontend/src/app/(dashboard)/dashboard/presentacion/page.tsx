@@ -1,8 +1,12 @@
 "use client";
 
 import { PlayCircle, CheckCircle2 } from "lucide-react";
+import { requireAuth } from '@/lib/ssrAuth'
 
-export default function PresentacionPage() {
+export default async function PresentacionPage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   return (
     <div className="min-h-screen bg-[#F8F9FB] flex flex-col items-center py-10 px-2">
       <h1 className="text-2xl font-bold text-[#8E94F2] mb-4">Presentación de IAM</h1>

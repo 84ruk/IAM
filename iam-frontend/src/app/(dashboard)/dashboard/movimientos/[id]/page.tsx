@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils'
 import VolverAtras from '@/components/ui/VolverAtras'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { requireAuth } from '@/lib/ssrAuth'
 
 const fetcher = (url: string) =>
   fetch(url, {
@@ -45,10 +46,13 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-export default function DetalleMovimientoPage() {
+export default async function MovimientoDetallePage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   const params = useParams()
   const router = useRouter()
-  const { data: user } = useUser()
+  const { data: userData } = useUser()
   
   const [movimiento, setMovimiento] = useState<MovimientoDetalle | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -166,7 +170,7 @@ export default function DetalleMovimientoPage() {
   const tipoInfo = getTipoInfo(movimiento.tipo)
   const TipoIcon = tipoInfo.icon
   const stockStatus = getStockStatus(movimiento.producto.stock, movimiento.producto.stockMinimo)
-  const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN'
+  const isAdmin = userData?.rol === 'ADMIN' || userData?.rol === 'SUPERADMIN'
 
   return (
     <div className="p-6 bg-[#F8F9FB] min-h-screen">

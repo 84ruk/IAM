@@ -11,6 +11,7 @@ import EtiquetaTag from '@/components/ui/EtiquetaTag'
 import StockInfoModal from '@/components/ui/StockInfoModal'
 import VolverAtras from '@/components/ui/VolverAtras'
 import Link from 'next/link'
+import { requireAuth } from '@/lib/ssrAuth'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
@@ -26,7 +27,10 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-export default function DetalleProductoPage() {
+export default async function DetalleProductoPage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   const params = useParams()
   const router = useRouter()
   const [producto, setProducto] = useState<Producto | null>(null)

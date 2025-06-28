@@ -3,8 +3,12 @@
 import Image from "next/image";
 import { MessageCircle, Megaphone } from "lucide-react";
 import flyerChocolate from "@/public/flyer-chocolate-demo.png";
+import { requireAuth } from '@/lib/ssrAuth'
 
-export default function MarketingDemoPage() {
+export default async function MarketingDemoPage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   return (
     <div className="min-h-screen bg-[#F8F9FB] flex flex-col items-center py-10 px-2">
       <h1 className="text-2xl font-bold text-[#8E94F2] mb-6">Funciones Inteligentes IAM</h1>

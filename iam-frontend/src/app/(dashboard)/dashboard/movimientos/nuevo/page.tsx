@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Proveedor } from '@/types/proveedor'
+import { requireAuth } from '@/lib/ssrAuth'
 
 interface Producto {
   id: number
@@ -538,7 +539,9 @@ function NuevoMovimientoPageContent() {
   )
 }
 
-export default function Page() {
+export default async function Page() {
+  const user = await requireAuth()
+  if (!user) return null
   return (
     <Suspense>
       <NuevoMovimientoPageContent />

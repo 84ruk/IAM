@@ -19,6 +19,7 @@ import ProveedorFilters from "@/components/proveedores/ProveedorFilters"
 import EmptyState from "@/components/proveedores/EmptyState"
 import Pagination from "@/components/ui/Pagination"
 import { useUser } from "@/lib/useUser"
+import { requireAuth } from '@/lib/ssrAuth'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
@@ -32,8 +33,11 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-export default function ProveedoresPage() {
-  const { data: user } = useUser()
+export default async function ProveedoresPage() {
+  const user = await requireAuth()
+  if (!user) return null
+  
+  const { data: userData } = useUser()
   
   // Estados de filtros
   const [filtroTexto, setFiltroTexto] = useState('')
@@ -303,7 +307,7 @@ export default function ProveedoresPage() {
                   proveedor={proveedor}
                   onEliminar={eliminarProveedor}
                   eliminandoId={eliminandoId}
-                  userRol={user?.rol || 'EMPLEADO'}
+                  userRol={userData?.rol || 'EMPLEADO'}
                   onEdit={(p) => {
                     setProveedorEdit(p)
                     setShowModal(true)

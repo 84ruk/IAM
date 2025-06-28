@@ -31,6 +31,7 @@ import ProveedorFormModal from '@/components/ui/ProveedorFormModal'
 import Pagination from '@/components/ui/Pagination'
 import VolverAtras from '@/components/ui/VolverAtras'
 import useSWR from 'swr'
+import { requireAuth } from '@/lib/ssrAuth'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
@@ -44,10 +45,13 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-export default function DetalleProveedorPage() {
+export default async function ProveedorDetallePage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   const params = useParams()
   const router = useRouter()
-  const { data: user } = useUser()
+  const { data: userData } = useUser()
   
   // Estados del proveedor
   const [proveedor, setProveedor] = useState<Proveedor | null>(null)
@@ -253,7 +257,7 @@ export default function DetalleProveedorPage() {
 
   const estadoInfo = getEstadoInfo(proveedor.estado)
   const EstadoIcon = estadoInfo.icon
-  const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN'
+  const isAdmin = userData?.rol === 'ADMIN' || userData?.rol === 'SUPERADMIN'
 
   return (
     <div className="p-6 bg-[#F8F9FB] min-h-screen">

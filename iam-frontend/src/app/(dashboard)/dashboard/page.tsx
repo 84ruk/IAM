@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
 import { Loader2 } from 'lucide-react'
+import { requireAuth } from '@/lib/ssrAuth'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, { 
@@ -98,7 +99,10 @@ type MovimientoKPI = {
   };
 }
 
-export default function AnalisisPage() {
+export default async function AnalisisPage() {
+  const user = await requireAuth()
+  if (!user) return null // SSR: nunca se renderiza si no hay usuario
+
   const { data, isLoading, error, mutate } = useSWR('/dashboard/data', fetcher, {
     refreshInterval: 120000, // Cambiar de 30s a 2 minutos para mejor eficiencia
     revalidateOnFocus: false, // Desactivar revalidación al enfocar para mejor UX

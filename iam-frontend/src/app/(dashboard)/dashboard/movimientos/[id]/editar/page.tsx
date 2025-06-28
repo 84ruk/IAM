@@ -13,6 +13,7 @@ import { MovimientoDetalle } from '@/types/movimiento'
 import VolverAtras from '@/components/ui/VolverAtras'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { requireAuth } from '@/lib/ssrAuth'
 
 const fetcher = (url: string) =>
   fetch(url, {
@@ -26,7 +27,10 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-export default function EditarMovimientoPage() {
+export default async function EditarMovimientoPage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   const params = useParams()
   const router = useRouter()
   

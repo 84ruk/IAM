@@ -24,6 +24,7 @@ import { Proveedor } from "@/types/proveedor"
 import { useUser } from "@/lib/useUser"
 import { cn } from "@/lib/utils"
 import VolverAtras from '@/components/ui/VolverAtras'
+import { requireAuth } from '@/lib/ssrAuth'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
@@ -37,7 +38,10 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-export default function ProveedoresEliminadosPage() {
+export default async function ProveedoresEliminadosPage() {
+  const user = await requireAuth()
+  if (!user) return null
+  
   const { data: user } = useUser()
   
   // Estados de UI

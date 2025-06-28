@@ -30,6 +30,7 @@ import {
   Trash2
 } from 'lucide-react'
 import Link from 'next/link'
+import { requireAuth } from '@/lib/ssrAuth'
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
@@ -38,7 +39,10 @@ const formatearFechaEspanol = (fecha: string): string => {
   return format(new Date(fecha), 'dd/MM/yyyy HH:mm')
 }
 
-export default function MovimientosPage() {
+export default async function MovimientosPage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   const { data: response, error, isLoading, mutate } = useSWR<MovimientosResponse>(
     `${process.env.NEXT_PUBLIC_API_URL}/movimientos`,
     fetcher

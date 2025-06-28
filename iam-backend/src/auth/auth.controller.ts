@@ -35,8 +35,8 @@ export class AuthController {
 
       const cookieOptions = {
       httpOnly: true,
-      sameSite: 'lax' as const, // para evitar CSRF
-      secure: process.env.NODE_ENV === 'production', // habilitar en producción
+      sameSite: 'none' as const, // Permitir cross-domain
+      secure: true, // Siempre secure en producción
       maxAge: 1000 * 60 * 60, // 1 hora
     };
     res.cookie('jwt', token, cookieOptions);
@@ -50,8 +50,8 @@ export class AuthController {
 
     res.clearCookie('jwt', {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      secure: true,
     });
     return { message: 'Sesión cerrada' };
   }

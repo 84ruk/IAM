@@ -24,6 +24,7 @@ import { formatearCantidadConUnidad } from '@/lib/pluralization'
 import ProductFormModal from '@/components/ui/ProductFormModal'
 import FormularioProducto from '@/components/productos/FormularioProducto'
 import VolverAtras from '@/components/ui/VolverAtras'
+import { requireAuth } from '@/lib/ssrAuth'
 
 // Tipo para los productos eliminados
 interface ProductoEliminado {
@@ -61,7 +62,10 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
-export default function ProductosEliminadosPage() {
+export default async function ProductosEliminadosPage() {
+  const user = await requireAuth()
+  if (!user) return null
+
   const { data: productosEliminados, isLoading, error: errorBackend, mutate } = useSWR<ProductoEliminado[]>('/productos/eliminados', fetcher)
   
   const [filtro, setFiltro] = useState('')
