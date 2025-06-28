@@ -200,12 +200,11 @@ export default function NuevoUsuarioPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Nombre */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre completo *
-                </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
+                    label="Nombre completo"
+                    name="nombre"
                     type="text"
                     placeholder="Ingresa el nombre completo..."
                     value={formData.nombre}
@@ -218,12 +217,11 @@ export default function NuevoUsuarioPage() {
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email *
-                </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
+                    label="Email"
+                    name="email"
                     type="email"
                     placeholder="usuario@empresa.com"
                     value={formData.email}
@@ -236,12 +234,11 @@ export default function NuevoUsuarioPage() {
 
               {/* Contraseña */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña *
-                </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
+                    label="Contraseña"
+                    name="password"
                     type="password"
                     placeholder="Mínimo 6 caracteres..."
                     value={formData.password}
