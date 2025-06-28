@@ -90,8 +90,8 @@ export default function EditarMovimientoPage() {
     }
   }
 
-  const formatearFecha = (fecha: string) => {
-    return format(new Date(fecha), 'dd/MM/yyyy HH:mm', { locale: es })
+  const formatDate = (fecha: string) => {
+    return format(new Date(fecha), 'dd/MM/yyyy HH:mm')
   }
 
   if (isLoading) {
@@ -134,7 +134,7 @@ export default function EditarMovimientoPage() {
             <p className="text-gray-600 mt-2">
               {movimiento.tipo === 'ENTRADA' ? 'Entrada' : 'Salida'} de {movimiento.cantidad} {movimiento.producto.unidad} de {movimiento.producto.nombre}
             </p>
-            <p className="text-sm text-gray-500 mt-1">{formatearFecha(movimiento.fecha)}</p>
+            <p className="text-sm text-gray-500 mt-1">{formatDate(movimiento.fecha)}</p>
           </div>
         </div>
 
@@ -211,7 +211,7 @@ export default function EditarMovimientoPage() {
                 </div>
                 <div>
                   <p className="text-gray-600">Fecha</p>
-                  <p className="font-medium">{formatearFecha(movimiento.fecha)}</p>
+                  <p className="font-medium">{formatDate(movimiento.fecha)}</p>
                 </div>
               </div>
             </div>

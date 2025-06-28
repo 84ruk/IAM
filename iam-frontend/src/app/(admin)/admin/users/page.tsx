@@ -162,7 +162,7 @@ export default function AdminUsersPage() {
   }
 
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'dd/MM/yyyy HH:mm', { locale: es })
+    return format(new Date(dateString), 'dd/MM/yyyy HH:mm')
   }
 
   // Verificar permisos de administrador

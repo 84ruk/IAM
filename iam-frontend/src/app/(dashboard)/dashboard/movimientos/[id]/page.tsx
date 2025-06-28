@@ -102,8 +102,8 @@ export default function DetalleMovimientoPage() {
     }
   }
 
-  const formatearFecha = (fecha: string) => {
-    return format(new Date(fecha), 'dd/MM/yyyy HH:mm', { locale: es })
+  const formatDate = (fecha: string) => {
+    return format(new Date(fecha), 'dd/MM/yyyy HH:mm')
   }
 
   const getTipoInfo = (tipo: 'ENTRADA' | 'SALIDA') => {
@@ -187,7 +187,7 @@ export default function DetalleMovimientoPage() {
                   {tipoInfo.text}
                 </span>
                 <span className="text-gray-600">•</span>
-                <span className="text-gray-600">{formatearFecha(movimiento.fecha)}</span>
+                <span className="text-gray-600">{formatDate(movimiento.fecha)}</span>
               </div>
             </div>
             
@@ -236,7 +236,7 @@ export default function DetalleMovimientoPage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Fecha y hora</p>
-                    <p className="font-medium">{formatearFecha(movimiento.fecha)}</p>
+                    <p className="font-medium">{formatDate(movimiento.fecha)}</p>
                   </div>
                 </div>
 

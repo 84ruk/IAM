@@ -94,8 +94,8 @@ export default function MovimientosEliminadosPage() {
     }
   }
 
-  const formatearFecha = (fecha: string) => {
-    return format(new Date(fecha), 'dd/MM/yyyy HH:mm', { locale: es })
+  const formatDate = (fecha: string) => {
+    return format(new Date(fecha), 'dd/MM/yyyy HH:mm')
   }
 
   const getTipoInfo = (tipo: 'ENTRADA' | 'SALIDA') => {
@@ -266,7 +266,7 @@ export default function MovimientosEliminadosPage() {
                       
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Clock className="w-4 h-4" />
-                        <span>{formatearFecha(movimiento.fecha)}</span>
+                        <span>{formatDate(movimiento.fecha)}</span>
                       </div>
                       
                       {movimiento.motivo && (
