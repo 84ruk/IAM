@@ -1,9 +1,14 @@
-import LoginForm from '@/components/auth/LoginForm';
+'use client'
+
+import LoginGuard from '@/components/auth/LoginGuard'
+import LoginForm from '@/components/auth/LoginForm'
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <LoginForm />
-    </div>
-  );
+    <LoginGuard>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <LoginForm />
+      </div>
+    </LoginGuard>
+  )
 }

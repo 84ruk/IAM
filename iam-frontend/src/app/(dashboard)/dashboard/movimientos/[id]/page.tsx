@@ -103,7 +103,7 @@ export default function DetalleMovimientoPage() {
   }
 
   const formatearFecha = (fecha: string) => {
-    return format(new Date(fecha), 'dd/MM/yyyy HH:mm', { locale: es })
+    return format(new Date(fecha), 'dd/MM/yyyy HH:mm')
   }
 
   const getTipoInfo = (tipo: 'ENTRADA' | 'SALIDA') => {

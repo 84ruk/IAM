@@ -9,13 +9,18 @@ async function bootstrap() {
 
   app.use(cookieParser()); 
 
-  app.enableCors({
+  // Configuración de CORS mejorada para cross-domain cookies
+  const corsOptions = {
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
-    exposedHeaders: 'Set-Cookie',
-  });
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Set-Cookie'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  };
+
+  app.enableCors(corsOptions);
 
   app.useGlobalFilters(...globalFilters);
 

@@ -32,26 +32,27 @@ export class AuthController {
     const user = await this.authService.validateUser(dto.email, dto.password);
     const token = await this.authService.login(user);
 
-
-      const cookieOptions = {
+    const cookieOptions = {
       httpOnly: true,
-      sameSite: 'lax' as const, // para evitar CSRF
-      secure: process.env.NODE_ENV === 'production', // habilitar en producción
-      maxAge: 1000 * 60 * 60, // 1 hora
+      sameSite: 'none' as const, // Cambiar a 'none' para cross-domain
+      secure: true, // Siempre habilitar en producción
+      maxAge: 1000 * 60 * 60 * 24, // 24 horas
+      domain: process.env.NODE_ENV === 'production' ? '.fly.dev' : undefined, // Dominio para producción
     };
+    
     res.cookie('jwt', token, cookieOptions);
  
-    return { message: 'Login exitoso', token }; //QUITAR TOKEN por que se va al front
+    return { message: 'Login exitoso' };
   }
 
   @Post('logout')
   @HttpCode(200)
   logout(@Res({ passthrough: true }) res: Response) {
-
     res.clearCookie('jwt', {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
+      secure: true,
+      domain: process.env.NODE_ENV === 'production' ? '.fly.dev' : undefined,
     });
     return { message: 'Sesión cerrada' };
   }
@@ -62,11 +63,10 @@ export class AuthController {
     return this.authService.registerEmpresa(dto);
   }
 
-
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
   @HttpCode(200)
   async getMe(@CurrentUser() user: JwtUser) {
-    return user; // El usuario ya está validado por el guardia JWT
+    return user;
   }
 }

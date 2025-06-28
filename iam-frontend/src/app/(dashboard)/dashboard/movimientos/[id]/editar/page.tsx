@@ -91,7 +91,7 @@ export default function EditarMovimientoPage() {
   }
 
   const formatearFecha = (fecha: string) => {
-    return format(new Date(fecha), 'dd/MM/yyyy HH:mm', { locale: es })
+    return format(new Date(fecha), 'dd/MM/yyyy HH:mm')
   }
 
   if (isLoading) {
@@ -163,6 +163,8 @@ export default function EditarMovimientoPage() {
                   Motivo
                 </label>
                 <Input
+                  label="Motivo"
+                  name="motivo"
                   id="motivo"
                   type="text"
                   value={motivo}

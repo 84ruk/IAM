@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, ReactNode } from 'react'
-import { useUser } from '../lib/useUser'
+import { useAuth } from '../lib/useAuth'
 import { User } from '@/types/user'
 
 interface UserContextType {
@@ -9,6 +9,8 @@ interface UserContextType {
   isLoading: boolean
   error: any
   mutate: () => void
+  logout: () => void
+  isAuthenticated: boolean
 }
 
 const UserContext = createContext<UserContextType>({
@@ -16,13 +18,22 @@ const UserContext = createContext<UserContextType>({
   isLoading: true,
   error: null,
   mutate: () => {},
+  logout: () => {},
+  isAuthenticated: false,
 })
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
-  const { data: user, isLoading, error, mutate } = useUser();
+  const { user, isLoading, error, mutate, logout, isAuthenticated } = useAuth();
 
   return (
-    <UserContext.Provider value={{ user, isLoading, error, mutate }}>
+    <UserContext.Provider value={{ 
+      user, 
+      isLoading, 
+      error, 
+      mutate, 
+      logout, 
+      isAuthenticated 
+    }}>
       {children}
     </UserContext.Provider>
   )
