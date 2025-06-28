@@ -34,25 +34,20 @@ export class AuthController {
     const user = await this.authService.validateUser(dto.email, dto.password);
     const token = await this.authService.login(user);
 
-    // Configuración de cookies optimizada para middleware de Next.js
+    // Configuración de cookies simplificada
     const isProduction = process.env.NODE_ENV === 'production';
     
     const cookieOptions: any = {
       httpOnly: true,
       sameSite: isProduction ? 'none' as const : 'lax' as const,
-      secure: isProduction, // Solo HTTPS en producción
+      secure: isProduction,
       maxAge: 1000 * 60 * 60 * 24, // 24 horas
-      path: '/', // Importante: asegurar que la cookie esté disponible en todo el dominio
+      path: '/',
     };
-    
-    // Solo agregar domain en producción
-    if (isProduction) {
-      cookieOptions.domain = '.fly.dev';
-    }
     
     res.cookie('jwt', token, cookieOptions);
     
-    console.log('Cookie set successfully');
+    console.log('Cookie set successfully with options:', cookieOptions);
  
     return { message: 'Login exitoso' };
   }
@@ -73,20 +68,8 @@ export class AuthController {
       expires: new Date(0), // Expirar inmediatamente
     };
     
-    // Solo agregar domain en producción
-    if (isProduction) {
-      clearCookieOptions.domain = '.fly.dev';
-    }
-    
     // Limpiar la cookie JWT
     res.clearCookie('jwt', clearCookieOptions);
-    
-    // También limpiar sin domain como respaldo
-    res.clearCookie('jwt', {
-      httpOnly: true,
-      path: '/',
-      expires: new Date(0),
-    });
     
     console.log('Cookie cleared successfully');
     return { message: 'Sesión cerrada' };
