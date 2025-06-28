@@ -25,11 +25,9 @@ export class AuthService {
   async validateUser(email: string, password: string) {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      console.log('Usuario no encontrado:', email);
+      // console.log('Usuario no encontrado:', email);
       throw new NotFoundException('Usuario no El correo proporcionado no está registrado');
     }
-
-    console.log('Usuario encontrado:', user.email);
 
     const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) throw new UnauthorizedException('Contraseña incorrecta');

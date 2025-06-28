@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
 import { Input } from '../ui/Input';
 import { Loader2 } from 'lucide-react';
+import { useUserContext } from '@/context/UserProvider';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -12,6 +13,7 @@ export default function LoginForm() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { mutate } = useUserContext();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,28 +35,19 @@ export default function LoginForm() {
         throw new Error(errorData.message || 'Credenciales incorrectas');
       }
 
-      // Verificar que la cookie se haya setado
-      const cookies = document.cookie;
-      
-      if (!cookies.includes('jwt')) {
-        // Intentar verificar si la cookie está en el servidor
-        try {
-          const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-            credentials: 'include',
-          });
-          if (!meRes.ok) {
-            throw new Error('Error de autenticación');
-          }
-        } catch (verifyError) {
-          throw new Error('Error de autenticación');
-        }
+      // Forzar revalidación del usuario tras login
+      await mutate();
+      // Esperar a que el usuario esté autenticado
+      let intentos = 0;
+      while (intentos < 10) {
+        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, { credentials: 'include' });
+        if (meRes.ok) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+        intentos++;
       }
-
-      // Esperar un momento para que la cookie se procese
-      await new Promise(resolve => setTimeout(resolve, 100));
       
-      router.push('/dashboard');
-      router.refresh(); // Forzar refresh para actualizar el estado
+      // Redirigir y recargar la página para asegurar que el contexto detecte la cookie
+      window.location.href = '/dashboard';
       
     } catch (err: any) {
       setError(err.message);
@@ -62,6 +55,17 @@ export default function LoginForm() {
       setIsLoading(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#8E94F2]" />
+          <p className="text-gray-600">Iniciando sesión...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="form-container">

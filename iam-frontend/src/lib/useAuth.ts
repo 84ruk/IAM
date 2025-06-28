@@ -9,15 +9,12 @@ export const useAuth = () => {
   useEffect(() => {
     // Si hay un error de autenticación (401), redirigir al login
     if (error && !isLoading) {
-      console.log('Error de autenticación detectado:', error)
       router.push('/login')
     }
   }, [error, isLoading, router])
 
   const logout = async () => {
     try {
-      console.log('Iniciando logout...')
-      
       // Llamar al endpoint de logout del backend
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
         method: 'POST',
@@ -40,8 +37,6 @@ export const useAuth = () => {
       router.push('/login')
       
     } catch (error) {
-      console.error('Error al cerrar sesión:', error)
-      
       // Limpiar el cache de SWR incluso si hay error
       mutate()
       

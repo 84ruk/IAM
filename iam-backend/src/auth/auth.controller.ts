@@ -29,7 +29,7 @@ export class AuthController {
     @Body() dto: LoginDto, 
     @Res({ passthrough: true }) res: Response
   ) {
-    console.log('Login request received for email:', dto.email);
+    // console.log('Login request received for email:', dto.email);
 
     const user = await this.authService.validateUser(dto.email, dto.password);
     const token = await this.authService.login(user);
@@ -47,7 +47,7 @@ export class AuthController {
     
     res.cookie('jwt', token, cookieOptions);
     
-    console.log('Login successful');
+    // console.log('Login successful');
  
     return { message: 'Login exitoso' };
   }
@@ -55,7 +55,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(200)
   logout(@Res({ passthrough: true }) res: Response) {
-    console.log('Logout request received');
+    // console.log('Logout request received');
 
     const isProduction = process.env.NODE_ENV === 'production';
     
@@ -71,7 +71,7 @@ export class AuthController {
     // Limpiar la cookie JWT
     res.clearCookie('jwt', clearCookieOptions);
     
-    console.log('Cookie cleared successfully');
+    // console.log('Cookie cleared successfully');
     return { message: 'Sesión cerrada' };
   }
 

@@ -9,9 +9,22 @@ async function bootstrap() {
 
   app.use(cookieParser()); 
 
-  // Configuración de CORS mejorada para cross-domain cookies
+  // Configuración de CORS mejorada para cross-domain cookies y múltiples orígenes
+  const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+    : [process.env.FRONTEND_URL || 'http://localhost:3000'];
+
   const corsOptions = {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Permitir peticiones sin origen (como Postman o curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        console.warn(`CORS bloqueado para origen: ${origin}`);
+        return callback(null, false);
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
@@ -48,6 +61,5 @@ async function bootstrap() {
 
   const port = process.env.PORT || 8080;
   await app.listen(port, '0.0.0.0');
-  console.log(`🚀 Servidor ejecutándose en puerto ${port}`);
 }
 bootstrap();
