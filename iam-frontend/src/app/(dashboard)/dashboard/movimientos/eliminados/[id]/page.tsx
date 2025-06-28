@@ -5,6 +5,6 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function MovimientoEliminadoDetallePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+  await params // Solo para cumplir con el await requerido
   return <MovimientoEliminadoDetalleClient />
 } 
