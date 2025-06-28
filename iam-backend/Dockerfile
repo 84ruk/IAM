@@ -34,21 +34,21 @@ RUN apk add --no-cache dumb-init
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package*.json ./
 
 # Crea un usuario no-root para seguridad
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nestjs -u 1001
 
-# Cambia la propiedad de los archivos
+# Cambia la propiedad de los archivos al usuario no-root
 RUN chown -R nestjs:nodejs /app
 USER nestjs
 
-# Expone el puerto 8080 (estándar para Fly.io)
+# Expone el puerto 8080
 EXPOSE 8080
 
 # Usa dumb-init para manejar señales correctamente
 ENTRYPOINT ["dumb-init", "--"]
 
-# Comando para correr la app
+# Comando para ejecutar la aplicación
 CMD ["node", "dist/main"]
