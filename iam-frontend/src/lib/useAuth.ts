@@ -20,11 +20,12 @@ export const useAuth = () => {
         method: 'POST',
         credentials: 'include',
       })
-      router.push('/login')
+      // Limpiar el cache de SWR
+      mutate()
     } catch (error) {
       console.error('Error al cerrar sesión:', error)
-      // Forzar redirección incluso si hay error
-      router.push('/login')
+      // Limpiar el cache de SWR incluso si hay error
+      mutate()
     }
   }
 

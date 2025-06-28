@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUserContext } from '@/context/UserProvider'
 import { Loader2 } from 'lucide-react'
@@ -12,14 +12,16 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, isLoading, error, isAuthenticated } = useUserContext()
   const router = useRouter()
+  const [hasRedirected, setHasRedirected] = useState(false)
 
   useEffect(() => {
-    // Si no está cargando y no hay usuario autenticado, redirigir al login
-    if (!isLoading && !isAuthenticated) {
+    // Solo redirigir si no está cargando, no está autenticado y no hemos redirigido ya
+    if (!isLoading && !isAuthenticated && !hasRedirected) {
       console.log('Usuario no autenticado, redirigiendo al login')
+      setHasRedirected(true)
       router.push('/login')
     }
-  }, [isLoading, isAuthenticated, router])
+  }, [isLoading, isAuthenticated, router, hasRedirected])
 
   // Mostrar loading mientras se verifica la autenticación
   if (isLoading) {
@@ -33,14 +35,17 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     )
   }
 
-  // Si hay error de autenticación, mostrar mensaje
-  if (error) {
+  // Si hay error de autenticación y no hemos redirigido, mostrar mensaje
+  if (error && !hasRedirected) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <p className="text-red-600 mb-4">Error de autenticación</p>
           <button 
-            onClick={() => router.push('/login')}
+            onClick={() => {
+              setHasRedirected(true)
+              router.push('/login')
+            }}
             className="px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0]"
           >
             Ir al login
@@ -50,11 +55,23 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     )
   }
 
-  // Si no está autenticado, no mostrar nada (se redirigirá)
-  if (!isAuthenticated) {
-    return null
+  // Si no está autenticado y ya redirigimos, mostrar loading
+  if (!isAuthenticated && hasRedirected) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#8E94F2]" />
+          <p className="text-gray-600">Redirigiendo al login...</p>
+        </div>
+      </div>
+    )
   }
 
   // Si está autenticado, mostrar el contenido
-  return <>{children}</>
+  if (isAuthenticated) {
+    return <>{children}</>
+  }
+
+  // Estado por defecto (no debería llegar aquí)
+  return null
 } 
