@@ -24,9 +24,20 @@ export class AuthService {
 
   async validateUser(email: string, password: string) {
     const user = await this.usersService.findByEmail(email);
-    if (!user) throw new NotFoundException('Usuario no El correo proporcionado no está registrado');
+    if (!user) {
+      console.log('Usuario no encontrado:', email);
+      throw new NotFoundException('Usuario no El correo proporcionado no está registrado');
+    }
+    const bcrypt = require('bcryptjs');
+const hash = '$2b$10$SWK9xZzCHCcqDBgNPzFzou57nF9UbvIzmKRsc2gbxA.fKQoZVzdbe';
+bcrypt.compare('admin123', hash).then(console.log); // Debe imprimir true
+
+    console.log('Usuario encontrado:', user.email);
+    console.log('Hash en base:', user.password);
+    console.log('Contraseña recibida:', password);
 
     const passwordValid = await bcrypt.compare(password, user.password);
+    console.log('¿Password válido?', passwordValid);
     if (!passwordValid) throw new UnauthorizedException('Contraseña incorrecta');
 
     return user;

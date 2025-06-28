@@ -1,11 +1,34 @@
-import { requireAuth } from '@/lib/ssrAuth'
-import EditarMovimientoClient from './EditarMovimientoClient'
+"use client"
 
-export default async function EditarMovimientoPage() {
-  const user = await requireAuth()
-  if (!user) return null
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { 
+  AlertTriangle,
+  Save,
+  X
+} from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { MovimientoDetalle } from '@/types/movimiento'
+import VolverAtras from '@/components/ui/VolverAtras'
+import { format } from 'date-fns'
+
+const fetcher = (url: string) =>
+  fetch(url, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+  }).then((res) => {
+    if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
+    return res.json()
+  })
+
+export default function EditarMovimientoClient() {
+  const params = useParams()
+  const router = useRouter()
   
-<<<<<<< HEAD
   const [movimiento, setMovimiento] = useState<MovimientoDetalle | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -66,7 +89,7 @@ export default async function EditarMovimientoPage() {
     }
   }
 
-  const formatearFecha = (fecha: string) => {
+  const formatDate = (fecha: string) => {
     return format(new Date(fecha), 'dd/MM/yyyy HH:mm')
   }
 
@@ -110,7 +133,7 @@ export default async function EditarMovimientoPage() {
             <p className="text-gray-600 mt-2">
               {movimiento.tipo === 'ENTRADA' ? 'Entrada' : 'Salida'} de {movimiento.cantidad} {movimiento.producto.unidad} de {movimiento.producto.nombre}
             </p>
-            <p className="text-sm text-gray-500 mt-1">{formatearFecha(movimiento.fecha)}</p>
+            <p className="text-sm text-gray-500 mt-1">{formatDate(movimiento.fecha)}</p>
           </div>
         </div>
 
@@ -135,18 +158,15 @@ export default async function EditarMovimientoPage() {
             
             <div className="space-y-6">
               <div>
-                <label htmlFor="motivo" className="block text-sm font-medium text-gray-700 mb-2">
-                  Motivo
-                </label>
                 <Input
                   label="Motivo"
                   name="motivo"
-                  id="motivo"
                   type="text"
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}
                   placeholder="Ej: Compra a proveedor, Venta a cliente, Ajuste de inventario..."
                   className="w-full"
+                  optional
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   Razón principal del movimiento
@@ -189,7 +209,7 @@ export default async function EditarMovimientoPage() {
                 </div>
                 <div>
                   <p className="text-gray-600">Fecha</p>
-                  <p className="font-medium">{formatearFecha(movimiento.fecha)}</p>
+                  <p className="font-medium">{formatDate(movimiento.fecha)}</p>
                 </div>
               </div>
             </div>
@@ -216,7 +236,4 @@ export default async function EditarMovimientoPage() {
       </div>
     </div>
   )
-=======
-  return <EditarMovimientoClient />
->>>>>>> 91cac1422cc10be3d341f5e2d8acbdd61d12fd81
 } 

@@ -1,13 +1,44 @@
-import { requireAuth } from '@/lib/ssrAuth'
-import MovimientosEliminadosClient from './MovimientosEliminadosClient'
+"use client"
 
-export const dynamic = 'force-dynamic'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { 
+  Trash2, 
+  RotateCcw, 
+  AlertTriangle,
+  Package,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Clock,
+  MessageCircle,
+  Eye
+} from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/Card'
+import { Movimiento } from '@/types/movimiento'
+import { useUser } from '@/lib/useUser'
+import { cn } from '@/lib/utils'
+import VolverAtras from '@/components/ui/VolverAtras'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
+import { pluralizarUnidad } from '@/lib/pluralization'
 
-export default async function MovimientosEliminadosPage() {
-  const user = await requireAuth()
-  if (!user) return null
+const fetcher = (url: string) =>
+  fetch(url, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+  }).then((res) => {
+    if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
+    return res.json()
+  })
+
+export default function MovimientosEliminadosClient() {
+  const router = useRouter()
+  const { data: userData } = useUser()
   
-<<<<<<< HEAD
   const [movimientos, setMovimientos] = useState<Movimiento[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -265,7 +296,4 @@ export default async function MovimientosEliminadosPage() {
       </div>
     </div>
   )
-=======
-  return <MovimientosEliminadosClient />
->>>>>>> 91cac1422cc10be3d341f5e2d8acbdd61d12fd81
 } 

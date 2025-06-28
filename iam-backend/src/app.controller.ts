@@ -1,23 +1,26 @@
-import { Controller, Get, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
 
 @Controller()
 export class AppController {
-  private readonly logger = new Logger(AppController.name);
-
   constructor(
     private readonly appService: AppService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  getHello(): object {
+    return {
+      message: this.appService.getHello(),
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      version: process.env.npm_package_version || '1.0.0'
+    };
   }
 
   @Get('health')
-  getHealth() {
+  getHealth(): object {
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -28,16 +31,21 @@ export class AppController {
   }
 
   @Get('health/database')
-  async getDatabaseHealth() {
-    this.logger.log('Verificando salud de la base de datos...');
-    
+  async getDatabaseHealth(): Promise<object> {
     try {
-      const dbStatus = await this.prisma.checkConnection();
-      this.logger.log('Estado de la base de datos:', dbStatus);
-      return dbStatus;
+      await this.prisma.$queryRaw`SELECT 1`;
+      return {
+        status: 'ok',
+        database: 'connected',
+        timestamp: new Date().toISOString()
+      };
     } catch (error) {
-      this.logger.error('Error al verificar salud de la base de datos:', error);
-      throw error;
+      return {
+        status: 'error',
+        database: 'disconnected',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      };
     }
   }
 }

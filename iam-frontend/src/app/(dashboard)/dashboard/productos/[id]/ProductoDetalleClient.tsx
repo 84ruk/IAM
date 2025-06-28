@@ -1,14 +1,32 @@
-import { requireAuth } from '@/lib/ssrAuth'
-import ProductoDetalleClient from './ProductoDetalleClient'
+'use client'
 
-export const dynamic = 'force-dynamic'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { ArrowLeft, Edit, Trash2, Package, AlertTriangle, TrendingUp, DollarSign, Calendar, CheckCircle, XCircle, Tag, Eye } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/Card'
+import { Producto } from '@/types/producto'
+import { TipoProductoConfig } from '@/types/enums'
+import ProductTypeIcon from '@/components/ui/ProductTypeIcon'
+import EtiquetaTag from '@/components/ui/EtiquetaTag'
+import StockInfoModal from '@/components/ui/StockInfoModal'
+import VolverAtras from '@/components/ui/VolverAtras'
+import Link from 'next/link'
 
-export default async function ProductoDetallePage() {
-  const user = await requireAuth()
-  if (!user) return null
+const fetcher = (url: string) =>
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+  }).then(res => {
+    if (!res.ok) {
+      throw new Error(`Error ${res.status}: ${res.statusText}`)
+    }
+    return res.json()
+  })
 
-<<<<<<< HEAD
-export default function DetalleProductoPage() {
+export default function ProductoDetalleClient() {
   const params = useParams()
   const router = useRouter()
   const [producto, setProducto] = useState<Producto | null>(null)
@@ -136,7 +154,7 @@ export default function DetalleProductoPage() {
             <div>
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-3xl font-bold text-gray-800">{producto.nombre}</h1>
-                <EtiquetaTag etiqueta={producto.etiqueta || ''} />
+                {producto.etiqueta && <EtiquetaTag etiqueta={producto.etiqueta} />}
               </div>
               <p className="text-gray-600">{producto.descripcion}</p>
             </div>
@@ -185,50 +203,27 @@ export default function DetalleProductoPage() {
               </CardContent>
             </Card>
 
-            {/* Información adicional */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-gray-600">
-                <Tag className="w-4 h-4" />
-                <span>SKU: {producto.sku || 'No especificado'}</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-600">
-                <Package className="w-4 h-4" />
-                <span>Stock mínimo: {producto.stockMinimo} {producto.unidad}</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-600">
-                <Calendar className="w-4 h-4" />
-                <span>Creado: {new Date(producto.creadoEn).toLocaleDateString()}</span>
-              </div>
+            {/* Acciones */}
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => router.push(`/dashboard/productos/${producto.id}/editar`)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                Editar
+              </button>
+              <button
+                onClick={eliminarProducto}
+                disabled={eliminando}
+                className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                Eliminar
+              </button>
             </div>
           </div>
         </div>
-
-        {/* Botón flotante de editar */}
-        <div className="fixed bottom-6 right-6 z-50">
-          <Link
-            href={`/dashboard/productos/${params.id}/editar`}
-            className="flex items-center gap-2 px-6 py-3 bg-[#8E94F2] text-white rounded-full shadow-lg hover:bg-[#7278e0] transition-all duration-200 hover:shadow-xl"
-          >
-            <Edit className="w-5 h-5" />
-            Editar
-          </Link>
-        </div>
-
-        {/* Modal de información de stock */}
-        <StockInfoModal
-          isOpen={showStockModal}
-          onClose={() => setShowStockModal(false)}
-          producto={{
-            nombre: producto.nombre,
-            stock: producto.stock,
-            stockMinimo: producto.stockMinimo,
-            unidad: producto.unidad
-          }}
-        />
       </div>
     </div>
   )
-=======
-  return <ProductoDetalleClient />
->>>>>>> 91cac1422cc10be3d341f5e2d8acbdd61d12fd81
 } 

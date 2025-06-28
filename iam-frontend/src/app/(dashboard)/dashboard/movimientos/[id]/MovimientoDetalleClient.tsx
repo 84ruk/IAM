@@ -1,13 +1,54 @@
-import { requireAuth } from '@/lib/ssrAuth'
-import MovimientoDetalleClient from './MovimientoDetalleClient'
+"use client"
 
-export const dynamic = 'force-dynamic'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { 
+  ArrowLeft, 
+  Edit, 
+  Trash2, 
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Package,
+  Calendar,
+  Hash,
+  User,
+  Mail,
+  Phone,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Tag,
+  Eye,
+  FileText,
+  MessageCircle,
+  RotateCcw
+} from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/Card'
+import { MovimientoDetalle } from '@/types/movimiento'
+import { useUser } from '@/lib/useUser'
+import { cn } from '@/lib/utils'
+import VolverAtras from '@/components/ui/VolverAtras'
+import { format } from 'date-fns'
 
-export default async function MovimientoDetallePage() {
-  const user = await requireAuth()
-  if (!user) return null
+const fetcher = (url: string) =>
+  fetch(url, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+  }).then((res) => {
+    if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
+    return res.json()
+  })
+
+export default function MovimientoDetalleClient() {
+  const params = useParams()
+  const router = useRouter()
+  const { data: userData } = useUser()
   
-<<<<<<< HEAD
   const [movimiento, setMovimiento] = useState<MovimientoDetalle | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -60,7 +101,7 @@ export default async function MovimientoDetallePage() {
     }
   }
 
-  const formatearFecha = (fecha: string) => {
+  const formatDate = (fecha: string) => {
     return format(new Date(fecha), 'dd/MM/yyyy HH:mm')
   }
 
@@ -124,7 +165,7 @@ export default async function MovimientoDetallePage() {
   const tipoInfo = getTipoInfo(movimiento.tipo)
   const TipoIcon = tipoInfo.icon
   const stockStatus = getStockStatus(movimiento.producto.stock, movimiento.producto.stockMinimo)
-  const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN'
+  const isAdmin = userData?.rol === 'ADMIN' || userData?.rol === 'SUPERADMIN'
 
   return (
     <div className="p-6 bg-[#F8F9FB] min-h-screen">
@@ -145,7 +186,7 @@ export default async function MovimientoDetallePage() {
                   {tipoInfo.text}
                 </span>
                 <span className="text-gray-600">•</span>
-                <span className="text-gray-600">{formatearFecha(movimiento.fecha)}</span>
+                <span className="text-gray-600">{formatDate(movimiento.fecha)}</span>
               </div>
             </div>
             
@@ -194,7 +235,7 @@ export default async function MovimientoDetallePage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Fecha y hora</p>
-                    <p className="font-medium">{formatearFecha(movimiento.fecha)}</p>
+                    <p className="font-medium">{formatDate(movimiento.fecha)}</p>
                   </div>
                 </div>
 
@@ -411,7 +452,4 @@ export default async function MovimientoDetallePage() {
       </div>
     </div>
   )
-=======
-  return <MovimientoDetalleClient />
->>>>>>> 91cac1422cc10be3d341f5e2d8acbdd61d12fd81
 } 

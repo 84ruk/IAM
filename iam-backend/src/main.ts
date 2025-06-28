@@ -9,9 +9,42 @@ async function bootstrap() {
 
   app.use(cookieParser()); 
 
+<<<<<<< HEAD
   // Configuración de CORS mejorada para cross-domain cookies
   const corsOptions = {
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+=======
+  // Agregar header para Private Network Access (PNA)
+  app.use((req, res, next) => {
+    if (req.headers['access-control-request-private-network']) {
+      res.header('Access-Control-Allow-Private-Network', 'true');
+    }
+    next();
+  });
+
+  // Configuración CORS para múltiples orígenes
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
+    'https://iam-frontend-six.vercel.app',
+    'https://iam-frontend.vercel.app'
+  ];
+
+  app.enableCors({
+    origin: function (origin, callback) {
+      // Permitir requests sin origin (como mobile apps o Postman)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.log('CORS blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+>>>>>>> 91cac1422cc10be3d341f5e2d8acbdd61d12fd81
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
