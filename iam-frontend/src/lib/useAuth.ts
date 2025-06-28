@@ -16,16 +16,40 @@ export const useAuth = () => {
 
   const logout = async () => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+      console.log('Iniciando logout...')
+      
+      // Llamar al endpoint de logout del backend
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       })
+      
+      if (response.ok) {
+        console.log('Logout exitoso en el backend')
+      } else {
+        console.log('Error en logout del backend:', response.status)
+      }
+      
       // Limpiar el cache de SWR
       mutate()
+      
+      // Limpiar cookies del lado del cliente como respaldo
+      document.cookie = 'jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      
+      // Redirigir al login
+      router.push('/login')
+      
     } catch (error) {
       console.error('Error al cerrar sesión:', error)
+      
       // Limpiar el cache de SWR incluso si hay error
       mutate()
+      
+      // Limpiar cookies del lado del cliente como respaldo
+      document.cookie = 'jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      
+      // Redirigir al login
+      router.push('/login')
     }
   }
 
