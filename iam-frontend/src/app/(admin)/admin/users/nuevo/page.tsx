@@ -255,10 +255,9 @@ export default function NuevoUsuarioPage() {
 
               {/* Rol */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rol *
-                </label>
                 <Select
+                  label="Rol"
+                  name="rol"
                   value={formData.rol}
                   onChange={(e) => handleInputChange('rol', e.target.value as any)}
                   options={roles.map(role => ({ 
@@ -281,12 +280,11 @@ export default function NuevoUsuarioPage() {
               {/* Empresa (solo para SUPERADMIN) */}
               {currentUser?.rol === 'SUPERADMIN' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Empresa
-                  </label>
                   <div className="relative">
                     <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <Select
+                      label="Empresa"
+                      name="empresaId"
                       value={formData.empresaId || ''}
                       onChange={(e) => handleInputChange('empresaId', e.target.value)}
                       options={[
@@ -296,6 +294,7 @@ export default function NuevoUsuarioPage() {
                           label: empresa.nombre 
                         }))
                       ]}
+                      optional
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
