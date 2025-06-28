@@ -29,6 +29,9 @@ export class AuthController {
     @Body() dto: LoginDto, 
     @Res({ passthrough: true }) res: Response
   ) {
+    console.log('Login request received');
+
+
     const user = await this.authService.validateUser(dto.email, dto.password);
     const token = await this.authService.login(user);
 
