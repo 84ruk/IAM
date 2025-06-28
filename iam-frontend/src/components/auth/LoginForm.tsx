@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
 import { Input } from '../ui/Input';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -18,9 +19,7 @@ export default function LoginForm() {
     setIsLoading(true);
 
     try {
-      console.log('Iniciando login...');
       const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
-      console.log('URL del login:', url);
       
       const res = await fetch(url, {
         method: 'POST',
@@ -29,8 +28,6 @@ export default function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
      
-      console.log('Respuesta del login:', res.status, res.statusText);
-      
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.message || 'Credenciales incorrectas');
@@ -38,35 +35,28 @@ export default function LoginForm() {
 
       // Verificar que la cookie se haya setado
       const cookies = document.cookie;
-      console.log('Cookies después del login:', cookies);
       
       if (!cookies.includes('jwt')) {
-        console.warn('No se detectó la cookie JWT después del login');
         // Intentar verificar si la cookie está en el servidor
         try {
           const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
             credentials: 'include',
           });
-          console.log('Verificación /auth/me:', meRes.status);
-          if (meRes.ok) {
-            console.log('Cookie funciona correctamente en el servidor');
+          if (!meRes.ok) {
+            throw new Error('Error de autenticación');
           }
         } catch (verifyError) {
-          console.error('Error verificando cookie:', verifyError);
+          throw new Error('Error de autenticación');
         }
-      } else {
-        console.log('Cookie JWT detectada correctamente');
       }
 
       // Esperar un momento para que la cookie se procese
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      console.log('Redirigiendo al dashboard...');
       router.push('/dashboard');
       router.refresh(); // Forzar refresh para actualizar el estado
       
     } catch (err: any) {
-      console.error('Error en login:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -76,6 +66,7 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="form-container">
       <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">Iniciar sesión</h1>
+      
       <Input
         label="Correo electrónico"
         name="email"
@@ -83,6 +74,7 @@ export default function LoginForm() {
         value={email}
         onChange={e => setEmail(e.target.value)}
         required
+        disabled={isLoading}
       />
 
       <Input
@@ -92,14 +84,37 @@ export default function LoginForm() {
         value={password}
         onChange={e => setPassword(e.target.value)}
         required
+        disabled={isLoading}
       />
 
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-      <Button type="submit" disabled={isLoading}>
-        {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600 text-sm">{error}</p>
+        </div>
+      )}
+      
+      <Button 
+        type="submit" 
+        disabled={isLoading}
+        className="w-full"
+      >
+        {isLoading ? (
+          <div className="flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Iniciando sesión...</span>
+          </div>
+        ) : (
+          'Iniciar sesión'
+        )}
       </Button>
+      
       <div className="mt-4 text-center">
-        <a href="/recuperar" className="btn-link">¿Olvidaste tu contraseña?</a>
+        <a 
+          href="/recuperar" 
+          className="text-sm text-[#8E94F2] hover:text-[#7278e0] transition-colors"
+        >
+          ¿Olvidaste tu contraseña?
+        </a>
       </div>
     </form>
   );
