@@ -1,7 +1,7 @@
 // src/app/dashboard/movimientos/nuevo/page.tsx
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -44,7 +44,7 @@ interface Producto {
   }
 }
 
-export default function NuevoMovimientoPage() {
+function NuevoMovimientoPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [productosActivos, setProductosActivos] = useState<Producto[]>([])
@@ -279,18 +279,16 @@ export default function NuevoMovimientoPage() {
 
             {/* Código de barras opcional */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Código de Barras (opcional)
-              </label>
               <Input
                 name="codigoBarras"
-                label=""
+                label="Código de Barras"
                 placeholder="Escanear o ingresar código de barras..."
                 value={codigoBarras}
                 onChange={e => setCodigoBarras(e.target.value)}
                 ref={inputRef}
                 disabled={isLoading}
                 className="border-0 shadow-sm focus:shadow-md transition-shadow duration-200"
+                optional
               />
             </div>
 
@@ -396,13 +394,10 @@ export default function NuevoMovimientoPage() {
 
             {/* Selector de proveedor */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Proveedor (opcional)
-              </label>
               <div className="relative">
                 <Select
                   name="proveedor"
-                  label=""
+                  label="Proveedor"
                   options={[
                     { value: '', label: 'Seleccionar proveedor...' },
                     ...proveedoresActivos.map(p => ({ 
@@ -413,6 +408,7 @@ export default function NuevoMovimientoPage() {
                   value={proveedorId}
                   onChange={e => setProveedorId(e.target.value)}
                   disabled={isLoading || isLoadingProveedores}
+                  optional
                 />
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   <Truck className="w-4 h-4 text-gray-400" />
@@ -435,12 +431,9 @@ export default function NuevoMovimientoPage() {
 
             {/* Cantidad */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Cantidad *
-              </label>
               <Input
                 name="cantidad"
-                label=""
+                label="Cantidad"
                 type="number"
                 min="1"
                 placeholder="Ingresa la cantidad..."
@@ -461,17 +454,15 @@ export default function NuevoMovimientoPage() {
 
             {/* Motivo */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Motivo (opcional)
-              </label>
               <Input
                 name="motivo"
-                label=""
+                label="Motivo"
                 placeholder="Ej: Compra, Venta, Ajuste de inventario..."
                 value={motivo}
                 onChange={e => setMotivo(e.target.value)}
                 disabled={isLoading}
                 className="border-0 shadow-sm focus:shadow-md transition-shadow duration-200"
+                optional
               />
             </div>
 
@@ -545,4 +536,12 @@ export default function NuevoMovimientoPage() {
       </div>
     </div>
   )
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <NuevoMovimientoPageContent />
+    </Suspense>
+  );
 }

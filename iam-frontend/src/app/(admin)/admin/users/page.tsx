@@ -230,12 +230,11 @@ export default function AdminUsersPage() {
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Buscar
-                </label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
+                    label="Buscar"
+                    name="search"
                     placeholder="Nombre o email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -245,10 +244,9 @@ export default function AdminUsersPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rol
-                </label>
                 <Select
+                  label="Rol"
+                  name="roleFilter"
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
                   options={[
@@ -259,10 +257,9 @@ export default function AdminUsersPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estado
-                </label>
                 <Select
+                  label="Estado"
+                  name="statusFilter"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   options={[
@@ -355,7 +352,6 @@ export default function AdminUsersPage() {
                     </Link>
                     <button
                       onClick={() => handleToggleStatus(user.id, user.activo, user.nombre)}
-                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors"
                       className={cn(
                         "flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors",
                         user.activo

@@ -154,7 +154,7 @@ export default function DetalleProductoPage() {
             <div>
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-3xl font-bold text-gray-800">{producto.nombre}</h1>
-                <EtiquetaTag etiqueta={producto.etiqueta} />
+                {producto.etiqueta && <EtiquetaTag etiqueta={producto.etiqueta} />}
               </div>
               <p className="text-gray-600">{producto.descripcion}</p>
             </div>

@@ -159,16 +159,15 @@ export default function EditarMovimientoPage() {
             
             <div className="space-y-6">
               <div>
-                <label htmlFor="motivo" className="block text-sm font-medium text-gray-700 mb-2">
-                  Motivo
-                </label>
                 <Input
-                  id="motivo"
+                  label="Motivo"
+                  name="motivo"
                   type="text"
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}
                   placeholder="Ej: Compra a proveedor, Venta a cliente, Ajuste de inventario..."
                   className="w-full"
+                  optional
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   Razón principal del movimiento
