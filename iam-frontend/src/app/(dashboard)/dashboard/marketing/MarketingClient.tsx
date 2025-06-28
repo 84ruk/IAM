@@ -1,8 +1,6 @@
 'use client';
 
-import Image from "next/image";
 import { MessageCircle, Megaphone } from "lucide-react";
-import flyerChocolate from "@/public/flyer-chocolate-demo.png";
 
 export default function MarketingClient() {
   return (
@@ -21,14 +19,12 @@ export default function MarketingClient() {
           </p>
           <div className="w-full flex flex-col items-center">
             <span className="text-xs text-gray-400 mb-2">Ejemplo de flyer generado por IA:</span>
-            <div className="w-64 h-auto rounded-lg overflow-hidden border border-gray-200 shadow">
-              <Image
-                src={flyerChocolate}
-                alt="Flyer generado por IA"
-                width={300}
-                height={420}
-                className="object-cover w-full h-auto"
-              />
+            <div className="w-64 h-80 rounded-lg overflow-hidden border border-gray-200 shadow bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
+              <div className="text-center text-gray-600">
+                <Megaphone className="w-12 h-12 mx-auto mb-2 text-orange-400" />
+                <p className="text-sm font-medium">Flyer Demo</p>
+                <p className="text-xs">Generado por IA</p>
+              </div>
             </div>
           </div>
         </div>
