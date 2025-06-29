@@ -292,29 +292,32 @@ export default function AdminUsersPage() {
           {filteredUsers.map((user) => {
             const roleInfo = getRoleInfo(user.rol)
             const RoleIcon = roleInfo.icon
-            
             return (
-              <Card key={user.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-gray-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-800">{user.nombre}</h3>
-                        <p className="text-sm text-gray-600">{user.email}</p>
+              <Card key={user.id} className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
+                <CardContent className="p-6 relative flex flex-col h-full">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-4 pr-12">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-800 text-lg mb-1 line-clamp-2">{user.nombre}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={cn(
+                          "inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium",
+                          roleInfo.color
+                        )}>
+                          <RoleIcon className="w-3 h-3" />
+                          {roleInfo.label}
+                        </span>
+                        <span className={cn(
+                          "inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium",
+                          user.activo ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                        )}>
+                          {user.activo ? 'Activo' : 'Inactivo'}
+                        </span>
                       </div>
                     </div>
-                    <span className={cn(
-                      "inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium",
-                      roleInfo.color
-                    )}>
-                      <RoleIcon className="w-3 h-3" />
-                      {roleInfo.label}
-                    </span>
                   </div>
 
+                  {/* Info empresa y fechas */}
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm">
                       <Building className="w-4 h-4 text-gray-400" />
@@ -324,62 +327,53 @@ export default function AdminUsersPage() {
                       <Calendar className="w-4 h-4 text-gray-400" />
                       <span className="text-gray-600">Creado: {formatDate(user.createdAt)}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      {user.activo ? (
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <XCircle className="w-4 h-4 text-red-500" />
-                      )}
-                      <span className={user.activo ? "text-green-600" : "text-red-600"}>
-                        {user.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </div>
                   </div>
 
-                  {/* Botones de acción en dos filas */}
-                  <div className="grid grid-cols-2 gap-2 pt-4 border-t border-gray-100">
-                    <Link
-                      href={`/admin/users/${user.id}`}
-                      className="flex items-center justify-center gap-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Ver
-                    </Link>
-                    <Link
-                      href={`/admin/users/${user.id}/editar`}
-                      className="flex items-center justify-center gap-1 px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <Edit className="w-4 h-4" />
-                      Editar
-                    </Link>
-                    <button
-                      onClick={() => handleToggleStatus(user.id, user.activo, user.nombre)}
-                      className={cn(
-                        "flex items-center justify-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors",
-                        user.activo
-                          ? "bg-orange-50 text-orange-600 hover:bg-orange-100"
-                          : "bg-green-50 text-green-600 hover:bg-green-100"
-                      )}
-                    >
-                      {user.activo ? (
-                        <>
-                          <XCircle className="w-4 h-4" />
-                          Desactivar
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-4 h-4" />
-                          Activar
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUser(user.id, user.nombre)}
-                      className="flex items-center justify-center gap-1 px-3 py-2 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Eliminar
-                    </button>
+                  {/* Acciones: dos filas, solo texto subrayado */}
+                  <div className="mt-auto flex flex-col items-center gap-2 w-full">
+                    {/* Primera fila: Ver y Editar */}
+                    <div className="flex items-center justify-center gap-6 w-full">
+                      <Link
+                        href={`/admin/users/${user.id}`}
+                        className="flex items-center gap-1 text-sm text-[#8E94F2] hover:text-[#7278e0] hover:underline transition-colors"
+                        title="Ver usuario"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <Eye className="w-4 h-4" />
+                        Ver
+                      </Link>
+                      <Link
+                        href={`/admin/users/${user.id}/editar`}
+                        className="flex items-center gap-1 text-sm text-[#8E94F2] hover:text-[#7278e0] hover:underline transition-colors"
+                        title="Editar usuario"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <Edit className="w-4 h-4" />
+                        Editar
+                      </Link>
+                    </div>
+                    {/* Segunda fila: Activar/Desactivar y Eliminar */}
+                    <div className="flex items-center justify-center gap-6 w-full">
+                      <button
+                        onClick={e => { e.stopPropagation(); handleToggleStatus(user.id, user.activo, user.nombre); }}
+                        className={cn(
+                          "flex items-center gap-1 text-sm hover:underline transition-colors",
+                          user.activo ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"
+                        )}
+                        title={user.activo ? "Desactivar usuario" : "Activar usuario"}
+                      >
+                        {user.activo ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                        {user.activo ? 'Desactivar' : 'Activar'}
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleDeleteUser(user.id, user.nombre); }}
+                        className="flex items-center gap-1 text-sm text-red-500 hover:text-red-700 hover:underline transition-colors"
+                        title="Eliminar usuario"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
