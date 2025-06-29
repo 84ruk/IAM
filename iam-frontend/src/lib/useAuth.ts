@@ -1,17 +1,18 @@
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useUser } from './useUser'
 
 export const useAuth = () => {
   const { data: user, isLoading, error, mutate } = useUser()
   const router = useRouter()
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Si hay un error de autenticación (401), redirigir al login
-    if (error && !isLoading) {
+    // Si hay un error de autenticación (401), redirigir al login solo si no estamos ya en /login
+    if (error && !isLoading && pathname !== '/login') {
       router.push('/login')
     }
-  }, [error, isLoading, router])
+  }, [error, isLoading, router, pathname])
 
   const logout = async () => {
     try {
