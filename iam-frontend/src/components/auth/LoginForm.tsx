@@ -13,7 +13,7 @@ export default function LoginForm() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { mutate, user, isLoading: userLoading } = useUserContext();
+  const { mutate, user } = useUserContext();
   const pathname = usePathname();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,21 +46,10 @@ export default function LoginForm() {
   };
 
   useEffect(() => {
-    if (user && !userLoading && pathname === '/login') {
+    if (user && pathname === '/login') {
       router.push('/dashboard');
     }
-  }, [user, userLoading, router, pathname]);
-
-  if (userLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#8E94F2]" />
-          <p className="text-gray-600">Verificando autenticación...</p>
-        </div>
-      </div>
-    );
-  }
+  }, [user, router, pathname]);
 
   if (isLoading) {
     return (

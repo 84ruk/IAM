@@ -21,10 +21,11 @@ import {
 import { cn } from '@/lib/utils'
 import { CreateUserAdminDto, RoleOption } from '@/types/admin'
 import { useUser } from '@/lib/useUser'
+import { useUserContext } from '@/context/UserProvider'
 
 export default function NuevoUsuarioPage() {
   const router = useRouter()
-  const { data: currentUser } = useUser()
+  const { mutate, user } = useUserContext()
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [empresas, setEmpresas] = useState<{ id: number; nombre: string }[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -59,7 +60,7 @@ export default function NuevoUsuarioPage() {
         setRoles(dataRoles || [])
 
         // Cargar empresas (solo para SUPERADMIN)
-        if (currentUser?.rol === 'SUPERADMIN') {
+        if (user?.rol === 'SUPERADMIN') {
           const responseEmpresas = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/empresas`, { 
             credentials: 'include' 
           })
@@ -78,7 +79,7 @@ export default function NuevoUsuarioPage() {
     }
 
     cargarDatos()
-  }, [currentUser?.rol])
+  }, [user?.rol])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -143,7 +144,7 @@ export default function NuevoUsuarioPage() {
   }
 
   // Verificar permisos de administrador
-  if (!currentUser || (currentUser.rol !== 'ADMIN' && currentUser.rol !== 'SUPERADMIN')) {
+  if (!user || (user.rol !== 'ADMIN' && user.rol !== 'SUPERADMIN')) {
     return (
       <div className="p-6 bg-[#F8F9FB] min-h-screen">
         <div className="max-w-4xl mx-auto">
@@ -278,7 +279,7 @@ export default function NuevoUsuarioPage() {
               </div>
 
               {/* Empresa (solo para SUPERADMIN) */}
-              {currentUser?.rol === 'SUPERADMIN' && (
+              {user?.rol === 'SUPERADMIN' && (
                 <div>
                   <div className="relative">
                     <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />

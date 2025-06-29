@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react"
 import useSWR from "swr"
-import Link from "next/link"
 import { 
   ArrowLeft, 
   Trash2, 
@@ -21,9 +20,9 @@ import {
 import { Card, CardContent } from "@/components/ui/Card"
 import { CardSkeleton } from "@/components/ui/CardSkeleton"
 import { Proveedor } from "@/types/proveedor"
-import { useUser } from "@/lib/useUser"
 import { cn } from "@/lib/utils"
 import VolverAtras from '@/components/ui/VolverAtras'
+import { useUserContext } from "@/context/UserProvider"
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
@@ -38,7 +37,6 @@ const fetcher = (url: string) =>
   })
 
 export default function ProveedoresEliminadosClient() {
-  const { data: user } = useUser()
   
   // Estados de UI
   const [pagina, setPagina] = useState(1)

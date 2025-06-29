@@ -2,23 +2,19 @@
 
 import { useState, useMemo } from "react"
 import useSWR from "swr"
-import Link from "next/link"
 import { 
   Plus, 
-  Trash2, 
   AlertTriangle,
   X,
-  Building2
 } from "lucide-react"
 import { CardSkeleton } from "@/components/ui/CardSkeleton"
 import { Proveedor } from "@/types/proveedor"
-import { User } from "@/types/user"
 import ProveedorFormModal from "@/components/ui/ProveedorFormModal"
 import ProveedorCard from "@/components/proveedores/ProveedorCard"
 import ProveedorFilters from "@/components/proveedores/ProveedorFilters"
 import EmptyState from "@/components/proveedores/EmptyState"
 import Pagination from "@/components/ui/Pagination"
-import { useUser } from "@/lib/useUser"
+import { useUserContext } from "@/context/UserProvider"
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
@@ -33,8 +29,7 @@ const fetcher = (url: string) =>
   })
 
 export default function ProveedoresClient() {
-  const { data: userData } = useUser()
-  
+  const { mutate, user } = useUserContext()  
   // Estados de filtros
   const [filtroTexto, setFiltroTexto] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<'ACTIVO' | 'INACTIVO' | ''>('')
@@ -58,7 +53,7 @@ export default function ProveedoresClient() {
   }
 
   // Obtener proveedores con filtros aplicados en el backend
-  const { data: proveedores, isLoading, error: errorProveedores, mutate } = useSWR<Proveedor[]>(buildUrl(), fetcher)
+  const { data: proveedores, isLoading, error: errorProveedores } = useSWR<Proveedor[]>(buildUrl(), fetcher)
 
   const itemsPorPagina = 12
 
@@ -293,7 +288,7 @@ export default function ProveedoresClient() {
                   }}
                   onEliminar={() => eliminarProveedor(proveedor.id)}
                   eliminandoId={eliminandoId}
-                  userRol={userData?.rol}
+                  userRol={user?.rol || ''}
                 />
               ))}
             </div>

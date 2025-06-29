@@ -22,12 +22,7 @@ export const useAuth = () => {
         credentials: 'include',
       })
       
-      if (response.ok) {
-        console.log('Logout exitoso en el backend')
-      } else {
-        console.log('Error en logout del backend:', response.status)
-      }
-      
+
       // Limpiar el cache de SWR y forzar usuario null
       mutate(null, false)
       

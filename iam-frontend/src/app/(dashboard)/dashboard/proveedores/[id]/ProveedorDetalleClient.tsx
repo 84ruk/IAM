@@ -21,13 +21,11 @@ import {
   TrendingUp
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { Proveedor } from '@/types/proveedor'
 import { Producto } from '@/types/producto'
-import { useUser } from '@/lib/useUser'
-import { cn } from '@/lib/utils'
+
 import ProveedorFormModal from '@/components/ui/ProveedorFormModal'
 import Pagination from '@/components/ui/Pagination'
 import VolverAtras from '@/components/ui/VolverAtras'
@@ -48,7 +46,6 @@ const fetcher = (url: string) =>
 export default function ProveedorDetalleClient() {
   const params = useParams()
   const router = useRouter()
-  const { data: userData } = useUser()
   
   // Estados del proveedor
   const [proveedor, setProveedor] = useState<Proveedor | null>(null)

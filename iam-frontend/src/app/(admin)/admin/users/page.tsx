@@ -30,10 +30,11 @@ import { AdminUser, RoleOption } from '@/types/admin'
 import { useUser } from '@/lib/useUser'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useUserContext } from '@/context/UserProvider'
 
 export default function AdminUsersPage() {
   const router = useRouter()
-  const { data: currentUser } = useUser()
+  const { mutate, user } = useUserContext()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -166,7 +167,7 @@ export default function AdminUsersPage() {
   }
 
   // Verificar permisos de administrador
-  if (!currentUser || (currentUser.rol !== 'ADMIN' && currentUser.rol !== 'SUPERADMIN')) {
+  if (!user || (user.rol !== 'ADMIN' && user.rol !== 'SUPERADMIN')) {
     return (
       <div className="p-6 bg-[#F8F9FB] min-h-screen">
         <div className="max-w-4xl mx-auto">

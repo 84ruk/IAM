@@ -27,10 +27,10 @@ import {
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { MovimientoDetalle } from '@/types/movimiento'
-import { useUser } from '@/lib/useUser'
 import { cn } from '@/lib/utils'
 import VolverAtras from '@/components/ui/VolverAtras'
 import { format } from 'date-fns'
+import { useUserContext } from '@/context/UserProvider'
 
 const fetcher = (url: string) =>
   fetch(url, {
@@ -47,7 +47,7 @@ const fetcher = (url: string) =>
 export default function MovimientoDetalleClient() {
   const params = useParams()
   const router = useRouter()
-  const { data: userData } = useUser()
+  const { mutate, user } = useUserContext()
   
   const [movimiento, setMovimiento] = useState<MovimientoDetalle | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -165,7 +165,7 @@ export default function MovimientoDetalleClient() {
   const tipoInfo = getTipoInfo(movimiento.tipo)
   const TipoIcon = tipoInfo.icon
   const stockStatus = getStockStatus(movimiento.producto.stock, movimiento.producto.stockMinimo)
-  const isAdmin = userData?.rol === 'ADMIN' || userData?.rol === 'SUPERADMIN'
+  const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN'
 
   return (
     <div className="p-6 bg-[#F8F9FB] min-h-screen">
