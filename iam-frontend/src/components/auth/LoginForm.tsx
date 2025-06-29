@@ -35,8 +35,8 @@ export default function LoginForm() {
         throw new Error(errorData.message || 'Credenciales incorrectas');
       }
 
-      await mutate(); // SWR revalida el usuario automáticamente
-      // No necesitas while ni fetch manual aquí
+      await mutate();
+      router.push('/dashboard');
 
     } catch (err: any) {
       setError(err.message);

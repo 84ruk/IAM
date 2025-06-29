@@ -27,14 +27,14 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminUser, RoleOption } from '@/types/admin'
-import { useUser } from '@/lib/useUser'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { useUserContext } from '@/context/UserProvider'
+import { useServerUser } from '@/context/ServerUserContext'
 
 export default function AdminUsersPage() {
+  const user = useServerUser();
   const router = useRouter()
-  const { mutate, user } = useUserContext()
+  
   const [users, setUsers] = useState<AdminUser[]>([])
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -336,17 +336,18 @@ export default function AdminUsersPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
+                  {/* Botones de acción en dos filas */}
+                  <div className="grid grid-cols-2 gap-2 pt-4 border-t border-gray-100">
                     <Link
                       href={`/admin/users/${user.id}`}
-                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                      className="flex items-center justify-center gap-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
                     >
                       <Eye className="w-4 h-4" />
                       Ver
                     </Link>
                     <Link
                       href={`/admin/users/${user.id}/editar`}
-                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                      className="flex items-center justify-center gap-1 px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
                     >
                       <Edit className="w-4 h-4" />
                       Editar
@@ -354,7 +355,7 @@ export default function AdminUsersPage() {
                     <button
                       onClick={() => handleToggleStatus(user.id, user.activo, user.nombre)}
                       className={cn(
-                        "flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors",
+                        "flex items-center justify-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors",
                         user.activo
                           ? "bg-orange-50 text-orange-600 hover:bg-orange-100"
                           : "bg-green-50 text-green-600 hover:bg-green-100"
@@ -374,7 +375,7 @@ export default function AdminUsersPage() {
                     </button>
                     <button
                       onClick={() => handleDeleteUser(user.id, user.nombre)}
-                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                      className="flex items-center justify-center gap-1 px-3 py-2 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                       Eliminar

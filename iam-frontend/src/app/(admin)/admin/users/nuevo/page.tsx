@@ -20,12 +20,13 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CreateUserAdminDto, RoleOption } from '@/types/admin'
-import { useUser } from '@/lib/useUser'
-import { useUserContext } from '@/context/UserProvider'
+import { useServerUser } from '@/context/ServerUserContext'
 
 export default function NuevoUsuarioPage() {
   const router = useRouter()
-  const { mutate, user } = useUserContext()
+  const user = useServerUser();
+
+
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [empresas, setEmpresas] = useState<{ id: number; nombre: string }[]>([])
   const [isLoading, setIsLoading] = useState(false)

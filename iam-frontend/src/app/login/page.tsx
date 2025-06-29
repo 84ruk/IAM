@@ -1,14 +1,16 @@
-'use client'
-
-import LoginGuard from '@/components/auth/LoginGuard'
+import { requireAuth } from '@/lib/ssrAuth'
+import { redirect } from 'next/navigation'
 import LoginForm from '@/components/auth/LoginForm'
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const user = await requireAuth();
+  if (user) {
+    redirect('/dashboard');
+  }
+
   return (
-    <LoginGuard>
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoginForm />
-      </div>
-    </LoginGuard>
-  )
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <LoginForm />
+    </div>
+  );
 }

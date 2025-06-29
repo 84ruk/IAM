@@ -1,8 +1,8 @@
 'use client'
 
-import { useUserContext } from '@/context/UserProvider'
 import { LogOut, Settings } from 'lucide-react'
 import Link from 'next/link'
+import { User } from '@/types/user'
 
 const ROL_MAP: Record<string, string> = {
   SUPERADMIN: 'Super Administrador',
@@ -11,20 +11,8 @@ const ROL_MAP: Record<string, string> = {
   PROVEEDOR: 'Proveedor',
 }
 
-export default function Navbar() {
-  const { user, logout, isLoading } = useUserContext()
-
+export default function Navbar({ user, logout }: { user: User, logout?: () => void }) {
   const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN'
-
-  if (isLoading) {
-    return (
-      <header className="w-full px-6 py-4 bg-white shadow-sm flex items-center justify-between border-b border-gray-100">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-800">Cargando...</h1>
-        </div>
-      </header>
-    )
-  }
 
   return (
     <header className="w-full px-6 py-4 bg-white shadow-sm flex items-center justify-between border-b border-gray-100">
@@ -33,7 +21,7 @@ export default function Navbar() {
           Hola, {user?.nombre || user?.email?.split('@')[0] || 'Usuario'} 👋
         </h1>
         <p className="text-sm text-gray-500">
-          Rol actual: <strong>{user?.rol ? ROL_MAP[user.rol] : 'Desconocido'}</strong>
+          Rol actual: <strong>{ROL_MAP[user?.rol] ?? 'Desconocido'}</strong>
         </p>
       </div>
 
@@ -48,13 +36,15 @@ export default function Navbar() {
               Administración
             </Link>
           )}
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-[#8E94F2] hover:bg-[#7278e0] transition rounded-xl"
-          >
-            <LogOut size={16} />
-            Cerrar sesión
-          </button>
+          {logout && (
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-[#8E94F2] hover:bg-[#7278e0] transition rounded-xl"
+            >
+              <LogOut size={16} />
+              Cerrar sesión
+            </button>
+          )}
         </div>
       )}
     </header>
