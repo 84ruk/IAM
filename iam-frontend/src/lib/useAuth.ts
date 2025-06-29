@@ -28,8 +28,8 @@ export const useAuth = () => {
         console.log('Error en logout del backend:', response.status)
       }
       
-      // Limpiar el cache de SWR
-      mutate()
+      // Limpiar el cache de SWR y forzar usuario null
+      mutate(null, false)
       
       // Limpiar cookies del lado del cliente como respaldo
       document.cookie = 'jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
@@ -38,8 +38,8 @@ export const useAuth = () => {
       router.push('/login')
       
     } catch (error) {
-      // Limpiar el cache de SWR incluso si hay error
-      mutate()
+      // Limpiar el cache de SWR y forzar usuario null incluso si hay error
+      mutate(null, false)
       
       // Limpiar cookies del lado del cliente como respaldo
       document.cookie = 'jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
