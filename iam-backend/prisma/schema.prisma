@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -40,12 +39,15 @@ model Usuario {
   empresaId Int
   nombre    String
   email     String   @unique
-  password  String
+  password  String?
   rol       Rol
   activo    Boolean  @default(true)
   createdAt DateTime @default(now())
-
   empresa Empresa @relation(fields: [empresaId], references: [id])
+
+  // Nuevos campos para OAuth
+  googleId     String?  @unique
+  authProvider String   @default("local")
 }
 
 enum Rol {

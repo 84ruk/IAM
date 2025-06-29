@@ -87,4 +87,29 @@ export class AuthController {
   async getMe(@CurrentUser() user: JwtUser) {
     return user;
   }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth() {
+    // Inicia el flujo de OAuth con Google
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Req() req, @Res({ passthrough: true }) res: Response) {
+    const googleUser = req.user;
+    // Buscar o validar usuario y emitir JWT
+    const token = await this.authService.loginWithGoogle(googleUser);
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieOptions: any = {
+      httpOnly: true,
+      sameSite: isProduction ? 'none' as const : 'lax' as const,
+      secure: isProduction,
+      maxAge: 1000 * 60 * 60 * 24, // 24 horas
+      path: '/',
+    };
+    res.cookie('jwt', token, cookieOptions);
+    // Redirigir al frontend o devolver mensaje
+    res.redirect(process.env.FRONTEND_URL || '/');
+  }
 }

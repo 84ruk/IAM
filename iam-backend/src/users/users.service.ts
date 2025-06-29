@@ -8,7 +8,10 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateUserDto) {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    let hashedPassword: string | null = null;
+    if (data.password) {
+      hashedPassword = await bcrypt.hash(data.password, 10);
+    }
     return this.prisma.usuario.create({
       data: {
         nombre: data.nombre,
@@ -16,6 +19,8 @@ export class UsersService {
         password: hashedPassword,
         rol: data.rol,
         empresaId: Number(data.empresaId),
+        googleId: (data as any).googleId,
+        authProvider: (data as any).authProvider || 'local',
       },
     });
   }

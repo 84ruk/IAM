@@ -29,7 +29,11 @@ export class AuthService {
       throw new NotFoundException('Usuario no El correo proporcionado no está registrado');
     }
 
-    const passwordValid = await bcrypt.compare(password, user.password);
+    if (!user.password) {
+      throw new UnauthorizedException('Este usuario solo puede iniciar sesión con Google');
+    }
+
+    const passwordValid = await bcrypt.compare(password, user.password as string);
     if (!passwordValid) throw new UnauthorizedException('Contraseña incorrecta');
 
     return user;
@@ -117,5 +121,36 @@ export class AuthService {
     catch (error) {
       throw new UnauthorizedException('Token inválido o expirado');
     }
+  }
+
+  async loginWithGoogle(googleUser: any) {
+    // Buscar usuario por googleId o email
+    let user = await this.prisma.usuario.findFirst({
+      where: {
+        OR: [
+          { googleId: googleUser.googleId },
+          { email: googleUser.email },
+        ],
+      },
+    });
+
+    // Si no existe, no crear usuario automáticamente por seguridad
+    if (!user) {
+      throw new UnauthorizedException('No tienes acceso. Contacta al administrador.');
+      // Si quieres permitir creación automática, descomenta lo siguiente y ajusta lógica de empresa/rol:
+      // user = await this.prisma.usuario.create({
+      //   data: {
+      //     nombre: googleUser.nombre,
+      //     email: googleUser.email,
+      //     googleId: googleUser.googleId,
+      //     authProvider: 'google',
+      //     rol: 'EMPLEADO', // O el rol por defecto que prefieras
+      //     empresaId: 1, // O la empresa por defecto
+      //   },
+      // });
+    }
+
+    // Emitir JWT igual que en login tradicional
+    return this.login(user);
   }
 }
