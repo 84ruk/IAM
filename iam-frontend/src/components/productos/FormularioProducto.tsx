@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { INDUSTRIAS } from '@/config/industrias.config'
-import { useUserContext } from '@/context/UserProvider'
+import { useServerUser } from '@/context/ServerUserContext'
 
 import { FormErrorAlert } from '@/components/ui/FormErrorAlert'
 import { useEffect, useState, useMemo } from 'react'
@@ -33,7 +33,7 @@ const baseSchema = z
 
 
 export default function FormularioProducto({ onSuccess }: { onSuccess?: () => void }) {
-  const { user } = useUserContext()
+  const user = useServerUser();
   const router = useRouter()
   const params = useParams()
   const productoId = params?.id

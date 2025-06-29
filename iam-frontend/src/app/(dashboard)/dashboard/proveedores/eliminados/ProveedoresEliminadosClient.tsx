@@ -22,7 +22,7 @@ import { CardSkeleton } from "@/components/ui/CardSkeleton"
 import { Proveedor } from "@/types/proveedor"
 import { cn } from "@/lib/utils"
 import VolverAtras from '@/components/ui/VolverAtras'
-import { useUserContext } from "@/context/UserProvider"
+
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {

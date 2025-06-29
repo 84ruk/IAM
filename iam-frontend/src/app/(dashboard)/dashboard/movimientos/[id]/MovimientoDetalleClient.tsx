@@ -30,7 +30,7 @@ import { MovimientoDetalle } from '@/types/movimiento'
 import { cn } from '@/lib/utils'
 import VolverAtras from '@/components/ui/VolverAtras'
 import { format } from 'date-fns'
-import { useUserContext } from '@/context/UserProvider'
+import { useServerUser } from '@/context/ServerUserContext'
 
 const fetcher = (url: string) =>
   fetch(url, {
@@ -47,7 +47,7 @@ const fetcher = (url: string) =>
 export default function MovimientoDetalleClient() {
   const params = useParams()
   const router = useRouter()
-  const { mutate, user } = useUserContext()
+  const user = useServerUser();
   
   const [movimiento, setMovimiento] = useState<MovimientoDetalle | null>(null)
   const [isLoading, setIsLoading] = useState(true)

@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Button from '@/components/ui/Button';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Input } from '../ui/Input';
 import { Loader2 } from 'lucide-react';
-import { useUserContext } from '@/context/UserProvider';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -13,8 +12,6 @@ export default function LoginForm() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { mutate, user } = useUserContext();
-  const pathname = usePathname();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,21 +32,14 @@ export default function LoginForm() {
         throw new Error(errorData.message || 'Credenciales incorrectas');
       }
 
-      await mutate();
+      // Redirigir directamente al dashboard tras login exitoso
       router.push('/dashboard');
-
     } catch (err: any) {
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (user && pathname === '/login') {
-      router.push('/dashboard');
-    }
-  }, [user, router, pathname]);
 
   if (isLoading) {
     return (

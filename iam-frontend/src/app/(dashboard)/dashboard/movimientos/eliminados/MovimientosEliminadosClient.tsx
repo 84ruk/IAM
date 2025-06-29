@@ -21,7 +21,6 @@ import VolverAtras from '@/components/ui/VolverAtras'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { pluralizarUnidad } from '@/lib/pluralization'
-import { useUserContext } from '@/context/UserProvider'
 
 const fetcher = (url: string) =>
   fetch(url, {
@@ -37,7 +36,6 @@ const fetcher = (url: string) =>
 
 export default function MovimientosEliminadosClient() {
   const router = useRouter()
-  const { mutate, user } = useUserContext()
   
   const [movimientos, setMovimientos] = useState<Movimiento[]>([])
   const [isLoading, setIsLoading] = useState(true)

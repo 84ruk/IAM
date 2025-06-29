@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from "react"
-import useSWR from "swr"
+import useSWR, { mutate } from "swr"
 import { 
   Plus, 
   AlertTriangle,
@@ -14,7 +14,7 @@ import ProveedorCard from "@/components/proveedores/ProveedorCard"
 import ProveedorFilters from "@/components/proveedores/ProveedorFilters"
 import EmptyState from "@/components/proveedores/EmptyState"
 import Pagination from "@/components/ui/Pagination"
-import { useUserContext } from "@/context/UserProvider"
+import { useServerUser } from '@/context/ServerUserContext'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
@@ -29,7 +29,7 @@ const fetcher = (url: string) =>
   })
 
 export default function ProveedoresClient() {
-  const { mutate, user } = useUserContext()  
+  const user = useServerUser();  
   // Estados de filtros
   const [filtroTexto, setFiltroTexto] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<'ACTIVO' | 'INACTIVO' | ''>('')
@@ -116,7 +116,7 @@ export default function ProveedoresClient() {
       }
 
       mostrarError('Proveedor eliminado correctamente. Puedes restaurarlo desde la papelera.')
-      mutate() // Recargar datos
+      mutate(buildUrl())
     } catch (error) {
       mostrarError('Error al eliminar el proveedor. Intenta nuevamente.')
     } finally {
@@ -141,7 +141,7 @@ export default function ProveedoresClient() {
       }
 
       mostrarError('Proveedor activado correctamente.')
-      mutate() // Recargar datos
+      mutate(buildUrl())
     } catch (error) {
       mostrarError('Error al activar el proveedor. Intenta nuevamente.')
     } finally {
@@ -166,7 +166,7 @@ export default function ProveedoresClient() {
       }
 
       mostrarError('Proveedor desactivado correctamente.')
-      mutate() // Recargar datos
+      mutate(buildUrl())
     } catch (error) {
       mostrarError('Error al desactivar el proveedor. Intenta nuevamente.')
     } finally {
@@ -177,7 +177,7 @@ export default function ProveedoresClient() {
   const handleSuccess = () => {
     setShowModal(false)
     setProveedorEdit(null)
-    mutate()
+    mutate(buildUrl())
   }
 
   if (isLoading) {
@@ -207,7 +207,7 @@ export default function ProveedoresClient() {
             <h2 className="text-xl font-semibold text-gray-800 mb-2">Error al cargar proveedores</h2>
             <p className="text-gray-600 mb-4">No se pudieron cargar los proveedores. Intenta recargar la página.</p>
             <button 
-              onClick={() => mutate()}
+              onClick={() => mutate(buildUrl())}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
               Reintentar
