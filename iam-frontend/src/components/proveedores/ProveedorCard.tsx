@@ -124,6 +124,7 @@ export default function ProveedorCard({
 
           {/* Acciones */}
           <div className="mt-auto flex flex-col items-center gap-2 w-full">
+            {/* Primera fila: Editar */}
             <div className="flex items-center justify-center gap-6 w-full">
               {onEdit && (
                 <button
@@ -139,6 +140,9 @@ export default function ProveedorCard({
                   Editar
                 </button>
               )}
+            </div>
+            {/* Segunda fila: Eliminar */}
+            <div className="flex items-center justify-center gap-6 w-full">
               {isAdmin && proveedor.estado !== 'ELIMINADO' && (
                 <button
                   onClick={(e) => {
