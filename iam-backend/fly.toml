@@ -6,11 +6,12 @@ app = "iam-backend-baruk"
 primary_region = "dfw"
 
 [build]
-  dockerfile = "iam-backend/Dockerfile"
+  dockerfile = "Dockerfile"
 
 [env]
   PORT = "8080"
   NODE_ENV = "production"
+  JWT_SECRET= "NV48+VgXUXAk4ZB3YP0mhNaGCNYrDDAiwpcsV5ZUbm0="
 
 [http_service]
   internal_port = 8080
@@ -21,10 +22,10 @@ primary_region = "dfw"
   processes = ["app"]
 
 [[http_service.checks]]
-  grace_period = "10s"
+  grace_period = "30s"
   interval = "30s"
   method = "GET"
-  timeout = "5s"
+  timeout = "10s"
   path = "/health"
 
 [[http_service.checks]]

@@ -1,6 +1,18 @@
 node_modules
 dist
 .env
+.env.*
 .git
-Dockerfile
+.gitignore
+Dockerfile*
+Dockerfile.dev
+*.md
+test
+tests
+coverage
+iam-frontend
+*.sh
+*.DS_Store
+README.md
+railway.json
 
