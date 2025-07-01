@@ -407,6 +407,15 @@ export default function ProveedorDetalleClient() {
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold text-gray-800">Productos de este proveedor</h2>
                   <div className="flex gap-3">
+                    {productos.length === 0 && (
+                      <button
+                        onClick={() => setShowAddProductsModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        Asignar productos
+                      </button>
+                    )}
                     <Link
                       href="/dashboard/productos/nuevo"
                       className="flex items-center gap-2 px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors"
@@ -507,17 +516,12 @@ export default function ProveedorDetalleClient() {
       {/* Modal para asignar productos */}
       {showAddProductsModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-200">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-200">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <UserPlus className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800">Asignar productos a {proveedor.nombre}</h2>
-                  <p className="text-sm text-gray-600">Selecciona productos sin proveedor para asignarlos</p>
-                </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Asignar productos a {proveedor.nombre}</h2>
+                <p className="text-sm text-gray-600 mt-1">Selecciona los productos que deseas asignar a este proveedor</p>
               </div>
               <button
                 onClick={() => {
@@ -531,85 +535,103 @@ export default function ProveedorDetalleClient() {
               </button>
             </div>
 
-            {/* Content */}
-            <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
-              <div className="p-6">
-                {/* Búsqueda */}
-                <div className="mb-6">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Buscar productos sin proveedor..."
-                      value={filtroProductosSinProveedor}
-                      onChange={(e) => setFiltroProductosSinProveedor(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200"
-                    />
-                  </div>
+            {/* Contenido */}
+            <div className="p-6">
+              {/* Búsqueda */}
+              <div className="mb-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Buscar productos sin proveedor..."
+                    value={filtroProductosSinProveedor}
+                    onChange={(e) => setFiltroProductosSinProveedor(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-colors"
+                  />
                 </div>
+              </div>
 
-                {/* Lista de productos sin proveedor */}
-                <div className="max-h-96 overflow-y-auto">
-                  {productosSinProveedorFiltrados.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-600">
-                        {filtroProductosSinProveedor 
-                          ? 'No se encontraron productos sin proveedor' 
-                          : 'No hay productos sin proveedor asignado'
-                        }
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {productosSinProveedorFiltrados.map((producto) => {
-                        const stockStatus = getStockStatus(producto)
-                        const StockIcon = stockStatus.icon
-                        const isSelected = asignandoProductos.includes(producto.id)
+              {/* Lista de productos sin proveedor */}
+              <div className="max-h-96 overflow-y-auto">
+                {productosSinProveedorFiltrados.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Package className="w-16 h-16 text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      {filtroProductosSinProveedor 
+                        ? 'No se encontraron productos' 
+                        : 'No hay productos sin proveedor'
+                      }
+                    </h3>
+                    <p className="text-gray-600 text-center">
+                      {filtroProductosSinProveedor 
+                        ? 'Intenta con otros términos de búsqueda' 
+                        : 'Todos los productos ya tienen un proveedor asignado'
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {productosSinProveedorFiltrados.map((producto) => {
+                      const stockStatus = getStockStatus(producto)
+                      const StockIcon = stockStatus.icon
+                      const isSelected = asignandoProductos.includes(producto.id)
 
-                        return (
-                          <div
-                            key={producto.id}
-                            className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
-                              isSelected 
-                                ? 'border-green-500 bg-green-50 shadow-sm' 
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            }`}
-                            onClick={() => {
-                              if (isSelected) {
-                                setAsignandoProductos(prev => prev.filter(id => id !== producto.id))
-                              } else {
-                                setAsignandoProductos(prev => [...prev, producto.id])
-                              }
-                            }}
-                          >
-                            <div className="flex-1">
-                              <h3 className="font-medium text-gray-800 mb-1">{producto.nombre}</h3>
-                              <div className="flex items-center gap-4 text-sm text-gray-600">
-                                <span>Stock: {producto.stock} {producto.unidad}</span>
-                                <span>Precio: ${producto.precioVenta}</span>
-                                {producto.etiqueta && (
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                                    {producto.etiqueta}
+                      return (
+                        <Card
+                          key={producto.id}
+                          className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+                            isSelected 
+                              ? 'ring-2 ring-[#8E94F2] border-[#8E94F2] bg-[#8E94F2]/5' 
+                              : 'hover:border-gray-300'
+                          }`}
+                          onClick={() => {
+                            if (isSelected) {
+                              setAsignandoProductos(prev => prev.filter(id => id !== producto.id))
+                            } else {
+                              setAsignandoProductos(prev => [...prev, producto.id])
+                            }
+                          }}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between mb-2">
+                                  <h3 className="font-semibold text-gray-800 text-lg line-clamp-2">{producto.nombre}</h3>
+                                  {isSelected && (
+                                    <CheckCircle className="w-5 h-5 text-[#8E94F2] flex-shrink-0 ml-2" />
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-center gap-2 mb-3">
+                                  <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium ${stockStatus.color}`}>
+                                    <StockIcon className="w-3 h-3" />
+                                    {stockStatus.text}
                                   </span>
-                                )}
+                                  {producto.etiqueta && (
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium border border-blue-200">
+                                      {producto.etiqueta}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Stock:</span>
+                                    <span className="font-medium">{producto.stock} {producto.unidad}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Precio:</span>
+                                    <span className="font-medium">${producto.precioVenta}</span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium ${stockStatus.color}`}>
-                                <StockIcon className="w-3 h-3" />
-                                {stockStatus.text}
-                              </span>
-                              {isSelected && (
-                                <CheckCircle className="w-5 h-5 text-green-500" />
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -628,14 +650,14 @@ export default function ProveedorDetalleClient() {
                     setAsignandoProductos([])
                     setFiltroProductosSinProveedor('')
                   }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={asignarProductos}
                   disabled={asignandoProductos.length === 0}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  className="px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
                   Asignar {asignandoProductos.length > 0 && `(${asignandoProductos.length})`}
                 </button>
