@@ -351,29 +351,17 @@ export default function MovimientosClient() {
         {/* Lista de movimientos */}
         <div className="space-y-4">
           {movimientosFiltrados.length === 0 ? (
-            <div className="text-center py-12">
-              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <div className="flex flex-col items-center justify-center py-12">
+              <Trash2 className="w-16 h-16 text-gray-300 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {filtro !== '' || filtroTipo !== 'TODOS' || filtroFecha !== '' 
-                  ? 'No se encontraron movimientos' 
-                  : 'No hay movimientos registrados'
-                }
+                {filtro ? 'No se encontraron movimientos' : 'No hay movimientos eliminados'}
               </h3>
-              <p className="text-gray-500 mb-4">
-                {filtro !== '' || filtroTipo !== 'TODOS' || filtroFecha !== ''
-                  ? 'Intenta ajustar los filtros de búsqueda'
-                  : 'Comienza registrando tu primer movimiento de inventario'
+              <p className="text-gray-600 text-center">
+                {filtro 
+                  ? 'Intenta con otros términos de búsqueda' 
+                  : 'Los movimientos que elimines aparecerán aquí para que puedas restaurarlos'
                 }
               </p>
-              {filtro === '' && filtroTipo === 'TODOS' && filtroFecha === '' && (
-                <button
-                  onClick={() => router.push('/dashboard/movimientos/nuevo')}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Crear primer movimiento
-                </button>
-              )}
             </div>
           ) : (
             movimientosFiltrados.map((movimiento) => (

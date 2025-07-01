@@ -300,13 +300,13 @@ export default function AdminUsersPage() {
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-800 text-lg mb-1 line-clamp-2">{user.nombre}</h3>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={cn(
-                          "inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium",
-                          roleInfo.color
-                        )}>
-                          <RoleIcon className="w-3 h-3" />
-                          {roleInfo.label}
-                        </span>
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium",
+                      roleInfo.color
+                    )}>
+                      <RoleIcon className="w-3 h-3" />
+                      {roleInfo.label}
+                    </span>
                         <span className={cn(
                           "inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium",
                           user.activo ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
@@ -333,46 +333,46 @@ export default function AdminUsersPage() {
                   <div className="mt-auto flex flex-col items-center gap-2 w-full">
                     {/* Primera fila: Ver y Editar */}
                     <div className="flex items-center justify-center gap-6 w-full">
-                      <Link
-                        href={`/admin/users/${user.id}`}
+                    <Link
+                      href={`/admin/users/${user.id}`}
                         className="flex items-center gap-1 text-sm text-[#8E94F2] hover:text-[#7278e0] hover:underline transition-colors"
                         title="Ver usuario"
                         onClick={e => e.stopPropagation()}
-                      >
-                        <Eye className="w-4 h-4" />
-                        Ver
-                      </Link>
-                      <Link
-                        href={`/admin/users/${user.id}/editar`}
+                    >
+                      <Eye className="w-4 h-4" />
+                      Ver
+                    </Link>
+                    <Link
+                      href={`/admin/users/${user.id}/editar`}
                         className="flex items-center gap-1 text-sm text-[#8E94F2] hover:text-[#7278e0] hover:underline transition-colors"
                         title="Editar usuario"
                         onClick={e => e.stopPropagation()}
-                      >
-                        <Edit className="w-4 h-4" />
-                        Editar
-                      </Link>
+                    >
+                      <Edit className="w-4 h-4" />
+                      Editar
+                    </Link>
                     </div>
                     {/* Segunda fila: Activar/Desactivar y Eliminar */}
                     <div className="flex items-center justify-center gap-6 w-full">
-                      <button
+                    <button
                         onClick={e => { e.stopPropagation(); handleToggleStatus(user.id, user.activo, user.nombre); }}
-                        className={cn(
+                      className={cn(
                           "flex items-center gap-1 text-sm hover:underline transition-colors",
                           user.activo ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"
-                        )}
+                      )}
                         title={user.activo ? "Desactivar usuario" : "Activar usuario"}
                       >
                         {user.activo ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                         {user.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                      <button
+                    </button>
+                    <button
                         onClick={e => { e.stopPropagation(); handleDeleteUser(user.id, user.nombre); }}
                         className="flex items-center gap-1 text-sm text-red-500 hover:text-red-700 hover:underline transition-colors"
                         title="Eliminar usuario"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Eliminar
-                      </button>
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Eliminar
+                    </button>
                     </div>
                   </div>
                 </CardContent>

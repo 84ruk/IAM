@@ -66,7 +66,7 @@ export default function ProveedorCard({
 
   return (
     <Link href={`/dashboard/proveedores/${proveedor.id}`}>
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
+      <Card className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full mt-4">
         <CardContent className="p-6 relative flex flex-col h-full">
           {/* Header */}
           <div className="flex items-start justify-between mb-4">

@@ -392,13 +392,7 @@ export default function ProveedorDetalleClient() {
                     <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-600 mb-2">No hay productos</h3>
                     <p className="text-gray-500 mb-4">Este proveedor no tiene productos registrados.</p>
-                    <Link
-                      href="/dashboard/productos/nuevo"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Agregar primer producto
-                    </Link>
+
                   </div>
                 ) : (
                   <>
