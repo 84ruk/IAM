@@ -72,6 +72,11 @@ export class ProductoController {
     return this.productoService.findDeleted(user.empresaId);
   }
 
+  @Get('sin-proveedor')
+  getWithoutProvider(@CurrentUser() user: JwtUser) {
+    return this.productoService.findWithoutProvider(user.empresaId);
+  }
+
   @Get(':id')
   getOne(
     @Param('id', ParseIntPipe) id: number,

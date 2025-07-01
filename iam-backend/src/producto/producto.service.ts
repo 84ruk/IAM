@@ -166,6 +166,30 @@ export class ProductoService {
     });
   }
 
+  async findWithoutProvider(empresaId: number) {
+    return this.prisma.producto.findMany({
+      where: { 
+        empresaId,
+        estado: 'ACTIVO', // Solo productos activos
+        proveedorId: null // Sin proveedor asignado
+      },
+      include: {
+        proveedor: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            telefono: true,
+          },
+        },
+      },
+      orderBy: [
+        { stock: 'desc' },
+        { nombre: 'asc' } 
+      ],
+    });
+  }
+
   async findOne(id: number, empresaId: number) {
     const producto = await this.prisma.producto.findFirst({
       where: { id, empresaId },
