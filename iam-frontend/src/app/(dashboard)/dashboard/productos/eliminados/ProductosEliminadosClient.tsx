@@ -18,7 +18,8 @@ import {
   Trash2,
   Plus,
   Eye,
-  Edit
+  Edit,
+  Building2
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { CardSkeleton } from '@/components/ui/CardSkeleton'
@@ -324,7 +325,7 @@ export default function ProductosEliminadosClient() {
                   {/* Icono de tipo de producto en esquina superior derecha */}
                   <div className="absolute top-4 right-4">
                     <ProductTypeIcon 
-                      tipoProducto={producto.tipoProducto || 'GENERICO'} 
+                      tipoProducto={producto.tipoProducto as any || 'GENERICO'} 
                       size="sm"
                     />
                   </div>
@@ -383,6 +384,22 @@ export default function ProductosEliminadosClient() {
                     </div>
                   </div>
 
+                  {/* Información adicional */}
+                  <div className="space-y-2 mb-4">
+                    {producto.proveedor && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Proveedor:</span>
+                        <span className="font-medium truncate ml-2">{producto.proveedor.nombre}</span>
+                      </div>
+                    )}
+                    {producto.codigoBarras && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Código:</span>
+                        <span className="font-medium text-xs">{producto.codigoBarras}</span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Acciones */}
                   <div className="mt-auto flex flex-col items-center gap-2 w-full">
                     {/* Primera fila: Ver y Restaurar */}
@@ -405,12 +422,18 @@ export default function ProductosEliminadosClient() {
                         {restaurandoId === producto.id ? 'Restaurando...' : 'Restaurar'}
                       </button>
                     </div>
-                    {/* Segunda fila: Stock */}
+                    {/* Segunda fila: Información adicional */}
                     <div className="flex items-center justify-center gap-6 w-full">
                       <span className="flex items-center gap-1 text-sm text-gray-500">
                         <Package className="w-4 h-4" />
-                        Stock: {producto.stock} {producto.unidad}
+                        {producto.stock} {producto.unidad}
                       </span>
+                      {producto.proveedor && (
+                        <span className="flex items-center gap-1 text-sm text-gray-500">
+                          <Building2 className="w-4 h-4" />
+                          {producto.proveedor.nombre}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -429,7 +452,6 @@ export default function ProductosEliminadosClient() {
         >
           <FormularioProducto
             onSuccess={handleProductFormSuccess}
-            onCancel={() => setShowProductFormModal(false)}
           />
         </ProductFormModal>
       )}
