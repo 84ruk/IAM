@@ -39,10 +39,10 @@ export class AuthController {
     
     const cookieOptions: any = {
       httpOnly: true,
-      sameSite: isProduction ? 'none' as const : 'lax' as const,
+      sameSite: isProduction ? 'none' : 'lax',
       secure: isProduction,
       maxAge: 1000 * 60 * 60 * 24, // 24 horas
-      domain: '.iaminventario.com.mx',
+      domain: isProduction ? '.iaminventario.com.mx' : 'localhost',
       path: '/',
     };
     
@@ -104,10 +104,10 @@ export class AuthController {
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieOptions: any = {
       httpOnly: true,
-      sameSite: isProduction ? 'none' as const : 'lax' as const,
+      sameSite: isProduction ? 'none' : 'lax',
       secure: isProduction,
       maxAge: 1000 * 60 * 60 * 24, // 24 horas
-      domain: '.iaminventario.com.mx',
+      domain: isProduction ? '.iaminventario.com.mx' : 'localhost',
       path: '/',
     };
     res.cookie('jwt', token, cookieOptions);
