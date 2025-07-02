@@ -236,15 +236,19 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
 
   // Handler para agregar etiqueta
   const handleInputEtiqueta = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    console.log('Key pressed:', e.key, 'Input value:', inputEtiqueta)
     if ([' ', ','].includes(e.key) && inputEtiqueta.trim()) {
       e.preventDefault()
       const nueva = inputEtiqueta.trim()
+      console.log('Nueva etiqueta a agregar:', nueva)
       if (
         nueva.length > 0 &&
         !etiquetas.includes(nueva) &&
         etiquetas.length < 5
       ) {
-        setEtiquetas([...etiquetas, nueva])
+        const nuevasEtiquetas = [...etiquetas, nueva]
+        console.log('Etiquetas actualizadas:', nuevasEtiquetas)
+        setEtiquetas(nuevasEtiquetas)
       }
       setInputEtiqueta('')
     }
@@ -253,6 +257,9 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
   const handleRemoveEtiqueta = (etiqueta: string) => {
     setEtiquetas(etiquetas.filter(e => e !== etiqueta))
   }
+
+  // Debug: mostrar estado de etiquetas
+  console.log('Render - Estado de etiquetas:', etiquetas)
 
   const renderCampo = (campo: string, label: string, type: string = 'text', optional = true) => {
     // Caso especial para descripción - usar textarea
@@ -419,20 +426,23 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
                 {/* Input de etiquetas tipo tags */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Etiquetas (máx. 5)</label>
-                  <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
-                    {etiquetas.length > 0 && (
-                      <div className="flex flex-wrap gap-2 w-full mb-2">
-                        {etiquetas.map((etiqueta) => (
-                          <span key={etiqueta} className="inline-flex items-center bg-[#F5F7FF] text-[#8E94F2] px-3 py-1 rounded-full text-xs font-medium border border-[#8E94F2]">
-                            {etiqueta}
-                            <button type="button" onClick={() => handleRemoveEtiqueta(etiqueta)} className="ml-1 text-[#8E94F2] hover:text-red-500">
-                              <X className="w-3 h-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* Mostrar chips de etiquetas */}
+                  {etiquetas.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {etiquetas.map((etiqueta) => (
+                        <span key={etiqueta} className="inline-flex items-center bg-[#F5F7FF] text-[#8E94F2] px-3 py-1 rounded-full text-xs font-medium border border-[#8E94F2]">
+                          {etiqueta}
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveEtiqueta(etiqueta)} 
+                            className="ml-1 text-[#8E94F2] hover:text-red-500 transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <input
                     type="text"
                     value={inputEtiqueta}
