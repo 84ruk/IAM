@@ -8,6 +8,7 @@ import { Producto } from '@/types/producto'
 import VolverAtras from '@/components/ui/VolverAtras'
 import Link from 'next/link'
 import { Eye } from 'lucide-react'
+import router from 'next/router'
 
 export default function EditarProductoClient() {
   const params = useParams()
@@ -77,7 +78,7 @@ export default function EditarProductoClient() {
       </div>
 
       
-      <FormularioProducto />
+      <FormularioProducto producto={producto || undefined} />
       
       {/* Modal de información de stock */}
       <StockInfoModal

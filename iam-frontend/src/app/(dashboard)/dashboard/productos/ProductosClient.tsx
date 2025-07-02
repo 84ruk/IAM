@@ -108,7 +108,7 @@ export default function ProductosClient() {
 
   // Obtener etiquetas únicas para el filtro
   const etiquetasUnicas = useMemo(() => {
-    const etiquetas = productos?.map((p: Producto) => p.etiqueta).filter(Boolean) as string[] || []
+    const etiquetas = productos?.flatMap((p: Producto) => p.etiquetas || []).filter(Boolean) as string[] || []
     return [...new Set(etiquetas)]
   }, [productos])
 
@@ -532,7 +532,15 @@ export default function ProductosClient() {
                               <td className="py-3 px-4">
                                 <div>
                                   <p className="font-medium text-gray-900">{producto.nombre}</p>
-                                  <p className="text-sm text-gray-500">{producto.etiqueta}</p>
+                                  {producto.etiquetas && producto.etiquetas.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {producto.etiquetas.map((etiqueta) => (
+                                        <span key={etiqueta} className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                                          {etiqueta}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                               <td className="py-3 px-4">

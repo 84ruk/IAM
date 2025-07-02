@@ -110,7 +110,7 @@ export class DashboardService {
         precioCompra: producto.precioCompra,
         precioVenta: producto.precioVenta,
         unidad: producto.unidad,
-        etiqueta: producto.etiqueta,
+        etiquetas: producto.etiquetas,
         movimientosRecientes: producto.movimientos.length,
         ultimoMovimiento: producto.movimientos[0]?.fecha || null
       }));
@@ -129,7 +129,7 @@ export class DashboardService {
           producto: {
             select: {
               nombre: true,
-              etiqueta: true
+              etiquetas: true
             }
           }
         },
@@ -148,7 +148,7 @@ export class DashboardService {
         descripcion: movimiento.descripcion,
         producto: {
           nombre: movimiento.producto.nombre,
-          etiqueta: movimiento.producto.etiqueta
+          etiquetas: movimiento.producto.etiquetas
         }
       }));
     } catch (error) {
@@ -300,7 +300,7 @@ export class DashboardService {
 
       // Obtener estadísticas por categoría
               const productosPorEtiqueta = await this.prisma.producto.groupBy({
-          by: ['etiqueta'],
+          by: ['etiquetas'],
         where: {
           empresaId,
           estado: { in: ['ACTIVO', 'INACTIVO'] } 

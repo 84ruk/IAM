@@ -28,7 +28,7 @@ export class ProductoController {
   constructor(private readonly productoService: ProductoService) {}
 
   @Post()
-  @Roles(Rol.ADMIN) // Solo ADMIN puede crear productos
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN) // Solo ADMIN puede crear productos
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async create(
     @Body() dto: CreateProductoDto,
@@ -94,7 +94,7 @@ export class ProductoController {
   }
 
   @Patch(':id')
-  @Roles(Rol.ADMIN)
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async update(
     @Param('id', ParseIntPipe) id: number,

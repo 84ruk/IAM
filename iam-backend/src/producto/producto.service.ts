@@ -75,7 +75,7 @@ export class ProductoService {
     }
 
     if (filters?.etiqueta) {
-      where.etiqueta = { contains: filters.etiqueta, mode: 'insensitive' };
+      where.etiquetas = { has: filters.etiqueta };
     }
 
     if (filters?.tipoProducto) {

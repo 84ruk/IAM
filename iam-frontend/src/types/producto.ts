@@ -8,7 +8,7 @@ export interface ProductoFormData {
   stockMinimo?: number
   stock?: number
   unidad: string
-  etiqueta?: string
+  etiquetas?: string[]
   talla?: string
   color?: string
   temperaturaOptima?: number
@@ -48,4 +48,5 @@ export interface Producto {
   proveedor?: {
     nombre: string
   }
+  etiquetas?: string[]
 }

@@ -406,19 +406,18 @@ export default function ProveedorDetalleClient() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold text-gray-800">Productos de este proveedor</h2>
-                  <div className="flex gap-3">
-                    {productos.length === 0 && (
-                      <button
-                        onClick={() => setShowAddProductsModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        Asignar productos
-                      </button>
-                    )}
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setShowAddProductsModal(true)}
+                      className="text-gray-700 font-semibold bg-transparent border-none shadow-none px-0 py-0 hover:underline hover:text-[#8E94F2] transition-colors"
+                      style={{ minWidth: 'unset' }}
+                    >
+                      <UserPlus className="w-4 h-4 inline-block mr-1 align-text-bottom" />
+                      Asignar productos
+                    </button>
                     <Link
                       href="/dashboard/productos/nuevo"
-                      className="flex items-center gap-2 px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#8E94F2] text-white font-semibold rounded-xl shadow-sm hover:bg-[#7278e0] transition-colors"
                     >
                       <Plus className="w-4 h-4" />
                       Agregar producto
@@ -552,9 +551,9 @@ export default function ProveedorDetalleClient() {
               </div>
 
               {/* Lista de productos sin proveedor */}
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-96 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4">
                 {productosSinProveedorFiltrados.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12">
+                  <div className="flex flex-col items-center justify-center py-12 col-span-full">
                     <Package className="w-16 h-16 text-gray-300 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
                       {filtroProductosSinProveedor 
@@ -570,67 +569,47 @@ export default function ProveedorDetalleClient() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {productosSinProveedorFiltrados.map((producto) => {
-                      const stockStatus = getStockStatus(producto)
-                      const StockIcon = stockStatus.icon
-                      const isSelected = asignandoProductos.includes(producto.id)
+                  productosSinProveedorFiltrados.map((producto) => {
+                    const stockStatus = getStockStatus(producto)
+                    const StockIcon = stockStatus.icon
+                    const isSelected = asignandoProductos.includes(producto.id)
 
-                      return (
-                        <Card
-                          key={producto.id}
-                          className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                            isSelected 
-                              ? 'ring-2 ring-[#8E94F2] border-[#8E94F2] bg-[#8E94F2]/5' 
-                              : 'hover:border-gray-300'
-                          }`}
-                          onClick={() => {
-                            if (isSelected) {
-                              setAsignandoProductos(prev => prev.filter(id => id !== producto.id))
-                            } else {
-                              setAsignandoProductos(prev => [...prev, producto.id])
-                            }
-                          }}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-start justify-between mb-2">
-                                  <h3 className="font-semibold text-gray-800 text-lg line-clamp-2">{producto.nombre}</h3>
-                                  {isSelected && (
-                                    <CheckCircle className="w-5 h-5 text-[#8E94F2] flex-shrink-0 ml-2" />
-                                  )}
-                                </div>
-                                
-                                <div className="flex items-center gap-2 mb-3">
-                                  <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium ${stockStatus.color}`}>
-                                    <StockIcon className="w-3 h-3" />
-                                    {stockStatus.text}
-                                  </span>
-                                  {producto.etiqueta && (
-                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium border border-blue-200">
-                                      {producto.etiqueta}
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Stock:</span>
-                                    <span className="font-medium">{producto.stock} {producto.unidad}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Precio:</span>
-                                    <span className="font-medium">${producto.precioVenta}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </div>
+                    return (
+                      <div
+                        key={producto.id}
+                        className={`bg-white rounded-xl shadow-sm p-5 flex flex-col gap-2 border transition-all duration-200 cursor-pointer ${
+                          isSelected ? 'ring-2 ring-[#8E94F2] border-[#8E94F2] bg-[#F5F7FF]' : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => {
+                          if (isSelected) {
+                            setAsignandoProductos(prev => prev.filter(id => id !== producto.id))
+                          } else {
+                            setAsignandoProductos(prev => [...prev, producto.id])
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-gray-900 text-base line-clamp-1">{producto.nombre}</span>
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium ${stockStatus.color}`}>
+                            <StockIcon className="w-3 h-3" />
+                            {stockStatus.text}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm text-gray-600">
+                          <span>Stock: <span className="font-medium text-gray-900">{producto.stock} {producto.unidad}</span></span>
+                          <span>Precio: <span className="font-medium text-gray-900">${producto.precioVenta}</span></span>
+                        </div>
+                        {producto.etiqueta && (
+                          <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium border border-blue-200 w-fit">{producto.etiqueta}</span>
+                        )}
+                        {isSelected && (
+                          <div className="flex items-center gap-1 mt-2 text-[#8E94F2] font-medium text-xs">
+                            <CheckCircle className="w-4 h-4" /> Seleccionado
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
                 )}
               </div>
             </div>

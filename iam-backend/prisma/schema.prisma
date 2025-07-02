@@ -110,7 +110,7 @@ model Producto {
   rfid           String?   @unique
   ubicacion      String?
   sku            String?   @unique
-  etiqueta       String?
+  etiquetas      String[]
  
 
 
@@ -126,7 +126,7 @@ model Producto {
   creadoEn       DateTime  @default(now())
   actualizadoEn  DateTime  @updatedAt
 
-  @@index([empresaId, etiqueta])
+  @@index([empresaId, etiquetas])
 }
 
 

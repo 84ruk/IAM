@@ -88,6 +88,21 @@ export default function ProductCard({
             <h3 className="font-semibold text-gray-800 text-lg mb-1 line-clamp-2">
               {producto.nombre}
             </h3>
+            {/* Etiquetas debajo del nombre */}
+            {producto.etiquetas && producto.etiquetas.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2 mt-1">
+                {producto.etiquetas.map((etiqueta) => (
+                  <div key={etiqueta} onClick={e => e.stopPropagation()}>
+                    <EtiquetaTag
+                      etiqueta={etiqueta}
+                      onClick={onFiltrarPorEtiqueta}
+                      isActive={filtroEtiqueta === etiqueta}
+                      size="sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-2 flex-wrap">
               <span className={cn(
                 "inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium",
@@ -97,16 +112,6 @@ export default function ProductCard({
               )}>
                 {producto.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'}
               </span>
-              {producto.etiqueta && (
-                <div onClick={(e) => e.stopPropagation()}>
-                  <EtiquetaTag
-                    etiqueta={producto.etiqueta}
-                    onClick={onFiltrarPorEtiqueta}
-                    isActive={filtroEtiqueta === producto.etiqueta}
-                    size="sm"
-                  />
-                </div>
-              )}
             </div>
           </div>
         </div>

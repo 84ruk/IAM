@@ -14,8 +14,9 @@ import { Input } from '../ui/Input'
 import Select from '../ui/Select'
 import { useParams, useRouter } from 'next/navigation'
 import { getErrorMessage } from '@/lib/form-utils'
-import { ChevronDownIcon, ChevronUpIcon, Package, DollarSign, Tag, Settings, Barcode } from 'lucide-react'
+import { ChevronDownIcon, ChevronUpIcon, Package, DollarSign, Tag, Settings, Barcode, X } from 'lucide-react'
 import { TipoProductoConfig } from '@/types/enums'
+import { Producto } from '@/types/producto'
 
 const UNIDADES = ['UNIDAD', 'KILO', 'LITRO', 'CAJA', 'PAQUETE']
 const TIPOS_PRODUCTO = ['GENERICO', 'ROPA', 'ALIMENTO', 'ELECTRONICO']
@@ -29,10 +30,13 @@ const baseSchema = z
     unidad: z.string().min(1, { message: 'La unidad es obligatoria' }),
     tipoProducto: z.string().min(1, { message: 'El tipo de producto es obligatorio' }),
     proveedorId: z.coerce.number({ invalid_type_error: 'Debe ser un número válido' }).optional(),
+    etiquetas: z.array(z.string()).optional(),
   })
 
 
-export default function FormularioProducto({ onSuccess }: { onSuccess?: () => void }) {
+export default function FormularioProducto({ onSuccess, producto }: { onSuccess?: () => void, producto?: Producto }) {
+
+  const etiquetasIniciales = producto?.etiquetas || []   
   const user = useServerUser();
   const router = useRouter()
   const params = useParams()
@@ -66,6 +70,15 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
   const [eliminandoProducto, setEliminandoProducto] = useState(false)
   const [mostrarOpcionales, setMostrarOpcionales] = useState(false)
   const [mostrarAvanzadas, setMostrarAvanzadas] = useState(false)
+  const [etiquetas, setEtiquetas] = useState<string[]>(etiquetasIniciales)
+  const [inputEtiqueta, setInputEtiqueta] = useState('')
+
+  // Inicializar etiquetas cuando se recibe un producto para editar
+  useEffect(() => {
+    if (producto?.etiquetas) {
+      setEtiquetas(producto.etiquetas)
+    }
+  }, [producto])
 
   useEffect(() => {
     const fetchProveedores = async () => {
@@ -94,16 +107,10 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
           Object.entries(data).forEach(([key, value]) => {
             setValue(key as any, value)
           })
-          
-          // Ajustar altura del textarea de descripción después de cargar datos
-          if (data.descripcion) {
-            setTimeout(() => {
-              const textarea = document.querySelector('textarea[name="descripcion"]') as HTMLTextAreaElement;
-              if (textarea) {
-                adjustTextareaHeight(textarea);
-              }
-            }, 150); // Aumentamos el timeout para asegurar que el DOM esté completamente renderizado
-          }
+          // Inicializar etiquetas como array (nuevo modelo)
+          const etiquetasProducto = Array.isArray(data.etiquetas) ? data.etiquetas : []
+          setEtiquetas(etiquetasProducto)
+          setValue('etiquetas', etiquetasProducto)
         }
       } catch (error) {
         console.error('Error cargando producto')
@@ -112,8 +119,17 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
     fetchProducto()
   }, [productoId, setValue])
 
+  // Sincronizar etiquetas con react-hook-form
+  useEffect(() => {
+    setValue('etiquetas', etiquetas)
+  }, [etiquetas, setValue])
+
   const onSubmit = async (values: any) => {
     setServerErrors([])
+    
+    // Debug: mostrar valores antes de limpiar
+    console.log('Valores del formulario:', values)
+    console.log('Etiquetas del estado:', etiquetas)
     
     // Limpiar valores vacíos antes de enviar
     const cleanedValues = Object.fromEntries(
@@ -130,6 +146,21 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
       }).filter(([_, value]) => value !== undefined)
     )
     
+    // Asegurar que las etiquetas se incluyan
+    if (etiquetas.length > 0) {
+      cleanedValues.etiquetas = etiquetas
+    } else {
+      // Incluir array vacío para limpiar etiquetas existentes
+      cleanedValues.etiquetas = []
+    }
+    
+    // Eliminar el campo 'etiqueta' si existe
+    if ('etiqueta' in cleanedValues) {
+      delete cleanedValues['etiqueta']
+    }
+    
+    // Debug: mostrar valores finales
+    console.log('Valores finales a enviar:', cleanedValues)
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos${productoId ? `/${productoId}` : ''}`, {
         method: productoId ? 'PATCH' : 'POST',
@@ -202,6 +233,26 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
       }, 100) // Debounce de 100ms para evitar cálculos excesivos
     }
   }, [])
+
+  // Handler para agregar etiqueta
+  const handleInputEtiqueta = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ([' ', ','].includes(e.key) && inputEtiqueta.trim()) {
+      e.preventDefault()
+      const nueva = inputEtiqueta.trim()
+      if (
+        nueva.length > 0 &&
+        !etiquetas.includes(nueva) &&
+        etiquetas.length < 5
+      ) {
+        setEtiquetas([...etiquetas, nueva])
+      }
+      setInputEtiqueta('')
+    }
+  }
+
+  const handleRemoveEtiqueta = (etiqueta: string) => {
+    setEtiquetas(etiquetas.filter(e => e !== etiqueta))
+  }
 
   const renderCampo = (campo: string, label: string, type: string = 'text', optional = true) => {
     // Caso especial para descripción - usar textarea
@@ -365,8 +416,36 @@ export default function FormularioProducto({ onSuccess }: { onSuccess?: () => vo
           {mostrarOpcionales && (
             <div className="px-6 pb-6 border-t border-gray-100">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                {renderCampo('etiqueta', 'Etiqueta', 'text', true)}
-                
+                {/* Input de etiquetas tipo tags */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Etiquetas (máx. 5)</label>
+                  <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
+                    {etiquetas.length > 0 && (
+                      <div className="flex flex-wrap gap-2 w-full mb-2">
+                        {etiquetas.map((etiqueta) => (
+                          <span key={etiqueta} className="inline-flex items-center bg-[#F5F7FF] text-[#8E94F2] px-3 py-1 rounded-full text-xs font-medium border border-[#8E94F2]">
+                            {etiqueta}
+                            <button type="button" onClick={() => handleRemoveEtiqueta(etiqueta)} className="ml-1 text-[#8E94F2] hover:text-red-500">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={inputEtiqueta}
+                    onChange={e => setInputEtiqueta(e.target.value.replace(/[^\w\s-]/g, ''))}
+                    onKeyDown={handleInputEtiqueta}
+                    placeholder={etiquetas.length >= 5 ? 'Máximo 5 etiquetas' : 'Agregar etiqueta (espacio o coma)'}
+                    disabled={etiquetas.length >= 5}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm transition-all"
+                  />
+                  {errors.etiquetas && (
+                    <p className="mt-1 text-sm text-red-600">{(errors.etiquetas as any)?.message}</p>
+                  )}
+                </div>
                 <Select
                   label="Proveedor"
                   options={proveedores.map(p => ({ value: String(p.id), label: p.nombre }))}

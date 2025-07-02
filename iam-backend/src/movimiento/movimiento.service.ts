@@ -120,7 +120,7 @@ export class MovimientoService {
             precioCompra: true,
             precioVenta: true,
             unidad: true,
-            etiqueta: true,
+            etiquetas: true,
             codigoBarras: true,
             rfid: true,
             sku: true,
@@ -219,7 +219,7 @@ export class MovimientoService {
         producto: {
           select: {
             nombre: true,
-            etiqueta: true,
+            etiquetas: true,
             unidad: true,
           },
         },
@@ -278,7 +278,7 @@ export class MovimientoService {
         producto: {
           select: {
             nombre: true,
-            etiqueta: true,
+            etiquetas: true,
             unidad: true,
           },
         },
@@ -307,7 +307,7 @@ export class MovimientoService {
             precioCompra: true,
             precioVenta: true,
             unidad: true,
-            etiqueta: true,
+            etiquetas: true,
             codigoBarras: true,
             rfid: true,
             sku: true,

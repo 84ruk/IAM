@@ -34,7 +34,7 @@ export const productoSchema = z.object({
     invalid_type_error: 'La unidad debe ser un texto.'
   }).min(1, 'Debes seleccionar una unidad de medida.'),
 
-  etiqueta: z.string().optional(),
+  etiquetas: z.array(z.string()).optional(),
   codigoBarras: z.string().optional(),
   rfid: z.string().optional(),
   ubicacion: z.string().optional(),

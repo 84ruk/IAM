@@ -6,6 +6,7 @@ import {
   Min,
   IsEnum,
   IsIn,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TipoProducto, UnidadMedida } from "@prisma/client";
@@ -54,8 +55,9 @@ export class CreateProductoDto {
   unidad: UnidadMedida;
 
   @IsOptional()
-  @IsString({ message: 'etiqueta debe ser un texto' })
-  etiqueta?: string;
+  @IsArray({ message: 'etiquetas debe ser un array' })
+  @IsString({ each: true, message: 'cada etiqueta debe ser un texto' })
+  etiquetas?: string[];
 
   @IsOptional()
   @IsString({ message: 'codigoBarras debe ser un texto' })
