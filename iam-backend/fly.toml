@@ -11,8 +11,7 @@ primary_region = "dfw"
 [env]
   PORT = "8080"
   NODE_ENV = "production"
-  JWT_SECRET= "NV48+VgXUXAk4ZB3YP0mhNaGCNYrDDAiwpcsV5ZUbm0="
-
+  
 [http_service]
   internal_port = 8080
   force_https = true

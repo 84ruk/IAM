@@ -42,12 +42,12 @@ export class AuthController {
       sameSite: isProduction ? 'none' as const : 'lax' as const,
       secure: isProduction,
       maxAge: 1000 * 60 * 60 * 24, // 24 horas
+      domain: '.iaminventario.com.mx',
       path: '/',
     };
     
     res.cookie('jwt', token, cookieOptions);
     
-    // console.log('Login successful');
  
     return { message: 'Login exitoso' };
   }
@@ -64,6 +64,7 @@ export class AuthController {
       httpOnly: true,
       sameSite: isProduction ? 'none' as const : 'lax' as const,
       secure: isProduction,
+      domain: '.iaminventario.com.mx',
       path: '/',
       expires: new Date(0), // Expirar inmediatamente
     };
@@ -106,6 +107,7 @@ export class AuthController {
       sameSite: isProduction ? 'none' as const : 'lax' as const,
       secure: isProduction,
       maxAge: 1000 * 60 * 60 * 24, // 24 horas
+      domain: '.iaminventario.com.mx',
       path: '/',
     };
     res.cookie('jwt', token, cookieOptions);
