@@ -16,7 +16,7 @@ export default function PopularTags({
   if (etiquetasUnicas.length === 0) return null
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
+    <div>
       <div className="flex items-center gap-2 mb-3">
         <Tag className="w-4 h-4 text-gray-600" />
         <span className="text-sm font-medium text-gray-700">Etiquetas:</span>

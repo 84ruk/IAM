@@ -1,9 +1,9 @@
-export type TipoIndustria = 'ALIMENTOS' | 'ROPA' | 'ELECTRÓNICA' | 'GENERICA' | 'FARMACIA'
+export type TipoIndustria = 'ALIMENTOS' | 'ROPA' | 'ELECTRONICA' | 'GENERICA' | 'FARMACIA'
 
 export const TipoIndustriaLabel: Record<TipoIndustria, string> = {
   ALIMENTOS: 'Alimentos',
   ROPA: 'Ropa',
-  ELECTRÓNICA: 'Electrónica',
+  ELECTRONICA: 'Electrónica',
   FARMACIA: 'Farmacia',
   GENERICA: 'Genérica',
 }

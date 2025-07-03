@@ -40,7 +40,7 @@ export default function ProductFilters({
   const tiposProducto = ['GENERICO', 'ROPA', 'ALIMENTO', 'ELECTRONICO']
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">Filtros de búsqueda</h2>
         <div className="flex items-center gap-2">

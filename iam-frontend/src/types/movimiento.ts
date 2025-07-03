@@ -17,7 +17,7 @@ export type Movimiento = {
     precioCompra: number
     precioVenta: number
     unidad: string
-    etiqueta?: string | null
+    etiquetas?: string[]
     codigoBarras?: string | null
     rfid?: string | null
     sku?: string | null
@@ -50,7 +50,7 @@ export type MovimientoDetalle = {
     precioCompra: number
     precioVenta: number
     unidad: string
-    etiqueta?: string | null
+    etiquetas?: string[]
     codigoBarras?: string | null
     rfid?: string | null
     sku?: string | null

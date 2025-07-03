@@ -1,51 +1,37 @@
-import { SelectHTMLAttributes, forwardRef } from 'react'
+import React from 'react'
 
-interface Option {
-  value: string
-  label: string
-}
-
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  label: string
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  label?: string
   error?: string
-  options: (string | Option)[]
   optional?: boolean
+  options?: string[] | { value: string, label: string }[]
 }
 
-const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, name, options, error, optional, ...props }, ref) => {
+const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
+  ({ label, error, optional, options = [], children, ...props }, ref) => {
+    // Normaliza las opciones
+    const opts = Array.isArray(options)
+      ? options.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt)
+      : []
     return (
-      <div className="mb-4">
-        <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
-          {label} {optional && <span className="text-gray-400 text-xs">(opcional)</span>}
-        </label>
-        <select
-          id={name}
-          name={name}
-          ref={ref}
-          {...props}
-          className={`w-full cursor-pointer shadow-sm rounded px-3 py-2 text-sm border ${
-            error ? 'border-red-400' : 'border-gray-300'
-          } focus:outline-none focus:ring-2 focus:ring-indigo-300`}
-        >
-          <option value="">Seleccione una opción</option>
-          {options.map((opt, index) =>
-            typeof opt === 'string' ? (
-              <option key={opt} value={opt}>
-                {opt.charAt(0).toUpperCase() + opt.slice(1).toLowerCase()}
-              </option>
-            ) : (
-              <option key={opt.value + index} value={opt.value}>
-                {opt.label}
-              </option>
-            )
-          )}
+      <div>
+        {/* Solo renderiza el label si existe */}
+        {label && (
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {label} {optional && <span className="text-gray-400">(opcional)</span>}
+          </label>
+        )}
+        <select ref={ref} {...props} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200">
+          {children}
+          {opts.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
         </select>
-        {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
       </div>
     )
   }
 )
-
 Select.displayName = 'Select'
+
 export default Select

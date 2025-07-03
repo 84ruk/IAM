@@ -48,7 +48,16 @@ export class ProductoController {
     @Query('agotados') agotados?: string,
     @Query('proveedorId') proveedorId?: string,
     @Query('page') page?: string,
-    @Query('limit') limit?: string
+    @Query('limit') limit?: string,
+    // Filtros específicos por industria
+    @Query('temperaturaMin') temperaturaMin?: string,
+    @Query('temperaturaMax') temperaturaMax?: string,
+    @Query('humedadMin') humedadMin?: string,
+    @Query('humedadMax') humedadMax?: string,
+    @Query('talla') talla?: string,
+    @Query('color') color?: string,
+    @Query('sku') sku?: string,
+    @Query('codigoBarras') codigoBarras?: string
   ) {
     return this.productoService.findAll(user.empresaId, {
       search,
@@ -58,7 +67,16 @@ export class ProductoController {
       agotados: agotados === 'true',
       proveedorId: proveedorId ? parseInt(proveedorId) : undefined,
       page: page ? parseInt(page) : undefined,
-      limit: limit ? parseInt(limit) : undefined
+      limit: limit ? parseInt(limit) : undefined,
+      // Filtros específicos por industria
+      temperaturaMin: temperaturaMin ? parseFloat(temperaturaMin) : undefined,
+      temperaturaMax: temperaturaMax ? parseFloat(temperaturaMax) : undefined,
+      humedadMin: humedadMin ? parseFloat(humedadMin) : undefined,
+      humedadMax: humedadMax ? parseFloat(humedadMax) : undefined,
+      talla,
+      color,
+      sku,
+      codigoBarras
     });
   }
 

@@ -60,6 +60,15 @@ export class ProductoService {
     proveedorId?: number;
     page?: number;
     limit?: number;
+    // Filtros específicos por industria
+    temperaturaMin?: number;
+    temperaturaMax?: number;
+    humedadMin?: number;
+    humedadMax?: number;
+    talla?: string;
+    color?: string;
+    sku?: string;
+    codigoBarras?: string;
   }) {
     const where: any = { 
       empresaId,
@@ -88,6 +97,43 @@ export class ProductoService {
 
     if (filters?.proveedorId) {
       where.proveedorId = filters.proveedorId;
+    }
+
+    // Filtros específicos por industria
+    if (filters?.temperaturaMin !== undefined || filters?.temperaturaMax !== undefined) {
+      where.temperaturaOptima = {};
+      if (filters.temperaturaMin !== undefined) {
+        where.temperaturaOptima.gte = filters.temperaturaMin;
+      }
+      if (filters.temperaturaMax !== undefined) {
+        where.temperaturaOptima.lte = filters.temperaturaMax;
+      }
+    }
+
+    if (filters?.humedadMin !== undefined || filters?.humedadMax !== undefined) {
+      where.humedadOptima = {};
+      if (filters.humedadMin !== undefined) {
+        where.humedadOptima.gte = filters.humedadMin;
+      }
+      if (filters.humedadMax !== undefined) {
+        where.humedadOptima.lte = filters.humedadMax;
+      }
+    }
+
+    if (filters?.talla) {
+      where.talla = filters.talla;
+    }
+
+    if (filters?.color) {
+      where.color = filters.color;
+    }
+
+    if (filters?.sku) {
+      where.sku = { contains: filters.sku, mode: 'insensitive' };
+    }
+
+    if (filters?.codigoBarras) {
+      where.codigoBarras = { contains: filters.codigoBarras, mode: 'insensitive' };
     }
 
     // Calcular skip para paginación

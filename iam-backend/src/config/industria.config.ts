@@ -29,7 +29,7 @@ export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
     camposRelevantes: ['sku', 'codigoBarras', 'rfid'],
   },
   GENERICA: {
-    label: 'GENERICA',
+    label: 'Genérica',
     camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion', 'talla', 'color', 'etiquetas', 'sku', 'codigoBarras', 'rfid' ],
   },
   FARMACIA: {

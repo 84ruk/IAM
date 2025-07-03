@@ -64,7 +64,7 @@ export class AuthController {
       httpOnly: true,
       sameSite: isProduction ? 'none' as const : 'lax' as const,
       secure: isProduction,
-      domain: '.iaminventario.com.mx',
+      domain: isProduction ? '.iaminventario.com.mx' : 'localhost',
       path: '/',
       expires: new Date(0), // Expirar inmediatamente
     };

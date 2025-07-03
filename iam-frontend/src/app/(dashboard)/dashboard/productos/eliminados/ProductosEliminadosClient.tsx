@@ -40,7 +40,7 @@ interface ProductoEliminado {
   stock: number
   stockMinimo: number
   unidad: string
-  etiqueta?: string
+      etiqueta?: string
   etiquetas?: string[]
   estado: 'ELIMINADO'
   empresaId: number

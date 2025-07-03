@@ -18,6 +18,7 @@ export interface ProductoFormData {
   codigoBarras?: string
   rfid?: string
   tipoProducto?: TipoProducto
+  proveedorId?: number
 }
 
 // Tipo completo para productos del backend
@@ -30,7 +31,6 @@ export interface Producto {
   stock: number
   stockMinimo: number
   unidad: string
-  etiqueta?: string
   estado: 'ACTIVO' | 'INACTIVO' | 'ELIMINADO'
   empresaId: number
   proveedorId?: number
@@ -46,7 +46,11 @@ export interface Producto {
   temperaturaOptima?: number
   humedadOptima?: number
   proveedor?: {
+    id: number
     nombre: string
+    email?: string
+    telefono?: string
+    estado: string
   }
-  etiquetas?: string[]
+  etiquetas: string[]
 }

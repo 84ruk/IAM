@@ -4,14 +4,15 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { INDUSTRIAS } from '@/config/industrias.config'
 import { useServerUser } from '@/context/ServerUserContext'
+import { useIndustriaConfig } from '@/hooks/useIndustriaConfig'
 
 import { FormErrorAlert } from '@/components/ui/FormErrorAlert'
 import { useEffect, useState, useMemo } from 'react'
 import Button from '../ui/Button'
 import { Input } from '../ui/Input'
 import Select from '../ui/Select'
+import CamposIndustria from './CamposIndustria'
 import { useParams, useRouter } from 'next/navigation'
 import { getErrorMessage } from '@/lib/form-utils'
 import { ChevronDownIcon, ChevronUpIcon, Package, DollarSign, Tag, Settings, Barcode, X } from 'lucide-react'
@@ -24,13 +25,23 @@ const TIPOS_PRODUCTO = ['GENERICO', 'ROPA', 'ALIMENTO', 'ELECTRONICO']
 const baseSchema = z
   .object({
     nombre: z.string().min(1, { message: 'El nombre es obligatorio' }),
+    descripcion: z.string().optional(),
     precioCompra: z.coerce.number({ invalid_type_error: 'Debe ser un número válido' }).positive({ message: 'El precio de compra debe ser mayor a 0' }),
     precioVenta: z.coerce.number({ invalid_type_error: 'Debe ser un número válido' }).positive({ message: 'El precio de venta debe ser mayor a 0' }),
     stock: z.coerce.number({ invalid_type_error: 'Debe ser un número válido' }).int({ message: 'Debe ser un número entero' }).nonnegative({ message: 'El stock no puede ser negativo' }),
+    stockMinimo: z.coerce.number({ invalid_type_error: 'Debe ser un número válido' }).int({ message: 'Debe ser un número entero' }).nonnegative({ message: 'El stock mínimo no puede ser negativo' }).optional(),
     unidad: z.string().min(1, { message: 'La unidad es obligatoria' }),
     tipoProducto: z.string().min(1, { message: 'El tipo de producto es obligatorio' }),
     proveedorId: z.coerce.number({ invalid_type_error: 'Debe ser un número válido' }).optional(),
     etiquetas: z.array(z.string()).optional(),
+    talla: z.string().optional(),
+    color: z.string().optional(),
+    temperaturaOptima: z.coerce.number({ invalid_type_error: 'Debe ser un número válido' }).optional(),
+    humedadOptima: z.coerce.number({ invalid_type_error: 'Debe ser un número válido' }).optional(),
+    ubicacion: z.string().optional(),
+    sku: z.string().optional(),
+    codigoBarras: z.string().optional(),
+    rfid: z.string().optional(),
   })
 
 
@@ -38,15 +49,13 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
 
   const etiquetasIniciales = producto?.etiquetas || []   
   const user = useServerUser();
+  const { config, camposRelevantes } = useIndustriaConfig();
   const router = useRouter()
   const params = useParams()
   const productoId = params?.id
   const modo = productoId ? 'editar' : 'crear'
 
-  const tipoIndustria = (user?.tipoIndustria || 'GENERICA') as keyof typeof INDUSTRIAS
-  const config = INDUSTRIAS[tipoIndustria]
-
-  const camposIndustria = config.camposRelevantes.reduce((acc, campo) => {
+  const camposIndustria = camposRelevantes.reduce((acc: any, campo: string) => {
     acc[campo] = z.any().optional()
     return acc
   }, {} as any)
@@ -259,9 +268,11 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
   }
 
   // Debug: mostrar estado de etiquetas
-  console.log('Render - Estado de etiquetas:', etiquetas)
 
   const renderCampo = (campo: string, label: string, type: string = 'text', optional = true) => {
+    // Solo mostrar campos relevantes para la industria
+    if (!camposRelevantes.includes(campo as any)) return null
+    
     // Caso especial para descripción - usar textarea
     if (campo === 'descripcion') {
       return (
@@ -326,75 +337,99 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         <FormErrorAlert errors={serverErrors} className="mb-6" />
 
-        {/* Información básica */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Package className="w-5 h-5 text-blue-600" />
+        {/* Información básica y comercial */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          {/* Sección: Información básica */}
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Package className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">Información básica</h2>
+                <p className="text-sm text-gray-600">Datos esenciales del producto</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800">Información básica</h2>
-              <p className="text-sm text-gray-600">Datos esenciales del producto</p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {renderCampo('nombre', 'Nombre del producto *', 'text', false)}
-            {renderCampo('descripcion', 'Descripción', 'text', true)}
             
-            <Select
-              label="Unidad de medida *"
-              options={UNIDADES}
-              {...register('unidad')}
-              error={getErrorMessage(errors.unidad)}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {renderCampo('nombre', 'Nombre del producto *', 'text', false)}
+              {renderCampo('descripcion', 'Descripción', 'text', true)}
+              
+              <Select
+                label="Unidad de medida *"
+                options={UNIDADES}
+                {...register('unidad')}
+                error={getErrorMessage(errors.unidad)}
+              />
 
-            <Select
-              label="Tipo de producto *"
-              options={TIPOS_PRODUCTO.map(tipo => ({
-                value: tipo,
-                label: TipoProductoConfig[tipo as keyof typeof TipoProductoConfig]?.label || tipo
-              }))}
-              {...register('tipoProducto')}
-              error={getErrorMessage(errors.tipoProducto)}
-            />
+              <Select
+                label="Tipo de producto *"
+                options={TIPOS_PRODUCTO.map(tipo => ({
+                  value: tipo,
+                  label: TipoProductoConfig[tipo as keyof typeof TipoProductoConfig]?.label || tipo
+                }))}
+                {...register('tipoProducto')}
+                error={getErrorMessage(errors.tipoProducto)}
+              />
+            </div>
+          </div>
+
+          {/* Sección: Precios y stock */}
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <DollarSign className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">Precios y stock</h2>
+                <p className="text-sm text-gray-600">Información comercial y de inventario</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Input
+                label="Precio de compra *"
+                placeholder="0.00"
+                {...register('precioCompra')}
+                error={getErrorMessage(errors.precioCompra)}
+                type="number"
+                step="0.01"
+                min="0"
+              />
+              <Input
+                label="Precio de venta *"
+                placeholder="0.00"
+                {...register('precioVenta')}
+                error={getErrorMessage(errors.precioVenta)}
+                type="number"
+                step="0.01"
+                min="0"
+              />
+              {renderCampo('stock', 'Stock actual *', 'number', false)}
+            </div>
           </div>
         </div>
 
-        {/* Precios y stock */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <DollarSign className="w-5 h-5 text-green-600" />
+        {/* Campos específicos de la industria */}
+        {camposRelevantes.length > 0 && (
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Settings className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">Campos específicos de {config.label}</h2>
+                <p className="text-sm text-gray-600">Información relevante para tu industria</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800">Precios y stock</h2>
-              <p className="text-sm text-gray-600">Información comercial y de inventario</p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Input
-              label="Precio de compra *"
-              placeholder="0.00"
-              {...register('precioCompra')}
-              error={getErrorMessage(errors.precioCompra)}
-              type="number"
-              step="0.01"
-              min="0"
+            
+            <CamposIndustria 
+              mostrarOpcionales={mostrarOpcionales} 
+              register={register}
+              errors={errors}
             />
-            <Input
-              label="Precio de venta *"
-              placeholder="0.00"
-              {...register('precioVenta')}
-              error={getErrorMessage(errors.precioVenta)}
-              type="number"
-              step="0.01"
-              min="0"
-            />
-            {renderCampo('stock', 'Stock actual *', 'number', false)}
           </div>
-        </div>
+        )}
 
         {/* Datos opcionales colapsables */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -458,7 +493,10 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
                 </div>
                 <Select
                   label="Proveedor"
-                  options={proveedores.map(p => ({ value: String(p.id), label: p.nombre }))}
+                  options={[
+                    { value: "", label: "Sin proveedor" },
+                    ...proveedores.map(p => ({ value: String(p.id), label: p.nombre }))
+                  ]}
                   {...register('proveedorId')}
                   error={getErrorMessage(errors.proveedorId)}
                   optional
@@ -468,44 +506,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
           )}
         </div>
 
-        {/* Configuración avanzada colapsable */}
-        {config.camposRelevantes.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div 
-              className="p-6 cursor-pointer hover:bg-gray-50 transition-colors rounded-t-xl"
-              onClick={() => setMostrarAvanzadas(!mostrarAvanzadas)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Settings className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">Configuración avanzada</h2>
-                                         <p className="text-sm text-gray-600">Campos específicos para {config.label.toLowerCase()}</p>
-                  </div>
-                </div>
-                {mostrarAvanzadas ? (
-                  <ChevronUpIcon className="w-5 h-5 text-gray-400" />
-                ) : (
-                  <ChevronDownIcon className="w-5 h-5 text-gray-400" />
-                )}
-              </div>
-            </div>
-            
-            {mostrarAvanzadas && (
-              <div className="px-6 pb-6 border-t border-gray-100">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                  {config.camposRelevantes.map((campo) => {
-                    const type = ['precioCompra', 'precioVenta', 'stock', 'stockMinimo', 'temperaturaOptima', 'humedadOptima'].includes(campo) ? 'number' : 'text'
-                    const label = campo.charAt(0).toUpperCase() + campo.slice(1).replace(/([A-Z])/g, ' $1')
-                    return renderCampo(campo, label, type, true)
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+
 
         {/* Botones de acción */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
