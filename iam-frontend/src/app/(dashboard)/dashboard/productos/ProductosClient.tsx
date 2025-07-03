@@ -399,35 +399,35 @@ export default function ProductosClient() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
           {/* Sección: Filtros de búsqueda */}
           <div className="p-6 border-b border-gray-100">
-            <ProductFilters
-              filtroTexto={filtroTexto}
-              setFiltroTexto={setFiltroTexto}
-              filtroEtiqueta={filtroEtiqueta}
-              setFiltroEtiqueta={setFiltroEtiqueta}
-              filtroTipoProducto={filtroTipoProducto}
-              setFiltroTipoProducto={setFiltroTipoProducto}
-              filtroEstado={filtroEstado}
-              setFiltroEstado={setFiltroEstado}
-              mostrarAgotados={mostrarAgotados}
-              setMostrarAgotados={setMostrarAgotados}
-              mostrarFiltros={mostrarFiltros}
-              setMostrarFiltros={setMostrarFiltros}
-              hayFiltrosActivos={hayFiltrosActivos}
-              onLimpiarFiltros={limpiarFiltros}
-              etiquetasUnicas={etiquetasUnicas}
-            />
+        <ProductFilters
+          filtroTexto={filtroTexto}
+          setFiltroTexto={setFiltroTexto}
+          filtroEtiqueta={filtroEtiqueta}
+          setFiltroEtiqueta={setFiltroEtiqueta}
+          filtroTipoProducto={filtroTipoProducto}
+          setFiltroTipoProducto={setFiltroTipoProducto}
+          filtroEstado={filtroEstado}
+          setFiltroEstado={setFiltroEstado}
+          mostrarAgotados={mostrarAgotados}
+          setMostrarAgotados={setMostrarAgotados}
+          mostrarFiltros={mostrarFiltros}
+          setMostrarFiltros={setMostrarFiltros}
+          hayFiltrosActivos={hayFiltrosActivos}
+          onLimpiarFiltros={limpiarFiltros}
+          etiquetasUnicas={etiquetasUnicas}
+        />
           </div>
 
           {/* Sección: Etiquetas populares */}
-          {etiquetasUnicas.length > 0 && (
+        {etiquetasUnicas.length > 0 && (
             <div className="p-6">
-              <PopularTags
-                etiquetasUnicas={etiquetasUnicas}
-                filtroEtiqueta={filtroEtiqueta}
-                onFiltrarPorEtiqueta={filtrarPorEtiqueta}
-              />
+          <PopularTags
+            etiquetasUnicas={etiquetasUnicas}
+            filtroEtiqueta={filtroEtiqueta}
+            onFiltrarPorEtiqueta={filtrarPorEtiqueta}
+          />
             </div>
-          )}
+        )}
         </div>
 
         {/* Mensaje de error */}

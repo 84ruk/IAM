@@ -32,7 +32,7 @@ export interface IndustriaConfig {
 
 export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
   ALIMENTOS: {
-    label: 'Alimentos',
+    label: 'Restaurante',
     camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion'],
     sensoresActivos: true,
     mostrarTemperaturaHumedad: true,

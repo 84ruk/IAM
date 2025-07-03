@@ -19,7 +19,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         {label && (
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {label} {optional && <span className="text-gray-400">(opcional)</span>}
-          </label>
+        </label>
         )}
         <select ref={ref} {...props} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200">
           {children}
