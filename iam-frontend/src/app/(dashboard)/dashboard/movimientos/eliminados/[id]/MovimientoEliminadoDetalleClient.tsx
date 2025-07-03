@@ -259,12 +259,19 @@ export default function MovimientoEliminadoDetalleClient() {
                   </div>
                 </div>
 
-                {movimiento.producto.etiqueta && (
+                {movimiento.producto.etiquetas && movimiento.producto.etiquetas.length > 0 && (
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Etiqueta</p>
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium border border-blue-200">
-                      {movimiento.producto.etiqueta}
-                    </span>
+                    <p className="text-sm text-gray-600 mb-1">Etiquetas</p>
+                    <div className="flex flex-wrap gap-1">
+                      {movimiento.producto.etiquetas.map((etiqueta, index) => (
+                        <span 
+                          key={index}
+                          className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium border border-blue-200"
+                        >
+                          {etiqueta}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
 

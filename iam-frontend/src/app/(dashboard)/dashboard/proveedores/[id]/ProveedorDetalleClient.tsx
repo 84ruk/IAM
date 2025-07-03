@@ -81,7 +81,7 @@ export default function ProveedorDetalleClient() {
     if (filtroProductosSinProveedor) {
       return productosSinProveedor.filter(producto =>
         producto.nombre.toLowerCase().includes(filtroProductosSinProveedor.toLowerCase()) ||
-        producto.etiqueta?.toLowerCase().includes(filtroProductosSinProveedor.toLowerCase())
+        producto.etiquetas?.some(etiqueta => etiqueta.toLowerCase().includes(filtroProductosSinProveedor.toLowerCase()))
       )
     }
     
@@ -599,8 +599,17 @@ export default function ProveedorDetalleClient() {
                           <span>Stock: <span className="font-medium text-gray-900">{producto.stock} {producto.unidad}</span></span>
                           <span>Precio: <span className="font-medium text-gray-900">${producto.precioVenta}</span></span>
                         </div>
-                        {producto.etiqueta && (
-                          <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium border border-blue-200 w-fit">{producto.etiqueta}</span>
+                        {producto.etiquetas && producto.etiquetas.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {producto.etiquetas.map((etiqueta, index) => (
+                              <span 
+                                key={index}
+                                className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium border border-blue-200"
+                              >
+                                {etiqueta}
+                              </span>
+                            ))}
+                          </div>
                         )}
                         {isSelected && (
                           <div className="flex items-center gap-1 mt-2 text-[#8E94F2] font-medium text-xs">

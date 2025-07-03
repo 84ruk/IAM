@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
-  name: string;
+  name?: string;
   error?: string;
   optional?: boolean;
   placeholder?: string;

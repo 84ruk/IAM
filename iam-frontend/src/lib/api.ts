@@ -3,6 +3,14 @@ import { safeFetch, validateApiResponse, AppError } from './errorHandler'
 // Configuración base de la API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
+// Configuración de seguridad
+const API_CONFIG = {
+  maxRetries: 3,
+  retryDelay: 1000,
+  timeout: 30000, // 30 segundos
+  maxConcurrentRequests: 10,
+}
+
 // Tipos para las respuestas de API
 export interface ApiResponse<T = any> {
   data: T
@@ -18,100 +26,169 @@ export interface PaginatedResponse<T> {
   totalPages: number
 }
 
+// Validación de entrada
+function validateInput(data: any, schema?: Record<string, any>): void {
+  if (!data) return
+
+  // Validación básica de tipos
+  if (typeof data === 'object') {
+    for (const [key, value] of Object.entries(data)) {
+      if (value === undefined || value === null) continue
+      
+      // Validar strings
+      if (typeof value === 'string') {
+        if (value.length > 10000) {
+          throw new AppError(`Campo ${key} excede el límite de caracteres`, 400)
+        }
+        // Sanitizar strings básicos
+        if (value.includes('<script>') || value.includes('javascript:')) {
+          throw new AppError(`Campo ${key} contiene contenido no permitido`, 400)
+        }
+      }
+      
+      // Validar números
+      if (typeof value === 'number') {
+        if (!isFinite(value) || value > Number.MAX_SAFE_INTEGER) {
+          throw new AppError(`Campo ${key} contiene un valor numérico inválido`, 400)
+        }
+      }
+    }
+  }
+}
+
+// Rate limiting básico
+class RateLimiter {
+  private requests: Map<string, number[]> = new Map()
+  private maxRequests = 100
+  private windowMs = 60000 // 1 minuto
+
+  canMakeRequest(endpoint: string): boolean {
+    const now = Date.now()
+    const key = endpoint.split('?')[0] // Ignorar query params para el rate limiting
+    
+    if (!this.requests.has(key)) {
+      this.requests.set(key, [now])
+      return true
+    }
+
+    const requests = this.requests.get(key)!
+    const validRequests = requests.filter(time => now - time < this.windowMs)
+    
+    if (validRequests.length >= this.maxRequests) {
+      return false
+    }
+
+    validRequests.push(now)
+    this.requests.set(key, validRequests)
+    return true
+  }
+}
+
+const rateLimiter = new RateLimiter()
+
 // Clase para manejo de API
 export class ApiClient {
   private baseURL: string
   private defaultHeaders: Record<string, string>
+  private activeRequests = 0
 
   constructor(baseURL: string = API_BASE_URL) {
     this.baseURL = baseURL
     this.defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+    }
+  }
+
+  private async makeRequest<T>(
+    method: string,
+    endpoint: string,
+    data?: any,
+    options?: RequestInit,
+    retryCount = 0
+  ): Promise<T> {
+    // Rate limiting
+    if (!rateLimiter.canMakeRequest(endpoint)) {
+      throw new AppError('Demasiadas solicitudes. Intenta de nuevo en un momento.', 429)
+    }
+
+    // Control de concurrencia
+    if (this.activeRequests >= API_CONFIG.maxConcurrentRequests) {
+      throw new AppError('Demasiadas solicitudes simultáneas', 429)
+    }
+
+    this.activeRequests++
+
+    try {
+      // Validar entrada
+      if (data) {
+        validateInput(data)
+      }
+
+      const url = `${this.baseURL}${endpoint}`
+      
+      // Crear AbortController para timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout)
+
+      const response = await fetch(url, {
+        method,
+        credentials: 'include',
+        headers: {
+          ...this.defaultHeaders,
+          ...options?.headers,
+        },
+        body: data ? JSON.stringify(data) : undefined,
+        signal: controller.signal,
+        ...options,
+      })
+
+      clearTimeout(timeoutId)
+
+      return await validateApiResponse(response)
+    } catch (error: unknown) {
+      // Reintentos automáticos para errores de red
+      if (retryCount < API_CONFIG.maxRetries && 
+          (error instanceof AppError && error.statusCode >= 500) ||
+          (error instanceof Error && (error.name === 'AbortError' || error.name === 'TypeError'))) {
+        
+        await new Promise(resolve => 
+          setTimeout(resolve, API_CONFIG.retryDelay * (retryCount + 1))
+        )
+        
+        return this.makeRequest(method, endpoint, data, options, retryCount + 1)
+      }
+      
+      throw error
+    } finally {
+      this.activeRequests--
     }
   }
 
   // Método GET genérico
   async get<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
-    const response = await fetch(url, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        ...this.defaultHeaders,
-        ...options?.headers,
-      },
-      ...options,
-    })
-
-    return validateApiResponse(response)
+    return this.makeRequest<T>('GET', endpoint, undefined, options)
   }
 
   // Método POST genérico
   async post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        ...this.defaultHeaders,
-        ...options?.headers,
-      },
-      body: data ? JSON.stringify(data) : undefined,
-      ...options,
-    })
-
-    return validateApiResponse(response)
+    return this.makeRequest<T>('POST', endpoint, data, options)
   }
 
   // Método PUT genérico
   async put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
-    const response = await fetch(url, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: {
-        ...this.defaultHeaders,
-        ...options?.headers,
-      },
-      body: data ? JSON.stringify(data) : undefined,
-      ...options,
-    })
-
-    return validateApiResponse(response)
+    return this.makeRequest<T>('PUT', endpoint, data, options)
   }
 
   // Método PATCH genérico
   async patch<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
-    const response = await fetch(url, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: {
-        ...this.defaultHeaders,
-        ...options?.headers,
-      },
-      body: data ? JSON.stringify(data) : undefined,
-      ...options,
-    })
-
-    return validateApiResponse(response)
+    return this.makeRequest<T>('PATCH', endpoint, data, options)
   }
 
   // Método DELETE genérico
   async delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
-    const response = await fetch(url, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: {
-        ...this.defaultHeaders,
-        ...options?.headers,
-      },
-      ...options,
-    })
-
-    return validateApiResponse(response)
+    return this.makeRequest<T>('DELETE', endpoint, undefined, options)
   }
 }
 

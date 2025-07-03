@@ -154,7 +154,13 @@ export default function ProductoDetalleClient() {
             <div>
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-3xl font-bold text-gray-800">{producto.nombre}</h1>
-                {producto.etiqueta && <EtiquetaTag etiqueta={producto.etiqueta} />}
+                {producto.etiquetas && producto.etiquetas.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {producto.etiquetas.map((etiqueta, index) => (
+                      <EtiquetaTag key={index} etiqueta={etiqueta} />
+                    ))}
+                  </div>
+                )}
               </div>
               <p className="text-gray-600">{producto.descripcion}</p>
             </div>

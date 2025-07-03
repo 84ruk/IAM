@@ -18,7 +18,7 @@ export default function Navbar({ user, logout }: { user: User, logout?: () => vo
     <header className="w-full px-6 py-4 bg-white shadow-sm flex items-center justify-between border-b border-gray-100">
       <div>
         <h1 className="text-lg font-semibold text-gray-800">
-          Hola, {user?.nombre || user?.email?.split('@')[0] || 'Usuario'} 👋
+          Hola, {user?.email?.split('@')[0] || 'Usuario'} 👋
         </h1>
         <p className="text-sm text-gray-500">
           Rol actual: <strong>{ROL_MAP[user?.rol] ?? 'Desconocido'}</strong>

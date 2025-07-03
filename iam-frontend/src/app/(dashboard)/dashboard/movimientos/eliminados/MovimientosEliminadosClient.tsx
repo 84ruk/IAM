@@ -116,7 +116,7 @@ export default function MovimientosEliminadosClient() {
 
   const movimientosFiltrados = movimientos.filter((m) =>
     m.producto.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-    m.producto.etiqueta?.toLowerCase().includes(filtro.toLowerCase()) ||
+    m.producto.etiquetas?.some(etiqueta => etiqueta.toLowerCase().includes(filtro.toLowerCase())) ||
     m.motivo?.toLowerCase().includes(filtro.toLowerCase())
   )
 
@@ -302,10 +302,17 @@ export default function MovimientosEliminadosClient() {
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium bg-red-100 text-red-700">
                           Eliminado
                         </span>
-                        {movimiento.producto.etiqueta && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium border border-blue-200">
-                            {movimiento.producto.etiqueta}
-                          </span>
+                        {movimiento.producto.etiquetas && movimiento.producto.etiquetas.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {movimiento.producto.etiquetas.map((etiqueta, index) => (
+                              <span 
+                                key={index}
+                                className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium border border-blue-200"
+                              >
+                                {etiqueta}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>

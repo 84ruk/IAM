@@ -1,297 +1,292 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { z } from 'zod'
+import { useState, useCallback } from 'react'
 import { AppError, ValidationAppError } from '@/lib/errorHandler'
 
-interface ValidationState {
-  isValid: boolean
-  errors: Record<string, string>
-  isDirty: boolean
-  isSubmitting: boolean
-  serverErrors: string[]
+// Tipos para validación
+export interface ValidationRule {
+  required?: boolean
+  minLength?: number
+  maxLength?: number
+  pattern?: RegExp
+  custom?: (value: any) => boolean | string
+  sanitize?: boolean
 }
 
-interface UseFormValidationOptions {
-  schema: z.ZodSchema
-  debounceMs?: number
-  validateOnChange?: boolean
-  validateOnBlur?: boolean
-  validateOnSubmit?: boolean
-  initialData?: Record<string, any>
+export interface ValidationRules {
+  [field: string]: ValidationRule
 }
 
+export interface ValidationErrors {
+  [field: string]: string
+}
+
+// Sanitización de entrada
+function sanitizeInput(value: any, sanitize: boolean = true): any {
+  if (!sanitize || value == null) return value
+
+  if (typeof value === 'string') {
+    return value
+      .trim()
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '')
+      .replace(/data:text\/html/gi, '')
+      .replace(/vbscript:/gi, '')
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizeInput(item, sanitize))
+  }
+
+  if (typeof value === 'object') {
+    const sanitized: any = {}
+    for (const [key, val] of Object.entries(value)) {
+      sanitized[key] = sanitizeInput(val, sanitize)
+    }
+    return sanitized
+  }
+
+  return value
+}
+
+// Validación de campos individuales
+function validateField(value: any, rules: ValidationRule): string | null {
+  const { required, minLength, maxLength, pattern, custom, sanitize } = rules
+
+  // Sanitizar si es necesario
+  const sanitizedValue = sanitizeInput(value, sanitize)
+
+  // Validación requerida
+  if (required && (sanitizedValue === '' || sanitizedValue == null || sanitizedValue === undefined)) {
+    return 'Este campo es obligatorio'
+  }
+
+  // Si no es requerido y está vacío, no validar más
+  if (!required && (sanitizedValue === '' || sanitizedValue == null || sanitizedValue === undefined)) {
+    return null
+  }
+
+  // Validación de longitud mínima
+  if (minLength && typeof sanitizedValue === 'string' && sanitizedValue.length < minLength) {
+    return `Mínimo ${minLength} caracteres`
+  }
+
+  // Validación de longitud máxima
+  if (maxLength && typeof sanitizedValue === 'string' && sanitizedValue.length > maxLength) {
+    return `Máximo ${maxLength} caracteres`
+  }
+
+  // Validación de patrón
+  if (pattern && typeof sanitizedValue === 'string' && !pattern.test(sanitizedValue)) {
+    return 'Formato inválido'
+  }
+
+  // Validación personalizada
+  if (custom) {
+    const result = custom(sanitizedValue)
+    if (result === false) {
+      return 'Valor inválido'
+    }
+    if (typeof result === 'string') {
+      return result
+    }
+  }
+
+  return null
+}
+
+// Validación de tipos específicos
+export const validationPatterns = {
+  email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  phone: /^[\+]?[1-9][\d]{0,15}$/,
+  url: /^https?:\/\/.+/,
+  numeric: /^\d+(\.\d+)?$/,
+  integer: /^\d+$/,
+  alphanumeric: /^[a-zA-Z0-9\s]+$/,
+  price: /^\d+(\.\d{1,2})?$/,
+  sku: /^[A-Z0-9\-_]+$/,
+  barcode: /^[0-9]{8,14}$/,
+}
+
+export const validationMessages = {
+  email: 'Ingresa un email válido',
+  phone: 'Ingresa un número de teléfono válido',
+  url: 'Ingresa una URL válida',
+  numeric: 'Ingresa un número válido',
+  integer: 'Ingresa un número entero',
+  alphanumeric: 'Solo letras, números y espacios',
+  price: 'Ingresa un precio válido',
+  sku: 'Solo letras mayúsculas, números, guiones y guiones bajos',
+  barcode: 'Ingresa un código de barras válido (8-14 dígitos)',
+}
+
+// Hook principal de validación
 export function useFormValidation<T extends Record<string, any>>(
   initialData: T,
-  options: UseFormValidationOptions
+  validationRules: ValidationRules = {}
 ) {
-  const { 
-    schema, 
-    debounceMs = 300, 
-    validateOnChange = true, 
-    validateOnBlur = true,
-    validateOnSubmit = true,
-    initialData: optionsInitialData
-  } = options
-  
-  const [data, setData] = useState<T>(optionsInitialData || initialData)
-  const [validationState, setValidationState] = useState<ValidationState>({
-    isValid: false,
-    errors: {},
-    isDirty: false,
-    isSubmitting: false,
-    serverErrors: []
-  })
-  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
-
-  // Función de validación
-  const validate = useCallback((values: T): ValidationState => {
-    try {
-      schema.parse(values)
-      return {
-        isValid: true,
-        errors: {},
-        isDirty: true,
-        isSubmitting: validationState.isSubmitting,
-        serverErrors: validationState.serverErrors
-      }
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errors: Record<string, string> = {}
-        error.errors.forEach((err) => {
-          const path = err.path.join('.')
-          errors[path] = err.message
-        })
-        return {
-          isValid: false,
-          errors,
-          isDirty: true,
-          isSubmitting: validationState.isSubmitting,
-          serverErrors: validationState.serverErrors
-        }
-      }
-      return {
-        isValid: false,
-        errors: { general: 'Error de validación desconocido' },
-        isDirty: true,
-        isSubmitting: validationState.isSubmitting,
-        serverErrors: validationState.serverErrors
-      }
-    }
-  }, [schema, validationState.isSubmitting, validationState.serverErrors])
-
-  // Validación con debounce
-  const validateWithDebounce = useCallback((values: T) => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer)
-    }
-
-    const timer = setTimeout(() => {
-      const result = validate(values)
-      setValidationState(result)
-    }, debounceMs)
-
-    setDebounceTimer(timer)
-  }, [validate, debounceMs, debounceTimer])
+  const [data, setData] = useState<T>(initialData)
+  const [errors, setErrors] = useState<ValidationErrors>({})
+  const [isValidating, setIsValidating] = useState(false)
 
   // Actualizar campo
   const updateField = useCallback((field: keyof T, value: any) => {
-    const newData = { ...data, [field]: value }
-    setData(newData)
+    setData(prev => ({ ...prev, [field]: value }))
     
-    if (validateOnChange) {
-      validateWithDebounce(newData)
+    // Validar inmediatamente si hay reglas para este campo
+    if (validationRules[field as string]) {
+      const error = validateField(value, validationRules[field as string])
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        if (error) {
+          newErrors[field as string] = error
+        } else {
+          delete newErrors[field as string]
+        }
+        return newErrors
+      })
     }
-  }, [data, validateOnChange, validateWithDebounce])
+  }, [validationRules])
 
-  // Validar campo específico
-  const validateField = useCallback((field: keyof T) => {
-    const result = validate(data)
-    const fieldError = result.errors[field as string] || ''
+  // Actualizar múltiples campos
+  const updateFields = useCallback((updates: Partial<T>) => {
+    setData(prev => ({ ...prev, ...updates }))
     
-    setValidationState(prev => ({
-      ...prev,
-      errors: {
-        ...prev.errors,
-        [field]: fieldError
+    // Validar campos actualizados
+    const newErrors: ValidationErrors = {}
+    Object.entries(updates).forEach(([field, value]) => {
+      if (validationRules[field]) {
+        const error = validateField(value, validationRules[field])
+        if (error) {
+          newErrors[field] = error
+        }
       }
-    }))
-  }, [data, validate])
-
-  // Validar en blur
-  const handleBlur = useCallback((field: keyof T) => {
-    if (validateOnBlur) {
-      validateField(field)
-    }
-  }, [validateOnBlur, validateField])
+    })
+    
+    setErrors(prev => ({ ...prev, ...newErrors }))
+  }, [validationRules])
 
   // Validar todo el formulario
-  const validateForm = useCallback(() => {
-    const result = validate(data)
-    setValidationState(result)
-    return result.isValid
-  }, [data, validate])
+  const validateForm = useCallback((): boolean => {
+    setIsValidating(true)
+    
+    const newErrors: ValidationErrors = {}
+    let isValid = true
 
-  // Resetear formulario
-  const reset = useCallback((newData?: T) => {
-    const resetData = newData || initialData
-    setData(resetData)
-    setValidationState({
-      isValid: false,
-      errors: {},
-      isDirty: false,
-      isSubmitting: false,
-      serverErrors: []
+    Object.entries(validationRules).forEach(([field, rules]) => {
+      const value = data[field as keyof T]
+      const error = validateField(value, rules)
+      
+      if (error) {
+        newErrors[field] = error
+        isValid = false
+      }
     })
-  }, [initialData])
+
+    setErrors(newErrors)
+    setIsValidating(false)
+    
+    return isValid
+  }, [data, validationRules])
+
+  // Validar campo específico
+  const validateFieldByName = useCallback((field: keyof T): boolean => {
+    const rules = validationRules[field as string]
+    if (!rules) return true
+
+    const value = data[field]
+    const error = validateField(value, rules)
+    
+    setErrors(prev => {
+      const newErrors = { ...prev }
+      if (error) {
+        newErrors[field as string] = error
+      } else {
+        delete newErrors[field as string]
+      }
+      return newErrors
+    })
+    
+    return !error
+  }, [data, validationRules])
 
   // Limpiar errores
   const clearErrors = useCallback(() => {
-    setValidationState(prev => ({
-      ...prev,
-      errors: {},
-      serverErrors: []
-    }))
+    setErrors({})
   }, [])
 
-  // Manejar errores del servidor
-  const handleServerError = useCallback((error: AppError) => {
-    if (error instanceof ValidationAppError && error.errors) {
-      const serverErrors: Record<string, string> = {}
-      error.errors.forEach(err => {
-        serverErrors[err.field] = err.message
-      })
-      
-      setValidationState(prev => ({
-        ...prev,
-        errors: { ...prev.errors, ...serverErrors },
-        serverErrors: error.errors.map(err => err.message)
-      }))
-    } else {
-      setValidationState(prev => ({
-        ...prev,
-        serverErrors: [error.message]
-      }))
-    }
+  // Limpiar error específico
+  const clearError = useCallback((field: keyof T) => {
+    setErrors(prev => {
+      const newErrors = { ...prev }
+      delete newErrors[field as string]
+      return newErrors
+    })
   }, [])
 
-  // Función para enviar formulario con manejo de errores
-  const submitForm = useCallback(async (
-    submitFn: (data: T) => Promise<any>,
-    options?: {
-      onSuccess?: (result: any) => void
-      onError?: (error: AppError) => void
-      validateBeforeSubmit?: boolean
-    }
-  ) => {
-    const { onSuccess, onError, validateBeforeSubmit = validateOnSubmit } = options || {}
+  // Resetear formulario
+  const resetForm = useCallback((newData?: T) => {
+    setData(newData || initialData)
+    setErrors({})
+  }, [initialData])
 
-    try {
-      setValidationState(prev => ({ ...prev, isSubmitting: true }))
-      clearErrors()
+  // Obtener datos sanitizados
+  const getSanitizedData = useCallback((): T => {
+    const sanitized: any = {}
+    Object.entries(data).forEach(([field, value]) => {
+      const rules = validationRules[field]
+      sanitized[field] = sanitizeInput(value, rules?.sanitize)
+    })
+    return sanitized
+  }, [data, validationRules])
 
-      // Validar antes de enviar si está habilitado
-      if (validateBeforeSubmit) {
-        const isValid = validateForm()
-        if (!isValid) {
-          setValidationState(prev => ({ ...prev, isSubmitting: false }))
-          return false
-        }
-      }
+  // Verificar si hay errores
+  const hasErrors = Object.keys(errors).length > 0
 
-      // Cancelar petición anterior si existe
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
+  // Verificar si un campo específico tiene error
+  const hasError = useCallback((field: keyof T): boolean => {
+    return !!errors[field as string]
+  }, [errors])
 
-      // Crear nuevo abort controller
-      abortControllerRef.current = new AbortController()
-
-      const result = await submitFn(data)
-      
-      setValidationState(prev => ({ ...prev, isSubmitting: false }))
-      onSuccess?.(result)
-      return result
-
-    } catch (error) {
-      setValidationState(prev => ({ ...prev, isSubmitting: false }))
-      
-      if (error instanceof AppError) {
-        handleServerError(error)
-        onError?.(error)
-      } else {
-        const appError = new AppError(error instanceof Error ? error.message : 'Error desconocido')
-        handleServerError(appError)
-        onError?.(appError)
-      }
-      
-      return false
-    }
-  }, [data, validateForm, validateOnSubmit, clearErrors, handleServerError])
-
-  // Función para validar campo específico con transformación
-  const validateAndTransformField = useCallback((field: keyof T, value: any, transform?: (value: any) => any) => {
-    const transformedValue = transform ? transform(value) : value
-    const newData = { ...data, [field]: transformedValue }
-    
-    try {
-      // Validar solo el campo específico
-      const fieldSchema = schema.shape[field as string]
-      if (fieldSchema) {
-        fieldSchema.parse(transformedValue)
-        setValidationState(prev => ({
-          ...prev,
-          errors: {
-            ...prev.errors,
-            [field]: ''
-          }
-        }))
-      }
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const fieldError = error.errors.find(err => err.path[0] === field)
-        if (fieldError) {
-          setValidationState(prev => ({
-            ...prev,
-            errors: {
-              ...prev.errors,
-              [field]: fieldError.message
-            }
-          }))
-        }
-      }
-    }
-    
-    setData(newData)
-  }, [data, schema])
-
-  // Limpiar timer al desmontar
-  useEffect(() => {
-    return () => {
-      if (debounceTimer) {
-        clearTimeout(debounceTimer)
-      }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
-    }
-  }, [debounceTimer])
+  // Obtener error de un campo específico
+  const getError = useCallback((field: keyof T): string | undefined => {
+    return errors[field as string]
+  }, [errors])
 
   return {
     data,
-    validationState,
+    errors,
+    isValidating,
+    hasErrors,
     updateField,
-    validateField,
+    updateFields,
     validateForm,
-    handleBlur,
-    reset,
+    validateFieldByName,
     clearErrors,
-    handleServerError,
-    submitForm,
-    validateAndTransformField,
-    isValid: validationState.isValid,
-    errors: validationState.errors,
-    isDirty: validationState.isDirty,
-    isSubmitting: validationState.isSubmitting,
-    serverErrors: validationState.serverErrors
+    clearError,
+    resetForm,
+    getSanitizedData,
+    hasError,
+    getError,
   }
+}
+
+// Hook para manejo de errores de API en formularios
+export function useFormErrorHandler() {
+  const handleApiError = useCallback((error: unknown): ValidationErrors => {
+    if (error instanceof ValidationAppError && error.errors) {
+      const validationErrors: ValidationErrors = {}
+      error.errors.forEach(err => {
+        validationErrors[err.field] = err.message
+      })
+      return validationErrors
+    }
+    
+    if (error instanceof AppError) {
+      return { general: error.message }
+    }
+    
+    return { general: 'Ha ocurrido un error inesperado' }
+  }, [])
+
+  return { handleApiError }
 } 
