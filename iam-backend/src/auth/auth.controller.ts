@@ -7,7 +7,6 @@ import {
   Get,
   UseGuards,
   Req,
-  BadRequestException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
@@ -87,13 +86,8 @@ export class AuthController {
   @Get('me')
   @HttpCode(200)
   async getMe(@CurrentUser() user: JwtUser) {
-    // Obtener información completa del usuario incluyendo empresa
-    const userId = user.id ?? user.sub;
-    if (!userId) {
-      throw new BadRequestException('ID de usuario no encontrado en el token');
-    }
-    const userWithEmpresa = await this.authService.getUserWithEmpresa(userId);
-    return userWithEmpresa;
+    // Devolver directamente la información del JWT (más seguro y eficiente)
+    return user;
   }
 
   @Get('google')
