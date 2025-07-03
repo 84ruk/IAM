@@ -6,6 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useServerUser } from '@/context/ServerUserContext'
 import { useIndustriaConfig } from '@/hooks/useIndustriaConfig'
+import { useFormValidation } from '@/hooks/useFormValidation'
+import { useApi } from '@/lib/api'
+import { AppError } from '@/lib/errorHandler'
 
 import { FormErrorAlert } from '@/components/ui/FormErrorAlert'
 import { useEffect, useState, useMemo } from 'react'
@@ -44,6 +47,26 @@ const baseSchema = z
     rfid: z.string().optional(),
   })
 
+type FormData = {
+  nombre: string
+  descripcion: string
+  precioCompra: number
+  precioVenta: number
+  stock: number
+  stockMinimo: number
+  unidad: string
+  tipoProducto: string
+  proveedorId?: number
+  etiquetas: string[]
+  talla: string
+  color: string
+  temperaturaOptima?: number
+  humedadOptima?: number
+  ubicacion: string
+  sku: string
+  codigoBarras: string
+  rfid: string
+}
 
 export default function FormularioProducto({ onSuccess, producto }: { onSuccess?: () => void, producto?: Producto }) {
 
@@ -54,6 +77,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
   const params = useParams()
   const productoId = params?.id
   const modo = productoId ? 'editar' : 'crear'
+  const { api, handleApiCall } = useApi()
 
   const camposIndustria = camposRelevantes.reduce((acc: any, campo: string) => {
     acc[campo] = z.any().optional()
@@ -63,18 +87,43 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
   const schema = baseSchema
   .extend(camposIndustria)
  
-
+  // Usar el nuevo hook de validación
   const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    setValue,
-    watch,
-  } = useForm({
-    resolver: zodResolver(schema),
+    data: formData,
+    errors,
+    isSubmitting,
+    serverErrors,
+    updateField,
+    validateForm,
+    handleBlur,
+    submitForm,
+    clearErrors
+  } = useFormValidation<FormData>({
+    nombre: producto?.nombre || '',
+    descripcion: producto?.descripcion || '',
+    precioCompra: producto?.precioCompra || 0,
+    precioVenta: producto?.precioVenta || 0,
+    stock: producto?.stock || 0,
+    stockMinimo: producto?.stockMinimo || 0,
+    unidad: producto?.unidad || '',
+    tipoProducto: producto?.tipoProducto || '',
+    proveedorId: producto?.proveedorId || undefined,
+    etiquetas: etiquetasIniciales,
+    talla: producto?.talla || '',
+    color: producto?.color || '',
+    temperaturaOptima: producto?.temperaturaOptima || undefined,
+    humedadOptima: producto?.humedadOptima || undefined,
+    ubicacion: producto?.ubicacion || '',
+    sku: producto?.sku || '',
+    codigoBarras: producto?.codigoBarras || '',
+    rfid: producto?.rfid || '',
+  }, {
+    schema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    validateOnSubmit: true
   })
 
-  const [serverErrors, setServerErrors] = useState<string[]>([])
   const [proveedores, setProveedores] = useState<{ id: number, nombre: string }[]>([])
   const [eliminandoProducto, setEliminandoProducto] = useState(false)
   const [mostrarOpcionales, setMostrarOpcionales] = useState(false)
@@ -92,250 +141,129 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
   useEffect(() => {
     const fetchProveedores = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/proveedores`, {
-          credentials: 'include'
-        })
-        const data = await res.json()
-        if (res.ok) setProveedores(data)
-      } catch (err) {
-        console.error('Error cargando proveedores')
+        const data = await api.proveedores.getAll()
+        setProveedores(data as { id: number, nombre: string }[])
+      } catch (error) {
+        console.error('Error cargando proveedores:', error)
       }
     }
     fetchProveedores()
-  }, [])
+  }, [api.proveedores])
 
-  useEffect(() => {
-    if (!productoId) return
-    const fetchProducto = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos/${productoId}`, {
-          credentials: 'include'
-        })
-        const data = await res.json()
-        if (res.ok) {
-          Object.entries(data).forEach(([key, value]) => {
-            setValue(key as any, value)
-          })
-          // Inicializar etiquetas como array (nuevo modelo)
-          const etiquetasProducto = Array.isArray(data.etiquetas) ? data.etiquetas : []
-          setEtiquetas(etiquetasProducto)
-          setValue('etiquetas', etiquetasProducto)
-        }
-      } catch (error) {
-        console.error('Error cargando producto')
-      }
-    }
-    fetchProducto()
-  }, [productoId, setValue])
-
-  // Sincronizar etiquetas con react-hook-form
-  useEffect(() => {
-    setValue('etiquetas', etiquetas)
-  }, [etiquetas, setValue])
-
-  const onSubmit = async (values: any) => {
-    setServerErrors([])
-    
-    // Debug: mostrar valores antes de limpiar
-    console.log('Valores del formulario:', values)
-    console.log('Etiquetas del estado:', etiquetas)
-    
-    // Limpiar valores vacíos antes de enviar
-    const cleanedValues = Object.fromEntries(
-      Object.entries(values).map(([key, value]) => {
-        // Si el valor es string vacío, null o undefined, no incluirlo
-        if (value === '' || value === null || value === undefined) {
-          return [key, undefined]
-        }
-        // Si es proveedorId y es 0 o string vacío, no incluirlo
-        if (key === 'proveedorId' && (value === 0 || value === '')) {
-          return [key, undefined]
-        }
-        return [key, value]
-      }).filter(([_, value]) => value !== undefined)
-    )
-    
-    // Asegurar que las etiquetas se incluyan
-    if (etiquetas.length > 0) {
-      cleanedValues.etiquetas = etiquetas
-    } else {
-      // Incluir array vacío para limpiar etiquetas existentes
-      cleanedValues.etiquetas = []
-    }
-    
-    // Eliminar el campo 'etiqueta' si existe
-    if ('etiqueta' in cleanedValues) {
-      delete cleanedValues['etiqueta']
-    }
-    
-    // Debug: mostrar valores finales
-    console.log('Valores finales a enviar:', cleanedValues)
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos${productoId ? `/${productoId}` : ''}`, {
-        method: productoId ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(cleanedValues),
-      })
-
-      const data = await res.json()
-      if (!res.ok) {
-        if (Array.isArray(data.message)) {
-          setServerErrors(data.message)
-        } else if (typeof data.message === 'string') {
-          setServerErrors([data.message])
-        }
-        return
-      }
-
-      onSuccess?.()
-      router.push('/dashboard/productos')
-    } catch (err: any) {
-      setServerErrors(['Hubo un error inesperado.'])
+  const agregarEtiqueta = () => {
+    if (inputEtiqueta.trim() && !etiquetas.includes(inputEtiqueta.trim())) {
+      const nuevasEtiquetas = [...etiquetas, inputEtiqueta.trim()]
+      setEtiquetas(nuevasEtiquetas)
+      updateField('etiquetas', nuevasEtiquetas)
+      setInputEtiqueta('')
     }
   }
 
-  const eliminarProducto = async () => {
-    if (!productoId) return
-    
-    const confirmar = confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción lo ocultará del inventario pero podrás restaurarlo desde la papelera.')
-    if (!confirmar) return
+  const eliminarEtiqueta = (index: number) => {
+    const nuevasEtiquetas = etiquetas.filter((_, i) => i !== index)
+    setEtiquetas(nuevasEtiquetas)
+    updateField('etiquetas', nuevasEtiquetas)
+  }
 
-    try {
-      setEliminandoProducto(true)
-      setServerErrors([])
-      
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos/${productoId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      
-      if (!res.ok) {
-        const data = await res.json()
-        if (Array.isArray(data.message)) {
-          setServerErrors(data.message)
-        } else if (typeof data.message === 'string') {
-          setServerErrors([data.message])
+  const onSubmit = async (data: FormData) => {
+    const submitData = {
+      ...data,
+      etiquetas: etiquetas,
+      empresaId: user?.empresaId
+    }
+
+    const success = await submitForm(
+      async (formData) => {
+        if (modo === 'crear') {
+          return await api.productos.create(submitData)
         } else {
-          setServerErrors(['Error al eliminar el producto'])
+          return await api.productos.update(Number(productoId), submitData)
         }
-        return
+      },
+      {
+        onSuccess: (result) => {
+          onSuccess?.()
+          router.push('/dashboard/productos')
+        },
+        onError: (error: AppError) => {
+          console.error('Error al guardar producto:', error)
+        }
       }
-      
-      // Redirigir a la lista de productos después de eliminar
-      router.push('/dashboard/productos')
-    } catch (err: any) {
-      setServerErrors(['Error de conexión. Verifica tu conexión a internet.'])
+    )
+
+    return success
+  }
+
+  const eliminarProducto = async () => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción lo ocultará del inventario pero podrás restaurarlo desde la papelera.')) {
+      return
+    }
+
+    setEliminandoProducto(true)
+    
+    try {
+      await handleApiCall(
+        () => api.productos.delete(Number(productoId)),
+        {
+          onSuccess: () => {
+            router.push('/dashboard/productos')
+          },
+          onError: (error) => {
+            console.error('Error al eliminar producto:', error)
+          }
+        }
+      )
     } finally {
       setEliminandoProducto(false)
     }
   }
 
-  // Función optimizada para ajustar altura del textarea (debounced)
-  const adjustTextareaHeight = useMemo(() => {
-    let timeoutId: NodeJS.Timeout
-    return (textarea: HTMLTextAreaElement) => {
-      clearTimeout(timeoutId)
-      timeoutId = setTimeout(() => {
-        textarea.style.height = 'auto'
-        textarea.style.height = Math.max(80, textarea.scrollHeight) + 'px'
-      }, 100) // Debounce de 100ms para evitar cálculos excesivos
-    }
-  }, [])
-
-  // Handler para agregar etiqueta
-  const handleInputEtiqueta = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    console.log('Key pressed:', e.key, 'Input value:', inputEtiqueta)
-    if ([' ', ','].includes(e.key) && inputEtiqueta.trim()) {
-      e.preventDefault()
-      const nueva = inputEtiqueta.trim()
-      console.log('Nueva etiqueta a agregar:', nueva)
-      if (
-        nueva.length > 0 &&
-        !etiquetas.includes(nueva) &&
-        etiquetas.length < 5
-      ) {
-        const nuevasEtiquetas = [...etiquetas, nueva]
-        console.log('Etiquetas actualizadas:', nuevasEtiquetas)
-        setEtiquetas(nuevasEtiquetas)
-      }
-      setInputEtiqueta('')
-    }
-  }
-
-  const handleRemoveEtiqueta = (etiqueta: string) => {
-    setEtiquetas(etiquetas.filter(e => e !== etiqueta))
-  }
-
-  // Debug: mostrar estado de etiquetas
-
-  const renderCampo = (campo: string, label: string, type: string = 'text', optional = true) => {
-    // Solo mostrar campos relevantes para la industria
-    if (!camposRelevantes.includes(campo as any)) return null
-    
-    // Caso especial para descripción - usar textarea
-    if (campo === 'descripcion') {
-      return (
-        <div key={campo} className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {label} {!optional && <span className="text-red-500">*</span>}
-          </label>
-          <textarea
-            {...register(campo)}
-            placeholder={label + (optional ? ' (opcional)' : '')}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent resize-none transition-all duration-200 min-h-[80px]"
-            style={{ minHeight: '80px' }}
-            onInput={(e) => adjustTextareaHeight(e.target as HTMLTextAreaElement)}
-          />
-          {typeof errors[campo]?.message === 'string' && (
-            <p className="mt-1 text-sm text-red-600">{errors[campo]?.message}</p>
-          )}
-        </div>
-      )
-    }
-
-    return (
+  const renderCampo = (campo: keyof FormData, label: string, tipo: string, opcional: boolean = false) => (
     <Input
-      key={campo}
+      name={campo}
       label={label}
-      placeholder={label + (optional ? ' (opcional)' : '')}
-      {...register(campo)}
-      error={typeof errors[campo]?.message === 'string' ? errors[campo]?.message : undefined}
-      optional={optional}
-      type={type}
+      type={tipo}
+      optional={opcional}
+      value={formData[campo] || ''}
+      onChange={(e) => updateField(campo, e.target.value)}
+      onBlur={() => handleBlur(campo)}
+      error={errors[campo]}
     />
   )
-  }
+
+  const renderCampoNumero = (campo: keyof FormData, label: string, opcional: boolean = false) => (
+    <Input
+      name={campo}
+      label={label}
+      type="number"
+      optional={opcional}
+      value={formData[campo] || ''}
+      onChange={(e) => updateField(campo, parseFloat(e.target.value) || 0)}
+      onBlur={() => handleBlur(campo)}
+      error={errors[campo]}
+    />
+  )
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      {/* Header mejorado */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          {modo === 'editar' ? 'Editar producto' : 'Nuevo producto'}
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+          {modo === 'crear' ? 'Nuevo Producto' : 'Editar Producto'}
         </h1>
         <p className="text-gray-600">
-          {modo === 'editar' 
-            ? 'Modifica la información del producto. Los campos marcados con * son obligatorios.'
-            : 'Completa la información del nuevo producto. Los campos marcados con * son obligatorios.'
+          {modo === 'crear' 
+            ? 'Completa la información del nuevo producto' 
+            : 'Modifica la información del producto'
           }
         </p>
       </div>
 
-      {/* Alerta del código de barras */}
-      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
-        <Barcode className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-        <div>
-          <span className="font-semibold text-green-700">Lector de código de barras disponible</span>
-          <p className="text-green-700 text-sm mt-1">
-            Puedes escanear un código de barras directamente en cualquier campo. 
-            El sistema detectará automáticamente el código y rellenará los campos correspondientes.
-          </p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        <FormErrorAlert errors={serverErrors} className="mb-6" />
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData) }} className="space-y-8">
+        <FormErrorAlert 
+          errors={serverErrors} 
+          className="mb-6" 
+          onClose={clearErrors}
+        />
 
         {/* Información básica y comercial */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -358,8 +286,10 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
               <Select
                 label="Unidad de medida *"
                 options={UNIDADES}
-                {...register('unidad')}
-                error={getErrorMessage(errors.unidad)}
+                value={formData.unidad}
+                onChange={(e) => updateField('unidad', e.target.value)}
+                onBlur={() => handleBlur('unidad')}
+                error={errors.unidad}
               />
 
               <Select
@@ -368,14 +298,16 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
                   value: tipo,
                   label: TipoProductoConfig[tipo as keyof typeof TipoProductoConfig]?.label || tipo
                 }))}
-                {...register('tipoProducto')}
-                error={getErrorMessage(errors.tipoProducto)}
+                value={formData.tipoProducto}
+                onChange={(e) => updateField('tipoProducto', e.target.value)}
+                onBlur={() => handleBlur('tipoProducto')}
+                error={errors.tipoProducto}
               />
             </div>
           </div>
 
           {/* Sección: Precios y stock */}
-          <div className="p-6">
+          <div className="p-6 border-b border-gray-100">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-green-100 rounded-lg">
                 <DollarSign className="w-5 h-5 text-green-600" />
@@ -386,176 +318,159 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Input
-                label="Precio de compra *"
-                placeholder="0.00"
-                {...register('precioCompra')}
-                error={getErrorMessage(errors.precioCompra)}
-                type="number"
-                step="0.01"
-                min="0"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {renderCampoNumero('precioCompra', 'Precio de compra *', false)}
+              {renderCampoNumero('precioVenta', 'Precio de venta *', false)}
+              {renderCampoNumero('stock', 'Stock actual *', false)}
+              {renderCampoNumero('stockMinimo', 'Stock mínimo', true)}
+              
+              <Select
+                label="Proveedor"
+                options={[
+                  { value: '', label: 'Sin proveedor' },
+                  ...proveedores.map(p => ({ value: p.id.toString(), label: p.nombre }))
+                ]}
+                value={formData.proveedorId?.toString() || ''}
+                onChange={(e) => updateField('proveedorId', e.target.value ? parseInt(e.target.value) : undefined)}
+                onBlur={() => handleBlur('proveedorId')}
+                error={errors.proveedorId}
+                optional={true}
               />
-              <Input
-                label="Precio de venta *"
-                placeholder="0.00"
-                {...register('precioVenta')}
-                error={getErrorMessage(errors.precioVenta)}
-                type="number"
-                step="0.01"
-                min="0"
-              />
-              {renderCampo('stock', 'Stock actual *', 'number', false)}
             </div>
           </div>
-        </div>
 
-        {/* Campos específicos de la industria */}
-        {camposRelevantes.length > 0 && (
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          {/* Campos específicos de industria */}
+          {camposRelevantes.length > 0 && (
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Settings className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-800">Configuración de {config.label}</h2>
+                  <p className="text-sm text-gray-600">Campos específicos para tu industria</p>
+                </div>
+              </div>
+              
+              <CamposIndustria
+                camposRelevantes={camposRelevantes}
+                config={config}
+                formData={formData}
+                updateField={updateField}
+                handleBlur={handleBlur}
+                errors={errors}
+              />
+            </div>
+          )}
+
+          {/* Sección: Etiquetas */}
+          <div className="p-6 border-b border-gray-100">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-orange-100 rounded-lg">
-                <Settings className="w-5 h-5 text-orange-600" />
+                <Tag className="w-5 h-5 text-orange-600" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-800">Campos específicos de {config.label}</h2>
-                <p className="text-sm text-gray-600">Información relevante para tu industria</p>
+                <h2 className="text-xl font-semibold text-gray-800">Etiquetas</h2>
+                <p className="text-sm text-gray-600">Organiza tu producto con etiquetas</p>
               </div>
             </div>
             
-            <CamposIndustria 
-              mostrarOpcionales={mostrarOpcionales} 
-              register={register}
-              errors={errors}
-            />
-          </div>
-        )}
-
-        {/* Datos opcionales colapsables */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div 
-            className="p-6 cursor-pointer hover:bg-gray-50 transition-colors rounded-t-xl"
-            onClick={() => setMostrarOpcionales(!mostrarOpcionales)}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Tag className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800">Información adicional</h2>
-                  <p className="text-sm text-gray-600">Categorización y proveedor (opcional)</p>
-                </div>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  name="inputEtiqueta"
+                  label=""
+                  type="text"
+                  value={inputEtiqueta}
+                  onChange={(e) => setInputEtiqueta(e.target.value)}
+                  placeholder="Agregar etiqueta..."
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), agregarEtiqueta())}
+                />
+                <Button
+                  type="button"
+                  onClick={agregarEtiqueta}
+                  disabled={!inputEtiqueta.trim()}
+                  className="mt-6"
+                >
+                  Agregar
+                </Button>
               </div>
-              {mostrarOpcionales ? (
-                <ChevronUpIcon className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+              
+              {etiquetas.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {etiquetas.map((etiqueta, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                    >
+                      {etiqueta}
+                      <button
+                        type="button"
+                        onClick={() => eliminarEtiqueta(index)}
+                        className="hover:bg-blue-200 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </div>
-          
-          {mostrarOpcionales && (
-            <div className="px-6 pb-6 border-t border-gray-100">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                {/* Input de etiquetas tipo tags */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Etiquetas (máx. 5)</label>
-                  {/* Mostrar chips de etiquetas */}
-                  {etiquetas.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {etiquetas.map((etiqueta) => (
-                        <span key={etiqueta} className="inline-flex items-center bg-[#F5F7FF] text-[#8E94F2] px-3 py-1 rounded-full text-xs font-medium border border-[#8E94F2]">
-                          {etiqueta}
-                          <button 
-                            type="button" 
-                            onClick={() => handleRemoveEtiqueta(etiqueta)} 
-                            className="ml-1 text-[#8E94F2] hover:text-red-500 transition-colors"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <input
-                    type="text"
-                    value={inputEtiqueta}
-                    onChange={e => setInputEtiqueta(e.target.value.replace(/[^\w\s-]/g, ''))}
-                    onKeyDown={handleInputEtiqueta}
-                    placeholder={etiquetas.length >= 5 ? 'Máximo 5 etiquetas' : 'Agregar etiqueta (espacio o coma)'}
-                    disabled={etiquetas.length >= 5}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm transition-all"
-                  />
-                  {errors.etiquetas && (
-                    <p className="mt-1 text-sm text-red-600">{(errors.etiquetas as any)?.message}</p>
-                  )}
-                </div>
-                <Select
-                  label="Proveedor"
-                  options={[
-                    { value: "", label: "Sin proveedor" },
-                    ...proveedores.map(p => ({ value: String(p.id), label: p.nombre }))
-                  ]}
-                  {...register('proveedorId')}
-                  error={getErrorMessage(errors.proveedorId)}
-                  optional
-                />
+
+          {/* Sección: Campos opcionales */}
+          <div className="p-6">
+            <button
+              type="button"
+              onClick={() => setMostrarOpcionales(!mostrarOpcionales)}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4"
+            >
+              <Barcode className="w-4 h-4" />
+              <span>Campos opcionales</span>
+              {mostrarOpcionales ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+            </button>
+            
+            {mostrarOpcionales && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {renderCampo('sku', 'SKU', 'text', true)}
+                {renderCampo('codigoBarras', 'Código de barras', 'text', true)}
+                {renderCampo('rfid', 'RFID', 'text', true)}
+                {renderCampo('ubicacion', 'Ubicación', 'text', true)}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-
-
         {/* Botones de acción */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-                              <Button
-                  type="submit"
-                  disabled={isSubmitting || eliminandoProducto}
-                  className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-[#8E94F2] hover:bg-[#7278e0] focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 rounded-xl shadow-md hover:shadow-lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Guardando...
-                    </>
-                  ) : (
-                    <>
-                      <Package className="w-4 h-4" />
-                      {modo === 'editar' ? 'Actualizar producto' : 'Guardar producto'}
-                    </>
-                  )}
-                </Button>
-                
-                {modo === 'editar' && (
-                  <Button
-                    type="button"
-                    onClick={eliminarProducto}
-                    disabled={isSubmitting || eliminandoProducto}
-                    className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 rounded-xl shadow-md hover:shadow-lg"
-                  >
-                    {eliminandoProducto ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Eliminando...
-                      </>
-                    ) : (
-                      <>
-                        <Package className="w-4 h-4" />
-                        Eliminar producto
-                      </>
-                    )}
-                  </Button>
-                )}
-            </div>
+        <div className="flex justify-between items-center">
+          <div className="flex gap-3">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isSubmitting ? 'Guardando...' : (modo === 'crear' ? 'Crear Producto' : 'Guardar Cambios')}
+            </Button>
             
-            <p className="text-sm text-gray-500">
-              {modo === 'editar' ? 'Los cambios se guardarán inmediatamente' : 'El producto se agregará al inventario'}
-            </p>
+            <Button
+              type="button"
+              onClick={() => router.push('/dashboard/productos')}
+              className="border border-gray-300 hover:bg-gray-50"
+            >
+              Cancelar
+            </Button>
           </div>
+          
+          {modo === 'editar' && (
+            <Button
+              type="button"
+              onClick={eliminarProducto}
+              disabled={eliminandoProducto}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {eliminandoProducto ? 'Eliminando...' : 'Eliminar Producto'}
+            </Button>
+          )}
         </div>
       </form>
     </div>

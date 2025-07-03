@@ -4,27 +4,30 @@ import { useIndustriaConfig } from '@/hooks/useIndustriaConfig'
 import { Input } from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { Thermometer, Droplets, MapPin, Tag, Package, Barcode, Radio } from 'lucide-react'
-import { UseFormRegister, FieldErrors } from 'react-hook-form'
 
 interface CamposIndustriaProps {
-  mostrarOpcionales?: boolean
-  mostrarAvanzadas?: boolean
-  register: UseFormRegister<any>
-  errors: FieldErrors<any>
+  camposRelevantes: string[]
+  config: any
+  formData: any
+  updateField: (field: string, value: any) => void
+  handleBlur: (field: string) => void
+  errors: Record<string, string>
 }
 
 export default function CamposIndustria({ 
-  mostrarOpcionales = false, 
-  mostrarAvanzadas = false,
-  register,
+  camposRelevantes,
+  config,
+  formData,
+  updateField,
+  handleBlur,
   errors
 }: CamposIndustriaProps) {
-  const { isCampoRelevante, mostrarTemperaturaHumedad, config, tipoIndustria } = useIndustriaConfig()
+  const { mostrarTemperaturaHumedad, tipoIndustria } = useIndustriaConfig()
 
   const renderCampo = (campo: string, label: string, type: string = 'text', icon?: React.ReactNode, optional = true) => {
-    if (!isCampoRelevante(campo)) return null
+    if (!camposRelevantes.includes(campo)) return null
 
-    const error = errors[campo as any]
+    const error = errors[campo]
     
     // Obtener opciones específicas de la industria
     const getOpciones = () => {
@@ -49,17 +52,22 @@ export default function CamposIndustria({
         {type === 'select' ? (
           <Select
             options={getOpciones()}
-            error={error?.message as string}
+            value={formData[campo] || ''}
+            onChange={(e) => updateField(campo, e.target.value)}
+            onBlur={() => handleBlur(campo)}
+            error={error}
             optional={optional}
-            {...register(campo as any)}
           />
         ) : (
           <Input
+            name={campo}
             type={type}
-            error={error?.message as string}
+            value={formData[campo] || ''}
+            onChange={(e) => updateField(campo, type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)}
+            onBlur={() => handleBlur(campo)}
+            error={error}
             optional={optional}
             placeholder={`Ingresa ${label.toLowerCase()}`}
-            {...register(campo as any)}
           />
         )}
       </div>
@@ -87,19 +95,17 @@ export default function CamposIndustria({
         </div>
       )}
 
-      {/* Campos Avanzados - Solo si están habilitados */}
-      {mostrarAvanzadas && (
-        <div className="space-y-4">
-          <h4 className="text-sm font-medium text-gray-700 border-b pb-2">Campos Avanzados</h4>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {renderCampo('sku', 'SKU', 'text', <Package className="w-4 h-4" />)}
-            {renderCampo('codigoBarras', 'Código de Barras', 'text', <Barcode className="w-4 h-4" />)}
-          </div>
-          
-          {renderCampo('rfid', 'RFID', 'text', <Radio className="w-4 h-4" />)}
+      {/* Campos Avanzados */}
+      <div className="space-y-4">
+        <h4 className="text-sm font-medium text-gray-700 border-b pb-2">Campos Avanzados</h4>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {renderCampo('sku', 'SKU', 'text', <Package className="w-4 h-4" />)}
+          {renderCampo('codigoBarras', 'Código de Barras', 'text', <Barcode className="w-4 h-4" />)}
         </div>
-      )}
+        
+        {renderCampo('rfid', 'RFID', 'text', <Radio className="w-4 h-4" />)}
+      </div>
     </div>
   )
 } 

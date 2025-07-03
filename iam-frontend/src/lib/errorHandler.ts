@@ -4,6 +4,13 @@ export interface ApiError {
   error?: string
   timestamp?: string
   path?: string
+  details?: {
+    code?: string
+    suggestion?: string
+    field?: string
+    operation?: string
+    context?: string
+  }
 }
 
 export interface ValidationError {
@@ -15,11 +22,13 @@ export class AppError extends Error {
   public statusCode: number
   public isOperational: boolean
   public errors?: ValidationError[]
+  public details?: any
 
-  constructor(message: string, statusCode: number = 500, isOperational: boolean = true) {
+  constructor(message: string, statusCode: number = 500, isOperational: boolean = true, details?: any) {
     super(message)
     this.statusCode = statusCode
     this.isOperational = isOperational
+    this.details = details
     this.name = this.constructor.name
 
     Error.captureStackTrace(this, this.constructor)
@@ -27,8 +36,8 @@ export class AppError extends Error {
 }
 
 export class ValidationAppError extends AppError {
-  constructor(errors: ValidationError[]) {
-    super('Error de validación', 400, true)
+  constructor(errors: ValidationError[], details?: any) {
+    super('Error de validación', 400, true, details)
     this.errors = errors
   }
 }
@@ -57,13 +66,37 @@ export class NotFoundError extends AppError {
   }
 }
 
+export class ConflictError extends AppError {
+  constructor(message: string = 'Conflicto de datos') {
+    super(message, 409, true)
+  }
+}
+
+export class UnprocessableEntityError extends AppError {
+  constructor(message: string = 'Entidad no procesable') {
+    super(message, 422, true)
+  }
+}
+
+export class ServiceUnavailableError extends AppError {
+  constructor(message: string = 'Servicio no disponible') {
+    super(message, 503, true)
+  }
+}
+
 // Función para parsear errores de la API
 export function parseApiError(response: Response, data?: any): AppError {
   const statusCode = response.status
   let message = 'Error desconocido'
   let errors: ValidationError[] = []
+  let details: any = null
 
   if (data) {
+    // Extraer detalles si están disponibles
+    if (data.details) {
+      details = data.details
+    }
+
     // Manejar diferentes formatos de error
     if (typeof data.message === 'string') {
       message = data.message
@@ -90,20 +123,24 @@ export function parseApiError(response: Response, data?: any): AppError {
   switch (statusCode) {
     case 400:
       return errors.length > 0 
-        ? new ValidationAppError(errors)
-        : new AppError(message, statusCode)
+        ? new ValidationAppError(errors, details)
+        : new AppError(message, statusCode, true, details)
     case 401:
       return new AuthError(message)
     case 403:
       return new ForbiddenError(message)
     case 404:
       return new NotFoundError(message)
+    case 409:
+      return new ConflictError(message)
     case 422:
-      return new ValidationAppError(errors)
+      return new ValidationAppError(errors, details)
+    case 503:
+      return new ServiceUnavailableError(message)
     case 500:
-      return new AppError('Error interno del servidor', statusCode)
+      return new AppError('Error interno del servidor', statusCode, true, details)
     default:
-      return new AppError(message, statusCode)
+      return new AppError(message, statusCode, true, details)
   }
 }
 
@@ -117,11 +154,20 @@ export function handleNetworkError(error: any): AppError {
     return new NetworkError('La solicitud fue cancelada')
   }
 
+  if (error.name === 'TimeoutError') {
+    return new NetworkError('La solicitud tardó demasiado en completarse')
+  }
+
   return new AppError(error.message || 'Error de red desconocido')
 }
 
 // Función para mostrar errores al usuario
 export function showErrorToUser(error: AppError): string {
+  // Si hay detalles con sugerencias, usarlas
+  if (error.details?.suggestion) {
+    return error.details.suggestion
+  }
+
   switch (error.constructor) {
     case ValidationAppError:
       return 'Por favor, corrige los errores en el formulario'
@@ -133,29 +179,38 @@ export function showErrorToUser(error: AppError): string {
       return 'No tienes permisos para realizar esta acción'
     case NotFoundError:
       return 'El recurso solicitado no fue encontrado'
+    case ConflictError:
+      return 'Los datos ya existen en el sistema'
+    case ServiceUnavailableError:
+      return 'El servicio no está disponible en este momento'
     default:
       return error.message || 'Ha ocurrido un error inesperado'
   }
 }
 
-// Función para logging de errores
-export function logError(error: AppError, context?: any) {
-  if (process.env.NODE_ENV === 'development') {
-    console.error('Error:', {
+// Función para log de errores
+export function logError(error: AppError, context?: { context?: string, operation?: string, userId?: string }) {
+  const logData = {
+    timestamp: new Date().toISOString(),
+    error: {
       name: error.name,
       message: error.message,
       statusCode: error.statusCode,
       stack: error.stack,
-      context
-    })
-  } else {
-    // En producción, enviar a servicio de logging
-    console.error('Error:', {
-      name: error.name,
-      message: error.message,
-      statusCode: error.statusCode,
-      context
-    })
+      details: error.details
+    },
+    context
+  }
+
+  // En desarrollo, mostrar en consola
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Error logged:', logData)
+  }
+
+  // En producción, enviar a servicio de logging
+  if (process.env.NODE_ENV === 'production') {
+    // Aquí se podría integrar con servicios como Sentry, LogRocket, etc.
+    console.error('Production error:', logData)
   }
 }
 
@@ -187,9 +242,56 @@ export function useErrorHandler() {
     }
   }
 
+  const handleAsyncError = async (asyncFn: () => Promise<any>, context?: string): Promise<any> => {
+    try {
+      return await asyncFn()
+    } catch (error) {
+      const appError = handleError(error, context)
+      throw appError
+    }
+  }
+
   return {
     handleError,
     handleApiError,
-    showErrorToUser
+    handleAsyncError,
+    showErrorToUser,
+    logError
+  }
+}
+
+// Función para validar respuestas de API
+export async function validateApiResponse(response: Response): Promise<any> {
+  if (!response.ok) {
+    const error = await handleApiError(response)
+    throw error
+  }
+
+  try {
+    return await response.json()
+  } catch (error) {
+    throw new AppError('Error al procesar la respuesta del servidor')
+  }
+}
+
+// Función para crear fetch con manejo de errores
+export async function safeFetch(url: string, options?: RequestInit): Promise<any> {
+  try {
+    const response = await fetch(url, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...options?.headers
+      },
+      ...options
+    })
+
+    return await validateApiResponse(response)
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error
+    }
+    throw handleNetworkError(error)
   }
 } 

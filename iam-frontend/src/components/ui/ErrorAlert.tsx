@@ -10,46 +10,47 @@ interface ErrorAlertProps {
   autoClose?: boolean
   autoCloseDelay?: number
   className?: string
+  showCloseButton?: boolean
 }
 
-type AlertType = 'error' | 'warning' | 'success' | 'info'
+type AlertType = 'error' | 'warning' | 'info' | 'success'
 
 interface AlertConfig {
-  icon: React.ReactNode
   bgColor: string
   borderColor: string
   textColor: string
   iconColor: string
+  icon: React.ReactNode
 }
 
 const alertConfigs: Record<AlertType, AlertConfig> = {
   error: {
-    icon: <AlertTriangle className="w-5 h-5" />,
     bgColor: 'bg-red-50',
     borderColor: 'border-red-200',
     textColor: 'text-red-800',
-    iconColor: 'text-red-600'
+    iconColor: 'text-red-600',
+    icon: <AlertTriangle className="w-5 h-5" />
   },
   warning: {
-    icon: <AlertCircle className="w-5 h-5" />,
     bgColor: 'bg-yellow-50',
     borderColor: 'border-yellow-200',
     textColor: 'text-yellow-800',
-    iconColor: 'text-yellow-600'
-  },
-  success: {
-    icon: <CheckCircle className="w-5 h-5" />,
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-200',
-    textColor: 'text-green-800',
-    iconColor: 'text-green-600'
+    iconColor: 'text-yellow-600',
+    icon: <AlertTriangle className="w-5 h-5" />
   },
   info: {
-    icon: <Info className="w-5 h-5" />,
     bgColor: 'bg-blue-50',
     borderColor: 'border-blue-200',
     textColor: 'text-blue-800',
-    iconColor: 'text-blue-600'
+    iconColor: 'text-blue-600',
+    icon: <Info className="w-5 h-5" />
+  },
+  success: {
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200',
+    textColor: 'text-green-800',
+    iconColor: 'text-green-600',
+    icon: <CheckCircle className="w-5 h-5" />
   }
 }
 
@@ -58,7 +59,8 @@ export default function ErrorAlert({
   onClose, 
   autoClose = false, 
   autoCloseDelay = 5000,
-  className = ''
+  className = '',
+  showCloseButton = true
 }: ErrorAlertProps) {
   const [isVisible, setIsVisible] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
@@ -105,6 +107,8 @@ export default function ErrorAlert({
     alertType = 'error'
   } else if (error.statusCode === 404) {
     alertType = 'info'
+  } else if (error.statusCode >= 500) {
+    alertType = 'error'
   }
 
   const config = alertConfigs[alertType]
@@ -121,11 +125,23 @@ export default function ErrorAlert({
             <div className="flex items-start justify-between">
               <div>
                 <h3 className={`text-sm font-medium ${config.textColor}`}>
-                  {error.name === 'ValidationAppError' ? 'Error de Validación' : 'Error'}
+                  {error.name === 'ValidationAppError' ? 'Error de Validación' : 
+                   error.name === 'AuthError' ? 'Error de Autenticación' :
+                   error.name === 'ForbiddenError' ? 'Acceso Denegado' :
+                   error.name === 'NotFoundError' ? 'No Encontrado' :
+                   error.name === 'NetworkError' ? 'Error de Conexión' :
+                   'Error'}
                 </h3>
                 <p className={`text-sm mt-1 ${config.textColor}`}>
                   {error.message}
                 </p>
+                
+                {/* Mostrar sugerencias si están disponibles */}
+                {error.details?.suggestion && (
+                  <p className={`text-xs mt-2 ${config.textColor} opacity-80`}>
+                    💡 {error.details.suggestion}
+                  </p>
+                )}
                 
                 {/* Mostrar errores de validación específicos */}
                 {validationErrors.length > 0 && (
@@ -140,7 +156,7 @@ export default function ErrorAlert({
                 )}
               </div>
               
-              {onClose && (
+              {showCloseButton && onClose && (
                 <button
                   onClick={handleClose}
                   className={`${config.textColor} hover:opacity-70 transition-opacity flex-shrink-0 ml-2`}
@@ -156,26 +172,9 @@ export default function ErrorAlert({
   )
 }
 
-// Componente para errores inline en formularios
-interface InlineErrorProps {
-  error?: string
-  className?: string
-}
-
-export function InlineError({ error, className = '' }: InlineErrorProps) {
-  if (!error) return null
-
-  return (
-    <div className={`flex items-center gap-1 text-red-600 text-sm mt-1 ${className}`}>
-      <AlertTriangle className="w-3 h-3" />
-      <span>{error}</span>
-    </div>
-  )
-}
-
-// Componente para errores de campo específico
+// Componente para errores de campo específicos
 interface FieldErrorProps {
-  error?: string
+  error?: string | null
   fieldName?: string
   className?: string
 }
@@ -184,9 +183,29 @@ export function FieldError({ error, fieldName, className = '' }: FieldErrorProps
   if (!error) return null
 
   return (
-    <div className={`text-red-600 text-xs mt-1 ${className}`}>
+    <div className={`text-red-600 text-xs mt-1 flex items-center gap-1 ${className}`}>
+      <AlertCircle className="w-3 h-3" />
       {fieldName && <span className="font-medium">{fieldName}: </span>}
       {error}
+    </div>
+  )
+}
+
+// Componente para errores inline
+interface InlineErrorProps {
+  error?: AppError | string | null
+  className?: string
+}
+
+export function InlineError({ error, className = '' }: InlineErrorProps) {
+  if (!error) return null
+
+  const message = typeof error === 'string' ? error : error.message
+
+  return (
+    <div className={`text-red-600 text-sm flex items-center gap-1 ${className}`}>
+      <AlertCircle className="w-4 h-4" />
+      {message}
     </div>
   )
 } 
