@@ -83,6 +83,7 @@ export class AuthService {
       data: {
         nombre: dto.nombreEmpresa,
         emailContacto: dto.email,
+        TipoIndustria: dto.industria,
       },
     });
 
@@ -121,6 +122,39 @@ export class AuthService {
     catch (error) {
       throw new UnauthorizedException('Token inválido o expirado');
     }
+  }
+
+  async getUserWithEmpresa(userId: number) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+      include: {
+        empresa: {
+          select: {
+            id: true,
+            nombre: true,
+            TipoIndustria: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      nombre: user.nombre,
+      rol: user.rol,
+      empresaId: user.empresaId,
+      tipoIndustria: user.empresa.TipoIndustria,
+      empresa: {
+        id: user.empresa.id,
+        nombre: user.empresa.nombre,
+        tipoIndustria: user.empresa.TipoIndustria,
+      },
+    };
   }
 
   async loginWithGoogle(googleUser: any) {

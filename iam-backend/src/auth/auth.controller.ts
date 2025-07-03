@@ -86,7 +86,9 @@ export class AuthController {
   @Get('me')
   @HttpCode(200)
   async getMe(@CurrentUser() user: JwtUser) {
-    return user;
+    // Obtener información completa del usuario incluyendo empresa
+    const userWithEmpresa = await this.authService.getUserWithEmpresa(user.id);
+    return userWithEmpresa;
   }
 
   @Get('google')
