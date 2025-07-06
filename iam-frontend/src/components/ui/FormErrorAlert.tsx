@@ -76,7 +76,7 @@ export function FormErrorAlert({
     <div className={cn(
       'rounded-lg border p-4 mb-6',
       getBgColor(),
-      className
+        className
     )}>
       <div className="flex items-start gap-3">
         <div className={cn('flex-shrink-0 mt-0.5', getIconColor())}>
