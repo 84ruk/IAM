@@ -4,7 +4,7 @@ import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { PrismaService } from '../prisma/prisma.service';
-
+import { v4 as uuidv4 } from 'uuid';
 
 interface JwtUserPayload {
   id: number;
@@ -56,12 +56,22 @@ export class AuthService {
       select: { TipoIndustria: true },
     });
 
+    // Claims estándar JWT según RFC 7519
+    const now = Math.floor(Date.now() / 1000);
     const payload = {
-      sub: user.id,
+      // Claims estándar
+      iss: 'iam-erp-saas.com', // Issuer - quién emitió el token
+      aud: 'iam-erp-saas.com', // Audience - para quién es el token
+      iat: now, // Issued at - cuándo fue emitido
+      exp: now + (24 * 60 * 60), // Expiration - expira en 24 horas
+      jti: uuidv4(), // JWT ID - identificador único del token
+      sub: user.id, // Subject - identificador del usuario
+      
+      // Claims personalizados
       email: user.email,
       rol: user.rol,
       empresaId: user.empresaId,
-      tipoIndustria: empresa?.TipoIndustria || 'GENERICA', 
+      tipoIndustria: empresa?.TipoIndustria || 'GENERICA',
     };
 
     

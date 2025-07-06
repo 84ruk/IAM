@@ -9,6 +9,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterEmpresaDto } from './dto/register-empresa.dto';
@@ -18,19 +19,18 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { RolesGuard } from './guards/roles.guard';
 
-
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
   @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 intentos por minuto para login
   async login(
     @Body() dto: LoginDto, 
     @Res({ passthrough: true }) res: Response
   ) {
-    // console.log('Login request received for email:', dto.email);
-
     const user = await this.authService.validateUser(dto.email, dto.password);
     const token = await this.authService.login(user);
 
@@ -48,15 +48,12 @@ export class AuthController {
     
     res.cookie('jwt', token, cookieOptions);
     
- 
     return { message: 'Login exitoso' };
   }
 
   @Post('logout')
   @HttpCode(200)
   logout(@Res({ passthrough: true }) res: Response) {
-    // console.log('Logout request received');
-
     const isProduction = process.env.NODE_ENV === 'production';
     
     // Configuración de cookies para limpiar
@@ -72,12 +69,13 @@ export class AuthController {
     // Limpiar la cookie JWT
     res.clearCookie('jwt', clearCookieOptions);
     
-    // console.log('Cookie cleared successfully');
     return { message: 'Sesión cerrada' };
   }
 
   @Post('register-empresa')
   @HttpCode(201)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 300000, limit: 3 } }) // 3 registros por 5 minutos para prevenir spam
   async registerEmpresa(@Body() dto: RegisterEmpresaDto) {
     return this.authService.registerEmpresa(dto);
   }

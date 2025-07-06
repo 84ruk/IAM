@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
@@ -8,14 +8,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (req) => req?.cookies?.jwt, 
-        ExtractJwt.fromAuthHeaderAsBearerToken(), //QUITAR
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
-      ignoreExpiration: false, 
-      secretOrKey: process.env.JWT_SECRET,
+      ignoreExpiration: false,
+      secretOrKey: process.env.JWT_SECRET || 'fallback-secret',
     });
   }
 
   async validate(payload: any) {
-    return payload; 
+    // Validar claims estándar
+    if (!payload.sub || !payload.email || !payload.rol || !payload.empresaId) {
+      throw new UnauthorizedException('Token inválido: claims requeridos faltantes');
+    }
+
+    return {
+      id: payload.sub,
+      email: payload.email,
+      rol: payload.rol,
+      empresaId: payload.empresaId,
+      tipoIndustria: payload.tipoIndustria,
+      jti: payload.jti, // JWT ID para posible revocación futura
+    };
   }
 }
