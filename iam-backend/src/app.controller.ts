@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
+import { Public } from './auth/decorators/public.decorator';
 
 @Controller()
 export class AppController {
@@ -19,6 +20,7 @@ export class AppController {
     };
   }
 
+  @Public()
   @Get('health')
   getHealth(): object {
     return {
@@ -30,6 +32,7 @@ export class AppController {
     };
   }
 
+  @Public()
   @Get('health/database')
   async getDatabaseHealth(): Promise<object> {
     try {
