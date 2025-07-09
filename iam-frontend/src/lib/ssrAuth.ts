@@ -6,7 +6,6 @@ export async function requireAuth() {
     const jwt = cookieStore.get('jwt')?.value
 
     if (!jwt) {
-      console.log('No JWT cookie found')
       return null
     }
 
@@ -20,7 +19,6 @@ export async function requireAuth() {
     })
 
     if (!res.ok) {
-      console.log('Auth check failed:', res.status, res.statusText)
       return null
     }
 

@@ -153,8 +153,6 @@ export default function SetupEmpresaPage() {
       
       // Verificar que se recibió el nuevo token
       if (result.token) {
-        console.log('✅ Nuevo token recibido con información de empresa')
-        
         // Actualizar la cookie manualmente
         const isProduction = process.env.NODE_ENV === 'production';
         const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.iaminventario.com.mx' : 'localhost');
@@ -169,11 +167,6 @@ export default function SetupEmpresaPage() {
         }
         
         document.cookie = cookieString;
-        
-        console.log('✅ Cookie actualizada con nuevo token')
-        console.log('🔍 Cookie configurada:', cookieString)
-      } else {
-        console.warn('⚠️ No se recibió token en la respuesta del setup')
       }
 
       // Verificar que el setup fue exitoso
