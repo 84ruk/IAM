@@ -24,6 +24,7 @@ import { SkipEmpresaCheck } from './decorators/skip-empresa-check.decorator';
 import { Public } from './decorators/public.decorator';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 @SkipEmpresaCheck()
@@ -105,7 +106,7 @@ export class AuthController {
 
   @Post('setup-empresa')
   @HttpCode(200)
-  @UseGuards(AuthGuard('jwt'))
+
   async setupEmpresa(
     @Body() dto: SetupEmpresaDto, 
     @CurrentUser() user: JwtUser,
@@ -178,7 +179,6 @@ export class AuthController {
     }
   }
 
-  @UseGuards(AuthGuard('jwt'))
   @Get('me')
   @HttpCode(200)
   async getMe(@CurrentUser() user: JwtUser) {
@@ -188,7 +188,6 @@ export class AuthController {
 
   @Get('status')
   @HttpCode(200)
-  @UseGuards(AuthGuard('jwt'))
   async getUserStatus(@CurrentUser() user: JwtUser) {
     const userStatus = await this.authService.getUserStatus(user.id);
     return userStatus;
