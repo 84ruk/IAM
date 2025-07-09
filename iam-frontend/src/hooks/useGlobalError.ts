@@ -20,7 +20,7 @@ export function useGlobalError(): UseGlobalErrorReturn {
     (error?.message?.toLowerCase().includes('configurar una empresa') || 
      error?.message?.toLowerCase().includes('empresa requerida') ||
      error?.message?.toLowerCase().includes('needs setup') ||
-     error?.code === 'EMPRESA_REQUIRED');
+     error?.details?.code === 'EMPRESA_REQUIRED');
 
   // Detectar si es un error de autenticación
   const isAuthError = error?.statusCode === 401;
