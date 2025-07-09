@@ -29,6 +29,7 @@ import {
   Trash2
 } from 'lucide-react'
 import Link from 'next/link'
+import Select from '@/components/ui/Select'
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(res => res.json())
 
@@ -291,15 +292,16 @@ export default function MovimientosClient() {
               </div>
               
               <div className="flex gap-2">
-                <select
+                <Select
                   value={filtroTipo}
                   onChange={(e) => setFiltroTipo(e.target.value as 'TODOS' | 'ENTRADA' | 'SALIDA')}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent"
-                >
-                  <option value="TODOS">Todos los tipos</option>
-                  <option value="ENTRADA">Entradas</option>
-                  <option value="SALIDA">Salidas</option>
-                </select>
+                  options={[
+                    { value: 'TODOS', label: 'Todos los tipos' },
+                    { value: 'ENTRADA', label: 'Entradas' },
+                    { value: 'SALIDA', label: 'Salidas' }
+                  ]}
+                  className="mb-0"
+                />
                 
                 <input
                   type="date"

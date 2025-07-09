@@ -1,21 +1,121 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
 import { Input } from '../ui/Input';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { useFormValidation, validationPatterns } from '@/hooks/useFormValidation';
+import { parseApiError, AppError, ValidationAppError, AuthError, NetworkError } from '@/lib/errorHandler';
+
+interface LoginFormData {
+  email: string;
+  password: string;
+}
+
+interface FieldErrors {
+  email?: string;
+  password?: string;
+}
 
 export default function LoginForm() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [generalError, setGeneralError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Configuración de validación
+  const validationRules = {
+    email: {
+      required: true,
+      pattern: validationPatterns.email,
+      sanitize: true,
+    },
+    password: {
+      required: true,
+      minLength: 1, // Mínimo 1 carácter (no mostrar longitud específica por seguridad)
+      sanitize: true,
+    },
+  };
+
+  const {
+    data,
+    errors: validationErrors,
+    updateField,
+    validateForm,
+    clearErrors,
+  } = useFormValidation<LoginFormData>(
+    { email: '', password: '' },
+    validationRules
+  );
+
+  // Limpiar errores cuando cambian los campos
+  useEffect(() => {
+    if (generalError) {
+      setGeneralError('');
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      setFieldErrors({});
+    }
+  }, [data.email, data.password]);
+
+  // Función para manejar errores específicos del backend
+  const handleBackendError = (error: AppError) => {
+    if (error instanceof ValidationAppError && error.errors) {
+      // Error de validación con errores específicos por campo
+      const newFieldErrors: FieldErrors = {};
+      error.errors.forEach(err => {
+        if (err.field === 'email' || err.field === 'password') {
+          newFieldErrors[err.field as keyof FieldErrors] = err.message;
+        }
+      });
+      setFieldErrors(newFieldErrors);
+      setGeneralError('');
+    } else if (error instanceof AuthError) {
+      // Error de credenciales
+      setGeneralError('Correo electrónico o contraseña incorrectos');
+      setFieldErrors({});
+    } else if (error.statusCode === 404) {
+      // Usuario no encontrado
+      setGeneralError('Usuario no encontrado');
+      setFieldErrors({});
+    } else if (error.statusCode === 400 && error.message.includes('rol')) {
+      // Error de rol
+      setGeneralError('Tu cuenta no tiene los permisos necesarios');
+      setFieldErrors({});
+    } else if (error.message.includes('Google') || error.message.includes('OAuth')) {
+      // Error específico de Google
+      setGeneralError('Error al conectar con Google. Intenta nuevamente');
+      setFieldErrors({});
+    } else if (error instanceof NetworkError) {
+      // Error de red
+      setGeneralError('Error de conexión. Verifica tu conexión a internet');
+      setFieldErrors({});
+    } else if (error.statusCode >= 500) {
+      // Error del servidor
+      setGeneralError('Error del servidor. Intenta nuevamente más tarde');
+      setFieldErrors({});
+    } else {
+      // Error genérico
+      setGeneralError(error.message || 'Error inesperado. Intenta nuevamente');
+      setFieldErrors({});
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    
+    // Limpiar errores previos
+    setGeneralError('');
+    setFieldErrors({});
+    clearErrors();
+
+    // Validar formulario en frontend
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -24,24 +124,82 @@ export default function LoginForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ 
+          email: data.email.trim(), 
+          password: data.password 
+        }),
       });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Credenciales incorrectas');
+        const parsedError = parseApiError(res, errorData);
+        handleBackendError(parsedError);
+        return;
       }
 
-      // Redirigir directamente al dashboard tras login exitoso
-      router.push('/dashboard');
+      // Login exitoso - verificar si necesita setup
+      setShowSuccess(true);
+      
+      // Verificar si necesita setup después del login
+      try {
+        const setupCheckResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/needs-setup`, {
+          credentials: 'include',
+        });
+        
+        if (setupCheckResponse.ok) {
+          const setupData = await setupCheckResponse.json();
+          
+          if (setupData.needsSetup) {
+            // Si necesita setup, redirigir a la página de setup
+            setTimeout(() => {
+              router.push('/setup-empresa');
+            }, 1000);
+          } else {
+            // Si no necesita setup, ir al dashboard
+            setTimeout(() => {
+              router.push('/dashboard');
+            }, 1000);
+          }
+        } else {
+          // Si hay error en la verificación, ir al dashboard por defecto
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 1000);
+        }
+      } catch (error) {
+        console.error('Error verificando setup:', error);
+        // En caso de error, ir al dashboard por defecto
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1000);
+      }
+
     } catch (err: any) {
-      setError(err.message);
+      // Error de red o excepción no manejada
+      const networkError = new NetworkError('Error de conexión inesperado');
+      handleBackendError(networkError);
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isLoading) {
+  const handleGoogleLogin = () => {
+    setGeneralError('');
+    setFieldErrors({});
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
+  };
+
+  // Determinar errores finales combinando validación frontend y errores del backend
+  const getFieldError = (field: keyof FieldErrors) => {
+    return fieldErrors[field] || validationErrors[field] || '';
+  };
+
+  // Determinar si el campo tiene error
+  const hasFieldError = (field: keyof FieldErrors) => {
+    return !!(fieldErrors[field] || validationErrors[field]);
+  };
+
+  if (isLoading && !showSuccess) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
@@ -52,39 +210,62 @@ export default function LoginForm() {
     );
   }
 
+  if (showSuccess) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <CheckCircle className="h-8 w-8 mx-auto mb-4 text-green-500" />
+          <p className="text-gray-600">¡Inicio de sesión exitoso!</p>
+          <p className="text-sm text-gray-500">Redirigiendo al dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="form-container">
       <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">Iniciar sesión</h1>
       
+      {/* Mensaje de error general */}
+      {generalError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-red-700 text-sm font-medium">Error de autenticación</p>
+            <p className="text-red-600 text-sm mt-1">{generalError}</p>
+          </div>
+        </div>
+      )}
+
       <Input
         label="Correo electrónico"
         name="email"
         type="email"
-        value={email}
-        onChange={e => setEmail(e.target.value)}
+        value={data.email}
+        onChange={e => updateField('email', e.target.value)}
+        error={getFieldError('email')}
         required
         disabled={isLoading}
+        placeholder="tu@email.com"
+        autoComplete="email"
       />
 
       <Input
         label="Contraseña"
         name="password"
         type="password"
-        value={password}
-        onChange={e => setPassword(e.target.value)}
+        value={data.password}
+        onChange={e => updateField('password', e.target.value)}
+        error={getFieldError('password')}
         required
         disabled={isLoading}
+        placeholder="••••••••"
+        autoComplete="current-password"
       />
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600 text-sm">{error}</p>
-        </div>
-      )}
       
       <Button 
         type="submit" 
-        disabled={isLoading}
+        disabled={isLoading || Object.keys(validationErrors).length > 0}
         className="w-full"
       >
         {isLoading ? (
@@ -100,12 +281,12 @@ export default function LoginForm() {
       <div className="my-4 flex items-center justify-center">
         <span className="text-gray-400 text-sm">o</span>
       </div>
+      
       <Button
         type="button"
         className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 hover:shadow-md hover:bg-gray-100 transition-all font-semibold py-2 rounded-lg mt-2"
-        onClick={() => {
-          window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
-        }}
+        onClick={handleGoogleLogin}
+        disabled={isLoading}
         style={{ boxShadow: '0 1px 2px rgba(60,64,67,.08)' }}
       >
         <span className="flex items-center justify-center bg-white rounded-full p-1 border border-gray-200">
@@ -132,6 +313,17 @@ export default function LoginForm() {
           className="text-sm text-[#8E94F2] hover:text-[#7278e0] transition-colors"
         >
           ¿Olvidaste tu contraseña?
+        </a>
+      </div>
+
+      {/* Botón de registro mejorado */}
+      <div className="mt-6 text-center">
+        <span className="text-gray-500 text-sm mr-2">¿No tienes cuenta?</span>
+        <a
+          href="/register"
+          className="inline-block px-6 py-2 rounded-lg bg-gradient-to-r from-[#8E94F2] to-[#7278e0] text-white font-semibold shadow-md hover:shadow-lg hover:from-[#7278e0] hover:to-[#8E94F2] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:ring-offset-2"
+        >
+          Regístrate
         </a>
       </div>
     </form>

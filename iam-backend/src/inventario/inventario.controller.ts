@@ -1,8 +1,13 @@
 import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { InventarioService } from './inventario.service';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { EmpresaRequiredGuard } from 'src/auth/guards/empresa-required.guard';
+import { EmpresaRequired } from 'src/auth/decorators/empresa-required.decorator';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(JwtAuthGuard, RolesGuard, EmpresaRequiredGuard)
+@EmpresaRequired()
 @Controller('inventario')
 export class InventarioController {
   constructor(private readonly service: InventarioService) {}

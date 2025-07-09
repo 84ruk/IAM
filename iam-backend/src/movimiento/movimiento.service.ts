@@ -8,7 +8,11 @@ import { TipoMovimiento } from '@prisma/client';
 export class MovimientoService {
   constructor(private prisma: PrismaService) {}
 
-  async registrar(dto: CrearMovimientoDto, empresaId: number) {
+  async registrar(dto: CrearMovimientoDto, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para registrar movimientos');
+    }
 
     const producto = await this.prisma.producto.findFirst({
       where: { id: dto.productoId, empresaId },
@@ -61,7 +65,12 @@ export class MovimientoService {
     return movimiento;
   }
 
-  async registrarPorCodigoBarras(dto: CrearMovimientoPorCodigoBarrasDto, empresaId: number) {
+  async registrarPorCodigoBarras(dto: CrearMovimientoPorCodigoBarrasDto, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para registrar movimientos');
+    }
+
     // Buscar el producto por código de barras
     const producto = await this.prisma.producto.findFirst({
       where: { 
@@ -87,7 +96,12 @@ export class MovimientoService {
     return this.registrar(movimientoDto, empresaId);
   }
 
-  async obtenerPorProducto(productoId: number, empresaId: number) {
+  async obtenerPorProducto(productoId: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new NotFoundException('Producto no encontrado');
+    }
+
     const producto = await this.prisma.producto.findFirst({
       where: { id: productoId, empresaId },
     });
@@ -102,7 +116,12 @@ export class MovimientoService {
     });
   }
 
-  async findOne(id: number, empresaId: number) {
+  async findOne(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new NotFoundException('Movimiento no encontrado');
+    }
+
     const movimiento = await this.prisma.movimientoInventario.findFirst({
       where: { 
         id, 
@@ -147,7 +166,12 @@ export class MovimientoService {
     return movimiento;
   }
 
-  async update(id: number, empresaId: number, data: { motivo?: string | null; descripcion?: string | null }) {
+  async update(id: number, empresaId: number | undefined, data: { motivo?: string | null; descripcion?: string | null }) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para actualizar movimientos');
+    }
+
     const movimiento = await this.prisma.movimientoInventario.findFirst({
       where: { 
         id, 
@@ -169,7 +193,12 @@ export class MovimientoService {
     });
   }
 
-  async remove(id: number, empresaId: number) {
+  async remove(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para eliminar movimientos');
+    }
+
     const movimiento = await this.prisma.movimientoInventario.findFirst({
       where: { 
         id, 
@@ -189,7 +218,12 @@ export class MovimientoService {
     });
   }
 
-  async removePermanentemente(id: number, empresaId: number) {
+  async removePermanentemente(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para eliminar movimientos');
+    }
+
     const movimiento = await this.prisma.movimientoInventario.findFirst({
       where: { 
         id, 
@@ -208,7 +242,20 @@ export class MovimientoService {
     });
   }
 
-  async findAll(empresaId: number, tipo?: TipoMovimiento) {
+  async findAll(empresaId: number | undefined, tipo?: TipoMovimiento) {
+    // Si el usuario no tiene empresa configurada, devolver respuesta vacía
+    if (!empresaId) {
+      return {
+        movimientos: [],
+        estadisticas: {
+          total: 0,
+          entradas: 0,
+          salidas: 0,
+          hoy: 0
+        }
+      };
+    }
+
     const movimientos = await this.prisma.movimientoInventario.findMany({
       where: {
         empresaId,
@@ -268,7 +315,12 @@ export class MovimientoService {
     };
   }
 
-  async obtenerEliminados(empresaId: number) {
+  async obtenerEliminados(empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, devolver array vacío
+    if (!empresaId) {
+      return [];
+    }
+
     return this.prisma.movimientoInventario.findMany({
       where: { 
         empresaId,
@@ -289,7 +341,12 @@ export class MovimientoService {
     });
   }
 
-  async findOneEliminado(id: number, empresaId: number) {
+  async findOneEliminado(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new NotFoundException('Movimiento eliminado no encontrado');
+    }
+
     const movimiento = await this.prisma.movimientoInventario.findFirst({
       where: { 
         id, 
@@ -334,7 +391,12 @@ export class MovimientoService {
     return movimiento;
   }
 
-  async restaurar(id: number, empresaId: number) {
+  async restaurar(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para restaurar movimientos');
+    }
+
     const movimiento = await this.prisma.movimientoInventario.findFirst({
       where: { 
         id, 

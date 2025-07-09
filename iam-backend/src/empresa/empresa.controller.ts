@@ -6,10 +6,14 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { Rol } from '@prisma/client';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { EmpresaRequiredGuard } from 'src/auth/guards/empresa-required.guard';
+import { EmpresaRequired } from 'src/auth/decorators/empresa-required.decorator';
 
 
 
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, EmpresaRequiredGuard)
+@EmpresaRequired()
 @Controller('empresas')
 export class EmpresaController {
   constructor(private readonly empresaService: EmpresaService) {}

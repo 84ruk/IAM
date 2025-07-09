@@ -1,7 +1,8 @@
 export interface JwtUser {
-  sub: number;
+  id: number;
   email: string;
   rol: 'SUPERADMIN' | 'ADMIN' | 'EMPLEADO' | 'PROVEEDOR';
   empresaId: number;
   tipoIndustria: string;
+  jti?: string;
 }

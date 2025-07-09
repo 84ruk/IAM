@@ -9,7 +9,12 @@ import { Rol } from '@prisma/client';
 export class ProveedorService {
   constructor(private prisma: PrismaService) {}
 
-  async crear(data: CrearProveedorDto, empresaId: number) {
+  async crear(data: CrearProveedorDto, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para crear proveedores');
+    }
+
     // Validar duplicados por nombre/email
     const whereConditions: Prisma.ProveedorWhereInput = {
       empresaId,
@@ -35,7 +40,12 @@ export class ProveedorService {
     });
   }
 
-  async obtenerTodos(empresaId: number) {
+  async obtenerTodos(empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, devolver array vacío
+    if (!empresaId) {
+      return [];
+    }
+
     return this.prisma.proveedor.findMany({
       where: { 
         empresaId,
@@ -50,7 +60,12 @@ export class ProveedorService {
     });
   }
 
-  async obtenerInactivos(empresaId: number) {
+  async obtenerInactivos(empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, devolver array vacío
+    if (!empresaId) {
+      return [];
+    }
+
     return this.prisma.proveedor.findMany({
       where: { 
         empresaId,
@@ -65,7 +80,12 @@ export class ProveedorService {
     });
   }
 
-  async obtenerEliminados(empresaId: number) {
+  async obtenerEliminados(empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, devolver array vacío
+    if (!empresaId) {
+      return [];
+    }
+
     return this.prisma.proveedor.findMany({
       where: { 
         empresaId,
@@ -80,7 +100,12 @@ export class ProveedorService {
     });
   }
 
-  async obtenerUno(id: number, empresaId: number) {
+  async obtenerUno(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new NotFoundException('Proveedor no encontrado');
+    }
+
     const proveedor = await this.prisma.proveedor.findFirst({
       where: { 
         id, 

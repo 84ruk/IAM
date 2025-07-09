@@ -65,3 +65,38 @@ Estilos que se repiten en muchas pantallas (login, registro, formularios)
 .text-xs-muted {
   @apply text-xs text-gray-500;
 }
+
+/* Estilos para elementos select y option */
+select {
+  @apply text-gray-900;
+}
+
+select option {
+  @apply py-2 px-3 bg-white text-gray-900;
+}
+
+select option:hover {
+  @apply bg-gray-100;
+}
+
+select option:checked {
+  @apply bg-[#8E94F2] text-white;
+}
+
+/* Mejorar la apariencia del select en diferentes navegadores */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Estilos específicos para Firefox */
+select:-moz-focusring {
+  color: transparent;
+  text-shadow: 0 0 0 #000;
+}
+
+/* Estilos para el dropdown en Safari */
+select::-ms-expand {
+  display: none;
+}

@@ -114,8 +114,8 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
         }
       } catch (error) {
         console.error('Error cargando producto')
-      }
     }
+  }
     fetchProducto()
   }, [productoId, setValue])
 
@@ -179,11 +179,11 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
         return
       }
 
-      onSuccess?.()
-      router.push('/dashboard/productos')
+          onSuccess?.()
+          router.push('/dashboard/productos')
     } catch (err: any) {
       setServerErrors(['Hubo un error inesperado.'])
-    }
+        }
   }
 
   const eliminarProducto = async () => {
@@ -193,7 +193,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
     if (!confirmar) return
 
     try {
-      setEliminandoProducto(true)
+    setEliminandoProducto(true)
       setServerErrors([])
       
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos/${productoId}`, {
@@ -214,7 +214,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
       }
       
       // Redirigir a la lista de productos después de eliminar
-      router.push('/dashboard/productos')
+            router.push('/dashboard/productos')
     } catch (err: any) {
       setServerErrors(['Error de conexión. Verifica tu conexión a internet.'])
     } finally {
@@ -354,17 +354,17 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
 
         {/* Información básica */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Package className="w-5 h-5 text-blue-600" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Package className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">Información básica</h2>
+                <p className="text-sm text-gray-600">Datos esenciales del producto</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800">Información básica</h2>
-              <p className="text-sm text-gray-600">Datos esenciales del producto</p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <div className="flex items-center gap-2">
@@ -383,39 +383,41 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
               )}
             </div>
             
-            {renderCampo('descripcion', 'Descripción', 'text', true)}
-            
-            <Select
-              label="Unidad de medida *"
-              options={UNIDADES}
-              {...register('unidad')}
-              error={getErrorMessage(errors.unidad)}
-            />
+              {renderCampo('descripcion', 'Descripción', 'text', true)}
+              
+              <Select
+                label="Unidad de medida *"
+                value={String(watch('unidad') ?? '')}
+                onChange={e => setValue('unidad', e.target.value)}
+                options={UNIDADES.map(u => ({ value: u, label: u }))}
+                error={getErrorMessage(errors.unidad)}
+              />
 
-            <Select
-              label="Tipo de producto *"
-              options={TIPOS_PRODUCTO.map(tipo => ({
-                value: tipo,
-                label: TipoProductoConfig[tipo as keyof typeof TipoProductoConfig]?.label || tipo
-              }))}
-              {...register('tipoProducto')}
-              error={getErrorMessage(errors.tipoProducto)}
-            />
+              <Select
+                label="Tipo de producto *"
+                value={String(watch('tipoProducto') ?? '')}
+                onChange={e => setValue('tipoProducto', e.target.value)}
+                options={TIPOS_PRODUCTO.map(tipo => ({
+                  value: tipo,
+                  label: TipoProductoConfig[tipo as keyof typeof TipoProductoConfig]?.label || tipo
+                }))}
+                error={getErrorMessage(errors.tipoProducto)}
+              />
+            </div>
           </div>
-        </div>
 
         {/* Precios y stock */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <DollarSign className="w-5 h-5 text-green-600" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <DollarSign className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">Precios y stock</h2>
+                <p className="text-sm text-gray-600">Información comercial y de inventario</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800">Precios y stock</h2>
-              <p className="text-sm text-gray-600">Información comercial y de inventario</p>
-            </div>
-          </div>
-          
+            
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -475,8 +477,8 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
                 <p className="mt-1 text-sm text-red-600">{errors.stock.message as string}</p>
               )}
             </div>
+            </div>
           </div>
-        </div>
 
         {/* Datos opcionales colapsables */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -499,9 +501,9 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
               ) : (
                 <ChevronDownIcon className="w-5 h-5 text-gray-400" />
               )}
+              </div>
             </div>
-          </div>
-          
+            
           {mostrarOpcionales && (
             <div className="px-6 pb-6 border-t border-gray-100">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -511,25 +513,25 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
                     <div className="flex items-center gap-2">
                       <Tag className="w-4 h-4 text-gray-400" />
                       Etiquetas (máx. 5)
-                    </div>
+              </div>
                   </label>
                   {/* Mostrar chips de etiquetas */}
-                  {etiquetas.length > 0 && (
+              {etiquetas.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-2">
                       {etiquetas.map((etiqueta) => (
                         <span key={etiqueta} className="inline-flex items-center bg-[#F5F7FF] text-[#8E94F2] px-3 py-1 rounded-full text-xs font-medium border border-[#8E94F2]">
-                          {etiqueta}
-                          <button 
-                            type="button" 
+                      {etiqueta}
+                      <button
+                        type="button"
                             onClick={() => handleRemoveEtiqueta(etiqueta)} 
                             className="ml-1 text-[#8E94F2] hover:text-red-500 transition-colors"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
                   <input
                     type="text"
                     value={inputEtiqueta}
@@ -550,15 +552,17 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
                       Proveedor (opcional)
                     </div>
                   </label>
-                  <select
-                    {...register('proveedorId')}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200"
-                  >
-                    <option value="">Sin proveedor</option>
-                    {proveedores.map(p => (
-                      <option key={p.id} value={p.id}>{p.nombre}</option>
-                    ))}
-                  </select>
+                  <Select
+                    label={undefined}
+                    value={String(watch('proveedorId') ?? '')}
+                    onChange={e => setValue('proveedorId', e.target.value)}
+                    options={[
+                      { value: '', label: 'Sin proveedor' },
+                      ...proveedores.map(p => ({ value: String(p.id), label: p.nombre }))
+                    ]}
+                    error={errors.proveedorId?.message as string}
+                    className="mb-0"
+                  />
                   {errors.proveedorId && (
                     <p className="mt-1 text-sm text-red-600">{errors.proveedorId.message as string}</p>
                   )}
@@ -566,7 +570,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
               </div>
             </div>
           )}
-        </div>
+          </div>
 
         {/* Configuración avanzada colapsable */}
         {config.camposRelevantes.length > 0 && (
@@ -631,11 +635,11 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-                              <Button
-                  type="submit"
+            <Button
+              type="submit"
                   disabled={isSubmitting || eliminandoProducto}
                   className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-[#8E94F2] hover:bg-[#7278e0] focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 rounded-xl shadow-md hover:shadow-lg"
-                >
+            >
                   {isSubmitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -647,15 +651,15 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
                       {modo === 'editar' ? 'Actualizar producto' : 'Guardar producto'}
                     </>
                   )}
-                </Button>
-                
-                {modo === 'editar' && (
-                  <Button
-                    type="button"
-                    onClick={eliminarProducto}
+            </Button>
+          
+          {modo === 'editar' && (
+            <Button
+              type="button"
+              onClick={eliminarProducto}
                     disabled={isSubmitting || eliminandoProducto}
                     className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 rounded-xl shadow-md hover:shadow-lg"
-                  >
+            >
                     {eliminandoProducto ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -667,8 +671,8 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
                         Eliminar producto
                       </>
                     )}
-                  </Button>
-                )}
+            </Button>
+          )}
             </div>
             
             <p className="text-sm text-gray-500">

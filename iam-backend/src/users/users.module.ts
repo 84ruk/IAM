@@ -1,12 +1,13 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-import { PrismaModule } from 'src/prisma/prisma.module';
+import { PrismaModule } from '../prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module'; // Importar AuthModule para acceso a EmpresaGuard
 
 @Module({
-  imports: [PrismaModule],
-  providers: [UsersService],
+  imports: [PrismaModule, forwardRef(() => AuthModule)], // Usar forwardRef para evitar dependencia circular
   controllers: [UsersController],
-  exports: [UsersService]
+  providers: [UsersService],
+  exports: [UsersService],
 })
 export class UsersModule {}

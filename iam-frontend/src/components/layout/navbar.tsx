@@ -3,6 +3,7 @@
 import { LogOut, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { User } from '@/types/user'
+import { useState, useEffect } from 'react'
 
 const ROL_MAP: Record<string, string> = {
   SUPERADMIN: 'Super Admin',
@@ -12,8 +13,30 @@ const ROL_MAP: Record<string, string> = {
 }
 
 export default function Navbar({ user, logout }: { user: User, logout?: () => void }) {
+  const [mounted, setMounted] = useState(false)
   const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN'
   const userName = user?.email?.split('@')[0] || 'Usuario'
+
+  // Evitar problemas de hidratación
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Evitar renderizado hasta que el componente esté montado en el cliente
+  if (!mounted) {
+    return (
+      <header className="w-full px-3 sm:px-6 py-3 sm:py-4 bg-white shadow-sm flex items-center justify-between border-b border-gray-100">
+        <div className="min-w-0 flex-1">
+          <div className="h-6 bg-gray-200 rounded animate-pulse mb-1"></div>
+          <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-3 ml-2">
+          <div className="h-8 w-20 bg-gray-200 rounded animate-pulse"></div>
+          <div className="h-8 w-16 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+      </header>
+    )
+  }
 
   return (
     <header className="w-full px-3 sm:px-6 py-3 sm:py-4 bg-white shadow-sm flex items-center justify-between border-b border-gray-100">

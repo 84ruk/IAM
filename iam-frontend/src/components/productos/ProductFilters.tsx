@@ -1,5 +1,6 @@
 import React from 'react'
 import { Search, Filter, X } from 'lucide-react'
+import Select from '@/components/ui/Select'
 import { TipoProductoConfig } from '@/types/enums'
 
 interface ProductFiltersProps {
@@ -86,54 +87,51 @@ export default function ProductFilters({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Filtro por etiqueta */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Etiqueta
-            </label>
-            <select
+            <Select
+              label="Etiqueta"
               value={filtroEtiqueta}
               onChange={(e) => setFiltroEtiqueta(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200"
-            >
-              <option value="">Todas las etiquetas</option>
-              {etiquetasUnicas.map(etiqueta => (
-                <option key={etiqueta} value={etiqueta}>{etiqueta}</option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Todas las etiquetas' },
+                ...etiquetasUnicas.map(etiqueta => ({
+                  value: etiqueta,
+                  label: etiqueta
+                }))
+              ]}
+              className="mb-0"
+            />
           </div>
 
           {/* Filtro por tipo de producto */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tipo de producto
-            </label>
-            <select
+            <Select
+              label="Tipo de producto"
               value={filtroTipoProducto}
               onChange={(e) => setFiltroTipoProducto(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200"
-            >
-              <option value="">Todos los tipos</option>
-              {tiposProducto.map(tipo => (
-                <option key={tipo} value={tipo}>
-                  {TipoProductoConfig[tipo as keyof typeof TipoProductoConfig]?.label || tipo}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Todos los tipos' },
+                ...tiposProducto.map(tipo => ({
+                  value: tipo,
+                  label: TipoProductoConfig[tipo as keyof typeof TipoProductoConfig]?.label || tipo
+                }))
+              ]}
+              className="mb-0"
+            />
           </div>
 
           {/* Filtro por estado */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Estado
-            </label>
-            <select
+            <Select
+              label="Estado"
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value as 'ACTIVO' | 'INACTIVO' | '')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200"
-            >
-              <option value="">Todos los estados</option>
-              <option value="ACTIVO">Activos</option>
-              <option value="INACTIVO">Inactivos</option>
-            </select>
+              options={[
+                { value: '', label: 'Todos los estados' },
+                { value: 'ACTIVO', label: 'Activos' },
+                { value: 'INACTIVO', label: 'Inactivos' }
+              ]}
+              className="mb-0"
+            />
           </div>
 
           {/* Filtro por productos agotados */}

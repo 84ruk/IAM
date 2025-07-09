@@ -8,8 +8,12 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtUser } from '../auth/interfaces/jwt-user.interface';
 import { Rol } from '@prisma/client';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { EmpresaRequiredGuard } from 'src/auth/guards/empresa-required.guard';
+import { EmpresaRequired } from 'src/auth/decorators/empresa-required.decorator';
 
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, EmpresaRequiredGuard)
+@EmpresaRequired()
 @Controller('proveedores')
 export class ProveedorController {
   constructor(private readonly proveedorService: ProveedorService) {}

@@ -7,7 +7,128 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
-        
+
+model Empresa {
+  id            Int                    @id @default(autoincrement())
+  nombre        String
+  rfc           String?                @unique
+  emailContacto String?
+  direccion     String?
+  fechaCreacion DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  TipoIndustria TipoIndustria          @default(GENERICA)
+  movimientos   MovimientoInventario[]
+  pedidos       PedidoInventario[]
+  productos     Producto[]
+  proveedores   Proveedor[]
+  usuarios      Usuario[]
+}
+
+model Usuario {
+  id              Int      @id @default(autoincrement())
+  empresaId       Int?
+  nombre          String
+  email           String   @unique
+  password        String?
+  rol             Rol
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  authProvider    String   @default("local")
+  googleId        String?  @unique
+  setupCompletado Boolean  @default(false)
+  empresa         Empresa? @relation(fields: [empresaId], references: [id])
+}
+
+model Producto {
+  id                Int                    @id @default(autoincrement())
+  nombre            String
+  descripcion       String?
+  stock             Int                    @default(0)
+  empresaId         Int
+  creadoEn          DateTime               @default(now())
+  proveedorId       Int?
+  actualizadoEn     DateTime               @updatedAt
+  codigoBarras      String?                @unique
+  humedadOptima     Float?
+  rfid              String?                @unique
+  sku               String?                @unique
+  temperaturaOptima Float?
+  ubicacion         String?
+  precioCompra      Float
+  precioVenta       Float
+  stockMinimo       Int                    @default(10)
+  color             String?
+  talla             String?
+  tipoProducto      TipoProducto           @default(GENERICO)
+  unidad            UnidadMedida           @default(UNIDAD)
+  estado            EstadoProducto         @default(ACTIVO)
+  etiquetas         String[]
+  movimientos       MovimientoInventario[]
+  pedidos           PedidoInventario[]
+  empresa           Empresa                @relation(fields: [empresaId], references: [id])
+  proveedor         Proveedor?             @relation(fields: [proveedorId], references: [id])
+  sensores          SensorLectura[]
+
+  @@index([empresaId, etiquetas])
+}
+
+model MovimientoInventario {
+  id          Int              @id @default(autoincrement())
+  cantidad    Int
+  productoId  Int
+  fecha       DateTime         @default(now())
+  motivo      String?
+  tipo        TipoMovimiento
+  createdAt   DateTime         @default(now())
+  descripcion String?
+  empresaId   Int
+  estado      EstadoMovimiento @default(ACTIVO)
+  empresa     Empresa          @relation(fields: [empresaId], references: [id])
+  producto    Producto         @relation(fields: [productoId], references: [id])
+}
+
+model Proveedor {
+  id        Int                @id @default(autoincrement())
+  nombre    String
+  email     String?
+  telefono  String?
+  empresaId Int
+  estado    EstadoProveedor    @default(ACTIVO)
+  pedidos   PedidoInventario[]
+  productos Producto[]
+  empresa   Empresa            @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, nombre])
+  @@unique([empresaId, email])
+}
+
+model PedidoInventario {
+  id          Int          @id @default(autoincrement())
+  productoId  Int
+  proveedorId Int
+  cantidad    Int
+  fechaPedido DateTime     @default(now())
+  empresaId   Int
+  estado      EstadoPedido @default(PENDIENTE)
+  empresa     Empresa      @relation(fields: [empresaId], references: [id])
+  producto    Producto     @relation(fields: [productoId], references: [id])
+  proveedor   Proveedor    @relation(fields: [proveedorId], references: [id])
+
+  @@index([empresaId, estado])
+}
+
+model SensorLectura {
+  id         Int        @id @default(autoincrement())
+  tipo       SensorTipo
+  valor      Float
+  unidad     String
+  productoId Int?
+  fecha      DateTime   @default(now())
+  producto   Producto?  @relation(fields: [productoId], references: [id])
+
+  @@index([productoId, tipo])
+  @@index([productoId, fecha])
+}
 
 enum TipoIndustria {
   GENERICA
@@ -17,46 +138,12 @@ enum TipoIndustria {
   FARMACIA
 }
 
-model Empresa {
-  id            Int       @id @default(autoincrement())
-  nombre        String
-  rfc           String?   @unique
-  emailContacto String?
-  direccion     String?
-  fechaCreacion DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  TipoIndustria   TipoIndustria   @default(GENERICA)
-
-  usuarios      Usuario[]
-  productos     Producto[]
-  proveedores   Proveedor[]
-  pedidos       PedidoInventario[]
-  movimientos   MovimientoInventario[] 
-}
-
-model Usuario {
-  id        Int      @id @default(autoincrement())
-  empresaId Int
-  nombre    String
-  email     String   @unique
-  password  String?
-  rol       Rol
-  activo    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  empresa Empresa @relation(fields: [empresaId], references: [id])
-
-  // Nuevos campos para OAuth
-  googleId     String?  @unique
-  authProvider String   @default("local")
-}
-
 enum Rol {
-  SUPERADMIN
   ADMIN
   EMPLEADO
   PROVEEDOR
+  SUPERADMIN
 }
-
 
 enum TipoProducto {
   GENERICO
@@ -64,6 +151,7 @@ enum TipoProducto {
   ALIMENTO
   ELECTRONICO
 }
+
 enum UnidadMedida {
   UNIDAD
   KILO
@@ -84,68 +172,6 @@ enum EstadoProveedor {
   ELIMINADO
 }
 
-model Producto {
-  id             Int       @id @default(autoincrement())
-  nombre         String
-  descripcion    String?
-  precioCompra   Float
-  precioVenta     Float    
-  stockMinimo    Int       @default(10)
-  stock          Int       @default(0)
-  unidad         UnidadMedida   @default(UNIDAD)
-  empresaId      Int
-  proveedorId    Int?
-  tipoProducto    TipoProducto    @default(GENERICO)
-  estado          EstadoProducto  @default(ACTIVO)
-
-  sensores       SensorLectura[]
-  movimientos    MovimientoInventario[]
-  pedidos        PedidoInventario[]
-  empresa        Empresa   @relation(fields: [empresaId], references: [id])
-  proveedor      Proveedor? @relation(fields: [proveedorId], references: [id])
-
-
-//Avanzados
-  codigoBarras   String?   @unique
-  rfid           String?   @unique
-  ubicacion      String?
-  sku            String?   @unique
-  etiquetas      String[]
- 
-
-
-
-  //Solo para ropa
-  talla           String?
-  color           String?
-
- //Alimentos
-  temperaturaOptima Float?
-  humedadOptima    Float?
- 
-  creadoEn       DateTime  @default(now())
-  actualizadoEn  DateTime  @updatedAt
-
-  @@index([empresaId, etiquetas])
-}
-
-
-model MovimientoInventario {
-  id          Int           @id @default(autoincrement())
-  tipo        TipoMovimiento
-  cantidad    Int
-  productoId  Int
-  empresaId   Int
-  fecha       DateTime      @default(now())
-  motivo      String?
-  descripcion String?
-  estado      EstadoMovimiento @default(ACTIVO)
-  createdAt   DateTime      @default(now())
-
-  producto    Producto       @relation(fields: [productoId], references: [id])
-  empresa     Empresa        @relation(fields: [empresaId], references: [id])
-}
-
 enum TipoMovimiento {
   ENTRADA
   SALIDA
@@ -156,56 +182,10 @@ enum EstadoMovimiento {
   ELIMINADO
 }
 
-model Proveedor {
-  id         Int        @id @default(autoincrement())
-  nombre     String
-  email      String?
-  telefono   String?
-  empresaId  Int
-  estado     EstadoProveedor @default(ACTIVO)
-
-  empresa    Empresa     @relation(fields: [empresaId], references: [id])
-  productos  Producto[]
-  pedidos    PedidoInventario[]
-
-  @@unique([empresaId, nombre])
-  @@unique([empresaId, email])
-}
-
-model PedidoInventario {
-  id           Int           @id @default(autoincrement())
-  productoId   Int
-  proveedorId  Int
-  cantidad     Int
-  fechaPedido  DateTime       @default(now())
-  estado       EstadoPedido   @default(PENDIENTE)
-  empresaId    Int
-
-  producto     Producto       @relation(fields: [productoId], references: [id])
-  proveedor    Proveedor      @relation(fields: [proveedorId], references: [id])
-  empresa      Empresa        @relation(fields: [empresaId], references: [id])
-
-  @@index([empresaId, estado])
-}
-
 enum EstadoPedido {
   PENDIENTE
   ENVIADO
   RECIBIDO
-}
-
-model SensorLectura {
-  id          Int         @id @default(autoincrement())
-  tipo        SensorTipo
-  valor       Float
-  unidad      String
-  productoId  Int?
-  fecha       DateTime    @default(now())
-
-  producto    Producto?   @relation(fields: [productoId], references: [id])
-
-  @@index([productoId, tipo])
-  @@index([productoId, fecha])
 }
 
 enum SensorTipo {

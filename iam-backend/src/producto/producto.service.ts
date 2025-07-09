@@ -9,7 +9,12 @@ import { Rol } from '@prisma/client';
 export class ProductoService {
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: CreateProductoDto, empresaId: number) {
+  async create(dto: CreateProductoDto, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para crear productos');
+    }
+
     if (dto.proveedorId) {
       const proveedor = await this.prisma.proveedor.findFirst({
         where: {
@@ -51,7 +56,7 @@ export class ProductoService {
     });
   }
 
-  async findAll(empresaId: number, filters?: {
+  async findAll(empresaId: number | undefined, filters?: {
     search?: string;
     etiqueta?: string;
     estado?: string;
@@ -70,6 +75,17 @@ export class ProductoService {
     sku?: string;
     codigoBarras?: string;
   }) {
+    // Si el usuario no tiene empresa configurada, devolver respuesta vacía
+    if (!empresaId) {
+      return {
+        productos: [],
+        total: 0,
+        page: filters?.page || 1,
+        limit: filters?.limit || 50,
+        totalPages: 0
+      };
+    }
+
     const where: any = { 
       empresaId,
       estado: filters?.estado || 'ACTIVO' // Por defecto solo productos activos
@@ -174,7 +190,12 @@ export class ProductoService {
     };
   }
 
-  async findInactive(empresaId: number) {
+  async findInactive(empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, devolver array vacío
+    if (!empresaId) {
+      return [];
+    }
+
     return this.prisma.producto.findMany({
       where: { 
         empresaId,
@@ -193,7 +214,12 @@ export class ProductoService {
     });
   }
 
-  async findDeleted(empresaId: number) {
+  async findDeleted(empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, devolver array vacío
+    if (!empresaId) {
+      return [];
+    }
+
     return this.prisma.producto.findMany({
       where: { 
         empresaId,
@@ -212,7 +238,12 @@ export class ProductoService {
     });
   }
 
-  async findWithoutProvider(empresaId: number) {
+  async findWithoutProvider(empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, devolver array vacío
+    if (!empresaId) {
+      return [];
+    }
+
     return this.prisma.producto.findMany({
       where: { 
         empresaId,
@@ -236,7 +267,12 @@ export class ProductoService {
     });
   }
 
-  async findOne(id: number, empresaId: number) {
+  async findOne(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new ProductNotFoundException(id);
+    }
+
     const producto = await this.prisma.producto.findFirst({
       where: { id, empresaId },
       include: {
@@ -258,7 +294,12 @@ export class ProductoService {
     return producto;
   }
 
-  async buscarPorCodigoBarras(codigoBarras: string, empresaId: number) {
+  async buscarPorCodigoBarras(codigoBarras: string, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new ProductNotFoundException(undefined, codigoBarras);
+    }
+
     const producto = await this.prisma.producto.findFirst({
       where: { 
         codigoBarras: codigoBarras.trim(),
@@ -274,7 +315,12 @@ export class ProductoService {
     return producto;
   }
 
-  async update(id: number, dto: UpdateProductoDto, empresaId: number) {
+  async update(id: number, dto: UpdateProductoDto, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para actualizar productos');
+    }
+
     // 1. Verificar que el producto exista y pertenezca a la empresa
     const productoExistente = await this.prisma.producto.findFirst({
       where: {
@@ -332,7 +378,12 @@ export class ProductoService {
   }
 
   // Método para desactivar (soft delete) - usado por usuarios normales
-  async deactivate(id: number, empresaId: number) {
+  async deactivate(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para desactivar productos');
+    }
+
     const producto = await this.prisma.producto.findFirst({
       where: { id, empresaId },
     });
@@ -352,7 +403,12 @@ export class ProductoService {
   }
 
   // Método para reactivar un producto inactivo
-  async reactivate(id: number, empresaId: number) {
+  async reactivate(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para reactivar productos');
+    }
+
     const producto = await this.prisma.producto.findFirst({
       where: { id, empresaId },
     });
@@ -372,7 +428,12 @@ export class ProductoService {
   }
 
   // Método para "eliminar" un producto usuarios normales
-  async softDelete(id: number, empresaId: number) {
+  async softDelete(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para eliminar productos');
+    }
+
     const producto = await this.prisma.producto.findFirst({
       where: { id, empresaId },
     });
@@ -392,7 +453,12 @@ export class ProductoService {
   }
 
   // Método para restaurar un producto eliminado
-  async restore(id: number, empresaId: number) {
+  async restore(id: number, empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para restaurar productos');
+    }
+
     const producto = await this.prisma.producto.findFirst({
       where: { id, empresaId },
     });
@@ -412,7 +478,11 @@ export class ProductoService {
   }
 
   // Método para eliminar permanentemente - solo para admins
-  async remove(id: number, empresaId: number, rol: Rol) {
+  async remove(id: number, empresaId: number | undefined, rol: Rol) {
+    // Si el usuario no tiene empresa configurada, lanzar error
+    if (!empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada para eliminar productos');
+    }
 
     if (rol !== Rol.ADMIN && rol !== Rol.SUPERADMIN) {
       throw new InsufficientPermissionsException('ADMIN', rol, 'eliminar productos permanentemente');

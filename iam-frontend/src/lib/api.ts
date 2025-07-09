@@ -126,28 +126,56 @@ export class ApiClient {
         validateInput(data)
       }
 
-      const url = `${this.baseURL}${endpoint}`
+    const url = `${this.baseURL}${endpoint}`
       
       // Crear AbortController para timeout
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout)
 
-      const response = await fetch(url, {
+    const response = await fetch(url, {
         method,
-        credentials: 'include',
-        headers: {
-          ...this.defaultHeaders,
-          ...options?.headers,
-        },
+      credentials: 'include',
+      headers: {
+        ...this.defaultHeaders,
+        ...options?.headers,
+      },
         body: data ? JSON.stringify(data) : undefined,
         signal: controller.signal,
-        ...options,
-      })
+      ...options,
+    })
 
       clearTimeout(timeoutId)
 
       return await validateApiResponse(response)
     } catch (error: unknown) {
+      // Manejar errores específicos antes de reintentos
+      if (error instanceof AppError) {
+        // Error 403 específico de empresa requerida
+        if (error.statusCode === 403) {
+          const errorMessage = error.message.toLowerCase();
+          if (errorMessage.includes('configurar una empresa') || 
+              errorMessage.includes('empresa requerida') ||
+              errorMessage.includes('needs setup')) {
+            
+            // Solo redirigir si no estamos ya en la página de setup
+            if (typeof window !== 'undefined' && !window.location.pathname.includes('/setup-empresa')) {
+              console.log('🔄 Redirigiendo a setup de empresa debido a error 403');
+              window.location.href = '/setup-empresa';
+              return Promise.reject(new AppError('Redirigiendo a setup de empresa', 403));
+            }
+          }
+        }
+        
+        // Error 401 (no autenticado)
+        if (error.statusCode === 401) {
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+            console.log('🔄 Redirigiendo a login debido a error 401');
+            window.location.href = '/login';
+            return Promise.reject(new AppError('Redirigiendo a login', 401));
+          }
+        }
+      }
+      
       // Reintentos automáticos para errores de red
       if (retryCount < API_CONFIG.maxRetries && 
           (error instanceof AppError && error.statusCode >= 500) ||
@@ -192,6 +220,76 @@ export class ApiClient {
   }
 }
 
+// Funciones helper para manejo de datos
+export function normalizeApiResponse<T>(response: any): T {
+  // Si la respuesta es un array, asegurar que siempre sea un array
+  if (Array.isArray(response)) {
+    return response as T
+  }
+  
+  // Si la respuesta tiene una propiedad 'data' que es un array
+  if (response && typeof response === 'object' && Array.isArray(response.data)) {
+    return response.data as T
+  }
+  
+  // Si la respuesta tiene una propiedad 'data' que no es un array
+  if (response && typeof response === 'object' && 'data' in response) {
+    return response.data as T
+  }
+  
+  // Si no hay datos, retornar array vacío para arrays, o el valor original
+  if (response === null || response === undefined) {
+    return (Array.isArray(response) ? [] : response) as T
+  }
+  
+  return response as T
+}
+
+export function isEmptyResponse(response: any): boolean {
+  if (!response) return true
+  if (Array.isArray(response)) return response.length === 0
+  if (typeof response === 'object' && 'data' in response) {
+    return Array.isArray(response.data) ? response.data.length === 0 : !response.data
+  }
+  return false
+}
+
+export function getEmptyStateMessage(type: string, context?: string): { title: string; description: string } {
+  const messages = {
+    productos: {
+      title: 'No hay productos',
+      description: context === 'eliminados' 
+        ? 'No hay productos eliminados para mostrar.'
+        : 'Comienza agregando tu primer producto para gestionar tu inventario.'
+    },
+    proveedores: {
+      title: 'No hay proveedores',
+      description: context === 'eliminados'
+        ? 'No hay proveedores eliminados para mostrar.'
+        : 'Agrega proveedores para gestionar tus compras y suministros.'
+    },
+    movimientos: {
+      title: 'No hay movimientos',
+      description: context === 'eliminados'
+        ? 'No hay movimientos eliminados para mostrar.'
+        : 'Los movimientos de inventario aparecerán aquí cuando registres entradas o salidas.'
+    },
+    usuarios: {
+      title: 'No hay usuarios',
+      description: 'No hay usuarios registrados en el sistema.'
+    },
+    dashboard: {
+      title: 'Sin datos',
+      description: 'Aún no hay datos para mostrar en el dashboard.'
+    }
+  }
+  
+  return messages[type as keyof typeof messages] || {
+    title: 'Sin datos',
+    description: 'No hay información para mostrar.'
+  }
+}
+
 // Instancia global del cliente API
 export const apiClient = new ApiClient()
 
@@ -199,8 +297,10 @@ export const apiClient = new ApiClient()
 export const api = {
   // Productos
   productos: {
-    getAll: (params?: URLSearchParams) => 
-      apiClient.get(`/productos${params ? `?${params}` : ''}`),
+    getAll: async (params?: URLSearchParams) => {
+      const response = await apiClient.get(`/productos${params ? `?${params}` : ''}`)
+      return normalizeApiResponse(response)
+    },
     
     getById: (id: number) => 
       apiClient.get(`/productos/${id}`),
@@ -214,8 +314,10 @@ export const api = {
     delete: (id: number) => 
       apiClient.delete(`/productos/${id}`),
     
-    getEliminados: () => 
-      apiClient.get('/productos/eliminados'),
+    getEliminados: async () => {
+      const response = await apiClient.get('/productos/eliminados')
+      return normalizeApiResponse(response)
+    },
     
     reactivar: (id: number) => 
       apiClient.patch(`/productos/${id}/reactivar`),
@@ -226,8 +328,10 @@ export const api = {
 
   // Proveedores
   proveedores: {
-    getAll: (params?: URLSearchParams) => 
-      apiClient.get(`/proveedores${params ? `?${params}` : ''}`),
+    getAll: async (params?: URLSearchParams) => {
+      const response = await apiClient.get(`/proveedores${params ? `?${params}` : ''}`)
+      return normalizeApiResponse(response)
+    },
     
     getById: (id: number) => 
       apiClient.get(`/proveedores/${id}`),
@@ -241,8 +345,10 @@ export const api = {
     delete: (id: number) => 
       apiClient.delete(`/proveedores/${id}`),
     
-    getEliminados: () => 
-      apiClient.get('/proveedores/eliminados'),
+    getEliminados: async () => {
+      const response = await apiClient.get('/proveedores/eliminados')
+      return normalizeApiResponse(response)
+    },
     
     reactivar: (id: number) => 
       apiClient.patch(`/proveedores/${id}/reactivar`),
@@ -256,8 +362,10 @@ export const api = {
 
   // Movimientos
   movimientos: {
-    getAll: (params?: URLSearchParams) => 
-      apiClient.get(`/movimientos${params ? `?${params}` : ''}`),
+    getAll: async (params?: URLSearchParams) => {
+      const response = await apiClient.get(`/movimientos${params ? `?${params}` : ''}`)
+      return normalizeApiResponse(response)
+    },
     
     getById: (id: number) => 
       apiClient.get(`/movimientos/${id}`),
@@ -271,8 +379,10 @@ export const api = {
     delete: (id: number) => 
       apiClient.delete(`/movimientos/${id}`),
     
-    getEliminados: () => 
-      apiClient.get('/movimientos/eliminados'),
+    getEliminados: async () => {
+      const response = await apiClient.get('/movimientos/eliminados')
+      return normalizeApiResponse(response)
+    },
     
     getEliminadoById: (id: number) => 
       apiClient.get(`/movimientos/eliminados/${id}`),
@@ -286,17 +396,25 @@ export const api = {
 
   // Dashboard
   dashboard: {
-    getStats: () => 
-      apiClient.get('/dashboard/stats'),
+    getStats: async () => {
+      const response = await apiClient.get('/dashboard/stats')
+      return normalizeApiResponse(response)
+    },
     
-    getStockChart: () => 
-      apiClient.get('/dashboard/stock-chart'),
+    getStockChart: async () => {
+      const response = await apiClient.get('/dashboard/stock-chart')
+      return normalizeApiResponse(response)
+    },
     
-    getMovementsChart: () => 
-      apiClient.get('/dashboard/movements-chart'),
+    getMovementsChart: async () => {
+      const response = await apiClient.get('/dashboard/movements-chart')
+      return normalizeApiResponse(response)
+    },
     
-    getLowStock: () => 
-      apiClient.get('/dashboard/low-stock'),
+    getLowStock: async () => {
+      const response = await apiClient.get('/dashboard/low-stock')
+      return normalizeApiResponse(response)
+    },
   },
 
   // Autenticación
@@ -316,8 +434,10 @@ export const api = {
 
   // Admin
   admin: {
-    getUsers: () => 
-      apiClient.get('/admin/users'),
+    getUsers: async () => {
+      const response = await apiClient.get('/admin/users')
+      return normalizeApiResponse(response)
+    },
     
     createUser: (data: any) => 
       apiClient.post('/admin/users', data),

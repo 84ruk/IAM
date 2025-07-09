@@ -18,9 +18,10 @@ import { ChangeRoleDto } from './dto/change-role.dto';
 import { AdminGuard } from './guards/admin.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtUser } from '../auth/interfaces/jwt-user.interface';
+import { EmpresaGuard } from '../auth/guards/empresa.guard';
 
 @Controller('admin')
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard, AdminGuard, EmpresaGuard) // Agregar EmpresaGuard para validación inteligente
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 

@@ -3,6 +3,7 @@
 import { BarChart2, Home, Package, Truck, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
 const navItems = [
   { href: '/dashboard', label: 'Inicio', icon: <Home size={18} /> },
@@ -18,6 +19,12 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+
+  // Evitar problemas de hidratación
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Sidebar para escritorio
   const sidebarContent = (
@@ -30,7 +37,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             href={href}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg transition
               text-sm font-medium
-              ${pathname === href
+              ${mounted && pathname === href
                 ? 'bg-[#8E94F2] text-white'
                 : 'text-gray-700 hover:bg-gray-100'}
             `}

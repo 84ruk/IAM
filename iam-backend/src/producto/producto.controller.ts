@@ -18,11 +18,15 @@ import { UpdateProductoDto } from './dto/update-producto.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { EmpresaRequiredGuard } from 'src/auth/guards/empresa-required.guard';
+import { EmpresaRequired } from 'src/auth/decorators/empresa-required.decorator';
 import { Rol } from '@prisma/client';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtUser } from 'src/auth/interfaces/jwt-user.interface';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, EmpresaRequiredGuard)
+@EmpresaRequired()
 @Controller('productos')
 export class ProductoController {
   constructor(private readonly productoService: ProductoService) {}

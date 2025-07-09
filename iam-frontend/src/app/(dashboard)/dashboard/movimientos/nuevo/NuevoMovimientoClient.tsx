@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils'
 import { Proveedor } from '@/types/proveedor'
 import { useState, useEffect, useRef } from 'react'
 import React from 'react'
+import { normalizeApiResponse } from '@/lib/api'
 
 interface Producto {
   id: number
@@ -317,7 +318,7 @@ export default function NuevoMovimientoClient() {
           credentials: 'include' 
         })
         const dataInactivos = await responseInactivos.json()
-        setProductosInactivos(dataInactivos || [])
+        setProductosInactivos(normalizeApiResponse(dataInactivos))
 
         // Obtener proveedores activos
         const responseProveedores = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/proveedores`, { 

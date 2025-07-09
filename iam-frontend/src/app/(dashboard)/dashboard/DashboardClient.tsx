@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
 import { Loader2 } from 'lucide-react'
+import Select from '@/components/ui/Select'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, { 
@@ -335,17 +336,15 @@ export default function DashboardClient() {
             </div>
 
             {/* Selector de mes */}
-            <select
+            <Select
               value={selectedMonth}
-              onChange={handleMonthChange}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent"
-            >
-              {MONTHS.map((month, index) => (
-                <option key={index} value={index}>
-                  {month}
-                </option>
-              ))}
-            </select>
+              onChange={(e) => handleMonthChange(e as any)}
+              options={MONTHS.map((month, index) => ({
+                value: index.toString(),
+                label: month
+              }))}
+              className="mb-0"
+            />
 
             {/* Botón de refresh */}
             <button

@@ -166,19 +166,19 @@ export function parseApiError(response: Response, data?: any): AppError {
 // Función para manejar errores de red
 export function handleNetworkError(error: unknown): AppError {
   if (error instanceof Error) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      return new NetworkError('No se pudo conectar con el servidor')
-    }
-    
-    if (error.name === 'AbortError') {
-      return new NetworkError('La solicitud fue cancelada')
-    }
+  if (error.name === 'TypeError' && error.message.includes('fetch')) {
+    return new NetworkError('No se pudo conectar con el servidor')
+  }
+  
+  if (error.name === 'AbortError') {
+    return new NetworkError('La solicitud fue cancelada')
+  }
 
-    if (error.name === 'TimeoutError') {
-      return new NetworkError('La solicitud tardó demasiado en completarse')
-    }
+  if (error.name === 'TimeoutError') {
+    return new NetworkError('La solicitud tardó demasiado en completarse')
+  }
 
-    return new AppError(error.message || 'Error de red desconocido')
+  return new AppError(error.message || 'Error de red desconocido')
   }
 
   return new AppError('Error de red desconocido')
@@ -301,7 +301,7 @@ export async function validateApiResponse(response: Response): Promise<any> {
       throw error
     } catch {
       const error = parseApiError(response)
-      throw error
+    throw error
     }
   }
 

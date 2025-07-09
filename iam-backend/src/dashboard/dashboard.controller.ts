@@ -6,9 +6,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Rol } from '@prisma/client';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtUser } from 'src/auth/interfaces/jwt-user.interface';
+import { EmpresaGuard } from '../auth/guards/empresa.guard';
 
 @Controller('dashboard')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, EmpresaGuard) // Agregar EmpresaGuard para validación inteligente
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 

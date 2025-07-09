@@ -50,7 +50,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       );
     }
 
-    // Log del error
+    // Log del error (sin información sensible)
     this.logger.error(
       `${request.method} ${request.url} - ${status}: ${message}`,
       details ? JSON.stringify(details) : ''

@@ -310,7 +310,7 @@ export default function MovimientosEliminadosClient() {
                                 className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium border border-blue-200"
                               >
                                 {etiqueta}
-                              </span>
+                          </span>
                             ))}
                           </div>
                         )}

@@ -6,7 +6,19 @@ export class InventarioService {
   constructor(private prisma: PrismaService) {}
 
 
-  async getKpis(empresaId: number) {
+  async getKpis(empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, devolver KPIs vacíos
+    if (!empresaId) {
+      return {
+        totalProductos: 0,
+        totalUnidades: 0,
+        valorTotal: 0,
+        entradas: 0,
+        salidas: 0,
+        productosBajoStock: [],
+      };
+    }
+
     const productos = await this.prisma.producto.findMany({
       where: { empresaId },
     });
@@ -36,7 +48,12 @@ export class InventarioService {
 
 
 
-    async getAlertas(empresaId: number) {
+    async getAlertas(empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, devolver alertas vacías
+    if (!empresaId) {
+      return { bajoStock: [], sobreStock: [] };
+    }
+
     const productos = await this.prisma.producto.findMany({
       where: { empresaId },
       select: { id: true, nombre: true, stock: true }
@@ -49,7 +66,12 @@ export class InventarioService {
   }
 
 
-  async getFichasCompra(empresaId: number) {
+  async getFichasCompra(empresaId: number | undefined) {
+  // Si el usuario no tiene empresa configurada, devolver fichas vacías
+  if (!empresaId) {
+    return [];
+  }
+
   const productos = await this.prisma.producto.findMany({
     where: { empresaId },
     select: {
@@ -79,7 +101,12 @@ export class InventarioService {
 }
 
 
-async predecirQuiebre(empresaId: number) {
+async predecirQuiebre(empresaId: number | undefined) {
+  // Si el usuario no tiene empresa configurada, devolver predicciones vacías
+  if (!empresaId) {
+    return [];
+  }
+
   const productos = await this.prisma.producto.findMany({
     where: { empresaId },
     select: {
