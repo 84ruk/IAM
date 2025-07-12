@@ -4,6 +4,9 @@ import {
   IsEnum,
   IsOptional,
   MinLength,
+  MaxLength,
+  Matches,
+  IsBoolean,
 } from 'class-validator';
 import { Rol } from '@prisma/client';
 
@@ -18,7 +21,11 @@ export class UpdateUserAdminDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
+  @MinLength(12, { message: 'La contraseña debe tener al menos 12 caracteres' })
+  @MaxLength(128, { message: 'La contraseña no puede exceder 128 caracteres' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/, {
+    message: 'La contraseña debe contener al menos 12 caracteres, incluyendo mayúsculas, minúsculas, números y símbolos (@$!%*?&)'
+  })
   password?: string;
 
   @IsOptional()
@@ -28,4 +35,8 @@ export class UpdateUserAdminDto {
   @IsOptional()
   @IsString()
   empresaId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  activo?: boolean;
 } 

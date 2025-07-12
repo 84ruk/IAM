@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -13,11 +13,26 @@ import { ProveedorModule } from './proveedor/proveedor.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SensoresModule } from './sensores/sensores.module';
 import { AdminModule } from './admin/admin.module';
+import { SuperAdminModule } from './super-admin/super-admin.module';
 import { PrismaService } from './prisma/prisma.service';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { SecurityMiddleware } from './common/middleware/security.middleware';
 
 @Module({
-  imports: [AuthModule, UsersModule, EmpresaModule, ProductoModule, MovimientoModule, InventarioModule, PedidoModule, ProveedorModule, DashboardModule, SensoresModule, AdminModule],
+  imports: [
+    AuthModule, 
+    UsersModule, 
+    EmpresaModule, 
+    ProductoModule, 
+    MovimientoModule, 
+    InventarioModule, 
+    PedidoModule, 
+    ProveedorModule, 
+    DashboardModule, 
+    SensoresModule, 
+    AdminModule,
+    SuperAdminModule
+  ],
   controllers: [AppController],
   providers: [
     AppService, 
@@ -29,4 +44,10 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     // EmpresaGuard se usará a nivel de controlador/método para evitar problemas de orden
   ],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(SecurityMiddleware)
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}

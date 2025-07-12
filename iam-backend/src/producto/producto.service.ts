@@ -15,44 +15,46 @@ export class ProductoService {
       throw new BadRequestException('El usuario debe tener una empresa configurada para crear productos');
     }
 
-    if (dto.proveedorId) {
-      const proveedor = await this.prisma.proveedor.findFirst({
-        where: {
-          id: dto.proveedorId,
-          empresaId,
-        },
-      });
+    return this.prisma.executeWithRetry(async () => {
+      if (dto.proveedorId) {
+        const proveedor = await this.prisma.proveedor.findFirst({
+          where: {
+            id: dto.proveedorId,
+            empresaId,
+          },
+        });
 
-      if (!proveedor) {
-        throw new InvalidProviderException(dto.proveedorId, empresaId);
+        if (!proveedor) {
+          throw new InvalidProviderException(dto.proveedorId, empresaId);
+        }
       }
-    }
 
-    // Verificar duplicados de código de barras si se proporciona
-    if (dto.codigoBarras) {
-      const productoExistente = await this.prisma.producto.findFirst({
-        where: {
-          codigoBarras: dto.codigoBarras.trim(),
-          empresaId,
-        },
-      });
+      // Verificar duplicados de código de barras si se proporciona
+      if (dto.codigoBarras) {
+        const productoExistente = await this.prisma.producto.findFirst({
+          where: {
+            codigoBarras: dto.codigoBarras.trim(),
+            empresaId,
+          },
+        });
 
-      if (productoExistente) {
-        throw new DuplicateProductException('código de barras', dto.codigoBarras);
+        if (productoExistente) {
+          throw new DuplicateProductException('código de barras', dto.codigoBarras);
+        }
       }
-    }
 
-    const data = {
-      ...dto,
-      empresaId,
-      proveedorId: dto.proveedorId || null, 
-      codigoBarras: dto.codigoBarras?.trim() || null,
-      rfid: dto.rfid?.trim() || null,
-      sku: dto.sku?.trim() || null,
-    };
+      const data = {
+        ...dto,
+        empresaId,
+        proveedorId: dto.proveedorId || null, 
+        codigoBarras: dto.codigoBarras?.trim() || null,
+        rfid: dto.rfid?.trim() || null,
+        sku: dto.sku?.trim() || null,
+      };
 
-    return this.prisma.producto.create({
-      data,
+      return this.prisma.producto.create({
+        data,
+      });
     });
   }
 

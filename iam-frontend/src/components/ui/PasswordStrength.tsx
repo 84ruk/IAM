@@ -13,8 +13,8 @@ interface PasswordStrengthProps {
 
 const requirements: PasswordRequirement[] = [
   {
-    label: 'Al menos 6 caracteres',
-    test: (password: string) => password.length >= 6,
+    label: 'Al menos 12 caracteres',
+    test: (password: string) => password.length >= 12,
   },
   {
     label: 'Al menos una letra minúscula',
@@ -28,6 +28,10 @@ const requirements: PasswordRequirement[] = [
     label: 'Al menos un número',
     test: (password: string) => /(?=.*\d)/.test(password),
   },
+  {
+    label: 'Al menos un símbolo (@$!%*?&)',
+    test: (password: string) => /(?=.*[@$!%*?&])/.test(password),
+  },
 ];
 
 export const PasswordStrength: React.FC<PasswordStrengthProps> = ({
@@ -40,17 +44,19 @@ export const PasswordStrength: React.FC<PasswordStrengthProps> = ({
   const strengthPercentage = (metRequirements.length / requirements.length) * 100;
 
   const getStrengthColor = () => {
-    if (strengthPercentage <= 25) return 'bg-red-500';
-    if (strengthPercentage <= 50) return 'bg-orange-500';
-    if (strengthPercentage <= 75) return 'bg-yellow-500';
+    if (strengthPercentage <= 20) return 'bg-red-500';
+    if (strengthPercentage <= 40) return 'bg-orange-500';
+    if (strengthPercentage <= 60) return 'bg-yellow-500';
+    if (strengthPercentage <= 80) return 'bg-blue-500';
     return 'bg-green-500';
   };
 
   const getStrengthText = () => {
-    if (strengthPercentage <= 25) return 'Débil';
-    if (strengthPercentage <= 50) return 'Regular';
-    if (strengthPercentage <= 75) return 'Buena';
-    return 'Fuerte';
+    if (strengthPercentage <= 20) return 'Muy débil';
+    if (strengthPercentage <= 40) return 'Débil';
+    if (strengthPercentage <= 60) return 'Regular';
+    if (strengthPercentage <= 80) return 'Buena';
+    return 'Excelente';
   };
 
   return (

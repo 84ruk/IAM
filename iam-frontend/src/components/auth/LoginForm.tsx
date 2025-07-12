@@ -309,7 +309,7 @@ export default function LoginForm() {
       
       <div className="mt-4 text-center">
         <a 
-          href="/recuperar" 
+          href="/forgot-password" 
           className="text-sm text-[#8E94F2] hover:text-[#7278e0] transition-colors"
         >
           ¿Olvidaste tu contraseña?

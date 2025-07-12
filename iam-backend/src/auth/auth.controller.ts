@@ -7,14 +7,17 @@ import {
   Get,
   UseGuards,
   Req,
+  Param,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
+import { RateLimit, RateLimitGuard } from './guards/rate-limit.guard';
 import { AuthService } from './auth.service';
+import { RefreshTokenService } from './refresh-token.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { SetupEmpresaDto } from './dto/setup-empresa.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtUser } from './interfaces/jwt-user.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -25,24 +28,31 @@ import { Public } from './decorators/public.decorator';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 @SkipEmpresaCheck()
 export class AuthController {
-  constructor(private readonly authService: AuthService, private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly authService: AuthService, 
+    private readonly jwtService: JwtService,
+    private readonly refreshTokenService: RefreshTokenService
+  ) {}
 
   @Post('login')
   @Public() // Marcar como ruta pública
   @HttpCode(200)
-  // @UseGuards(ThrottlerGuard) // Comentado temporalmente
-  // @Throttle({ default: { ttl: 60000, limit: 5 } }) // Comentado temporalmente
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ action: 'login' })
   async login(
     @Body() dto: LoginDto, 
     @Res({ passthrough: true }) res: Response
   ) {
     const user = await this.authService.validateUser(dto.email, dto.password);
     const userParaLogin = { ...user, empresaId: user.empresaId ?? undefined };
-    const token = await this.authService.login(userParaLogin);
+    const { token, refreshToken } = await this.authService.login(userParaLogin);
 
     // Configuración de cookies configurable
     const isProduction = process.env.NODE_ENV === 'production';
@@ -59,13 +69,19 @@ export class AuthController {
     
     res.cookie('jwt', token, cookieOptions);
     
-    return { message: 'Login exitoso' };
+    return { 
+      message: 'Login exitoso',
+      refreshToken: refreshToken
+    };
   }
 
   @Post('logout')
   @Public() // Marcar como ruta pública
   @HttpCode(200)
-  logout(@Res({ passthrough: true }) res: Response) {
+  async logout(
+    @CurrentUser() user: JwtUser | undefined,
+    @Res({ passthrough: true }) res: Response
+  ) {
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.iaminventario.com.mx' : 'localhost');
     
@@ -82,14 +98,23 @@ export class AuthController {
     // Limpiar la cookie JWT
     res.clearCookie('jwt', clearCookieOptions);
     
+    // Si hay un usuario autenticado, revocar tokens y hacer log
+    if (user) {
+      // Revocar todos los refresh tokens del usuario
+      await this.refreshTokenService.revokeAllUserTokens(user.id);
+      
+      // Log de auditoría
+      this.authService['jwtAuditService'].logLogout(user.id, user.email);
+    }
+    
     return { message: 'Sesión cerrada' };
   }
 
   @Post('register-empresa')
   @Public() // Marcar como ruta pública
   @HttpCode(201)
-  // @UseGuards(ThrottlerGuard) // Comentado temporalmente
-  // @Throttle({ default: { ttl: 300000, limit: 3 } }) // Comentado temporalmente
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ action: 'registration' })
   async registerEmpresa(@Body() dto: RegisterEmpresaDto) {
     return this.authService.registerEmpresa(dto);
   }
@@ -98,8 +123,8 @@ export class AuthController {
   @Public() // Marcar como ruta pública
   @SkipEmpresaCheck()
   @HttpCode(201)
-  // @UseGuards(ThrottlerGuard) // Comentado temporalmente
-  // @Throttle({ default: { ttl: 300000, limit: 3 } }) // Comentado temporalmente
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ action: 'registration' })
   async registerUser(@Body() dto: RegisterUserDto) {
     return this.authService.registerUser(dto);
   }
@@ -139,6 +164,66 @@ export class AuthController {
     });
     
     return result;
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @CurrentUser() user: JwtUser,
+    @Body() changePasswordDto: ChangePasswordDto
+  ) {
+    return this.authService.changePassword(user.id, changePasswordDto);
+  }
+
+  @Post('forgot-password')
+  @Public()
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ action: 'passwordReset' })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto.email);
+  }
+
+  @Post('reset-password')
+  @Public()
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Get('reset-password/:token')
+  @Public()
+  async verifyResetToken(@Param('token') token: string) {
+    return this.authService.verifyResetToken(token);
+  }
+
+  @Post('refresh')
+  @Public()
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ action: 'refresh' })
+  async refreshToken(
+    @Body() dto: RefreshTokenDto,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const { accessToken, newRefreshToken } = await this.refreshTokenService.generateNewAccessToken(dto.refreshToken);
+    
+    // Configuración de cookies configurable
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.iaminventario.com.mx' : 'localhost');
+    
+    const cookieOptions: any = {
+      httpOnly: true,
+      sameSite: isProduction ? 'none' : 'lax',
+      secure: isProduction,
+      maxAge: 1000 * 60 * 60 * 24, // 24 horas
+      domain: cookieDomain,
+      path: '/',
+    };
+    
+    res.cookie('jwt', accessToken, cookieOptions);
+    
+    return { 
+      message: 'Token renovado exitosamente',
+      refreshToken: newRefreshToken
+    };
   }
 
   @Get('needs-setup')
@@ -206,7 +291,7 @@ export class AuthController {
   async googleAuthRedirect(@Req() req, @Res({ passthrough: true }) res: Response) {
     const googleUser = req.user;
     // Buscar o validar usuario y emitir JWT
-    const token = await this.authService.loginWithGoogle(googleUser);
+    const { token, refreshToken } = await this.authService.loginWithGoogle(googleUser);
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.iaminventario.com.mx' : 'localhost');
     

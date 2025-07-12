@@ -82,11 +82,55 @@ export default function NuevoUsuarioPage() {
     cargarDatos()
   }, [user?.rol])
 
+  const validateForm = () => {
+    const newErrors: string[] = []
+
+    if (!formData.nombre) {
+      newErrors.push('El nombre es requerido')
+    }
+
+    if (!formData.email) {
+      newErrors.push('El email es requerido')
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.push('El email debe tener un formato válido')
+    }
+
+    if (!formData.password) {
+      newErrors.push('La contraseña es requerida')
+    } else {
+      // Validaciones de la contraseña
+      if (formData.password.length < 12) {
+        newErrors.push('La contraseña debe tener al menos 12 caracteres')
+      }
+      if (!/(?=.*[a-z])/.test(formData.password)) {
+        newErrors.push('La contraseña debe contener al menos una letra minúscula')
+      }
+      if (!/(?=.*[A-Z])/.test(formData.password)) {
+        newErrors.push('La contraseña debe contener al menos una letra mayúscula')
+      }
+      if (!/(?=.*\d)/.test(formData.password)) {
+        newErrors.push('La contraseña debe contener al menos un número')
+      }
+              if (!/(?=.*[@$!%*?&])/.test(formData.password)) {
+          newErrors.push('La contraseña debe contener al menos un símbolo (@$!%*?&)')
+        }
+      if (/\s/.test(formData.password)) {
+        newErrors.push('La contraseña no puede contener espacios')
+      }
+    }
+
+    if (!formData.rol) {
+      newErrors.push('El rol es requerido')
+    }
+
+    setErrors(newErrors)
+    return newErrors.length === 0
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.nombre || !formData.email || !formData.password || !formData.rol) {
-      setErrors(['Por favor, completa todos los campos requeridos.'])
+    if (!validateForm()) {
       return
     }
 
@@ -251,7 +295,7 @@ export default function NuevoUsuarioPage() {
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  La contraseña debe tener al menos 6 caracteres
+                  La contraseña debe tener al menos 12 caracteres, incluyendo mayúsculas, minúsculas, números y símbolos (@$!%*?&)
                 </p>
               </div>
 

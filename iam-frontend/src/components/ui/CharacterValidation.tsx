@@ -32,14 +32,15 @@ const fieldRules = {
   password: {
     title: 'Reglas para la contraseña:',
     rules: [
-      'Mínimo 6 caracteres',
+      'Mínimo 12 caracteres',
       'Al menos una letra minúscula',
       'Al menos una letra mayúscula',
       'Al menos un número',
+      'Al menos un símbolo (@$!%*?&)',
       'Sin espacios',
-      'Caracteres especiales permitidos: !@#$%^&*()_+-=[]{}|;:,.<>?'
+      'Símbolos permitidos: @$!%*?&'
     ],
-    allowedChars: /^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]*$/
+    allowedChars: /^[a-zA-Z0-9@$!%*?&]*$/
   }
 };
 

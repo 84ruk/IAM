@@ -85,12 +85,12 @@ export default function RegisterPage() {
     },
     password: {
       required: true,
-      minLength: 6,
+      minLength: 12,
       maxLength: 128,
       sanitize: true,
       custom: (value: string) => {
         // Validar caracteres permitidos en contraseña
-        if (!/^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]+$/.test(value)) {
+        if (!/^[a-zA-Z0-9@$!%*?&]+$/.test(value)) {
           return 'La contraseña contiene caracteres no permitidos'
         }
         
@@ -102,6 +102,11 @@ export default function RegisterPage() {
         }
         if (!/(?=.*\d)/.test(value)) {
           return 'La contraseña debe contener al menos un número'
+        }
+        
+        // Validar símbolos
+        if (!/(?=.*[@$!%*?&])/.test(value)) {
+          return 'La contraseña debe contener al menos un símbolo (@$!%*?&)'
         }
         
         // Validar que no tenga espacios

@@ -12,6 +12,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         { emit: 'stdout', level: 'warn' },
         { emit: 'stdout', level: 'info' },
       ],
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL,
+        },
+      },
+      // Configuración mejorada para Supabase
+      errorFormat: 'pretty',
     });
   }
 
@@ -48,5 +55,59 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         message: 'No se puede conectar con la base de datos. Verifica que el servicio esté ejecutándose.' 
       };
     }
+  }
+
+  // Método para reconectar automáticamente
+  async reconnect(): Promise<void> {
+    try {
+      this.logger.log('Intentando reconectar a la base de datos...');
+      await this.$disconnect();
+      await this.$connect();
+      this.logger.log('Reconexión exitosa');
+    } catch (error) {
+      this.logger.error('Error al reconectar:', error);
+      throw error;
+    }
+  }
+
+  // Método para ejecutar operaciones con reintentos
+  async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3
+  ): Promise<T> {
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error: any) {
+        lastError = error;
+        
+        // Si es un error de conexión, intentar reconectar
+        if (error.message?.includes('connection') || 
+            error.message?.includes('shutdown') || 
+            error.message?.includes('termination')) {
+          
+          this.logger.warn(`Intento ${attempt}/${maxRetries} falló, intentando reconectar...`);
+          
+          try {
+            await this.reconnect();
+            continue; // Intentar la operación nuevamente
+          } catch (reconnectError) {
+            this.logger.error('Error al reconectar:', reconnectError);
+          }
+        }
+        
+        // Si no es un error de conexión o ya es el último intento, lanzar el error
+        if (attempt === maxRetries) {
+          throw lastError;
+        }
+        
+        // Esperar antes del siguiente intento
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+    
+    throw lastError!;
   }
 }

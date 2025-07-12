@@ -22,21 +22,24 @@ model Empresa {
   productos     Producto[]
   proveedores   Proveedor[]
   usuarios      Usuario[]
+  auditLogs     AuditLog[]
 }
 
 model Usuario {
-  id              Int      @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   empresaId       Int?
   nombre          String
-  email           String   @unique
+  email           String        @unique
   password        String?
   rol             Rol
-  activo          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  authProvider    String   @default("local")
-  googleId        String?  @unique
-  setupCompletado Boolean  @default(false)
-  empresa         Empresa? @relation(fields: [empresaId], references: [id])
+  activo          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  authProvider    String        @default("local")
+  googleId        String?       @unique
+  setupCompletado Boolean       @default(false)
+  empresa         Empresa?      @relation(fields: [empresaId], references: [id])
+  auditLogs       AuditLog[]
+  refreshTokens   RefreshToken[]
 }
 
 model Producto {
@@ -117,6 +120,36 @@ model PedidoInventario {
   @@index([empresaId, estado])
 }
 
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  jti       String   @unique // JWT ID único
+  createdAt DateTime @default(now())
+  
+  user      Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([jti])
+  @@index([expiresAt])
+  @@index([isRevoked])
+}
+
 model SensorLectura {
   id         Int        @id @default(autoincrement())
   tipo       SensorTipo
@@ -128,6 +161,31 @@ model SensorLectura {
 
   @@index([productoId, tipo])
   @@index([productoId, fecha])
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  userEmail  String
+  userName   String
+  action     String
+  resource   String
+  resourceId Int?
+  details    String
+  ipAddress  String
+  userAgent  String
+  createdAt  DateTime @default(now())
+  empresaId  Int?
+  empresaName String?
+
+  user       Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  empresa    Empresa? @relation(fields: [empresaId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@index([empresaId])
 }
 
 enum TipoIndustria {
@@ -186,11 +244,12 @@ enum EstadoPedido {
   PENDIENTE
   ENVIADO
   RECIBIDO
+  CANCELADO
 }
 
 enum SensorTipo {
-  PESO
   TEMPERATURA
   HUMEDAD
-  RFID
+  PRESION
+  PESO
 }

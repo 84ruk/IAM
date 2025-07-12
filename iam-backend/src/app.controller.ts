@@ -10,6 +10,7 @@ export class AppController {
     private readonly prisma: PrismaService,
   ) {}
 
+  @Public()
   @Get()
   getHello(): object {
     return {

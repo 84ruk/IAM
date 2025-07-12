@@ -45,7 +45,7 @@ export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
   },
   ROPA: {
     label: 'Ropa',
-    camposRelevantes: ['talla', 'color', 'etiquetas'],
+    camposRelevantes: ['talla', 'color'],
     opciones: {
       tallas: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
       colores: ['Negro', 'Blanco', 'Rojo', 'Azul', 'Verde', 'Amarillo', 'Gris', 'Marrón']
@@ -59,7 +59,7 @@ export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
     label: 'Genérica',
     camposRelevantes: [
       'temperaturaOptima', 'humedadOptima', 'ubicacion',
-      'talla', 'color', 'etiquetas',
+      'talla', 'color',
       'sku', 'codigoBarras', 'rfid'
     ],
     opciones: {
@@ -69,7 +69,7 @@ export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
   },
   FARMACIA: {
     label: 'Farmacia',
-    camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion', 'etiquetas', 'codigoBarras', 'rfid'],
+    camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion', 'codigoBarras', 'rfid'],
     sensoresActivos: true,
     mostrarTemperaturaHumedad: true,
     validaciones: {

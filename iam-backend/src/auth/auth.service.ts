@@ -1,6 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import { SecureLoggerService } from '../common/services/secure-logger.service';
+import { ValidationService } from '../common/services/validation.service';
+import { RefreshTokenService } from './refresh-token.service';
+import { EmpresaSetupService } from './services/empresa-setup.service';
+import { OAuthService } from './services/oauth.service';
+import { RateLimiterService } from './services/rate-limiter.service';
 import * as bcrypt from 'bcrypt';
 import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
@@ -8,6 +14,9 @@ import { SetupEmpresaDto } from './dto/setup-empresa.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
 import { JwtAuditService } from './jwt-audit.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 interface JwtUserPayload {
   id: number;
@@ -23,11 +32,31 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private prisma: PrismaService,
-    private jwtAuditService: JwtAuditService
+    private jwtAuditService: JwtAuditService,
+    private secureLogger: SecureLoggerService,
+    private validationService: ValidationService,
+    private refreshTokenService: RefreshTokenService,
+    private empresaSetupService: EmpresaSetupService,
+    private oauthService: OAuthService,
+    private rateLimiterService: RateLimiterService
   ) {}
 
-  async validateUser(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
+  async validateUser(email: string, password: string, ip?: string) {
+    // Validar email
+    const validatedEmail = this.validationService.validateEmail(email);
+    
+    // Verificar rate limiting
+    const rateLimitResult = await this.rateLimiterService.checkRateLimit(
+      validatedEmail,
+      'login',
+      ip
+    );
+
+    if (!rateLimitResult.allowed) {
+      throw new UnauthorizedException('Demasiados intentos de inicio de sesión. Intenta nuevamente más tarde.');
+    }
+
+    const user = await this.usersService.findByEmail(validatedEmail);
     if (!user) {
       // No revelar si el usuario existe o no (seguridad)
       throw new UnauthorizedException('Credenciales inválidas');
@@ -39,9 +68,14 @@ export class AuthService {
 
     const passwordValid = await bcrypt.compare(password, user.password as string);
     if (!passwordValid) {
+      // Log de intento fallido
+      this.secureLogger.logLoginFailure(validatedEmail, 'Contraseña incorrecta', ip);
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
+    // Registrar éxito y resetear rate limiting
+    await this.rateLimiterService.recordSuccess(validatedEmail, 'login', ip);
+    
     return user;
   }
 
@@ -82,46 +116,57 @@ export class AuthService {
     
     const token = this.jwtService.sign(payload);
     
-    // Log del login exitoso
+    // Crear refresh token
+    const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
+    
+    // Log del login exitoso con información enmascarada
+    this.secureLogger.logLoginSuccess(user.email, user.id);
     this.jwtAuditService.logLogin(user.id, user.email);
     
-    return token;
+    return { token, refreshToken };
   }
 
 
-//BORRAR
-  async registerEmpresa(dto: RegisterEmpresaDto) {
-    const existingUser = await this.prisma.usuario.findUnique({
-      where: { email: dto.email },
-    });
+  async registerEmpresa(dto: RegisterEmpresaDto, ip?: string) {
+    // Validar rate limiting para registro
+    const rateLimitResult = await this.rateLimiterService.checkRateLimit(
+      dto.email,
+      'registration',
+      ip
+    );
 
-    if (existingUser) {
-      throw new BadRequestException('Ya existe un usuario registrado con este correo');
+    if (!rateLimitResult.allowed) {
+      throw new BadRequestException('Demasiados intentos de registro. Intenta nuevamente más tarde.');
     }
-  // 1. Crear empresa
-    const empresa = await this.prisma.empresa.create({
-      data: {
-        nombre: dto.nombreEmpresa,
-        emailContacto: dto.email,
-        TipoIndustria: dto.industria,
-      },
+
+    // Validar datos usando el servicio de validación
+    const validatedData = this.validationService.validateObject(dto, {
+      email: (email) => this.validationService.validateEmail(email),
+      password: (password) => this.validationService.validatePassword(password),
+      nombreUsuario: (nombre) => this.validationService.validateName(nombre, 'nombre de usuario'),
+      nombreEmpresa: (nombre) => this.validationService.validateEmpresaName(nombre),
     });
 
-    // 2. Crear usuario ADMIN vinculado a empresa
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-
-    const usuario = await this.prisma.usuario.create({
-      data: {
-        nombre: dto.nombreUsuario,
-        email: dto.email,
-        password: hashedPassword,
-        rol: 'SUPERADMIN',
-        empresaId: empresa.id,
-      },
-    });
-
-    const usuarioParaLogin = { ...usuario, empresaId: usuario.empresaId ?? undefined };
-    return this.login(usuarioParaLogin);
+    // Usar el servicio especializado para registrar empresa
+    const result = await this.empresaSetupService.registerEmpresa(validatedData);
+    
+    // Registrar éxito y resetear rate limiting
+    await this.rateLimiterService.recordSuccess(dto.email, 'registration', ip);
+    
+    // Generar tokens
+    const usuarioParaLogin = { 
+      id: result.user.id,
+      email: result.user.email,
+      rol: result.user.rol,
+      empresaId: result.user.empresaId ?? undefined,
+    };
+    const { token, refreshToken } = await this.login(usuarioParaLogin);
+    
+    return {
+      ...result,
+      token,
+      refreshToken,
+    };
   }
 
   async getCurrentUser(res: any) {
@@ -147,79 +192,30 @@ export class AuthService {
 
 
 
-  async loginWithGoogle(googleUser: any) {
+  async loginWithGoogle(googleUser: any, ip?: string) {
+    // Verificar rate limiting para Google auth
+    const rateLimitResult = await this.rateLimiterService.checkRateLimit(
+      ip || 'unknown',
+      'googleAuth',
+      ip
+    );
+
+    if (!rateLimitResult.allowed) {
+      throw new BadRequestException('Demasiados intentos de autenticación con Google. Intenta nuevamente más tarde.');
+    }
+
     try {
-      // Validar datos del usuario de Google
-      if (!googleUser || !googleUser.email || !googleUser.googleId) {
-        throw new BadRequestException('Datos de Google OAuth inválidos');
-      }
-
-      // Buscar usuario por googleId o email
-      let user = await this.prisma.usuario.findFirst({
-        where: {
-          OR: [
-            { googleId: googleUser.googleId },
-            { email: googleUser.email },
-          ],
-        },
-      });
-
-      // Si no existe, crear usuario automáticamente
-      if (!user) {
-        // Verificar que el email no esté en uso por otro usuario
-        const existingUserWithEmail = await this.prisma.usuario.findUnique({
-          where: { email: googleUser.email },
-        });
-
-        if (existingUserWithEmail && existingUserWithEmail.authProvider !== 'google') {
-          throw new BadRequestException('Este email ya está registrado con otro método de autenticación');
-        }
-
-        const data: any = {
-          nombre: googleUser.nombre || 'Usuario Google',
-          email: googleUser.email,
-          googleId: googleUser.googleId,
-          authProvider: 'google',
-          rol: 'ADMIN', // Rol por defecto, se puede cambiar después
-          setupCompletado: false, // Necesitará configurar empresa
-        };
-        
-        user = await this.prisma.usuario.create({ data });
-        
-        // Log del registro exitoso
-        this.jwtAuditService.logJwtEvent('GOOGLE_REGISTER', user.id, user.email, {
-          provider: 'google',
-          googleId: googleUser.googleId,
-        });
-      } else {
-        // Si el usuario existe pero no tiene googleId, actualizarlo
-        if (!user.googleId) {
-          user = await this.prisma.usuario.update({
-            where: { id: user.id },
-            data: { 
-              googleId: googleUser.googleId,
-              authProvider: 'google',
-              nombre: googleUser.nombre || user.nombre,
-            },
-          });
-        }
-      }
-
-      // Emitir JWT igual que en login tradicional
-      const userParaLogin = { ...user, empresaId: user.empresaId ?? undefined };
-      const token = await this.login(userParaLogin);
+      // Usar el servicio especializado de OAuth
+      const result = await this.oauthService.authenticateWithGoogle(googleUser);
       
-      // Log del login exitoso
-      this.jwtAuditService.logJwtEvent('GOOGLE_LOGIN', user.id, user.email, {
-        provider: 'google',
-        googleId: googleUser.googleId,
-      });
-
-      return token;
+      // Registrar éxito y resetear rate limiting
+      await this.rateLimiterService.recordSuccess(ip || 'unknown', 'googleAuth', ip);
+      
+      return result;
     } catch (error) {
       this.jwtAuditService.logJwtEvent('GOOGLE_ERROR', undefined, googleUser?.email, {
-        error: error.message,
         provider: 'google',
+        error: error.message,
       });
       throw error;
     }
@@ -253,7 +249,8 @@ export class AuthService {
 
       const usuario = await this.prisma.usuario.create({ data });
       
-      // Log del registro exitoso
+      // Log del registro exitoso con información enmascarada
+      this.secureLogger.logUserRegistration(usuario.email, usuario.nombre, usuario.id);
       this.jwtAuditService.logJwtEvent('USER_REGISTER', usuario.id, usuario.email, {
         provider: 'local',
         method: 'email_password',
@@ -261,11 +258,12 @@ export class AuthService {
 
       // Emitir JWT para login automático
       const usuarioParaLogin = { ...usuario, empresaId: usuario.empresaId ?? undefined };
-      const token = await this.login(usuarioParaLogin);
+      const { token, refreshToken } = await this.login(usuarioParaLogin);
 
       return {
         message: 'Usuario registrado exitosamente. Completa la configuración de tu empresa.',
         token,
+        refreshToken,
         user: {
           id: usuario.id,
           nombre: usuario.nombre,
@@ -276,6 +274,7 @@ export class AuthService {
         needsSetup: true,
       };
     } catch (error) {
+      this.secureLogger.logSecurityError(error.message, undefined);
       this.jwtAuditService.logJwtEvent('USER_REGISTER_ERROR', undefined, dto.email, {
         error: error.message,
         provider: 'local',
@@ -354,11 +353,12 @@ export class AuthService {
         isolationLevel: 'Serializable', // Nivel más alto de aislamiento
       });
 
-      // Log de setup completado exitosamente
-      this.jwtAuditService.logSetupCompleted(userId, result.updatedUser.email, result.empresa.id, {
-        empresaName: result.empresa.nombre,
-        tipoIndustria: result.empresa.TipoIndustria,
-      });
+          // Log de setup completado exitosamente con información enmascarada
+    this.secureLogger.logEmpresaCreation(result.empresa.nombre, result.updatedUser.email, result.empresa.id);
+    this.jwtAuditService.logSetupCompleted(userId, result.updatedUser.email, result.empresa.id, {
+      empresaName: result.empresa.nombre,
+      tipoIndustria: result.empresa.TipoIndustria,
+    });
 
       // Generar nuevo JWT con la información de empresa actualizada
       const userParaLogin = { 
@@ -368,11 +368,12 @@ export class AuthService {
         empresaId: result.empresa.id,
         tipoIndustria: result.empresa.TipoIndustria 
       };
-      const newToken = await this.login(userParaLogin);
+      const { token: newToken, refreshToken } = await this.login(userParaLogin);
 
       return {
         message: 'Empresa configurada exitosamente',
         token: newToken, // Incluir el nuevo token
+        refreshToken, // Incluir el refresh token
         empresa: {
           id: result.empresa.id,
           nombre: result.empresa.nombre,
@@ -388,7 +389,8 @@ export class AuthService {
         },
       };
     } catch (error) {
-      // Log de error en setup
+      // Log de error en setup con información enmascarada
+      this.secureLogger.logSecurityError(error.message, userId);
       this.jwtAuditService.logSetupFailed(userId, 'unknown', error.message, {
         empresaName: dto.nombreEmpresa,
         tipoIndustria: dto.tipoIndustria,
@@ -471,6 +473,188 @@ export class AuthService {
         setupCompletado: user.setupCompletado,
         isComplete: !needsSetup,
       },
+    };
+  }
+
+  async changePassword(userId: number, changePasswordDto: ChangePasswordDto) {
+    // Validar que las contraseñas coincidan
+    if (changePasswordDto.newPassword !== changePasswordDto.confirmPassword) {
+      throw new BadRequestException('Las contraseñas no coinciden');
+    }
+
+    // Obtener el usuario
+    const user = await this.prisma.usuario.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    // Verificar que el usuario tenga contraseña (no es OAuth)
+    if (!user.password) {
+      throw new BadRequestException('No puedes cambiar la contraseña de una cuenta OAuth');
+    }
+
+    // Verificar la contraseña actual
+    const isCurrentPasswordValid = await bcrypt.compare(
+      changePasswordDto.currentPassword,
+      user.password
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('La contraseña actual es incorrecta');
+    }
+
+    // Verificar que la nueva contraseña sea diferente
+    if (changePasswordDto.currentPassword === changePasswordDto.newPassword) {
+      throw new BadRequestException('La nueva contraseña debe ser diferente a la actual');
+    }
+
+    // Hashear la nueva contraseña
+    const hashedNewPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
+
+    // Actualizar la contraseña
+    await this.prisma.usuario.update({
+      where: { id: userId },
+      data: { password: hashedNewPassword }
+    });
+
+    // Log de cambio de contraseña exitoso
+    this.secureLogger.logPasswordChange(userId, true);
+
+    return {
+      message: 'Contraseña cambiada exitosamente',
+      success: true
+    };
+  }
+
+  async forgotPassword(email: string) {
+    // Verificar que el usuario existe
+    const user = await this.prisma.usuario.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      // Por seguridad, no revelamos si el email existe o no
+      return {
+        message: 'Si el email existe en nuestro sistema, recibirás un enlace para restablecer tu contraseña',
+        success: true
+      };
+    }
+
+    // Verificar que el usuario no sea OAuth
+    if (!user.password) {
+      return {
+        message: 'Este email está asociado a una cuenta OAuth. Usa el método de autenticación original.',
+        success: false
+      };
+    }
+
+    // Generar token único
+    const token = uuidv4();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+    // Guardar token en la base de datos
+    await this.prisma.passwordResetToken.create({
+      data: {
+        email,
+        token,
+        expiresAt
+      }
+    });
+
+    // En un entorno real, aquí enviarías el email
+    // Por ahora, solo retornamos el token para pruebas
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+
+    console.log('🔗 Enlace de recuperación:', resetUrl);
+
+    return {
+      message: 'Se ha enviado un enlace de recuperación a tu email',
+      success: true,
+      // Solo en desarrollo
+      ...(process.env.NODE_ENV === 'development' && { resetUrl })
+    };
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    // Validar que las contraseñas coincidan
+    if (resetPasswordDto.newPassword !== resetPasswordDto.confirmPassword) {
+      throw new BadRequestException('Las contraseñas no coinciden');
+    }
+
+    // Buscar el token
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { token: resetPasswordDto.token }
+    });
+
+    if (!resetToken) {
+      throw new BadRequestException('Token inválido');
+    }
+
+    if (resetToken.used) {
+      throw new BadRequestException('Este token ya ha sido utilizado');
+    }
+
+    if (resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('El token ha expirado');
+    }
+
+    // Buscar el usuario
+    const user = await this.prisma.usuario.findUnique({
+      where: { email: resetToken.email }
+    });
+
+    if (!user) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    // Hashear la nueva contraseña
+    const hashedPassword = await bcrypt.hash(resetPasswordDto.newPassword, 10);
+
+    // Actualizar la contraseña del usuario
+    await this.prisma.usuario.update({
+      where: { id: user.id },
+      data: { password: hashedPassword }
+    });
+
+    // Marcar el token como usado
+    await this.prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { used: true }
+    });
+
+    // Log de reset de contraseña exitoso
+    this.secureLogger.logPasswordReset(resetToken.email, true);
+
+    return {
+      message: 'Contraseña restablecida exitosamente',
+      success: true
+    };
+  }
+
+  async verifyResetToken(token: string) {
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { token }
+    });
+
+    if (!resetToken) {
+      throw new BadRequestException('Token inválido');
+    }
+
+    if (resetToken.used) {
+      throw new BadRequestException('Este token ya ha sido utilizado');
+    }
+
+    if (resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('El token ha expirado');
+    }
+
+    return {
+      message: 'Token válido',
+      success: true,
+      email: resetToken.email
     };
   }
 }

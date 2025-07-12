@@ -19,7 +19,9 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:security": "node test-security-improvements.js"
+    "test:security": "node test-security-improvements.js",
+    "generate:secrets": "node scripts/generate-secrets.js",
+    "security:check": "node -e \"try { require('./src/config/security.config'); console.log('✅ Configuración de seguridad válida'); } catch(e) { console.error('❌ Error en configuración:', e.message); process.exit(1); }\""
   },
   "dependencies": {
     "@nestjs/class-validator": "^0.13.4",
@@ -38,6 +40,9 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
+    "express-rate-limit": "^7.5.1",
+    "express-slow-down": "^2.1.0",
+    "helmet": "^8.1.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
