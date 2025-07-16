@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SecureLoggerService } from '../../common/services/secure-logger.service';
 import { JwtAuditService } from '../jwt-audit.service';
@@ -25,7 +29,9 @@ export class EmpresaSetupService {
     });
 
     if (existingUser) {
-      throw new BadRequestException('Ya existe un usuario registrado con este correo');
+      throw new BadRequestException(
+        'Ya existe un usuario registrado con este correo',
+      );
     }
 
     // Crear empresa
@@ -52,12 +58,21 @@ export class EmpresaSetupService {
     });
 
     // Log de la creación
-    this.secureLogger.logEmpresaCreation(empresa.nombre, usuario.email, empresa.id);
-    this.jwtAuditService.logJwtEvent('EMPRESA_REGISTER', usuario.id, usuario.email, {
-      empresaId: empresa.id,
-      empresaNombre: empresa.nombre,
-      industria: empresa.TipoIndustria,
-    });
+    this.secureLogger.logEmpresaCreation(
+      empresa.nombre,
+      usuario.email,
+      empresa.id,
+    );
+    this.jwtAuditService.logJwtEvent(
+      'EMPRESA_REGISTER',
+      usuario.id,
+      usuario.email,
+      {
+        empresaId: empresa.id,
+        empresaNombre: empresa.nombre,
+        industria: empresa.TipoIndustria,
+      },
+    );
 
     return {
       message: 'Empresa registrada exitosamente',
@@ -90,7 +105,9 @@ export class EmpresaSetupService {
     }
 
     if (user.setupCompletado) {
-      throw new BadRequestException('El usuario ya tiene una empresa configurada');
+      throw new BadRequestException(
+        'El usuario ya tiene una empresa configurada',
+      );
     }
 
     // Verificar si ya existe una empresa con ese nombre
@@ -122,7 +139,11 @@ export class EmpresaSetupService {
     });
 
     // Log de la configuración
-    this.secureLogger.logEmpresaCreation(empresa.nombre, user.email, empresa.id);
+    this.secureLogger.logEmpresaCreation(
+      empresa.nombre,
+      user.email,
+      empresa.id,
+    );
     this.jwtAuditService.logJwtEvent('EMPRESA_SETUP', userId, user.email, {
       empresaId: empresa.id,
       empresaNombre: empresa.nombre,
@@ -181,11 +202,13 @@ export class EmpresaSetupService {
       email: user.email,
       rol: user.rol,
       setupCompletado: user.setupCompletado,
-      empresa: user.empresa ? {
-        id: user.empresa.id,
-        nombre: user.empresa.nombre,
-        tipoIndustria: user.empresa.TipoIndustria,
-      } : null,
+      empresa: user.empresa
+        ? {
+            id: user.empresa.id,
+            nombre: user.empresa.nombre,
+            tipoIndustria: user.empresa.TipoIndustria,
+          }
+        : null,
     };
   }
 
@@ -204,7 +227,11 @@ export class EmpresaSetupService {
     });
 
     if (!user) {
-      return { isValid: false, needsSetup: true, errors: ['Usuario no encontrado'] };
+      return {
+        isValid: false,
+        needsSetup: true,
+        errors: ['Usuario no encontrado'],
+      };
     }
 
     const errors: string[] = [];
@@ -221,18 +248,21 @@ export class EmpresaSetupService {
       errors.push('Empresa asignada no existe');
     }
 
-    const needsSetup = !user.setupCompletado || !user.empresaId || !user.empresa;
+    const needsSetup =
+      !user.setupCompletado || !user.empresaId || !user.empresa;
     const isValid = errors.length === 0;
 
     return {
       isValid,
       needsSetup,
-      empresa: user.empresa ? {
-        id: user.empresa.id,
-        nombre: user.empresa.nombre,
-        tipoIndustria: user.empresa.TipoIndustria,
-      } : null,
+      empresa: user.empresa
+        ? {
+            id: user.empresa.id,
+            nombre: user.empresa.nombre,
+            tipoIndustria: user.empresa.TipoIndustria,
+          }
+        : null,
       errors: errors.length > 0 ? errors : undefined,
     };
   }
-} 
+}

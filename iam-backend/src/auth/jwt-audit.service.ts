@@ -6,9 +6,15 @@ import * as path from 'path';
 export class JwtAuditService {
   private readonly logger = new Logger(JwtAuditService.name);
   private readonly auditEnabled = process.env.JWT_AUDIT_ENABLED === 'true';
-  private readonly auditLogPath = process.env.JWT_AUDIT_LOG_PATH || './logs/jwt-audit.log';
+  private readonly auditLogPath =
+    process.env.JWT_AUDIT_LOG_PATH || './logs/jwt-audit.log';
 
-  logJwtEvent(event: string, userId?: number, email?: string, additionalData?: any) {
+  logJwtEvent(
+    event: string,
+    userId?: number,
+    email?: string,
+    additionalData?: any,
+  ) {
     if (!this.auditEnabled) return;
 
     const logEntry = {
@@ -50,11 +56,19 @@ export class JwtAuditService {
   }
 
   logInvalidToken(reason: string, additionalData?: any) {
-    this.logJwtEvent('INVALID_TOKEN', undefined, undefined, { reason, ...additionalData });
+    this.logJwtEvent('INVALID_TOKEN', undefined, undefined, {
+      reason,
+      ...additionalData,
+    });
   }
 
   // Nuevos métodos para auditoría de setup
-  logSetupCheck(userId: number, email: string, needsSetup: boolean, additionalData?: any) {
+  logSetupCheck(
+    userId: number,
+    email: string,
+    needsSetup: boolean,
+    additionalData?: any,
+  ) {
     this.logJwtEvent('SETUP_CHECK', userId, email, {
       needsSetup,
       action: 'check',
@@ -69,7 +83,12 @@ export class JwtAuditService {
     });
   }
 
-  logSetupCompleted(userId: number, email: string, empresaId: number, additionalData?: any) {
+  logSetupCompleted(
+    userId: number,
+    email: string,
+    empresaId: number,
+    additionalData?: any,
+  ) {
     this.logJwtEvent('SETUP_COMPLETED', userId, email, {
       action: 'complete',
       empresaId,
@@ -77,7 +96,12 @@ export class JwtAuditService {
     });
   }
 
-  logSetupFailed(userId: number, email: string, error: string, additionalData?: any) {
+  logSetupFailed(
+    userId: number,
+    email: string,
+    error: string,
+    additionalData?: any,
+  ) {
     this.logJwtEvent('SETUP_FAILED', userId, email, {
       action: 'fail',
       error,
@@ -85,7 +109,13 @@ export class JwtAuditService {
     });
   }
 
-  logGuardAccess(userId: number, email: string, guardType: string, allowed: boolean, additionalData?: any) {
+  logGuardAccess(
+    userId: number,
+    email: string,
+    guardType: string,
+    allowed: boolean,
+    additionalData?: any,
+  ) {
     this.logJwtEvent('GUARD_ACCESS', userId, email, {
       guardType,
       allowed,
@@ -94,7 +124,13 @@ export class JwtAuditService {
     });
   }
 
-  logEmpresaValidation(userId: number, email: string, empresaId: number, isValid: boolean, additionalData?: any) {
+  logEmpresaValidation(
+    userId: number,
+    email: string,
+    empresaId: number,
+    isValid: boolean,
+    additionalData?: any,
+  ) {
     this.logJwtEvent('EMPRESA_VALIDATION', userId, email, {
       empresaId,
       isValid,
@@ -103,11 +139,16 @@ export class JwtAuditService {
     });
   }
 
-  logRaceCondition(userId: number, email: string, operation: string, additionalData?: any) {
+  logRaceCondition(
+    userId: number,
+    email: string,
+    operation: string,
+    additionalData?: any,
+  ) {
     this.logJwtEvent('RACE_CONDITION', userId, email, {
       operation,
       action: 'race_detected',
       ...additionalData,
     });
   }
-} 
+}

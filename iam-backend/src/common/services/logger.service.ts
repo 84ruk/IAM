@@ -46,7 +46,10 @@ export class AppLoggerService {
    */
   debugSensitive(message: string, data?: any, context?: string) {
     if (this.isDevelopment && this.shouldLog('debug')) {
-      this.logger.debug(`${message} ${data ? JSON.stringify(data, null, 2) : ''}`, context);
+      this.logger.debug(
+        `${message} ${data ? JSON.stringify(data, null, 2) : ''}`,
+        context,
+      );
     }
   }
 
@@ -56,17 +59,20 @@ export class AppLoggerService {
   audit(event: string, userId?: number, email?: string, additionalData?: any) {
     const auditMessage = `AUDIT: ${event} - User: ${email || userId || 'unknown'}`;
     this.logger.log(auditMessage, 'AUDIT');
-    
+
     // En producción, también escribir a archivo de auditoría
     if (this.isProduction) {
       // Aquí se podría implementar escritura a archivo o base de datos
-      this.logger.log(`AUDIT_FILE: ${JSON.stringify({
-        timestamp: new Date().toISOString(),
-        event,
-        userId,
-        email,
-        ...additionalData
-      })}`, 'AUDIT_FILE');
+      this.logger.log(
+        `AUDIT_FILE: ${JSON.stringify({
+          timestamp: new Date().toISOString(),
+          event,
+          userId,
+          email,
+          ...additionalData,
+        })}`,
+        'AUDIT_FILE',
+      );
     }
   }
 
@@ -74,7 +80,8 @@ export class AppLoggerService {
    * Log de performance
    */
   performance(operation: string, duration: number, context?: string) {
-    if (this.shouldLog('info') || duration > 1000) { // Log si es lento (>1s)
+    if (this.shouldLog('info') || duration > 1000) {
+      // Log si es lento (>1s)
       this.logger.log(`PERF: ${operation} took ${duration}ms`, context);
     }
   }
@@ -86,22 +93,29 @@ export class AppLoggerService {
     const levels = ['error', 'warn', 'info', 'debug'];
     const currentLevelIndex = levels.indexOf(this.logLevel);
     const requestedLevelIndex = levels.indexOf(level);
-    
+
     return requestedLevelIndex <= currentLevelIndex;
   }
 
   /**
    * Log de información de seguridad (sin datos sensibles)
    */
-  security(event: string, userId?: number, email?: string, additionalData?: any) {
+  security(
+    event: string,
+    userId?: number,
+    email?: string,
+    additionalData?: any,
+  ) {
     const securityData = {
       event,
       userId,
-      email: email ? `${email.substring(0, 3)}***@${email.split('@')[1]}` : undefined,
+      email: email
+        ? `${email.substring(0, 3)}***@${email.split('@')[1]}`
+        : undefined,
       timestamp: new Date().toISOString(),
-      ...additionalData
+      ...additionalData,
     };
-    
+
     this.logger.log(`SECURITY: ${JSON.stringify(securityData)}`, 'SECURITY');
   }
-} 
+}

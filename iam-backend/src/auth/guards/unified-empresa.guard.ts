@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtUser } from '../interfaces/jwt-user.interface';
 import { SKIP_EMPRESA_CHECK_KEY } from '../decorators/skip-empresa-check.decorator';
@@ -12,14 +17,14 @@ const ENDPOINT_CONFIG = {
   // Endpoints que siempre requieren empresa (CRUD de datos)
   ALWAYS_REQUIRE_EMPRESA: new Set([
     '/productos',
-    '/proveedores', 
+    '/proveedores',
     '/movimientos',
     '/pedidos',
     '/inventario',
     '/dashboard',
-    '/empresas'
+    '/empresas',
   ]),
-  
+
   // Endpoints que pueden funcionar sin empresa
   CAN_WORK_WITHOUT_EMPRESA: new Set([
     '/auth/me',
@@ -27,15 +32,15 @@ const ENDPOINT_CONFIG = {
     '/auth/setup-empresa',
     '/auth/logout',
     '/auth/google/status',
-    '/users' // Para admin global
+    '/users', // Para admin global
   ]),
-  
+
   // Endpoints de setup y configuración
   SETUP_ENDPOINTS: new Set([
     '/auth/setup-empresa',
     '/auth/needs-setup',
-    '/empresas/create'
-  ])
+    '/empresas/create',
+  ]),
 } as const;
 
 @Injectable()
@@ -70,32 +75,54 @@ export class UnifiedEmpresaGuard implements CanActivate {
     );
 
     // 3. Lógica inteligente basada en el tipo de endpoint
-    const validationResult = this.determineValidationStrategy(currentUrl, isEmpresaRequired);
-    
+    const validationResult = this.determineValidationStrategy(
+      currentUrl,
+      isEmpresaRequired,
+    );
+
     // 4. Aplicar la estrategia de validación correspondiente
     switch (validationResult.strategy) {
       case 'SKIP_VALIDATION':
         return true;
-        
+
       case 'REQUIRE_EMPRESA':
-        return await this.validateEmpresaAccess(user, request, validationResult.reason);
-        
+        return await this.validateEmpresaAccess(
+          user,
+          request,
+          validationResult.reason,
+        );
+
       case 'ALLOW_WITHOUT_EMPRESA':
         return true;
-        
+
       case 'CONDITIONAL_VALIDATION':
-        return await this.validateConditionalAccess(user, request, validationResult.reason);
-        
+        return await this.validateConditionalAccess(
+          user,
+          request,
+          validationResult.reason,
+        );
+
       default:
-        return await this.validateEmpresaAccess(user, request, 'default_requirement');
+        return await this.validateEmpresaAccess(
+          user,
+          request,
+          'default_requirement',
+        );
     }
   }
 
   /**
    * Determina la estrategia de validación basada en el endpoint y configuración
    */
-  private determineValidationStrategy(url: string, isEmpresaRequired: boolean): {
-    strategy: 'SKIP_VALIDATION' | 'REQUIRE_EMPRESA' | 'ALLOW_WITHOUT_EMPRESA' | 'CONDITIONAL_VALIDATION';
+  private determineValidationStrategy(
+    url: string,
+    isEmpresaRequired: boolean,
+  ): {
+    strategy:
+      | 'SKIP_VALIDATION'
+      | 'REQUIRE_EMPRESA'
+      | 'ALLOW_WITHOUT_EMPRESA'
+      | 'CONDITIONAL_VALIDATION';
     reason: string;
   } {
     // Si el endpoint requiere empresa explícitamente
@@ -110,7 +137,10 @@ export class UnifiedEmpresaGuard implements CanActivate {
 
     // Verificar si puede funcionar sin empresa
     if (ENDPOINT_CONFIG.CAN_WORK_WITHOUT_EMPRESA.has(url)) {
-      return { strategy: 'ALLOW_WITHOUT_EMPRESA', reason: 'can_work_without_empresa' };
+      return {
+        strategy: 'ALLOW_WITHOUT_EMPRESA',
+        reason: 'can_work_without_empresa',
+      };
     }
 
     // Verificar si siempre requiere empresa
@@ -125,18 +155,26 @@ export class UnifiedEmpresaGuard implements CanActivate {
   /**
    * Validación condicional para endpoints de setup
    */
-  private async validateConditionalAccess(user: JwtUser, request: any, reason: string): Promise<boolean> {
+  private async validateConditionalAccess(
+    user: JwtUser,
+    request: any,
+    reason: string,
+  ): Promise<boolean> {
     if (!user) {
-      this.logGuardAccess(0, 'unknown', false, { reason: 'no_user_in_request', path: request.url, method: request.method });
+      this.logGuardAccess(0, 'unknown', false, {
+        reason: 'no_user_in_request',
+        path: request.url,
+        method: request.method,
+      });
       throw new ForbiddenException('Usuario no autenticado');
     }
 
     // Para endpoints de setup, permitir acceso si no tiene empresa configurada
     if (!user.empresaId) {
-      this.logGuardAccess(user.id, user.email, true, { 
-        reason: 'setup_allowed_without_empresa', 
-        path: request.url, 
-        method: request.method 
+      this.logGuardAccess(user.id, user.email, true, {
+        reason: 'setup_allowed_without_empresa',
+        path: request.url,
+        method: request.method,
       });
       return true;
     }
@@ -148,9 +186,17 @@ export class UnifiedEmpresaGuard implements CanActivate {
   /**
    * Validación principal de acceso a empresa
    */
-  private async validateEmpresaAccess(user: JwtUser, request: any, reason: string): Promise<boolean> {
+  private async validateEmpresaAccess(
+    user: JwtUser,
+    request: any,
+    reason: string,
+  ): Promise<boolean> {
     if (!user) {
-      this.logGuardAccess(0, 'unknown', false, { reason: 'no_user_in_request', path: request.url, method: request.method });
+      this.logGuardAccess(0, 'unknown', false, {
+        reason: 'no_user_in_request',
+        path: request.url,
+        method: request.method,
+      });
       throw new ForbiddenException('Usuario no autenticado');
     }
 
@@ -162,12 +208,13 @@ export class UnifiedEmpresaGuard implements CanActivate {
         method: request.method,
         validationReason: reason,
       });
-      
+
       throw new ForbiddenException({
-        message: 'Se requiere configurar una empresa para acceder a este recurso',
+        message:
+          'Se requiere configurar una empresa para acceder a este recurso',
         code: 'EMPRESA_REQUIRED',
         needsSetup: true,
-        redirectTo: '/setup-empresa'
+        redirectTo: '/setup-empresa',
       });
     }
 
@@ -181,12 +228,12 @@ export class UnifiedEmpresaGuard implements CanActivate {
           path: request.url,
           method: request.method,
         });
-        
+
         throw new ForbiddenException({
           message: 'La empresa asociada no existe o ha sido eliminada',
           code: 'EMPRESA_NOT_FOUND',
           needsSetup: true,
-          redirectTo: '/setup-empresa'
+          redirectTo: '/setup-empresa',
         });
       }
 
@@ -218,7 +265,7 @@ export class UnifiedEmpresaGuard implements CanActivate {
         message: 'Error al validar la empresa',
         code: 'EMPRESA_VALIDATION_ERROR',
         needsSetup: true,
-        redirectTo: '/setup-empresa'
+        redirectTo: '/setup-empresa',
       });
     }
   }
@@ -226,11 +273,34 @@ export class UnifiedEmpresaGuard implements CanActivate {
   /**
    * Métodos de logging optimizados
    */
-  private logGuardAccess(userId: number, email: string, success: boolean, metadata: any): void {
-    this.jwtAuditService.logGuardAccess(userId, email, 'UnifiedEmpresaGuard', success, metadata);
+  private logGuardAccess(
+    userId: number,
+    email: string,
+    success: boolean,
+    metadata: any,
+  ): void {
+    this.jwtAuditService.logGuardAccess(
+      userId,
+      email,
+      'UnifiedEmpresaGuard',
+      success,
+      metadata,
+    );
   }
 
-  private logEmpresaValidation(userId: number, email: string, empresaId: number, success: boolean, metadata: any): void {
-    this.jwtAuditService.logEmpresaValidation(userId, email, empresaId, success, metadata);
+  private logEmpresaValidation(
+    userId: number,
+    email: string,
+    empresaId: number,
+    success: boolean,
+    metadata: any,
+  ): void {
+    this.jwtAuditService.logEmpresaValidation(
+      userId,
+      email,
+      empresaId,
+      success,
+      metadata,
+    );
   }
-} 
+}

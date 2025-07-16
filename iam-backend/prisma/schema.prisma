@@ -17,32 +17,32 @@ model Empresa {
   fechaCreacion DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
   TipoIndustria TipoIndustria          @default(GENERICA)
+  auditLogs     AuditLog[]
   movimientos   MovimientoInventario[]
   pedidos       PedidoInventario[]
   productos     Producto[]
   proveedores   Proveedor[]
   usuarios      Usuario[]
-  auditLogs     AuditLog[]
 }
 
 model Usuario {
-  id              Int           @id @default(autoincrement())
-  empresaId       Int?
-  nombre          String
-  email           String        @unique
-  password        String?
-  rol             Rol
-  activo          Boolean       @default(true)
-  createdAt       DateTime      @default(now())
-  authProvider    String        @default("local")
-  googleId        String?       @unique
-  setupCompletado Boolean       @default(false)
-  empresa         Empresa?      @relation(fields: [empresaId], references: [id])
-  auditLogs       AuditLog[]
-  refreshTokens   RefreshToken[]
+  id                Int                @id @default(autoincrement())
+  empresaId         Int?
+  nombre            String
+  email             String             @unique
+  password          String?
+  rol               Rol
+  activo            Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  authProvider      String             @default("local")
+  googleId          String?            @unique
+  setupCompletado   Boolean            @default(false)
+  auditLogs         AuditLog[]
   blacklistedTokens BlacklistedToken[]
-  twoFactorAuth   TwoFactorAuth?
-  securityEvents  SecurityEvent[]
+  refreshTokens     RefreshToken[]
+  securityEvents    SecurityEvent[]
+  twoFactorAuth     TwoFactorAuth?
+  empresa           Empresa?           @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId, rol])
   @@index([empresaId, activo])
@@ -76,7 +76,7 @@ model Producto {
   unidad            UnidadMedida           @default(UNIDAD)
   estado            EstadoProducto         @default(ACTIVO)
   etiquetas         String[]
-  version           Int                    @default(1) // Campo para versionado optimista
+  version           Int                    @default(1)
   movimientos       MovimientoInventario[]
   pedidos           PedidoInventario[]
   empresa           Empresa                @relation(fields: [empresaId], references: [id])
@@ -85,13 +85,13 @@ model Producto {
 
   @@index([empresaId, etiquetas])
   @@index([empresaId, estado])
-  @@index([empresaId, stock(sort: Asc)])
+  @@index([empresaId, stock])
   @@index([empresaId, tipoProducto])
   @@index([proveedorId])
   @@index([codigoBarras])
   @@index([sku])
   @@index([rfid])
-  @@index([nombre(sort: Asc)])
+  @@index([nombre])
 }
 
 model MovimientoInventario {
@@ -128,7 +128,7 @@ model Proveedor {
   @@unique([empresaId, nombre])
   @@unique([empresaId, email])
   @@index([empresaId, estado])
-  @@index([empresaId, nombre(sort: Asc)])
+  @@index([empresaId, nombre])
   @@index([email])
 }
 
@@ -165,9 +165,8 @@ model RefreshToken {
   userId    Int
   expiresAt DateTime
   isRevoked Boolean  @default(false)
-  jti       String   @unique // JWT ID único
+  jti       String   @unique
   createdAt DateTime @default(now())
-  
   user      Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -184,7 +183,6 @@ model BlacklistedToken {
   reason    String   @default("manual_revocation")
   expiresAt DateTime
   createdAt DateTime @default(now())
-  
   user      Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -194,38 +192,36 @@ model BlacklistedToken {
 }
 
 model TwoFactorAuth {
-  id                      Int       @id @default(autoincrement())
-  userId                  Int       @unique
-  secret                  String
-  backupCodes             String[]
-  isEnabled               Boolean   @default(false)
-  setupCompleted          Boolean   @default(false)
-  lastUsed                DateTime?
-  lastUsedBackupCode      DateTime?
-  enabledAt               DateTime?
-  disabledAt              DateTime?
+  id                       Int       @id @default(autoincrement())
+  userId                   Int       @unique
+  secret                   String
+  backupCodes              String[]
+  isEnabled                Boolean   @default(false)
+  setupCompleted           Boolean   @default(false)
+  lastUsed                 DateTime?
+  lastUsedBackupCode       DateTime?
+  enabledAt                DateTime?
+  disabledAt               DateTime?
   backupCodesRegeneratedAt DateTime?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-  
-  user                    Usuario   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  user                     Usuario   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([isEnabled])
   @@index([setupCompleted])
 }
 
 model SecurityEvent {
-  id         Int      @id @default(autoincrement())
-  type       String
-  userId     Int?
-  userEmail  String?
-  ipAddress  String
-  userAgent  String
-  details    String
-  severity   String
-  timestamp  DateTime @default(now())
-  
-  user       Usuario? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id        Int      @id @default(autoincrement())
+  type      String
+  userId    Int?
+  userEmail String?
+  ipAddress String
+  userAgent String
+  details   String
+  severity  String
+  timestamp DateTime @default(now())
+  user      Usuario? @relation(fields: [userId], references: [id])
 
   @@index([type])
   @@index([userId])
@@ -235,11 +231,11 @@ model SecurityEvent {
 }
 
 model BlockedIP {
-  id         Int      @id @default(autoincrement())
-  ipAddress  String
-  reason     String
-  blockedAt  DateTime @default(now())
-  expiresAt  DateTime
+  id        Int      @id @default(autoincrement())
+  ipAddress String
+  reason    String
+  blockedAt DateTime @default(now())
+  expiresAt DateTime
 
   @@index([ipAddress])
   @@index([expiresAt])
@@ -259,22 +255,21 @@ model SensorLectura {
 }
 
 model AuditLog {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  userEmail  String
-  userName   String
-  action     String
-  resource   String
-  resourceId Int?
-  details    String
-  ipAddress  String
-  userAgent  String
-  createdAt  DateTime @default(now())
-  empresaId  Int?
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  userEmail   String
+  userName    String
+  action      String
+  resource    String
+  resourceId  Int?
+  details     String
+  ipAddress   String
+  userAgent   String
+  createdAt   DateTime @default(now())
+  empresaId   Int?
   empresaName String?
-
-  user       Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  empresa    Empresa? @relation(fields: [empresaId], references: [id])
+  empresa     Empresa? @relation(fields: [empresaId], references: [id])
+  user        Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([action])

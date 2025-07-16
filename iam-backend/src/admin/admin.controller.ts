@@ -36,20 +36,14 @@ export class AdminController {
   }
 
   @Get('users/:id')
-  async findOne(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req,
-  ) {
+  async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
     return this.adminService.findOne(id, user.empresaId!, user.rol);
   }
 
   @Post('users')
-  async create(
-    @Body() createUserDto: CreateUserAdminDto,
-    @Request() req,
-  ) {
+  async create(@Body() createUserDto: CreateUserAdminDto, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
     return this.adminService.create(createUserDto, user.empresaId!, user.rol);
@@ -63,7 +57,12 @@ export class AdminController {
   ) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.adminService.update(id, updateUserDto, user.empresaId!, user.rol);
+    return this.adminService.update(
+      id,
+      updateUserDto,
+      user.empresaId!,
+      user.rol,
+    );
   }
 
   @Patch('users/:id/role')
@@ -74,34 +73,30 @@ export class AdminController {
   ) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.adminService.changeRole(id, changeRoleDto, user.empresaId!, user.rol);
+    return this.adminService.changeRole(
+      id,
+      changeRoleDto,
+      user.empresaId!,
+      user.rol,
+    );
   }
 
   @Patch('users/:id/activate')
-  async activate(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req,
-  ) {
+  async activate(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
     return this.adminService.activate(id, user.empresaId!, user.rol);
   }
 
   @Patch('users/:id/deactivate')
-  async deactivate(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req,
-  ) {
+  async deactivate(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
     return this.adminService.deactivate(id, user.empresaId!, user.rol);
   }
 
   @Delete('users/:id')
-  async remove(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req,
-  ) {
+  async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
     return this.adminService.remove(id, user.empresaId!, user.rol);
@@ -111,4 +106,4 @@ export class AdminController {
   async getRoles() {
     return this.adminService.getRoles();
   }
-} 
+}

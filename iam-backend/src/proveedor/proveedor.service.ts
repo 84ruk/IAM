@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { CrearProveedorDto } from './dto/crear-proveedor.dto';
 import { ActualizarProveedorDto } from './dto/actualizar-proveedor.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,7 +18,9 @@ export class ProveedorService {
   async crear(data: CrearProveedorDto, empresaId: number | undefined) {
     // Si el usuario no tiene empresa configurada, lanzar error
     if (!empresaId) {
-      throw new BadRequestException('El usuario debe tener una empresa configurada para crear proveedores');
+      throw new BadRequestException(
+        'El usuario debe tener una empresa configurada para crear proveedores',
+      );
     }
 
     // Validar duplicados por nombre/email
@@ -21,7 +29,7 @@ export class ProveedorService {
       estado: { in: ['ACTIVO', 'INACTIVO'] }, // Solo verificar activos e inactivos
       OR: [
         { nombre: data.nombre },
-        ...(data.email ? [{ email: data.email }] : [])
+        ...(data.email ? [{ email: data.email }] : []),
       ],
     };
 
@@ -29,7 +37,9 @@ export class ProveedorService {
       where: whereConditions,
     });
     if (existe) {
-      throw new ConflictException('Ya existe un proveedor con ese nombre o email en la empresa.');
+      throw new ConflictException(
+        'Ya existe un proveedor con ese nombre o email en la empresa.',
+      );
     }
     return this.prisma.proveedor.create({
       data: {
@@ -47,16 +57,16 @@ export class ProveedorService {
     }
 
     return this.prisma.proveedor.findMany({
-      where: { 
+      where: {
         empresaId,
-        estado: { in: ['ACTIVO', 'INACTIVO'] } // Solo mostrar activos e inactivos
+        estado: { in: ['ACTIVO', 'INACTIVO'] }, // Solo mostrar activos e inactivos
       },
       include: {
         productos: {
           where: { estado: 'ACTIVO' },
-          select: { id: true, nombre: true }
-        }
-      }
+          select: { id: true, nombre: true },
+        },
+      },
     });
   }
 
@@ -67,16 +77,16 @@ export class ProveedorService {
     }
 
     return this.prisma.proveedor.findMany({
-      where: { 
+      where: {
         empresaId,
-        estado: 'INACTIVO'
+        estado: 'INACTIVO',
       },
       include: {
         productos: {
           where: { estado: 'ACTIVO' },
-          select: { id: true, nombre: true }
-        }
-      }
+          select: { id: true, nombre: true },
+        },
+      },
     });
   }
 
@@ -87,16 +97,16 @@ export class ProveedorService {
     }
 
     return this.prisma.proveedor.findMany({
-      where: { 
+      where: {
         empresaId,
-        estado: 'ELIMINADO'
+        estado: 'ELIMINADO',
       },
       include: {
         productos: {
           where: { estado: 'ACTIVO' },
-          select: { id: true, nombre: true }
-        }
-      }
+          select: { id: true, nombre: true },
+        },
+      },
     });
   }
 
@@ -107,34 +117,38 @@ export class ProveedorService {
     }
 
     const proveedor = await this.prisma.proveedor.findFirst({
-      where: { 
-        id, 
+      where: {
+        id,
         empresaId,
-        estado: { in: ['ACTIVO', 'INACTIVO'] } // Solo activos e inactivos
+        estado: { in: ['ACTIVO', 'INACTIVO'] }, // Solo activos e inactivos
       },
       include: {
         productos: {
           where: { estado: 'ACTIVO' },
-          select: { id: true, nombre: true, stock: true }
-        }
-      }
+          select: { id: true, nombre: true, stock: true },
+        },
+      },
     });
     if (!proveedor) throw new NotFoundException('Proveedor no encontrado');
     return proveedor;
   }
 
-  async actualizar(id: number, data: ActualizarProveedorDto, empresaId: number) {
+  async actualizar(
+    id: number,
+    data: ActualizarProveedorDto,
+    empresaId: number,
+  ) {
     await this.obtenerUno(id, empresaId); // valida que exista
-    
+
     // Solo validar duplicados si se están actualizando nombre o email
     if (data.nombre || data.email) {
       const condiciones: Prisma.ProveedorWhereInput[] = [];
-      
+
       // Agregar condición de nombre si se está actualizando
       if (data.nombre) {
         condiciones.push({ nombre: data.nombre });
       }
-      
+
       // Agregar condición de email si se está actualizando
       if (data.email) {
         condiciones.push({ email: data.email });
@@ -149,7 +163,9 @@ export class ProveedorService {
         },
       });
       if (existe) {
-        throw new ConflictException('Ya existe otro proveedor con ese nombre o email en la empresa.');
+        throw new ConflictException(
+          'Ya existe otro proveedor con ese nombre o email en la empresa.',
+        );
       }
     }
 
@@ -161,13 +177,13 @@ export class ProveedorService {
 
   async desactivar(id: number, empresaId: number) {
     const proveedor = await this.prisma.proveedor.findFirst({
-      where: { 
-        id, 
+      where: {
+        id,
         empresaId,
-        estado: 'ACTIVO'
+        estado: 'ACTIVO',
       },
     });
-    
+
     if (!proveedor) {
       throw new NotFoundException('Proveedor activo no encontrado');
     }
@@ -180,13 +196,13 @@ export class ProveedorService {
 
   async reactivar(id: number, empresaId: number) {
     const proveedor = await this.prisma.proveedor.findFirst({
-      where: { 
-        id, 
+      where: {
+        id,
         empresaId,
-        estado: 'INACTIVO'
+        estado: 'INACTIVO',
       },
     });
-    
+
     if (!proveedor) {
       throw new NotFoundException('Proveedor inactivo no encontrado');
     }
@@ -200,14 +216,16 @@ export class ProveedorService {
   async softDelete(id: number, empresaId: number, rol: Rol) {
     // Solo ADMIN puede eliminar proveedores
     if (rol !== Rol.ADMIN && rol !== Rol.SUPERADMIN) {
-      throw new ForbiddenException('Solo los administradores pueden eliminar proveedores');
+      throw new ForbiddenException(
+        'Solo los administradores pueden eliminar proveedores',
+      );
     }
 
     const proveedor = await this.prisma.proveedor.findFirst({
-      where: { 
-        id, 
+      where: {
+        id,
         empresaId,
-        estado: { in: ['ACTIVO', 'INACTIVO'] }
+        estado: { in: ['ACTIVO', 'INACTIVO'] },
       },
     });
 
@@ -225,14 +243,16 @@ export class ProveedorService {
   async restaurar(id: number, empresaId: number, rol: Rol) {
     // Solo ADMIN puede restaurar proveedores
     if (rol !== Rol.ADMIN && rol !== Rol.SUPERADMIN) {
-      throw new ForbiddenException('Solo los administradores pueden restaurar proveedores');
+      throw new ForbiddenException(
+        'Solo los administradores pueden restaurar proveedores',
+      );
     }
 
     const proveedor = await this.prisma.proveedor.findFirst({
-      where: { 
-        id, 
+      where: {
+        id,
         empresaId,
-        estado: 'ELIMINADO'
+        estado: 'ELIMINADO',
       },
     });
 
@@ -249,21 +269,23 @@ export class ProveedorService {
   async eliminar(id: number, empresaId: number, rol: Rol) {
     // Solo ADMIN puede eliminar permanentemente
     if (rol !== Rol.ADMIN && rol !== Rol.SUPERADMIN) {
-      throw new ForbiddenException('Solo los administradores pueden eliminar proveedores permanentemente');
+      throw new ForbiddenException(
+        'Solo los administradores pueden eliminar proveedores permanentemente',
+      );
     }
 
     const proveedor = await this.prisma.proveedor.findFirst({
-      where: { 
-        id, 
+      where: {
+        id,
         empresaId,
-        estado: 'ELIMINADO'
+        estado: 'ELIMINADO',
       },
       include: {
         productos: {
           where: { estado: 'ACTIVO' },
-          select: { id: true, nombre: true }
-        }
-      }
+          select: { id: true, nombre: true },
+        },
+      },
     });
 
     if (!proveedor) {
@@ -271,7 +293,9 @@ export class ProveedorService {
     }
 
     if (proveedor.productos.length > 0) {
-      throw new BadRequestException('No se puede eliminar permanentemente un proveedor con productos asociados.');
+      throw new BadRequestException(
+        'No se puede eliminar permanentemente un proveedor con productos asociados.',
+      );
     }
 
     return this.prisma.proveedor.delete({

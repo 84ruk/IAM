@@ -32,13 +32,15 @@ import { TwoFactorController } from './two-factor.controller';
     PrismaModule,
     CommonModule, // Importar CommonModule para servicios de cache
     PassportModule,
-    ThrottlerModule.forRoot([{
-      ttl: 60000, // 1 minuto
-      limit: 10, // 10 requests por minuto
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minuto
+        limit: 10, // 10 requests por minuto
+      },
+    ]),
     JwtModule.register({
       secret: securityConfig.jwt.secret,
-      signOptions: { 
+      signOptions: {
         expiresIn: securityConfig.jwt.expiresIn,
         issuer: securityConfig.jwt.issuer,
         audience: securityConfig.jwt.audience,
@@ -53,13 +55,13 @@ import { TwoFactorController } from './two-factor.controller';
     }),
   ],
   providers: [
-    AuthService, 
+    AuthService,
     RefreshTokenService,
     JwtBlacklistService, // NUEVO: Servicio de blacklist
     TwoFactorService, // NUEVO: Servicio de 2FA
-    JwtStrategy, 
-    GoogleStrategy, 
-    JwtAuditService, 
+    JwtStrategy,
+    GoogleStrategy,
+    JwtAuditService,
     UnifiedEmpresaGuard, // Guard unificado que reemplaza los tres guards anteriores
     EmpresaCacheService,
     AppLoggerService,
@@ -76,11 +78,11 @@ import { TwoFactorController } from './two-factor.controller';
     TwoFactorController, // NUEVO: Controlador de 2FA
   ],
   exports: [
-    AuthService, 
+    AuthService,
     RefreshTokenService,
     JwtBlacklistService, // NUEVO: Exportar servicio de blacklist
     TwoFactorService, // NUEVO: Exportar servicio de 2FA
-    JwtAuditService, 
+    JwtAuditService,
     UnifiedEmpresaGuard, // Exportar el guard unificado
     EmpresaCacheService,
     AppLoggerService,

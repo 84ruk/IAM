@@ -8,43 +8,43 @@ export const CACHE_CONFIG = {
   static: {
     ttl: 3600, // 1 hora
     strategy: 'cache-aside',
-    prefix: 'static'
+    prefix: 'static',
   },
-  
+
   // Datos de sesión y usuario
   session: {
     ttl: 900, // 15 minutos
     strategy: 'write-through',
-    prefix: 'session'
+    prefix: 'session',
   },
-  
+
   // Datos dinámicos (KPIs, dashboard)
   dynamic: {
     ttl: 300, // 5 minutos
     strategy: 'refresh-ahead',
-    prefix: 'dynamic'
+    prefix: 'dynamic',
   },
-  
+
   // Métricas y analytics
   analytics: {
     ttl: 60, // 1 minuto
     strategy: 'write-behind',
-    prefix: 'analytics'
+    prefix: 'analytics',
   },
 
   // Datos de empresa
   empresa: {
     ttl: 1800, // 30 minutos
     strategy: 'cache-aside',
-    prefix: 'empresa'
+    prefix: 'empresa',
   },
 
   // Datos de productos
   producto: {
     ttl: 600, // 10 minutos
     strategy: 'write-through',
-    prefix: 'producto'
-  }
+    prefix: 'producto',
+  },
 } as const;
 
 export type CacheType = keyof typeof CACHE_CONFIG;
@@ -83,9 +83,9 @@ export class CacheStrategiesService {
    * ✅ Ejemplo: Información de empresa, configuraciones, productos
    */
   async cacheAside<T>(
-    key: string, 
+    key: string,
     fetchFunction: () => Promise<T>,
-    cacheType: CacheType = 'static'
+    cacheType: CacheType = 'static',
   ): Promise<T> {
     const config = CACHE_CONFIG[cacheType];
     const cacheKey = `${config.prefix}:${key}`;
@@ -93,7 +93,7 @@ export class CacheStrategiesService {
     try {
       // 1. Verificar cache
       const cached = await this.getFromCache<T>(cacheKey);
-      
+
       if (cached !== null) {
         this.logger.debug(`Cache-Aside HIT: ${cacheKey}`);
         this.updateAccessPattern(cacheKey, 'hot');
@@ -103,10 +103,10 @@ export class CacheStrategiesService {
       // 2. Cache miss: obtener de fuente
       this.logger.debug(`Cache-Aside MISS: ${cacheKey}`);
       const data = await fetchFunction();
-      
+
       // 3. Guardar en cache
       await this.setInCache(cacheKey, data, config.ttl);
-      
+
       return data;
     } catch (error) {
       this.logger.error(`Cache-Aside error for ${cacheKey}:`, error);
@@ -124,7 +124,7 @@ export class CacheStrategiesService {
     key: string,
     data: T,
     persistFunction: (data: T) => Promise<T>,
-    cacheType: CacheType = 'session'
+    cacheType: CacheType = 'session',
   ): Promise<T> {
     const config = CACHE_CONFIG[cacheType];
     const cacheKey = `${config.prefix}:${key}`;
@@ -132,15 +132,15 @@ export class CacheStrategiesService {
     try {
       // 1. Escribir a fuente primaria (BD)
       const persistedData = await persistFunction(data);
-      
+
       // 2. Escribir a cache inmediatamente
       await this.setInCache(cacheKey, persistedData, config.ttl);
-      
+
       this.logger.debug(`Write-Through SUCCESS: ${cacheKey}`);
       return persistedData;
     } catch (error) {
       this.logger.error(`Write-Through FAILED: ${cacheKey}`, error);
-      
+
       // Invalidar cache en caso de error para mantener consistencia
       await this.cacheService.invalidate(cacheKey);
       throw error;
@@ -153,10 +153,10 @@ export class CacheStrategiesService {
    * ✅ Ejemplo: Métricas, logs, analytics, contadores
    */
   async writeBehind<T>(
-    key: string, 
-    data: T, 
+    key: string,
+    data: T,
     persistFunction: (data: T) => Promise<void>,
-    cacheType: CacheType = 'analytics'
+    cacheType: CacheType = 'analytics',
   ): Promise<void> {
     const config = CACHE_CONFIG[cacheType];
     const cacheKey = `${config.prefix}:${key}`;
@@ -164,14 +164,14 @@ export class CacheStrategiesService {
     try {
       // 1. Escribir inmediatamente a cache
       await this.setInCache(cacheKey, data, config.ttl);
-      
+
       // 2. Guardar en buffer para escritura posterior
-      this.writeBuffer.set(cacheKey, { 
-        data, 
+      this.writeBuffer.set(cacheKey, {
+        data,
         timestamp: Date.now(),
-        retryCount: 0
+        retryCount: 0,
       });
-      
+
       this.logger.debug(`Write-Behind buffered: ${cacheKey}`);
     } catch (error) {
       this.logger.error(`Write-Behind error for ${cacheKey}:`, error);
@@ -187,27 +187,28 @@ export class CacheStrategiesService {
   async refreshAhead<T>(
     key: string,
     fetchFunction: () => Promise<T>,
-    cacheType: CacheType = 'dynamic'
+    cacheType: CacheType = 'dynamic',
   ): Promise<T> {
     const config = CACHE_CONFIG[cacheType];
     const cacheKey = `${config.prefix}:${key}`;
 
     try {
       const cacheEntry = await this.getCacheWithMetadata<T>(cacheKey);
-      
+
       if (cacheEntry) {
         const timeElapsed = Date.now() - cacheEntry.timestamp;
-        const shouldRefresh = timeElapsed > (cacheEntry.ttl * 1000 * this.refreshThreshold);
-        
+        const shouldRefresh =
+          timeElapsed > cacheEntry.ttl * 1000 * this.refreshThreshold;
+
         if (shouldRefresh) {
           // Refresh en background
           this.refreshInBackground(cacheKey, fetchFunction, config.ttl);
         }
-        
+
         this.logger.debug(`Refresh-Ahead serving cached: ${cacheKey}`);
         return cacheEntry.data;
       }
-      
+
       // Cache miss: fetch inmediatamente
       this.logger.debug(`Refresh-Ahead MISS: ${cacheKey}`);
       const data = await fetchFunction();
@@ -226,41 +227,53 @@ export class CacheStrategiesService {
    */
   async warmupCache(empresaId: number): Promise<void> {
     this.logger.log(`🔥 Warming up cache for empresa ${empresaId}`);
-    
+
     const warmupTasks = [
       // Datos básicos de empresa
-      this.cacheAside(`empresa:basic:${empresaId}`, () => 
-        this.fetchEmpresaBasic(empresaId), 'empresa'
+      this.cacheAside(
+        `empresa:basic:${empresaId}`,
+        () => this.fetchEmpresaBasic(empresaId),
+        'empresa',
       ),
-      
+
       // Usuarios activos
-      this.cacheAside(`empresa:users:${empresaId}`, () => 
-        this.fetchActiveUsers(empresaId), 'session'
+      this.cacheAside(
+        `empresa:users:${empresaId}`,
+        () => this.fetchActiveUsers(empresaId),
+        'session',
       ),
-      
+
       // Productos más utilizados
-      this.cacheAside(`empresa:top-products:${empresaId}`, () => 
-        this.fetchTopProducts(empresaId), 'producto'
+      this.cacheAside(
+        `empresa:top-products:${empresaId}`,
+        () => this.fetchTopProducts(empresaId),
+        'producto',
       ),
-      
+
       // KPIs básicos
-      this.cacheAside(`empresa:kpis:${empresaId}`, () => 
-        this.fetchBasicKPIs(empresaId), 'dynamic'
+      this.cacheAside(
+        `empresa:kpis:${empresaId}`,
+        () => this.fetchBasicKPIs(empresaId),
+        'dynamic',
       ),
-      
+
       // Configuraciones
-      this.cacheAside(`empresa:config:${empresaId}`, () => 
-        this.fetchEmpresaConfig(empresaId), 'static'
-      )
+      this.cacheAside(
+        `empresa:config:${empresaId}`,
+        () => this.fetchEmpresaConfig(empresaId),
+        'static',
+      ),
     ];
-    
+
     // Ejecutar warmup en paralelo
     const results = await Promise.allSettled(warmupTasks);
-    
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
-    const failureCount = results.filter(r => r.status === 'rejected').length;
-    
-    this.logger.log(`✅ Cache warmup completed for empresa ${empresaId}: ${successCount} success, ${failureCount} failed`);
+
+    const successCount = results.filter((r) => r.status === 'fulfilled').length;
+    const failureCount = results.filter((r) => r.status === 'rejected').length;
+
+    this.logger.log(
+      `✅ Cache warmup completed for empresa ${empresaId}: ${successCount} success, ${failureCount} failed`,
+    );
   }
 
   /**
@@ -271,14 +284,14 @@ export class CacheStrategiesService {
     key: string,
     data: T,
     accessPattern: AccessPattern,
-    cacheType: CacheType = 'dynamic'
+    cacheType: CacheType = 'dynamic',
   ): Promise<void> {
     const config = CACHE_CONFIG[cacheType];
     const cacheKey = `${config.prefix}:${key}`;
 
     // Ajustar TTL según patrón de acceso
     let adjustedTtl = config.ttl;
-    
+
     switch (accessPattern) {
       case 'hot':
         adjustedTtl = config.ttl * 2; // TTL más largo para datos calientes
@@ -293,8 +306,10 @@ export class CacheStrategiesService {
 
     await this.setInCache(cacheKey, data, adjustedTtl);
     this.accessPatterns.set(cacheKey, accessPattern);
-    
-    this.logger.debug(`Intelligent cache set: ${cacheKey} (${accessPattern}, TTL: ${adjustedTtl}s)`);
+
+    this.logger.debug(
+      `Intelligent cache set: ${cacheKey} (${accessPattern}, TTL: ${adjustedTtl}s)`,
+    );
   }
 
   /**
@@ -304,21 +319,28 @@ export class CacheStrategiesService {
   async predictiveCache(userId: number, empresaId: number): Promise<void> {
     try {
       const userPatterns = await this.getUserAccessPatterns(userId);
-      
+
       // Predecir datos que el usuario probablemente va a necesitar
       const predictions = this.generatePredictions(userPatterns, empresaId);
-      
+
       // Pre-cargar datos predichos
-      const prefetchTasks = predictions.map(prediction => 
-        this.prefetchData(prediction.key, prediction.fetchFunction, prediction.cacheType)
+      const prefetchTasks = predictions.map((prediction) =>
+        this.prefetchData(
+          prediction.key,
+          prediction.fetchFunction,
+          prediction.cacheType,
+        ),
       );
-      
+
       // Ejecutar prefetch en background
-      Promise.allSettled(prefetchTasks).then(results => {
-        const successCount = results.filter(r => r.status === 'fulfilled').length;
-        this.logger.debug(`Predictive cache completed: ${successCount}/${predictions.length} successful`);
+      Promise.allSettled(prefetchTasks).then((results) => {
+        const successCount = results.filter(
+          (r) => r.status === 'fulfilled',
+        ).length;
+        this.logger.debug(
+          `Predictive cache completed: ${successCount}/${predictions.length} successful`,
+        );
       });
-      
     } catch (error) {
       this.logger.error(`Predictive cache error for user ${userId}:`, error);
     }
@@ -331,7 +353,7 @@ export class CacheStrategiesService {
   async smartEviction(): Promise<void> {
     try {
       const stats = await this.cacheService.getCacheStats();
-      
+
       if (!stats.isConnected) {
         return;
       }
@@ -339,13 +361,13 @@ export class CacheStrategiesService {
       // Si hay muchas keys, implementar limpieza inteligente
       if (stats.keysCount && stats.keysCount > 10000) {
         this.logger.log(`Smart eviction triggered: ${stats.keysCount} keys`);
-        
+
         // Limpiar datos fríos primero
         await this.evictColdData();
-        
+
         // Limpiar datos expirados
         await this.evictExpiredData();
-        
+
         // Si aún hay muchas keys, limpiar datos menos usados
         const updatedStats = await this.cacheService.getCacheStats();
         if (updatedStats.keysCount && updatedStats.keysCount > 8000) {
@@ -364,7 +386,7 @@ export class CacheStrategiesService {
   async invalidateRelatedData(
     entityType: 'producto' | 'movimiento' | 'empresa' | 'usuario',
     entityId: number,
-    empresaId: number
+    empresaId: number,
   ): Promise<void> {
     const invalidationPatterns = {
       producto: [
@@ -372,35 +394,37 @@ export class CacheStrategiesService {
         `empresa:top-products:${empresaId}`,
         `dynamic:kpis:${empresaId}`,
         `dynamic:product-kpis:${entityId}`,
-        `analytics:product-stats:${entityId}`
+        `analytics:product-stats:${entityId}`,
       ],
       movimiento: [
         `dynamic:kpis:${empresaId}`,
         `dynamic:movement-kpis:${empresaId}`,
         `analytics:movement-stats:${empresaId}`,
-        `dynamic:dashboard:${empresaId}`
+        `dynamic:dashboard:${empresaId}`,
       ],
       empresa: [
         `empresa:basic:${entityId}`,
         `empresa:config:${entityId}`,
         `empresa:users:${entityId}`,
         `dynamic:kpis:${entityId}`,
-        `dynamic:dashboard:${entityId}`
+        `dynamic:dashboard:${entityId}`,
       ],
       usuario: [
         `session:user:${entityId}`,
         `session:user-permissions:${entityId}`,
-        `empresa:users:${empresaId}`
-      ]
+        `empresa:users:${empresaId}`,
+      ],
     };
 
     const patterns = invalidationPatterns[entityType] || [];
-    
+
     for (const pattern of patterns) {
       await this.cacheService.invalidatePattern(pattern);
     }
-    
-    this.logger.debug(`Invalidated ${patterns.length} patterns for ${entityType}:${entityId}`);
+
+    this.logger.debug(
+      `Invalidated ${patterns.length} patterns for ${entityType}:${entityId}`,
+    );
   }
 
   // ===== MÉTODOS AUXILIARES =====
@@ -414,7 +438,11 @@ export class CacheStrategiesService {
     }
   }
 
-  private async setInCache<T>(key: string, data: T, ttl: number): Promise<void> {
+  private async setInCache<T>(
+    key: string,
+    data: T,
+    ttl: number,
+  ): Promise<void> {
     try {
       await this.cacheService.getOrSet(key, async () => data, ttl);
     } catch (error) {
@@ -422,7 +450,9 @@ export class CacheStrategiesService {
     }
   }
 
-  private async getCacheWithMetadata<T>(key: string): Promise<{ data: T; timestamp: number; ttl: number } | null> {
+  private async getCacheWithMetadata<T>(
+    key: string,
+  ): Promise<{ data: T; timestamp: number; ttl: number } | null> {
     try {
       const cached = await this.getFromCache<T>(key);
       if (cached) {
@@ -430,7 +460,7 @@ export class CacheStrategiesService {
         return {
           data: cached,
           timestamp: Date.now(),
-          ttl: CACHE_CONFIG.dynamic.ttl
+          ttl: CACHE_CONFIG.dynamic.ttl,
         };
       }
       return null;
@@ -439,7 +469,11 @@ export class CacheStrategiesService {
     }
   }
 
-  private refreshInBackground<T>(key: string, fetchFunction: () => Promise<T>, ttl: number): void {
+  private refreshInBackground<T>(
+    key: string,
+    fetchFunction: () => Promise<T>,
+    ttl: number,
+  ): void {
     setTimeout(async () => {
       try {
         const freshData = await fetchFunction();
@@ -468,12 +502,12 @@ export class CacheStrategiesService {
       try {
         // En una implementación real, aquí persistirías a BD
         // await this.persistData(key, entry.data);
-        
+
         this.writeBuffer.delete(key);
         this.logger.debug(`Write-back completed: ${key}`);
       } catch (error) {
         entry.retryCount++;
-        
+
         if (entry.retryCount > 3) {
           this.writeBuffer.delete(key);
           this.logger.error(`Write-back failed permanently for ${key}:`, error);
@@ -508,44 +542,45 @@ export class CacheStrategiesService {
   private async fetchEmpresaBasic(empresaId: number) {
     return await this.prisma.empresa.findUnique({
       where: { id: empresaId },
-      select: { id: true, nombre: true, rfc: true, emailContacto: true }
+      select: { id: true, nombre: true, rfc: true, emailContacto: true },
     });
   }
 
   private async fetchActiveUsers(empresaId: number) {
     return await this.prisma.usuario.findMany({
-      where: { 
+      where: {
         empresaId,
         // Nota: el campo 'eliminado' no existe en el esquema actual
       },
-      select: { id: true, email: true, rol: true, nombre: true }
+      select: { id: true, email: true, rol: true, nombre: true },
     });
   }
 
   private async fetchTopProducts(empresaId: number) {
     return await this.prisma.producto.findMany({
-      where: { 
+      where: {
         empresaId,
         // Nota: el campo 'eliminado' no existe en el esquema actual
       },
       orderBy: { stock: 'desc' },
       take: 10,
-      select: { id: true, nombre: true, stock: true, precioVenta: true }
+      select: { id: true, nombre: true, stock: true, precioVenta: true },
     });
   }
 
   private async fetchBasicKPIs(empresaId: number) {
-    const [productosCount, movimientosCount, proveedoresCount] = await Promise.all([
-      this.prisma.producto.count({ where: { empresaId } }),
-      this.prisma.movimientoInventario.count({ where: { empresaId } }),
-      this.prisma.proveedor.count({ where: { empresaId } })
-    ]);
+    const [productosCount, movimientosCount, proveedoresCount] =
+      await Promise.all([
+        this.prisma.producto.count({ where: { empresaId } }),
+        this.prisma.movimientoInventario.count({ where: { empresaId } }),
+        this.prisma.proveedor.count({ where: { empresaId } }),
+      ]);
 
     return {
       productosCount,
       movimientosCount,
       proveedoresCount,
-      lastUpdated: new Date()
+      lastUpdated: new Date(),
     };
   }
 
@@ -556,8 +591,8 @@ export class CacheStrategiesService {
       config: {
         allowNegativeStock: false,
         autoReorder: true,
-        lowStockThreshold: 10
-      }
+        lowStockThreshold: 10,
+      },
     };
   }
 
@@ -570,12 +605,15 @@ export class CacheStrategiesService {
         dashboard: 0.8,
         productos: 0.6,
         movimientos: 0.4,
-        proveedores: 0.2
-      }
+        proveedores: 0.2,
+      },
     };
   }
 
-  private generatePredictions(patterns: any, empresaId: number): Array<{
+  private generatePredictions(
+    patterns: any,
+    empresaId: number,
+  ): Array<{
     key: string;
     fetchFunction: () => Promise<any>;
     cacheType: CacheType;
@@ -585,27 +623,31 @@ export class CacheStrategiesService {
       fetchFunction: () => Promise<any>;
       cacheType: CacheType;
     }> = [];
-    
+
     if (patterns.patterns.dashboard > 0.5) {
       predictions.push({
         key: `dynamic:dashboard:${empresaId}`,
         fetchFunction: () => this.fetchBasicKPIs(empresaId),
-        cacheType: 'dynamic' as CacheType
+        cacheType: 'dynamic' as CacheType,
       });
     }
-    
+
     if (patterns.patterns.productos > 0.5) {
       predictions.push({
         key: `empresa:top-products:${empresaId}`,
         fetchFunction: () => this.fetchTopProducts(empresaId),
-        cacheType: 'producto' as CacheType
+        cacheType: 'producto' as CacheType,
       });
     }
-    
+
     return predictions;
   }
 
-  private async prefetchData<T>(key: string, fetchFunction: () => Promise<T>, cacheType: CacheType) {
+  private async prefetchData<T>(
+    key: string,
+    fetchFunction: () => Promise<T>,
+    cacheType: CacheType,
+  ) {
     try {
       await this.cacheAside(key, fetchFunction, cacheType);
       this.logger.debug(`Prefetch completed: ${key}`);
@@ -613,4 +655,4 @@ export class CacheStrategiesService {
       this.logger.error(`Prefetch failed: ${key}`, error);
     }
   }
-} 
+}

@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecureLoggerService } from '../common/services/secure-logger.service';
@@ -10,7 +14,7 @@ export class RefreshTokenService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-    private secureLogger: SecureLoggerService
+    private secureLogger: SecureLoggerService,
   ) {}
 
   /**
@@ -21,20 +25,20 @@ export class RefreshTokenService {
     const token = crypto.randomBytes(64).toString('hex');
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 días
-    
+
     // Crear JWT ID único para este refresh token
     const jti = uuidv4();
-    
+
     await this.prisma.refreshToken.create({
-      data: { 
-        token, 
-        userId, 
+      data: {
+        token,
+        userId,
         expiresAt,
         jti,
-        isRevoked: false
-      }
+        isRevoked: false,
+      },
     });
-    
+
     this.secureLogger.log(`Refresh token creado para usuario ${userId}`);
     return token;
   }
@@ -42,10 +46,12 @@ export class RefreshTokenService {
   /**
    * Validar y usar un refresh token
    */
-  async validateRefreshToken(token: string): Promise<{ userId: number; jti: string }> {
+  async validateRefreshToken(
+    token: string,
+  ): Promise<{ userId: number; jti: string }> {
     const refreshToken = await this.prisma.refreshToken.findUnique({
       where: { token },
-      include: { user: true }
+      include: { user: true },
     });
 
     if (!refreshToken) {
@@ -54,23 +60,32 @@ export class RefreshTokenService {
     }
 
     if (refreshToken.isRevoked) {
-      this.secureLogger.logSecurityError('Refresh token revocado', refreshToken.userId);
+      this.secureLogger.logSecurityError(
+        'Refresh token revocado',
+        refreshToken.userId,
+      );
       throw new UnauthorizedException('Refresh token revocado');
     }
 
     if (refreshToken.expiresAt < new Date()) {
-      this.secureLogger.logSecurityError('Refresh token expirado', refreshToken.userId);
+      this.secureLogger.logSecurityError(
+        'Refresh token expirado',
+        refreshToken.userId,
+      );
       throw new UnauthorizedException('Refresh token expirado');
     }
 
     if (!refreshToken.user || !refreshToken.user.activo) {
-      this.secureLogger.logSecurityError('Usuario inactivo o no encontrado', refreshToken.userId);
+      this.secureLogger.logSecurityError(
+        'Usuario inactivo o no encontrado',
+        refreshToken.userId,
+      );
       throw new UnauthorizedException('Usuario inactivo');
     }
 
-    return { 
-      userId: refreshToken.userId, 
-      jti: refreshToken.jti 
+    return {
+      userId: refreshToken.userId,
+      jti: refreshToken.jti,
     };
   }
 
@@ -80,9 +95,9 @@ export class RefreshTokenService {
   async revokeRefreshToken(token: string): Promise<void> {
     await this.prisma.refreshToken.update({
       where: { token },
-      data: { isRevoked: true }
+      data: { isRevoked: true },
     });
-    
+
     this.secureLogger.log('Refresh token revocado');
   }
 
@@ -92,10 +107,12 @@ export class RefreshTokenService {
   async revokeAllUserTokens(userId: number): Promise<void> {
     await this.prisma.refreshToken.updateMany({
       where: { userId, isRevoked: false },
-      data: { isRevoked: true }
+      data: { isRevoked: true },
     });
-    
-    this.secureLogger.log(`Todos los refresh tokens revocados para usuario ${userId}`);
+
+    this.secureLogger.log(
+      `Todos los refresh tokens revocados para usuario ${userId}`,
+    );
   }
 
   /**
@@ -105,15 +122,17 @@ export class RefreshTokenService {
     const result = await this.prisma.refreshToken.deleteMany({
       where: {
         expiresAt: {
-          lt: new Date()
-        }
-      }
+          lt: new Date(),
+        },
+      },
     });
-    
+
     if (result.count > 0) {
-      this.secureLogger.log(`${result.count} refresh tokens expirados eliminados`);
+      this.secureLogger.log(
+        `${result.count} refresh tokens expirados eliminados`,
+      );
     }
-    
+
     return result.count;
   }
 
@@ -129,19 +148,19 @@ export class RefreshTokenService {
     const [total, active, revoked, expired] = await Promise.all([
       this.prisma.refreshToken.count(),
       this.prisma.refreshToken.count({
-        where: { 
+        where: {
           isRevoked: false,
-          expiresAt: { gt: new Date() }
-        }
+          expiresAt: { gt: new Date() },
+        },
       }),
       this.prisma.refreshToken.count({
-        where: { isRevoked: true }
+        where: { isRevoked: true },
       }),
       this.prisma.refreshToken.count({
         where: {
-          expiresAt: { lt: new Date() }
-        }
-      })
+          expiresAt: { lt: new Date() },
+        },
+      }),
     ]);
 
     return { total, active, revoked, expired };
@@ -150,13 +169,15 @@ export class RefreshTokenService {
   /**
    * Generar nuevo access token usando refresh token
    */
-  async generateNewAccessToken(refreshToken: string): Promise<{ accessToken: string; newRefreshToken: string }> {
+  async generateNewAccessToken(
+    refreshToken: string,
+  ): Promise<{ accessToken: string; newRefreshToken: string }> {
     const { userId, jti } = await this.validateRefreshToken(refreshToken);
-    
+
     // Obtener información del usuario
     const user = await this.prisma.usuario.findUnique({
       where: { id: userId },
-      include: { empresa: true }
+      include: { empresa: true },
     });
 
     if (!user) {
@@ -173,7 +194,7 @@ export class RefreshTokenService {
       rol: user.rol,
       empresaId: user.empresaId,
       tipoIndustria: user.empresa?.TipoIndustria || 'GENERICA',
-      refreshJti: jti // Referencia al refresh token usado
+      refreshJti: jti, // Referencia al refresh token usado
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -186,4 +207,4 @@ export class RefreshTokenService {
 
     return { accessToken, newRefreshToken };
   }
-} 
+}

@@ -1,4 +1,10 @@
-import { IsString, IsEnum, IsOptional, IsNotEmpty, ValidateIf } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsNotEmpty,
+  ValidateIf,
+} from 'class-validator';
 import { TipoIndustria } from '@prisma/client';
 
 export class SetupEmpresaDto {
@@ -9,7 +15,9 @@ export class SetupEmpresaDto {
   @IsEnum(TipoIndustria)
   tipoIndustria: TipoIndustria;
 
-  @ValidateIf((o) => o.rfc !== undefined && o.rfc !== null && o.rfc.trim() !== '')
+  @ValidateIf(
+    (o) => o.rfc !== undefined && o.rfc !== null && o.rfc.trim() !== '',
+  )
   @IsString()
   @IsNotEmpty({ message: 'El RFC no puede estar vacío si se proporciona' })
   rfc?: string;
@@ -21,4 +29,4 @@ export class SetupEmpresaDto {
   @IsString()
   @IsOptional()
   telefono?: string;
-} 
+}

@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserAdminDto } from './dto/create-user-admin.dto';
 import { UpdateUserAdminDto } from './dto/update-user-admin.dto';
@@ -13,9 +19,7 @@ export class AdminService {
   async findAll(empresaId: number, currentUserRol: Rol) {
     // SUPERADMIN puede ver todos los usuarios de todas las empresas
     // ADMIN solo puede ver usuarios de su empresa
-    const where = currentUserRol === 'SUPERADMIN' 
-      ? {} 
-      : { empresaId };
+    const where = currentUserRol === 'SUPERADMIN' ? {} : { empresaId };
 
     return this.prisma.usuario.findMany({
       where: {
@@ -43,9 +47,7 @@ export class AdminService {
   }
 
   async findOne(id: number, empresaId: number, currentUserRol: Rol) {
-    const where = currentUserRol === 'SUPERADMIN' 
-      ? { id } 
-      : { id, empresaId };
+    const where = currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId };
 
     const usuario = await this.prisma.usuario.findFirst({
       where: {
@@ -75,10 +77,16 @@ export class AdminService {
     return usuario;
   }
 
-  async create(dto: CreateUserAdminDto, empresaId: number, currentUserRol: Rol) {
+  async create(
+    dto: CreateUserAdminDto,
+    empresaId: number,
+    currentUserRol: Rol,
+  ) {
     // Validar permisos para crear usuarios
     if (currentUserRol === 'ADMIN' && dto.rol === 'SUPERADMIN') {
-      throw new ForbiddenException('Los administradores no pueden crear superadministradores');
+      throw new ForbiddenException(
+        'Los administradores no pueden crear superadministradores',
+      );
     }
 
     // Verificar si el email ya existe
@@ -98,7 +106,9 @@ export class AdminService {
 
     // Si es SUPERADMIN, puede crear usuarios para cualquier empresa
     if (currentUserRol === 'ADMIN' && userEmpresaId !== empresaId) {
-      throw new ForbiddenException('Los administradores solo pueden crear usuarios en su empresa');
+      throw new ForbiddenException(
+        'Los administradores solo pueden crear usuarios en su empresa',
+      );
     }
 
     return this.prisma.usuario.create({
@@ -127,12 +137,15 @@ export class AdminService {
     });
   }
 
-  async update(id: number, dto: UpdateUserAdminDto, empresaId: number, currentUserRol: Rol) {
+  async update(
+    id: number,
+    dto: UpdateUserAdminDto,
+    empresaId: number,
+    currentUserRol: Rol,
+  ) {
     // Verificar que el usuario existe y tiene permisos para editarlo
     const existingUser = await this.prisma.usuario.findFirst({
-      where: currentUserRol === 'SUPERADMIN' 
-        ? { id } 
-        : { id, empresaId },
+      where: currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId },
     });
 
     if (!existingUser) {
@@ -142,11 +155,15 @@ export class AdminService {
     // Validar permisos para cambiar roles
     if (dto.rol) {
       if (currentUserRol === 'ADMIN' && dto.rol === 'SUPERADMIN') {
-        throw new ForbiddenException('Los administradores no pueden asignar rol de superadministrador');
+        throw new ForbiddenException(
+          'Los administradores no pueden asignar rol de superadministrador',
+        );
       }
 
       if (currentUserRol === 'ADMIN' && existingUser.rol === 'SUPERADMIN') {
-        throw new ForbiddenException('Los administradores no pueden modificar superadministradores');
+        throw new ForbiddenException(
+          'Los administradores no pueden modificar superadministradores',
+        );
       }
     }
 
@@ -163,11 +180,11 @@ export class AdminService {
 
     // Preparar datos de actualización
     const updateData: any = {};
-    
+
     if (dto.nombre) updateData.nombre = dto.nombre;
     if (dto.email) updateData.email = dto.email;
     if (dto.rol) updateData.rol = dto.rol;
-    
+
     if (dto.password) {
       updateData.password = await bcrypt.hash(dto.password, 10);
     }
@@ -197,12 +214,15 @@ export class AdminService {
     });
   }
 
-  async changeRole(id: number, dto: ChangeRoleDto, empresaId: number, currentUserRol: Rol) {
+  async changeRole(
+    id: number,
+    dto: ChangeRoleDto,
+    empresaId: number,
+    currentUserRol: Rol,
+  ) {
     // Verificar que el usuario existe
     const existingUser = await this.prisma.usuario.findFirst({
-      where: currentUserRol === 'SUPERADMIN' 
-        ? { id } 
-        : { id, empresaId },
+      where: currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId },
     });
 
     if (!existingUser) {
@@ -212,11 +232,15 @@ export class AdminService {
     // Validar permisos para cambiar roles
     if (currentUserRol === 'ADMIN') {
       if (dto.rol === 'SUPERADMIN') {
-        throw new ForbiddenException('Los administradores no pueden asignar rol de superadministrador');
+        throw new ForbiddenException(
+          'Los administradores no pueden asignar rol de superadministrador',
+        );
       }
 
       if (existingUser.rol === 'SUPERADMIN') {
-        throw new ForbiddenException('Los administradores no pueden modificar superadministradores');
+        throw new ForbiddenException(
+          'Los administradores no pueden modificar superadministradores',
+        );
       }
     }
 
@@ -242,9 +266,7 @@ export class AdminService {
 
   async activate(id: number, empresaId: number, currentUserRol: Rol) {
     const existingUser = await this.prisma.usuario.findFirst({
-      where: currentUserRol === 'SUPERADMIN' 
-        ? { id } 
-        : { id, empresaId },
+      where: currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId },
     });
 
     if (!existingUser) {
@@ -277,9 +299,7 @@ export class AdminService {
 
   async deactivate(id: number, empresaId: number, currentUserRol: Rol) {
     const existingUser = await this.prisma.usuario.findFirst({
-      where: currentUserRol === 'SUPERADMIN' 
-        ? { id } 
-        : { id, empresaId },
+      where: currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId },
     });
 
     if (!existingUser) {
@@ -292,7 +312,9 @@ export class AdminService {
 
     // No permitir desactivar superadministradores
     if (existingUser.rol === 'SUPERADMIN' && currentUserRol === 'ADMIN') {
-      throw new ForbiddenException('Los administradores no pueden desactivar superadministradores');
+      throw new ForbiddenException(
+        'Los administradores no pueden desactivar superadministradores',
+      );
     }
 
     return this.prisma.usuario.update({
@@ -317,9 +339,7 @@ export class AdminService {
 
   async remove(id: number, empresaId: number, currentUserRol: Rol) {
     const existingUser = await this.prisma.usuario.findFirst({
-      where: currentUserRol === 'SUPERADMIN' 
-        ? { id } 
-        : { id, empresaId },
+      where: currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId },
     });
 
     if (!existingUser) {
@@ -328,7 +348,9 @@ export class AdminService {
 
     // No permitir eliminar superadministradores
     if (existingUser.rol === 'SUPERADMIN' && currentUserRol === 'ADMIN') {
-      throw new ForbiddenException('Los administradores no pueden eliminar superadministradores');
+      throw new ForbiddenException(
+        'Los administradores no pueden eliminar superadministradores',
+      );
     }
 
     // Soft delete - marcar como inactivo
@@ -353,7 +375,7 @@ export class AdminService {
   }
 
   async getRoles() {
-    return Object.values(Rol).map(rol => ({
+    return Object.values(Rol).map((rol) => ({
       value: rol,
       label: this.getRoleLabel(rol),
     }));
@@ -373,4 +395,4 @@ export class AdminService {
         return rol;
     }
   }
-} 
+}

@@ -20,8 +20,18 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:security": "node test-security-improvements.js",
+    "test:full": "npm run build && npm run test:security && npm run test:api && npm run test:database",
+    "test:api": "node scripts/test-api-endpoints.js",
+    "test:database": "node scripts/test-database-connections.js",
+    "test:sensors": "node scripts/test-sensors-module.js",
+    "test:kpis": "node scripts/test-kpis-module.js",
+    "test:auth": "node scripts/test-authentication.js",
     "generate:secrets": "node scripts/generate-secrets.js",
-    "security:check": "node -e \"try { require('./src/config/security.config'); console.log('✅ Configuración de seguridad válida'); } catch(e) { console.error('❌ Error en configuración:', e.message); process.exit(1); }\""
+    "security:check": "node -e \"try { require('./src/config/security.config'); console.log('✅ Configuración de seguridad válida'); } catch(e) { console.error('❌ Error en configuración:', e.message); process.exit(1); }\"",
+    "db:migrate": "npx prisma migrate deploy",
+    "db:generate": "npx prisma generate",
+    "db:seed": "node scripts/seed-database.js",
+    "health:check": "node scripts/health-check.js"
   },
   "dependencies": {
     "@nestjs/class-validator": "^0.13.4",
@@ -40,16 +50,17 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.0",
     "express-rate-limit": "^7.5.1",
     "express-slow-down": "^2.1.0",
     "helmet": "^8.1.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
+    "redis": "^4.6.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "uuid": "^11.1.0",
-    "redis": "^4.6.0"
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

@@ -1,4 +1,15 @@
-import { Controller, Post, Body, UseGuards, Req, Get, Param, Query, Patch, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  Get,
+  Param,
+  Query,
+  Patch,
+  Delete,
+} from '@nestjs/common';
 import { MovimientoService } from './movimiento.service';
 import { CrearMovimientoDto } from './dto/crear-movimiento.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -17,15 +28,13 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 export class MovimientoController {
   constructor(private readonly movimientoService: MovimientoService) {}
 
-
   @Get()
   async listar(
     @CurrentUser() user: JwtUser,
-    @Query('tipo') tipo?: TipoMovimiento
+    @Query('tipo') tipo?: TipoMovimiento,
   ) {
     return this.movimientoService.findAll(user.empresaId, tipo);
   }
-
 
   @Post()
   crear(@Body() dto: CrearMovimientoDto, @CurrentUser() user: JwtUser) {
@@ -34,16 +43,21 @@ export class MovimientoController {
 
   @Post('codigo-barras')
   async crearPorCodigoBarras(
-    @Body() dto: CrearMovimientoPorCodigoBarrasDto, 
-    @CurrentUser() user: JwtUser
+    @Body() dto: CrearMovimientoPorCodigoBarrasDto,
+    @CurrentUser() user: JwtUser,
   ) {
     return this.movimientoService.registrarPorCodigoBarras(dto, user.empresaId);
   }
 
-
   @Get('producto/:id')
-  async obtenerPorProducto(@Param('id') id: string, @CurrentUser() user: JwtUser) {
-    return this.movimientoService.obtenerPorProducto(Number(id), user.empresaId);
+  async obtenerPorProducto(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.movimientoService.obtenerPorProducto(
+      Number(id),
+      user.empresaId,
+    );
   }
 
   @Get('eliminados')
@@ -52,7 +66,10 @@ export class MovimientoController {
   }
 
   @Get('eliminados/:id')
-  async obtenerEliminadoPorId(@Param('id') id: string, @CurrentUser() user: JwtUser) {
+  async obtenerEliminadoPorId(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtUser,
+  ) {
     return this.movimientoService.findOneEliminado(Number(id), user.empresaId);
   }
 
@@ -65,7 +82,7 @@ export class MovimientoController {
   async actualizar(
     @Param('id') id: string,
     @Body() data: { motivo?: string | null; descripcion?: string | null },
-    @CurrentUser() user: JwtUser
+    @CurrentUser() user: JwtUser,
   ) {
     return this.movimientoService.update(Number(id), user.empresaId, data);
   }
@@ -76,8 +93,14 @@ export class MovimientoController {
   }
 
   @Delete(':id/permanent')
-  async eliminarPermanentemente(@Param('id') id: string, @CurrentUser() user: JwtUser) {
-    return this.movimientoService.removePermanentemente(Number(id), user.empresaId);
+  async eliminarPermanentemente(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.movimientoService.removePermanentemente(
+      Number(id),
+      user.empresaId,
+    );
   }
 
   @Patch(':id/restaurar')

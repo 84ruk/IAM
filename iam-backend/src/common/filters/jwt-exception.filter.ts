@@ -1,5 +1,10 @@
 // src/common/filters/jwt-exception.filter.ts
-import { ExceptionFilter, Catch, UnauthorizedException, ArgumentsHost } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  UnauthorizedException,
+  ArgumentsHost,
+} from '@nestjs/common';
 
 @Catch(UnauthorizedException)
 export class JwtExceptionFilter implements ExceptionFilter {
@@ -9,9 +14,10 @@ export class JwtExceptionFilter implements ExceptionFilter {
 
     response.status(401).json({
       statusCode: 401,
-      message: exception.message === 'jwt expired'
-        ? 'Tu sesión ha expirado, por favor inicia sesión de nuevo.'
-        : exception.message,
+      message:
+        exception.message === 'jwt expired'
+          ? 'Tu sesión ha expirado, por favor inicia sesión de nuevo.'
+          : exception.message,
       error: 'No Autorizado',
     });
   }

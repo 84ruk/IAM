@@ -10,7 +10,9 @@ export class ValidationService {
    */
   validateEmail(email: string): string {
     if (!email || typeof email !== 'string') {
-      throw new BadRequestException('Email es requerido y debe ser una cadena de texto');
+      throw new BadRequestException(
+        'Email es requerido y debe ser una cadena de texto',
+      );
     }
 
     // Sanitizar email
@@ -43,17 +45,23 @@ export class ValidationService {
    */
   validatePassword(password: string): string {
     if (!password || typeof password !== 'string') {
-      throw new BadRequestException('Contraseña es requerida y debe ser una cadena de texto');
+      throw new BadRequestException(
+        'Contraseña es requerida y debe ser una cadena de texto',
+      );
     }
 
     // Validar longitud mínima
     if (password.length < 12) {
-      throw new BadRequestException('La contraseña debe tener al menos 12 caracteres');
+      throw new BadRequestException(
+        'La contraseña debe tener al menos 12 caracteres',
+      );
     }
 
     // Validar longitud máxima
     if (password.length > 128) {
-      throw new BadRequestException('La contraseña no puede exceder 128 caracteres');
+      throw new BadRequestException(
+        'La contraseña no puede exceder 128 caracteres',
+      );
     }
 
     // Validar complejidad
@@ -64,14 +72,18 @@ export class ValidationService {
 
     if (!hasLowercase || !hasUppercase || !hasNumbers || !hasSpecialChars) {
       throw new BadRequestException(
-        'La contraseña debe contener mayúsculas, minúsculas, números y símbolos (@$!%*?&)'
+        'La contraseña debe contener mayúsculas, minúsculas, números y símbolos (@$!%*?&)',
       );
     }
 
     // Validar caracteres sospechosos
     if (this.containsSuspiciousCharacters(password)) {
-      this.secureLogger.logSuspiciousActivity('Contraseña con caracteres sospechosos');
-      throw new BadRequestException('La contraseña contiene caracteres no permitidos');
+      this.secureLogger.logSuspiciousActivity(
+        'Contraseña con caracteres sospechosos',
+      );
+      throw new BadRequestException(
+        'La contraseña contiene caracteres no permitidos',
+      );
     }
 
     // Validar patrones comunes de contraseñas débiles
@@ -87,7 +99,9 @@ export class ValidationService {
    */
   validateName(name: string, fieldName: string = 'nombre'): string {
     if (!name || typeof name !== 'string') {
-      throw new BadRequestException(`${fieldName} es requerido y debe ser una cadena de texto`);
+      throw new BadRequestException(
+        `${fieldName} es requerido y debe ser una cadena de texto`,
+      );
     }
 
     // Sanitizar nombre
@@ -95,17 +109,23 @@ export class ValidationService {
 
     // Validar longitud
     if (sanitizedName.length < 2) {
-      throw new BadRequestException(`${fieldName} debe tener al menos 2 caracteres`);
+      throw new BadRequestException(
+        `${fieldName} debe tener al menos 2 caracteres`,
+      );
     }
 
     if (sanitizedName.length > 50) {
-      throw new BadRequestException(`${fieldName} no puede exceder 50 caracteres`);
+      throw new BadRequestException(
+        `${fieldName} no puede exceder 50 caracteres`,
+      );
     }
 
     // Validar caracteres permitidos
     const nameRegex = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_]+$/;
     if (!nameRegex.test(sanitizedName)) {
-      throw new BadRequestException(`${fieldName} contiene caracteres no permitidos`);
+      throw new BadRequestException(
+        `${fieldName} contiene caracteres no permitidos`,
+      );
     }
 
     // Validar caracteres sospechosos
@@ -113,7 +133,9 @@ export class ValidationService {
       this.secureLogger.logSuspiciousActivity(
         `${fieldName} con caracteres sospechosos: ${this.maskName(sanitizedName)}`,
       );
-      throw new BadRequestException(`${fieldName} contiene caracteres no permitidos`);
+      throw new BadRequestException(
+        `${fieldName} contiene caracteres no permitidos`,
+      );
     }
 
     return sanitizedName;
@@ -124,7 +146,9 @@ export class ValidationService {
    */
   validateEmpresaName(name: string): string {
     if (!name || typeof name !== 'string') {
-      throw new BadRequestException('El nombre de la empresa es requerido y debe ser una cadena de texto');
+      throw new BadRequestException(
+        'El nombre de la empresa es requerido y debe ser una cadena de texto',
+      );
     }
 
     // Sanitizar nombre
@@ -132,17 +156,23 @@ export class ValidationService {
 
     // Validar longitud
     if (sanitizedName.length < 2) {
-      throw new BadRequestException('El nombre de la empresa debe tener al menos 2 caracteres');
+      throw new BadRequestException(
+        'El nombre de la empresa debe tener al menos 2 caracteres',
+      );
     }
 
     if (sanitizedName.length > 100) {
-      throw new BadRequestException('El nombre de la empresa no puede exceder 100 caracteres');
+      throw new BadRequestException(
+        'El nombre de la empresa no puede exceder 100 caracteres',
+      );
     }
 
     // Validar caracteres permitidos (más permisivo que nombres de usuario)
     const empresaNameRegex = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()]+$/;
     if (!empresaNameRegex.test(sanitizedName)) {
-      throw new BadRequestException('El nombre de la empresa contiene caracteres no permitidos');
+      throw new BadRequestException(
+        'El nombre de la empresa contiene caracteres no permitidos',
+      );
     }
 
     // Validar caracteres sospechosos
@@ -150,7 +180,9 @@ export class ValidationService {
       this.secureLogger.logSuspiciousActivity(
         `Nombre de empresa con caracteres sospechosos: ${this.maskName(sanitizedName)}`,
       );
-      throw new BadRequestException('El nombre de la empresa contiene caracteres no permitidos');
+      throw new BadRequestException(
+        'El nombre de la empresa contiene caracteres no permitidos',
+      );
     }
 
     return sanitizedName;
@@ -161,17 +193,21 @@ export class ValidationService {
    */
   validateUrl(url: string, fieldName: string = 'URL'): string {
     if (!url || typeof url !== 'string') {
-      throw new BadRequestException(`${fieldName} es requerida y debe ser una cadena de texto`);
+      throw new BadRequestException(
+        `${fieldName} es requerida y debe ser una cadena de texto`,
+      );
     }
 
     const sanitizedUrl = url.trim();
 
     try {
       const urlObj = new URL(sanitizedUrl);
-      
+
       // Validar protocolo
       if (!['http:', 'https:'].includes(urlObj.protocol)) {
-        throw new BadRequestException(`${fieldName} debe usar protocolo HTTP o HTTPS`);
+        throw new BadRequestException(
+          `${fieldName} debe usar protocolo HTTP o HTTPS`,
+        );
       }
 
       // Validar longitud
@@ -190,7 +226,9 @@ export class ValidationService {
    */
   validatePhone(phone: string): string {
     if (!phone || typeof phone !== 'string') {
-      throw new BadRequestException('El teléfono es requerido y debe ser una cadena de texto');
+      throw new BadRequestException(
+        'El teléfono es requerido y debe ser una cadena de texto',
+      );
     }
 
     const sanitizedPhone = phone.replace(/\s+/g, '');
@@ -266,7 +304,7 @@ export class ValidationService {
       /<wbr/i,
     ];
 
-    return suspiciousPatterns.some(pattern => pattern.test(text));
+    return suspiciousPatterns.some((pattern) => pattern.test(text));
   }
 
   /**
@@ -292,7 +330,7 @@ export class ValidationService {
     ];
 
     // Verificar si coincide con patrones débiles
-    if (weakPatterns.some(pattern => pattern.test(password))) {
+    if (weakPatterns.some((pattern) => pattern.test(password))) {
       return true;
     }
 
@@ -318,12 +356,11 @@ export class ValidationService {
     if (!email || !email.includes('@')) {
       return '***@***';
     }
-    
+
     const [localPart, domain] = email.split('@');
-    const maskedLocal = localPart.length > 3 
-      ? `${localPart.substring(0, 3)}***` 
-      : '***';
-    
+    const maskedLocal =
+      localPart.length > 3 ? `${localPart.substring(0, 3)}***` : '***';
+
     return `${maskedLocal}@${domain}`;
   }
 
@@ -332,9 +369,10 @@ export class ValidationService {
    */
   private maskName(name: string): string {
     if (!name) return '***';
-    
-    return name.split(' ')
-      .map(word => word.length > 1 ? `${word[0]}***` : '***')
+
+    return name
+      .split(' ')
+      .map((word) => (word.length > 1 ? `${word[0]}***` : '***'))
       .join(' ');
   }
 
@@ -349,11 +387,13 @@ export class ValidationService {
         try {
           validated[key] = validator(obj[key]);
         } catch (error) {
-          throw new BadRequestException(`Error en campo ${key}: ${error.message}`);
+          throw new BadRequestException(
+            `Error en campo ${key}: ${error.message}`,
+          );
         }
       }
     }
 
     return validated;
   }
-} 
+}

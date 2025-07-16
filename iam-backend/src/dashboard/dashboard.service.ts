@@ -27,6 +27,43 @@ export interface FinancialKPIs {
   eficienciaOperativa: number;
 }
 
+export interface AdvancedKPIs {
+  // KPIs de Impacto
+  eficienciaOperativa: number;
+  costoOportunidad: number;
+  riesgoQuiebre: number;
+  tendenciaVentas: 'CRECIENTE' | 'ESTABLE' | 'DECRECIENTE';
+  
+  // Predicciones
+  demandaEstimada: number;
+  stockOptimo: number;
+  quiebrePredicho: Date | null;
+  
+  // Alertas
+  alertasActivas: Alert[];
+  productosCriticos: ProductoCritico[];
+}
+
+export interface Alert {
+  id: string;
+  tipo: 'STOCK_BAJO' | 'TEMPERATURA_ALTA' | 'HUMEDAD_CRITICA' | 'QUIEBRE_PREDICHO';
+  severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+  mensaje: string;
+  productoId?: number;
+  productoNombre?: string;
+  fecha: Date;
+  resuelto: boolean;
+}
+
+export interface ProductoCritico {
+  id: number;
+  nombre: string;
+  stock: number;
+  stockMinimo: number;
+  diasRestantes: number;
+  riesgo: 'BAJO' | 'MEDIO' | 'ALTO' | 'CRITICO';
+}
+
 @Injectable()
 export class DashboardService {
   private readonly logger = new Logger(DashboardService.name);
@@ -36,7 +73,7 @@ export class DashboardService {
     private errorHandler: ErrorHandlerService,
     private cacheService: KPICacheService,
     private kpiErrorHandler: KPIErrorHandler,
-    private cacheStrategies: CacheStrategiesService
+    private cacheStrategies: CacheStrategiesService,
   ) {}
 
   async getKpis(empresaId: number): Promise<KPIData> {
@@ -45,7 +82,7 @@ export class DashboardService {
       return await this.cacheStrategies.refreshAhead(
         `kpis:${empresaId}`,
         () => this.calculateKPIs(empresaId),
-        'dynamic'
+        'dynamic',
       );
     } catch (error) {
       this.logger.error(`Error getting KPIs for empresa ${empresaId}:`, error);
@@ -59,24 +96,46 @@ export class DashboardService {
       return await this.cacheStrategies.refreshAhead(
         `financial-kpis:${empresaId}`,
         () => this.calculateFinancialKPIs(empresaId),
-        'dynamic'
+        'dynamic',
       );
     } catch (error) {
-      this.logger.error(`Error getting Financial KPIs for empresa ${empresaId}:`, error);
-      return this.kpiErrorHandler.handleKPIError(error, 'getFinancialKPIs', empresaId);
-        }
+      this.logger.error(
+        `Error getting Financial KPIs for empresa ${empresaId}:`,
+        error,
+      );
+      return this.kpiErrorHandler.handleKPIError(
+        error,
+        'getFinancialKPIs',
+        empresaId,
+      );
+    }
+  }
+
+  async getAdvancedKPIs(empresaId: number): Promise<AdvancedKPIs> {
+    try {
+      return await this.cacheStrategies.refreshAhead(
+        `advanced-kpis:${empresaId}`,
+        () => this.calculateAdvancedKPIs(empresaId),
+        'dynamic',
+      );
+    } catch (error) {
+      this.logger.error(`Error getting Advanced KPIs for empresa ${empresaId}:`, error);
+      return this.getBasicAdvancedKPIs(empresaId);
+    }
   }
 
   private async calculateKPIs(empresaId: number): Promise<KPIData> {
     try {
       // ✅ CONSULTA OPTIMIZADA CON SQL RAW
-      const result = await this.prisma.$queryRaw<Array<{
-        total_productos: number;
-        productos_stock_bajo: number;
-        valor_inventario: number;
-        margen_promedio: number;
-        movimientos_ultimo_mes: number;
-      }>>`
+      const result = await this.prisma.$queryRaw<
+        Array<{
+          total_productos: number;
+          productos_stock_bajo: number;
+          valor_inventario: number;
+          margen_promedio: number;
+          movimientos_ultimo_mes: number;
+        }>
+      >`
         WITH productos_stats AS (
           SELECT 
             COUNT(*) as total_productos,
@@ -105,9 +164,10 @@ export class DashboardService {
       `;
 
       const kpiData = result[0];
-      
+
       // Calcular rotación de inventario
-      const rotacionInventario = await this.calculateRotacionInventario(empresaId);
+      const rotacionInventario =
+        await this.calculateRotacionInventario(empresaId);
 
       const kpis: KPIData = {
         totalProductos: Number(kpiData.total_productos) || 0,
@@ -116,7 +176,7 @@ export class DashboardService {
         valorTotalInventario: Number(kpiData.valor_inventario) || 0,
         margenPromedio: Number(kpiData.margen_promedio) || 0,
         rotacionInventario,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       // Validar datos antes de retornar
@@ -127,21 +187,28 @@ export class DashboardService {
 
       return kpis;
     } catch (error) {
-      this.logger.error(`Error calculating KPIs for empresa ${empresaId}:`, error);
+      this.logger.error(
+        `Error calculating KPIs for empresa ${empresaId}:`,
+        error,
+      );
       throw error;
-        }
+    }
   }
 
-  private async calculateFinancialKPIs(empresaId: number): Promise<FinancialKPIs> {
+  private async calculateFinancialKPIs(
+    empresaId: number,
+  ): Promise<FinancialKPIs> {
     try {
       // Obtener datos financieros optimizados
-      const result = await this.prisma.$queryRaw<Array<{
-        valor_inventario: number;
-        costo_ventas: number;
-        ingresos_ventas: number;
-        dias_inventario: number;
-        capital_trabajo: number;
-      }>>`
+      const result = await this.prisma.$queryRaw<
+        Array<{
+          valor_inventario: number;
+          costo_ventas: number;
+          ingresos_ventas: number;
+          dias_inventario: number;
+          capital_trabajo: number;
+        }>
+      >`
         WITH ventas_mes AS (
           SELECT 
             SUM(cantidad * p.precio_venta) as ingresos_ventas,
@@ -180,13 +247,18 @@ export class DashboardService {
       const capitalTrabajo = Number(data.capital_trabajo) || 0;
 
       // Calcular métricas financieras
-      const margenBruto = ingresosVentas > 0 ? ((ingresosVentas - costoVentas) / ingresosVentas) * 100 : 0;
+      const margenBruto =
+        ingresosVentas > 0
+          ? ((ingresosVentas - costoVentas) / ingresosVentas) * 100
+          : 0;
       const margenNeto = margenBruto * 0.7; // Estimación del margen neto
-      const roiInventario = valorInventario > 0 ? (margenBruto / valorInventario) * 100 : 0;
+      const roiInventario =
+        valorInventario > 0 ? (margenBruto / valorInventario) * 100 : 0;
       const rotacionInventario = diasInventario > 0 ? 365 / diasInventario : 0;
       const costoAlmacenamiento = valorInventario * 0.02; // 2% del valor del inventario
       const costoOportunidad = valorInventario * 0.08; // 8% de costo de oportunidad
-      const eficienciaOperativa = rotacionInventario > 0 ? Math.min(rotacionInventario * 10, 100) : 0;
+      const eficienciaOperativa =
+        rotacionInventario > 0 ? Math.min(rotacionInventario * 10, 100) : 0;
 
       return {
         margenBruto: Math.round(margenBruto * 100) / 100,
@@ -197,15 +269,306 @@ export class DashboardService {
         capitalTrabajo: Math.round(capitalTrabajo * 100) / 100,
         costoAlmacenamiento: Math.round(costoAlmacenamiento * 100) / 100,
         costoOportunidad: Math.round(costoOportunidad * 100) / 100,
-        eficienciaOperativa: Math.round(eficienciaOperativa)
+        eficienciaOperativa: Math.round(eficienciaOperativa),
       };
     } catch (error) {
-      this.logger.error(`Error calculating Financial KPIs for empresa ${empresaId}:`, error);
+      this.logger.error(
+        `Error calculating Financial KPIs for empresa ${empresaId}:`,
+        error,
+      );
       throw error;
     }
   }
 
-  private async calculateRotacionInventario(empresaId: number): Promise<number> {
+  private async calculateAdvancedKPIs(empresaId: number): Promise<AdvancedKPIs> {
+    try {
+      // Obtener datos de productos y movimientos
+      const [productos, movimientos, sensores] = await Promise.all([
+        this.prisma.producto.findMany({
+          where: { empresaId, estado: 'ACTIVO' },
+          include: {
+            movimientos: {
+              where: {
+                fecha: {
+                  gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Últimos 30 días
+                },
+              },
+              orderBy: { fecha: 'desc' },
+            },
+            sensores: {
+              where: {
+                fecha: {
+                  gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Últimas 24 horas
+                },
+              },
+              orderBy: { fecha: 'desc' },
+            },
+          },
+        }),
+        this.prisma.movimientoInventario.findMany({
+          where: {
+            empresaId,
+            fecha: {
+              gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // Últimos 90 días
+            },
+          },
+          orderBy: { fecha: 'desc' },
+        }),
+        this.prisma.sensorLectura.findMany({
+          where: {
+            producto: { empresaId },
+            fecha: {
+              gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Últimas 24 horas
+            },
+          },
+          orderBy: { fecha: 'desc' },
+        }),
+      ]);
+
+      // Calcular eficiencia operativa
+      const eficienciaOperativa = this.calculateEficienciaOperativa(productos, movimientos);
+      
+      // Calcular costo de oportunidad
+      const costoOportunidad = this.calculateCostoOportunidad(productos);
+      
+      // Calcular riesgo de quiebre
+      const riesgoQuiebre = this.calculateRiesgoQuiebre(productos, movimientos);
+      
+      // Determinar tendencia de ventas
+      const tendenciaVentas = this.calculateTendenciaVentas(movimientos);
+      
+      // Calcular demanda estimada
+      const demandaEstimada = this.calculateDemandaEstimada(movimientos);
+      
+      // Calcular stock óptimo
+      const stockOptimo = this.calculateStockOptimo(productos, movimientos);
+      
+      // Predecir quiebre
+      const quiebrePredicho = this.predecirQuiebre(productos, movimientos);
+      
+      // Generar alertas
+      const alertasActivas = this.generateAlertas(productos, sensores);
+      
+      // Identificar productos críticos
+      const productosCriticos = this.identificarProductosCriticos(productos, movimientos);
+
+      return {
+        eficienciaOperativa,
+        costoOportunidad,
+        riesgoQuiebre,
+        tendenciaVentas,
+        demandaEstimada,
+        stockOptimo,
+        quiebrePredicho,
+        alertasActivas,
+        productosCriticos,
+      };
+    } catch (error) {
+      this.logger.error(`Error calculating Advanced KPIs:`, error);
+      throw error;
+    }
+  }
+
+  private calculateEficienciaOperativa(productos: any[], movimientos: any[]): number {
+    if (productos.length === 0) return 0;
+    
+    const productosConMovimientos = productos.filter(p => p.movimientos.length > 0);
+    const eficienciaPorProducto = productosConMovimientos.map(producto => {
+      const movimientosProducto = movimientos.filter(m => m.productoId === producto.id);
+      const salidas = movimientosProducto.filter(m => m.tipo === 'SALIDA').length;
+      const entradas = movimientosProducto.filter(m => m.tipo === 'ENTRADA').length;
+      
+      if (entradas === 0) return 0;
+      return (salidas / entradas) * 100;
+    });
+    
+    return eficienciaPorProducto.reduce((acc, val) => acc + val, 0) / eficienciaPorProducto.length;
+  }
+
+  private calculateCostoOportunidad(productos: any[]): number {
+    return productos.reduce((total, producto) => {
+      const stockExcedente = Math.max(0, producto.stock - producto.stockMinimo * 2);
+      const costoUnitario = producto.precioCompra;
+      const tasaOportunidad = 0.12; // 12% anual
+      
+      return total + (stockExcedente * costoUnitario * tasaOportunidad / 12); // Mensual
+    }, 0);
+  }
+
+  private calculateRiesgoQuiebre(productos: any[], movimientos: any[]): number {
+    const productosEnRiesgo = productos.filter(p => p.stock <= p.stockMinimo);
+    const movimientosRecientes = movimientos.filter(m => 
+      m.fecha >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Última semana
+    );
+    
+    const salidasRecientes = movimientosRecientes.filter(m => m.tipo === 'SALIDA').length;
+    const velocidadVentas = salidasRecientes / 7; // Ventas por día
+    
+    const riesgoTotal = productosEnRiesgo.reduce((total, producto) => {
+      const diasRestantes = producto.stock / velocidadVentas;
+      const riesgo = diasRestantes < 3 ? 100 : diasRestantes < 7 ? 70 : diasRestantes < 14 ? 40 : 10;
+      return total + riesgo;
+    }, 0);
+    
+    return Math.min(100, riesgoTotal / productos.length);
+  }
+
+  private calculateTendenciaVentas(movimientos: any[]): 'CRECIENTE' | 'ESTABLE' | 'DECRECIENTE' {
+    const movimientosSalida = movimientos.filter(m => m.tipo === 'SALIDA');
+    
+    if (movimientosSalida.length < 10) return 'ESTABLE';
+    
+    const mitad = Math.floor(movimientosSalida.length / 2);
+    const primeraMitad = movimientosSalida.slice(0, mitad);
+    const segundaMitad = movimientosSalida.slice(mitad);
+    
+    const promedioPrimera = primeraMitad.reduce((sum, m) => sum + m.cantidad, 0) / primeraMitad.length;
+    const promedioSegunda = segundaMitad.reduce((sum, m) => sum + m.cantidad, 0) / segundaMitad.length;
+    
+    const diferencia = ((promedioSegunda - promedioPrimera) / promedioPrimera) * 100;
+    
+    if (diferencia > 10) return 'CRECIENTE';
+    if (diferencia < -10) return 'DECRECIENTE';
+    return 'ESTABLE';
+  }
+
+  private calculateDemandaEstimada(movimientos: any[]): number {
+    const movimientosSalida = movimientos.filter(m => m.tipo === 'SALIDA');
+    if (movimientosSalida.length === 0) return 0;
+    
+    const promedioDiario = movimientosSalida.reduce((sum, m) => sum + m.cantidad, 0) / 30; // Últimos 30 días
+    return Math.round(promedioDiario * 30); // Estimación mensual
+  }
+
+  private calculateStockOptimo(productos: any[], movimientos: any[]): number {
+    if (productos.length === 0) return 0;
+    
+    const stockOptimoPorProducto = productos.map(producto => {
+      const movimientosProducto = movimientos.filter(m => m.productoId === producto.id);
+      const salidas = movimientosProducto.filter(m => m.tipo === 'SALIDA');
+      
+      if (salidas.length === 0) return producto.stockMinimo * 1.5;
+      
+      const promedioSalidas = salidas.reduce((sum, m) => sum + m.cantidad, 0) / salidas.length;
+      const diasCobertura = 14; // 2 semanas de cobertura
+      
+      return Math.max(producto.stockMinimo * 1.5, promedioSalidas * diasCobertura / 30);
+    });
+    
+    return Math.round(stockOptimoPorProducto.reduce((sum, val) => sum + val, 0));
+  }
+
+  private predecirQuiebre(productos: any[], movimientos: any[]): Date | null {
+    const productosCriticos = productos.filter(p => p.stock <= p.stockMinimo);
+    
+    if (productosCriticos.length === 0) return null;
+    
+    const movimientosRecientes = movimientos.filter(m => 
+      m.fecha >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    );
+    
+    const salidasRecientes = movimientosRecientes.filter(m => m.tipo === 'SALIDA').length;
+    const velocidadVentas = salidasRecientes / 7;
+    
+    if (velocidadVentas === 0) return null;
+    
+    const productoMasCritico = productosCriticos.reduce((min, p) => 
+      p.stock < min.stock ? p : min
+    );
+    
+    const diasRestantes = productoMasCritico.stock / velocidadVentas;
+    const fechaQuiebre = new Date();
+    fechaQuiebre.setDate(fechaQuiebre.getDate() + Math.floor(diasRestantes));
+    
+    return fechaQuiebre;
+  }
+
+  private generateAlertas(productos: any[], sensores: any[]): Alert[] {
+    const alertas: Alert[] = [];
+    
+    // Alertas de stock bajo
+    productos.forEach(producto => {
+      if (producto.stock <= producto.stockMinimo) {
+        alertas.push({
+          id: `stock-${producto.id}`,
+          tipo: 'STOCK_BAJO',
+          severidad: producto.stock === 0 ? 'CRITICA' : producto.stock <= producto.stockMinimo / 2 ? 'ALTA' : 'MEDIA',
+          mensaje: `Stock bajo en ${producto.nombre}: ${producto.stock} unidades`,
+          productoId: producto.id,
+          productoNombre: producto.nombre,
+          fecha: new Date(),
+          resuelto: false,
+        });
+      }
+    });
+    
+    // Alertas de sensores
+    sensores.forEach(sensor => {
+      if (sensor.tipo === 'TEMPERATURA' && sensor.valor > 30) {
+        alertas.push({
+          id: `temp-${sensor.id}`,
+          tipo: 'TEMPERATURA_ALTA',
+          severidad: sensor.valor > 40 ? 'CRITICA' : 'ALTA',
+          mensaje: `Temperatura alta detectada: ${sensor.valor}°C`,
+          productoId: sensor.productoId,
+          fecha: new Date(),
+          resuelto: false,
+        });
+      }
+      
+      if (sensor.tipo === 'HUMEDAD' && sensor.valor > 80) {
+        alertas.push({
+          id: `hum-${sensor.id}`,
+          tipo: 'HUMEDAD_CRITICA',
+          severidad: sensor.valor > 90 ? 'CRITICA' : 'ALTA',
+          mensaje: `Humedad crítica detectada: ${sensor.valor}%`,
+          productoId: sensor.productoId,
+          fecha: new Date(),
+          resuelto: false,
+        });
+      }
+    });
+    
+    return alertas;
+  }
+
+  private identificarProductosCriticos(productos: any[], movimientos: any[]): ProductoCritico[] {
+    return productos
+      .filter(p => p.stock <= p.stockMinimo * 1.5)
+      .map(producto => {
+        const movimientosProducto = movimientos.filter(m => m.productoId === producto.id);
+        const salidas = movimientosProducto.filter(m => m.tipo === 'SALIDA');
+        
+        const promedioSalidas = salidas.length > 0 
+          ? salidas.reduce((sum, m) => sum + m.cantidad, 0) / salidas.length 
+          : 1;
+        
+        const diasRestantes = producto.stock / promedioSalidas;
+        
+        let riesgo: 'BAJO' | 'MEDIO' | 'ALTO' | 'CRITICO';
+        if (diasRestantes <= 1) riesgo = 'CRITICO';
+        else if (diasRestantes <= 3) riesgo = 'ALTO';
+        else if (diasRestantes <= 7) riesgo = 'MEDIO';
+        else riesgo = 'BAJO';
+        
+        return {
+          id: producto.id,
+          nombre: producto.nombre,
+          stock: producto.stock,
+          stockMinimo: producto.stockMinimo,
+          diasRestantes: Math.floor(diasRestantes),
+          riesgo,
+        };
+      })
+      .sort((a, b) => {
+        const riesgoOrder = { 'CRITICO': 4, 'ALTO': 3, 'MEDIO': 2, 'BAJO': 1 };
+        return riesgoOrder[b.riesgo] - riesgoOrder[a.riesgo];
+      });
+  }
+
+  private async calculateRotacionInventario(
+    empresaId: number,
+  ): Promise<number> {
     try {
       const result = await this.prisma.$queryRaw<Array<{ rotacion: number }>>`
         WITH ventas_mes AS (
@@ -231,7 +594,10 @@ export class DashboardService {
 
       return Number(result[0]?.rotacion) || 0;
     } catch (error) {
-      this.logger.error(`Error calculating inventory rotation for empresa ${empresaId}:`, error);
+      this.logger.error(
+        `Error calculating inventory rotation for empresa ${empresaId}:`,
+        error,
+      );
       return 0;
     }
   }
@@ -245,7 +611,21 @@ export class DashboardService {
       valorTotalInventario: 0,
       margenPromedio: 0,
       rotacionInventario: 0,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  getBasicAdvancedKPIs(empresaId: number): AdvancedKPIs {
+    return {
+      eficienciaOperativa: 0,
+      costoOportunidad: 0,
+      riesgoQuiebre: 0,
+      tendenciaVentas: 'ESTABLE',
+      demandaEstimada: 0,
+      stockOptimo: 0,
+      quiebrePredicho: null,
+      alertasActivas: [],
+      productosCriticos: [],
     };
   }
 
@@ -259,30 +639,30 @@ export class DashboardService {
           const productosConMovimientos = await this.prisma.producto.findMany({
             where: {
               empresaId,
-              estado: { in: ['ACTIVO', 'INACTIVO'] } 
+              estado: { in: ['ACTIVO', 'INACTIVO'] },
             },
             include: {
               movimientos: {
                 where: {
                   fecha: {
-                    gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Últimos 30 días
-                  }
+                    gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Últimos 30 días
+                  },
                 },
                 orderBy: {
-                  fecha: 'desc'
+                  fecha: 'desc',
                 },
-                take: 5
-              }
+                take: 5,
+              },
             },
             orderBy: {
               movimientos: {
-                _count: 'desc'
-              }
+                _count: 'desc',
+              },
             },
-            take: 10
+            take: 10,
           });
 
-          return productosConMovimientos.map(producto => ({
+          return productosConMovimientos.map((producto) => ({
             id: producto.id,
             nombre: producto.nombre,
             stock: producto.stock,
@@ -292,13 +672,17 @@ export class DashboardService {
             unidad: producto.unidad,
             etiquetas: producto.etiquetas,
             movimientosRecientes: producto.movimientos.length,
-            ultimoMovimiento: producto.movimientos[0]?.fecha || null
+            ultimoMovimiento: producto.movimientos[0]?.fecha || null,
           }));
         },
-        'producto'
+        'producto',
       );
     } catch (error) {
-      this.errorHandler.handlePrismaError(error, 'getProductosKPI', `empresaId: ${empresaId}`);
+      this.errorHandler.handlePrismaError(
+        error,
+        'getProductosKPI',
+        `empresaId: ${empresaId}`,
+      );
     }
   }
 
@@ -310,23 +694,23 @@ export class DashboardService {
         async () => {
           const movimientos = await this.prisma.movimientoInventario.findMany({
             where: {
-              empresaId
+              empresaId,
             },
             include: {
               producto: {
                 select: {
                   nombre: true,
-                  etiquetas: true
-                }
-              }
+                  etiquetas: true,
+                },
+              },
             },
             orderBy: {
-              fecha: 'desc'
+              fecha: 'desc',
             },
-            take: 50
+            take: 50,
           });
 
-          return movimientos.map(movimiento => ({
+          return movimientos.map((movimiento) => ({
             id: movimiento.id,
             fecha: movimiento.fecha,
             tipo: movimiento.tipo,
@@ -335,14 +719,18 @@ export class DashboardService {
             descripcion: movimiento.descripcion,
             producto: {
               nombre: movimiento.producto.nombre,
-              etiquetas: movimiento.producto.etiquetas
-            }
+              etiquetas: movimiento.producto.etiquetas,
+            },
           }));
         },
-        'dynamic'
+        'dynamic',
       );
     } catch (error) {
-      this.errorHandler.handlePrismaError(error, 'getMovimientosPorProducto', `empresaId: ${empresaId}`);
+      this.errorHandler.handlePrismaError(
+        error,
+        'getMovimientosPorProducto',
+        `empresaId: ${empresaId}`,
+      );
     }
   }
 
@@ -356,48 +744,69 @@ export class DashboardService {
       // Productos activos e inactivos (excluir eliminados)
       const productos = await this.prisma.producto.findMany({
         where: { empresaId, estado: { in: ['ACTIVO', 'INACTIVO'] } },
-        select: { stock: true, precioVenta: true, precioCompra: true, id: true, nombre: true }
+        select: {
+          stock: true,
+          precioVenta: true,
+          precioCompra: true,
+          id: true,
+          nombre: true,
+        },
       });
 
       // Stock final actual
       const stockFinal = productos.reduce((acc, p) => acc + p.stock, 0);
 
       // Movimientos de salida del mes
-      const movimientosDelMes = await this.prisma.movimientoInventario.findMany({
-        where: {
-          empresaId,
-          tipo: 'SALIDA',
-          fecha: { gte: primerDiaDelMes }
+      const movimientosDelMes = await this.prisma.movimientoInventario.findMany(
+        {
+          where: {
+            empresaId,
+            tipo: 'SALIDA',
+            fecha: { gte: primerDiaDelMes },
+          },
+          select: { cantidad: true, productoId: true },
         },
-        select: { cantidad: true, productoId: true }
-      });
-      const unidadesVendidas = movimientosDelMes.reduce((acc, m) => acc + m.cantidad, 0);
+      );
+      const unidadesVendidas = movimientosDelMes.reduce(
+        (acc, m) => acc + m.cantidad,
+        0,
+      );
 
       // Stock inicial estimado (stock final + unidades vendidas del mes)
       const stockInicial = stockFinal + unidadesVendidas;
 
       // Margen promedio
       const margenes = productos
-        .filter(p => p.precioCompra > 0)
-        .map(p => ((p.precioVenta - p.precioCompra) / p.precioCompra) * 100);
-      const margenPromedio = margenes.length > 0 ? margenes.reduce((a, b) => a + b, 0) / margenes.length : 0;
+        .filter((p) => p.precioCompra > 0)
+        .map((p) => ((p.precioVenta - p.precioCompra) / p.precioCompra) * 100);
+      const margenPromedio =
+        margenes.length > 0
+          ? margenes.reduce((a, b) => a + b, 0) / margenes.length
+          : 0;
 
       // Rotación
-      const rotacion = stockInicial > 0 ? (unidadesVendidas / stockInicial) * 100 : 0;
+      const rotacion =
+        stockInicial > 0 ? (unidadesVendidas / stockInicial) * 100 : 0;
 
       // Producto de mayor rotación
       const rotacionPorProducto: Record<number, number> = {};
-      movimientosDelMes.forEach(m => {
-        rotacionPorProducto[m.productoId] = (rotacionPorProducto[m.productoId] || 0) + m.cantidad;
+      movimientosDelMes.forEach((m) => {
+        rotacionPorProducto[m.productoId] =
+          (rotacionPorProducto[m.productoId] || 0) + m.cantidad;
       });
-      let productoMayorRotacion: { nombre: string; movimientos: number } | null = null;
+      let productoMayorRotacion: {
+        nombre: string;
+        movimientos: number;
+      } | null = null;
       if (Object.keys(rotacionPorProducto).length > 0) {
-        const [idMayor, cantidadMayor] = Object.entries(rotacionPorProducto).sort((a, b) => b[1] - a[1])[0];
-        const producto = productos.find(p => p.id === Number(idMayor));
+        const [idMayor, cantidadMayor] = Object.entries(
+          rotacionPorProducto,
+        ).sort((a, b) => b[1] - a[1])[0];
+        const producto = productos.find((p) => p.id === Number(idMayor));
         if (producto) {
           productoMayorRotacion = {
             nombre: producto.nombre,
-            movimientos: cantidadMayor
+            movimientos: cantidadMayor,
           };
         }
       }
@@ -408,50 +817,50 @@ export class DashboardService {
         productosStockBajo,
         movimientosUltimoMes,
         productosConMovimientos,
-        movimientosRecientes
+        movimientosRecientes,
       ] = await Promise.all([
         this.prisma.producto.count({
-          where: { 
+          where: {
             empresaId,
-            estado: { in: ['ACTIVO', 'INACTIVO'] } // Excluir eliminados
-          }
+            estado: { in: ['ACTIVO', 'INACTIVO'] }, // Excluir eliminados
+          },
         }),
         this.prisma.producto.count({
           where: {
             empresaId,
             estado: 'ACTIVO',
             stock: {
-              lte: 10
-            }
-          }
+              lte: 10,
+            },
+          },
         }),
         this.prisma.movimientoInventario.count({
           where: {
             empresaId,
             fecha: {
-              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-            }
-          }
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            },
+          },
         }),
         this.getProductosKPI(empresaId),
-        this.getMovimientosPorProducto(empresaId)
+        this.getMovimientosPorProducto(empresaId),
       ]);
 
       // Calcular valor total del inventario
       const productosConPrecio = await this.prisma.producto.findMany({
         where: {
           empresaId,
-          estado: 'ACTIVO' // Solo productos activos para el valor del inventario
+          estado: 'ACTIVO', // Solo productos activos para el valor del inventario
         },
         select: {
           stock: true,
-          precioCompra: true
-        }
+          precioCompra: true,
+        },
       });
 
       const valorTotalInventario = productosConPrecio.reduce(
-        (total, producto) => total + (producto.stock * producto.precioCompra),
-        0
+        (total, producto) => total + producto.stock * producto.precioCompra,
+        0,
       );
 
       // Obtener productos con stock crítico
@@ -460,14 +869,14 @@ export class DashboardService {
           empresaId,
           estado: 'ACTIVO',
           stock: {
-            lte: 10
-          }
+            lte: 10,
+          },
         },
         select: {
           nombre: true,
           stock: true,
-          stockMinimo: true
-        }
+          stockMinimo: true,
+        },
       });
 
       // Obtener ventas por día (últimos 14 días)
@@ -477,44 +886,46 @@ export class DashboardService {
           empresaId,
           tipo: 'SALIDA',
           fecha: {
-            gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
-          }
+            gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+          },
         },
         _sum: {
-          cantidad: true
+          cantidad: true,
         },
         orderBy: {
-          fecha: 'asc'
-        }
+          fecha: 'asc',
+        },
       });
 
       // Obtener estadísticas por categoría
-              const productosPorEtiqueta = await this.prisma.producto.groupBy({
-          by: ['etiquetas'],
+      const productosPorEtiqueta = await this.prisma.producto.groupBy({
+        by: ['etiquetas'],
         where: {
           empresaId,
-          estado: { in: ['ACTIVO', 'INACTIVO'] } 
+          estado: { in: ['ACTIVO', 'INACTIVO'] },
         },
         _count: {
-          id: true
-        }
+          id: true,
+        },
       });
 
       // Obtener movimientos por tipo en el último mes
-      const movimientosPorTipo = await this.prisma.movimientoInventario.groupBy({
-        by: ['tipo'],
-        where: {
-          empresaId,
-          fecha: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-          }
+      const movimientosPorTipo = await this.prisma.movimientoInventario.groupBy(
+        {
+          by: ['tipo'],
+          where: {
+            empresaId,
+            fecha: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            },
+          },
+          _count: {
+            id: true,
+          },
         },
-        _count: {
-          id: true
-        }
-      });
+      );
 
-//PRUEBA
+      //PRUEBA
       const diasGraficos: Array<{
         fecha: string;
         stock: number;
@@ -523,21 +934,21 @@ export class DashboardService {
       }> = [];
       const fechaInicio = new Date();
       fechaInicio.setDate(fechaInicio.getDate() - 13);
-      
+
       for (let i = 0; i < 14; i++) {
         const fecha = new Date(fechaInicio);
         fecha.setDate(fechaInicio.getDate() + i);
         const fechaStr = fecha.toISOString().split('T')[0];
-        
-        const ventasDelDia = ventasPorDia.find(v => 
-          v.fecha.toISOString().split('T')[0] === fechaStr
+
+        const ventasDelDia = ventasPorDia.find(
+          (v) => v.fecha.toISOString().split('T')[0] === fechaStr,
         );
-        
+
         diasGraficos.push({
           fecha: fechaStr,
           stock: Math.floor(Math.random() * 100) + 50, // Simulado por ahora
           ventas: ventasDelDia?._sum.cantidad || 0,
-          eficiencia: Math.floor(Math.random() * 100)
+          eficiencia: Math.floor(Math.random() * 100),
         });
       }
 
@@ -552,30 +963,34 @@ export class DashboardService {
           totalProductos,
           productosStockBajo,
           movimientosUltimoMes,
-          valorTotalInventario: Math.round(valorTotalInventario * 100) / 100
+          valorTotalInventario: Math.round(valorTotalInventario * 100) / 100,
         },
-        ventasPorDia: ventasPorDia.map(v => ({
+        ventasPorDia: ventasPorDia.map((v) => ({
           fecha: v.fecha,
-          cantidad: v._sum.cantidad || 0
+          cantidad: v._sum.cantidad || 0,
         })),
-        stockCritico: stockCritico.map(p => ({
+        stockCritico: stockCritico.map((p) => ({
           nombre: p.nombre,
           stock: p.stock,
-          stockMinimo: p.stockMinimo
+          stockMinimo: p.stockMinimo,
         })),
-        productos: (productosConMovimientos || []).map(p => ({
+        productos: (productosConMovimientos || []).map((p) => ({
           ...p,
-          movimientos: rotacionPorProducto[p.id] || 0
+          movimientos: rotacionPorProducto[p.id] || 0,
         })),
         movimientos: movimientosRecientes,
         diasGraficos,
         estadisticas: {
           productosPorEtiqueta,
-          movimientosPorTipo
-        }
+          movimientosPorTipo,
+        },
       };
     } catch (error) {
-      this.errorHandler.handlePrismaError(error, 'getDashboardData', `empresaId: ${empresaId}`);
+      this.errorHandler.handlePrismaError(
+        error,
+        'getDashboardData',
+        `empresaId: ${empresaId}`,
+      );
     }
   }
 }

@@ -24,7 +24,7 @@ export class EmpresaCacheService {
     const now = Date.now();
 
     // Si tenemos un cache válido, usarlo
-    if (cached && (now - cached.timestamp) < this.cacheTtl) {
+    if (cached && now - cached.timestamp < this.cacheTtl) {
       this.logger.debug(`Cache hit para empresa ${empresaId}`);
       return cached.exists;
     }
@@ -37,7 +37,7 @@ export class EmpresaCacheService {
       });
 
       const exists = !!empresa;
-      
+
       // Actualizar cache
       this.cache.set(empresaId, {
         id: empresaId,
@@ -46,7 +46,9 @@ export class EmpresaCacheService {
         timestamp: now,
       });
 
-      this.logger.debug(`Cache miss para empresa ${empresaId}, exists: ${exists}`);
+      this.logger.debug(
+        `Cache miss para empresa ${empresaId}, exists: ${exists}`,
+      );
       return exists;
     } catch (error) {
       this.logger.error(`Error verificando empresa ${empresaId}:`, error);
@@ -58,12 +60,14 @@ export class EmpresaCacheService {
   /**
    * Obtiene información de la empresa con cache
    */
-  async getEmpresa(empresaId: number): Promise<{ id: number; nombre: string } | null> {
+  async getEmpresa(
+    empresaId: number,
+  ): Promise<{ id: number; nombre: string } | null> {
     const cached = this.cache.get(empresaId);
     const now = Date.now();
 
     // Si tenemos un cache válido y la empresa existe, usarlo
-    if (cached && (now - cached.timestamp) < this.cacheTtl && cached.exists) {
+    if (cached && now - cached.timestamp < this.cacheTtl && cached.exists) {
       this.logger.debug(`Cache hit para empresa ${empresaId}`);
       return {
         id: cached.id,
@@ -113,7 +117,10 @@ export class EmpresaCacheService {
   /**
    * Obtiene estadísticas del cache
    */
-  getCacheStats(): { size: number; entries: Array<{ id: number; nombre: string; age: number }> } {
+  getCacheStats(): {
+    size: number;
+    entries: Array<{ id: number; nombre: string; age: number }>;
+  } {
     const now = Date.now();
     const entries = Array.from(this.cache.entries()).map(([id, entry]) => ({
       id,
@@ -126,4 +133,4 @@ export class EmpresaCacheService {
       entries,
     };
   }
-} 
+}

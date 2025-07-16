@@ -22,9 +22,13 @@ export class CreateUserAdminDto {
   @IsString()
   @MinLength(12, { message: 'La contraseña debe tener al menos 12 caracteres' })
   @MaxLength(128, { message: 'La contraseña no puede exceder 128 caracteres' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/, {
-    message: 'La contraseña debe contener al menos 12 caracteres, incluyendo mayúsculas, minúsculas, números y símbolos (@$!%*?&)'
-  })
+  @Matches(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/,
+    {
+      message:
+        'La contraseña debe contener al menos 12 caracteres, incluyendo mayúsculas, minúsculas, números y símbolos (@$!%*?&)',
+    },
+  )
   password: string;
 
   @IsEnum(Rol, { message: 'El rol debe ser válido' })
@@ -34,4 +38,4 @@ export class CreateUserAdminDto {
   @IsOptional()
   @IsString()
   empresaId?: string;
-} 
+}

@@ -32,161 +32,216 @@ export class SecurityMiddleware implements NestMiddleware {
       skipFailedRequests: false,
       keyGenerator: (req: Request) => {
         // Usar IP real considerando proxies
-        return req.headers['x-forwarded-for'] as string || req.ip || req.connection.remoteAddress || 'unknown';
+        return (
+          (req.headers['x-forwarded-for'] as string) ||
+          req.ip ||
+          req.connection.remoteAddress ||
+          'unknown'
+        );
       },
     });
   }
 
   private createActionSpecificLimiters() {
     // Rate limiter para login
-    this.rateLimiters.set('login', rateLimit({
-      windowMs: securityConfig.rateLimit.limits.login.windowMs,
-      max: securityConfig.rateLimit.limits.login.max,
-      skipSuccessfulRequests: true,
-      skipFailedRequests: false,
-      message: {
-        error: 'Demasiados intentos de login. Intenta de nuevo más tarde.',
-        retryAfter: Math.ceil(securityConfig.rateLimit.limits.login.blockDuration / 1000),
-        blockDuration: securityConfig.rateLimit.limits.login.blockDuration,
-      },
-      standardHeaders: true,
-      legacyHeaders: false,
-      handler: (req: Request, res: Response) => {
-        this.logger.warn(`Rate limit de login excedido para IP: ${req.ip}`, {
-          ip: req.ip,
-          userAgent: req.get('User-Agent'),
-          path: req.path,
-          environment: process.env.NODE_ENV,
-          limit: securityConfig.rateLimit.limits.login.max,
-          windowMs: securityConfig.rateLimit.limits.login.windowMs,
-        });
-        res.status(429).json({
+    this.rateLimiters.set(
+      'login',
+      rateLimit({
+        windowMs: securityConfig.rateLimit.limits.login.windowMs,
+        max: securityConfig.rateLimit.limits.login.max,
+        skipSuccessfulRequests: true,
+        skipFailedRequests: false,
+        message: {
           error: 'Demasiados intentos de login. Intenta de nuevo más tarde.',
-          retryAfter: Math.ceil(securityConfig.rateLimit.limits.login.blockDuration / 1000),
+          retryAfter: Math.ceil(
+            securityConfig.rateLimit.limits.login.blockDuration / 1000,
+          ),
           blockDuration: securityConfig.rateLimit.limits.login.blockDuration,
-        });
-      },
-    }));
+        },
+        standardHeaders: true,
+        legacyHeaders: false,
+        handler: (req: Request, res: Response) => {
+          this.logger.warn(`Rate limit de login excedido para IP: ${req.ip}`, {
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            path: req.path,
+            environment: process.env.NODE_ENV,
+            limit: securityConfig.rateLimit.limits.login.max,
+            windowMs: securityConfig.rateLimit.limits.login.windowMs,
+          });
+          res.status(429).json({
+            error: 'Demasiados intentos de login. Intenta de nuevo más tarde.',
+            retryAfter: Math.ceil(
+              securityConfig.rateLimit.limits.login.blockDuration / 1000,
+            ),
+            blockDuration: securityConfig.rateLimit.limits.login.blockDuration,
+          });
+        },
+      }),
+    );
 
     // Rate limiter para registro
-    this.rateLimiters.set('register', rateLimit({
-      windowMs: securityConfig.rateLimit.limits.register.windowMs,
-      max: securityConfig.rateLimit.limits.register.max,
-      skipSuccessfulRequests: true,
-      skipFailedRequests: false,
-      message: {
-        error: 'Demasiados intentos de registro. Intenta de nuevo más tarde.',
-        retryAfter: Math.ceil(securityConfig.rateLimit.limits.register.blockDuration / 1000),
-        blockDuration: securityConfig.rateLimit.limits.register.blockDuration,
-      },
-      standardHeaders: true,
-      legacyHeaders: false,
-      handler: (req: Request, res: Response) => {
-        this.logger.warn(`Rate limit de registro excedido para IP: ${req.ip}`, {
-          ip: req.ip,
-          userAgent: req.get('User-Agent'),
-          path: req.path,
-          environment: process.env.NODE_ENV,
-          limit: securityConfig.rateLimit.limits.register.max,
-          windowMs: securityConfig.rateLimit.limits.register.windowMs,
-        });
-        res.status(429).json({
+    this.rateLimiters.set(
+      'register',
+      rateLimit({
+        windowMs: securityConfig.rateLimit.limits.register.windowMs,
+        max: securityConfig.rateLimit.limits.register.max,
+        skipSuccessfulRequests: true,
+        skipFailedRequests: false,
+        message: {
           error: 'Demasiados intentos de registro. Intenta de nuevo más tarde.',
-          retryAfter: Math.ceil(securityConfig.rateLimit.limits.register.blockDuration / 1000),
+          retryAfter: Math.ceil(
+            securityConfig.rateLimit.limits.register.blockDuration / 1000,
+          ),
           blockDuration: securityConfig.rateLimit.limits.register.blockDuration,
-        });
-      },
-    }));
+        },
+        standardHeaders: true,
+        legacyHeaders: false,
+        handler: (req: Request, res: Response) => {
+          this.logger.warn(
+            `Rate limit de registro excedido para IP: ${req.ip}`,
+            {
+              ip: req.ip,
+              userAgent: req.get('User-Agent'),
+              path: req.path,
+              environment: process.env.NODE_ENV,
+              limit: securityConfig.rateLimit.limits.register.max,
+              windowMs: securityConfig.rateLimit.limits.register.windowMs,
+            },
+          );
+          res.status(429).json({
+            error:
+              'Demasiados intentos de registro. Intenta de nuevo más tarde.',
+            retryAfter: Math.ceil(
+              securityConfig.rateLimit.limits.register.blockDuration / 1000,
+            ),
+            blockDuration:
+              securityConfig.rateLimit.limits.register.blockDuration,
+          });
+        },
+      }),
+    );
 
     // Rate limiter para reset de contraseña
-    this.rateLimiters.set('passwordReset', rateLimit({
-      windowMs: securityConfig.rateLimit.limits.passwordReset.windowMs,
-      max: securityConfig.rateLimit.limits.passwordReset.max,
-      skipSuccessfulRequests: true,
-      skipFailedRequests: false,
-      message: {
-        error: 'Demasiados intentos de reset de contraseña. Intenta de nuevo más tarde.',
-        retryAfter: Math.ceil(securityConfig.rateLimit.limits.passwordReset.blockDuration / 1000),
-        blockDuration: securityConfig.rateLimit.limits.passwordReset.blockDuration,
-      },
-      standardHeaders: true,
-      legacyHeaders: false,
-      handler: (req: Request, res: Response) => {
-        this.logger.warn(`Rate limit de reset de contraseña excedido para IP: ${req.ip}`, {
-          ip: req.ip,
-          userAgent: req.get('User-Agent'),
-          path: req.path,
-          environment: process.env.NODE_ENV,
-          limit: securityConfig.rateLimit.limits.passwordReset.max,
-          windowMs: securityConfig.rateLimit.limits.passwordReset.windowMs,
-        });
-        res.status(429).json({
-          error: 'Demasiados intentos de reset de contraseña. Intenta de nuevo más tarde.',
-          retryAfter: Math.ceil(securityConfig.rateLimit.limits.passwordReset.blockDuration / 1000),
-          blockDuration: securityConfig.rateLimit.limits.passwordReset.blockDuration,
-        });
-      },
-    }));
+    this.rateLimiters.set(
+      'passwordReset',
+      rateLimit({
+        windowMs: securityConfig.rateLimit.limits.passwordReset.windowMs,
+        max: securityConfig.rateLimit.limits.passwordReset.max,
+        skipSuccessfulRequests: true,
+        skipFailedRequests: false,
+        message: {
+          error:
+            'Demasiados intentos de reset de contraseña. Intenta de nuevo más tarde.',
+          retryAfter: Math.ceil(
+            securityConfig.rateLimit.limits.passwordReset.blockDuration / 1000,
+          ),
+          blockDuration:
+            securityConfig.rateLimit.limits.passwordReset.blockDuration,
+        },
+        standardHeaders: true,
+        legacyHeaders: false,
+        handler: (req: Request, res: Response) => {
+          this.logger.warn(
+            `Rate limit de reset de contraseña excedido para IP: ${req.ip}`,
+            {
+              ip: req.ip,
+              userAgent: req.get('User-Agent'),
+              path: req.path,
+              environment: process.env.NODE_ENV,
+              limit: securityConfig.rateLimit.limits.passwordReset.max,
+              windowMs: securityConfig.rateLimit.limits.passwordReset.windowMs,
+            },
+          );
+          res.status(429).json({
+            error:
+              'Demasiados intentos de reset de contraseña. Intenta de nuevo más tarde.',
+            retryAfter: Math.ceil(
+              securityConfig.rateLimit.limits.passwordReset.blockDuration /
+                1000,
+            ),
+            blockDuration:
+              securityConfig.rateLimit.limits.passwordReset.blockDuration,
+          });
+        },
+      }),
+    );
 
     // Rate limiter general para API
-    this.rateLimiters.set('api', rateLimit({
-      windowMs: securityConfig.rateLimit.limits.api.windowMs,
-      max: securityConfig.rateLimit.limits.api.max,
-      skipSuccessfulRequests: false,
-      skipFailedRequests: false,
-      message: {
-        error: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.',
-        retryAfter: Math.ceil(securityConfig.rateLimit.limits.api.blockDuration / 1000),
-        blockDuration: securityConfig.rateLimit.limits.api.blockDuration,
-      },
-      standardHeaders: true,
-      legacyHeaders: false,
-      handler: (req: Request, res: Response) => {
-        this.logger.warn(`Rate limit general excedido para IP: ${req.ip}`, {
-          ip: req.ip,
-          userAgent: req.get('User-Agent'),
-          path: req.path,
-          environment: process.env.NODE_ENV,
-          limit: securityConfig.rateLimit.limits.api.max,
-          windowMs: securityConfig.rateLimit.limits.api.windowMs,
-        });
-        res.status(429).json({
-          error: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.',
-          retryAfter: Math.ceil(securityConfig.rateLimit.limits.api.blockDuration / 1000),
+    this.rateLimiters.set(
+      'api',
+      rateLimit({
+        windowMs: securityConfig.rateLimit.limits.api.windowMs,
+        max: securityConfig.rateLimit.limits.api.max,
+        skipSuccessfulRequests: false,
+        skipFailedRequests: false,
+        message: {
+          error:
+            'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.',
+          retryAfter: Math.ceil(
+            securityConfig.rateLimit.limits.api.blockDuration / 1000,
+          ),
           blockDuration: securityConfig.rateLimit.limits.api.blockDuration,
-        });
-      },
-    }));
+        },
+        standardHeaders: true,
+        legacyHeaders: false,
+        handler: (req: Request, res: Response) => {
+          this.logger.warn(`Rate limit general excedido para IP: ${req.ip}`, {
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            path: req.path,
+            environment: process.env.NODE_ENV,
+            limit: securityConfig.rateLimit.limits.api.max,
+            windowMs: securityConfig.rateLimit.limits.api.windowMs,
+          });
+          res.status(429).json({
+            error:
+              'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.',
+            retryAfter: Math.ceil(
+              securityConfig.rateLimit.limits.api.blockDuration / 1000,
+            ),
+            blockDuration: securityConfig.rateLimit.limits.api.blockDuration,
+          });
+        },
+      }),
+    );
 
     // Rate limiter para admin
-    this.rateLimiters.set('admin', rateLimit({
-      windowMs: securityConfig.rateLimit.limits.admin.windowMs,
-      max: securityConfig.rateLimit.limits.admin.max,
-      skipSuccessfulRequests: false,
-      skipFailedRequests: false,
-      message: {
-        error: 'Demasiadas peticiones de administración desde esta IP.',
-        retryAfter: Math.ceil(securityConfig.rateLimit.limits.admin.blockDuration / 1000),
-        blockDuration: securityConfig.rateLimit.limits.admin.blockDuration,
-      },
-      standardHeaders: true,
-      legacyHeaders: false,
-      handler: (req: Request, res: Response) => {
-        this.logger.warn(`Rate limit de admin excedido para IP: ${req.ip}`, {
-          ip: req.ip,
-          userAgent: req.get('User-Agent'),
-          path: req.path,
-          environment: process.env.NODE_ENV,
-          limit: securityConfig.rateLimit.limits.admin.max,
-          windowMs: securityConfig.rateLimit.limits.admin.windowMs,
-        });
-        res.status(429).json({
+    this.rateLimiters.set(
+      'admin',
+      rateLimit({
+        windowMs: securityConfig.rateLimit.limits.admin.windowMs,
+        max: securityConfig.rateLimit.limits.admin.max,
+        skipSuccessfulRequests: false,
+        skipFailedRequests: false,
+        message: {
           error: 'Demasiadas peticiones de administración desde esta IP.',
-          retryAfter: Math.ceil(securityConfig.rateLimit.limits.admin.blockDuration / 1000),
+          retryAfter: Math.ceil(
+            securityConfig.rateLimit.limits.admin.blockDuration / 1000,
+          ),
           blockDuration: securityConfig.rateLimit.limits.admin.blockDuration,
-        });
-      },
-    }));
+        },
+        standardHeaders: true,
+        legacyHeaders: false,
+        handler: (req: Request, res: Response) => {
+          this.logger.warn(`Rate limit de admin excedido para IP: ${req.ip}`, {
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            path: req.path,
+            environment: process.env.NODE_ENV,
+            limit: securityConfig.rateLimit.limits.admin.max,
+            windowMs: securityConfig.rateLimit.limits.admin.windowMs,
+          });
+          res.status(429).json({
+            error: 'Demasiadas peticiones de administración desde esta IP.',
+            retryAfter: Math.ceil(
+              securityConfig.rateLimit.limits.admin.blockDuration / 1000,
+            ),
+            blockDuration: securityConfig.rateLimit.limits.admin.blockDuration,
+          });
+        },
+      }),
+    );
   }
 
   private getRateLimiterForPath(path: string): any {
@@ -194,10 +249,16 @@ export class SecurityMiddleware implements NestMiddleware {
     if (path.includes('/auth/login')) {
       return this.rateLimiters.get('login');
     }
-    if (path.includes('/auth/register') || path.includes('/auth/register-empresa')) {
+    if (
+      path.includes('/auth/register') ||
+      path.includes('/auth/register-empresa')
+    ) {
       return this.rateLimiters.get('register');
     }
-    if (path.includes('/auth/forgot-password') || path.includes('/auth/reset-password')) {
+    if (
+      path.includes('/auth/forgot-password') ||
+      path.includes('/auth/reset-password')
+    ) {
       return this.rateLimiters.get('passwordReset');
     }
     if (path.includes('/admin') || path.includes('/super-admin')) {
@@ -226,7 +287,9 @@ export class SecurityMiddleware implements NestMiddleware {
         this.speedLimiter(req, res, (err: any) => {
           if (err) {
             this.logger.error('Error en speed limiter:', err);
-            return res.status(500).json({ error: 'Error interno del servidor' });
+            return res
+              .status(500)
+              .json({ error: 'Error interno del servidor' });
           }
 
           // Agregar headers de seguridad adicionales
@@ -248,7 +311,10 @@ export class SecurityMiddleware implements NestMiddleware {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    res.setHeader(
+      'Permissions-Policy',
+      'geolocation=(), microphone=(), camera=()',
+    );
   }
 
   private logSecurityEvents(req: Request) {
@@ -270,12 +336,23 @@ export class SecurityMiddleware implements NestMiddleware {
     const body = req.body;
 
     // Verificar patrones sospechosos
-    const suspiciousUserAgent = suspiciousPatterns.some(pattern => pattern.test(userAgent));
-    const suspiciousPath = suspiciousPatterns.some(pattern => pattern.test(path));
-    const suspiciousQuery = query ? JSON.stringify(query).match(/[<>'"]/) : null;
+    const suspiciousUserAgent = suspiciousPatterns.some((pattern) =>
+      pattern.test(userAgent),
+    );
+    const suspiciousPath = suspiciousPatterns.some((pattern) =>
+      pattern.test(path),
+    );
+    const suspiciousQuery = query
+      ? JSON.stringify(query).match(/[<>'"]/)
+      : null;
     const suspiciousBody = body ? JSON.stringify(body).match(/[<>'"]/) : null;
 
-    if (suspiciousUserAgent || suspiciousPath || suspiciousQuery || suspiciousBody) {
+    if (
+      suspiciousUserAgent ||
+      suspiciousPath ||
+      suspiciousQuery ||
+      suspiciousBody
+    ) {
       this.logger.warn('🚨 Actividad sospechosa detectada', {
         ip: req.ip,
         userAgent,
@@ -290,8 +367,14 @@ export class SecurityMiddleware implements NestMiddleware {
     }
 
     // Log de peticiones a rutas sensibles
-    const sensitiveRoutes = ['/auth/login', '/auth/register', '/admin', '/super-admin', '/auth/forgot-password'];
-    if (sensitiveRoutes.some(route => path.includes(route))) {
+    const sensitiveRoutes = [
+      '/auth/login',
+      '/auth/register',
+      '/admin',
+      '/super-admin',
+      '/auth/forgot-password',
+    ];
+    if (sensitiveRoutes.some((route) => path.includes(route))) {
       this.logger.log('🔒 Acceso a ruta sensible', {
         ip: req.ip,
         path,
@@ -302,4 +385,4 @@ export class SecurityMiddleware implements NestMiddleware {
       });
     }
   }
-} 
+}

@@ -12,12 +12,11 @@ export class SecureLoggerService {
     if (!email || !email.includes('@')) {
       return '***@***';
     }
-    
+
     const [localPart, domain] = email.split('@');
-    const maskedLocal = localPart.length > 3 
-      ? `${localPart.substring(0, 3)}***` 
-      : '***';
-    
+    const maskedLocal =
+      localPart.length > 3 ? `${localPart.substring(0, 3)}***` : '***';
+
     return `${maskedLocal}@${domain}`;
   }
 
@@ -27,9 +26,10 @@ export class SecureLoggerService {
    */
   private maskName(name: string): string {
     if (!name) return '***';
-    
-    return name.split(' ')
-      .map(word => word.length > 1 ? `${word[0]}***` : '***')
+
+    return name
+      .split(' ')
+      .map((word) => (word.length > 1 ? `${word[0]}***` : '***'))
       .join(' ');
   }
 
@@ -49,12 +49,12 @@ export class SecureLoggerService {
    */
   private maskIpAddress(ip: string): string {
     if (!ip) return '***.***.***.***';
-    
+
     const parts = ip.split('.');
     if (parts.length === 4) {
       return `${parts[0]}.${parts[1]}.***.***`;
     }
-    
+
     return '***.***.***.***';
   }
 
@@ -65,8 +65,10 @@ export class SecureLoggerService {
     const maskedEmail = this.maskEmail(email);
     const maskedUserId = this.maskUserId(userId);
     const maskedIp = ip ? this.maskIpAddress(ip) : 'N/A';
-    
-    this.logger.log(`Login exitoso - Usuario: ${maskedUserId}, Email: ${maskedEmail}, IP: ${maskedIp}`);
+
+    this.logger.log(
+      `Login exitoso - Usuario: ${maskedUserId}, Email: ${maskedEmail}, IP: ${maskedIp}`,
+    );
   }
 
   /**
@@ -75,8 +77,10 @@ export class SecureLoggerService {
   logLoginFailure(email: string, reason: string, ip?: string): void {
     const maskedEmail = this.maskEmail(email);
     const maskedIp = ip ? this.maskIpAddress(ip) : 'N/A';
-    
-    this.logger.warn(`Login fallido - Email: ${maskedEmail}, Razón: ${reason}, IP: ${maskedIp}`);
+
+    this.logger.warn(
+      `Login fallido - Email: ${maskedEmail}, Razón: ${reason}, IP: ${maskedIp}`,
+    );
   }
 
   /**
@@ -86,8 +90,10 @@ export class SecureLoggerService {
     const maskedEmail = this.maskEmail(email);
     const maskedName = this.maskName(name);
     const maskedUserId = this.maskUserId(userId);
-    
-    this.logger.log(`Usuario registrado - ID: ${maskedUserId}, Nombre: ${maskedName}, Email: ${maskedEmail}`);
+
+    this.logger.log(
+      `Usuario registrado - ID: ${maskedUserId}, Nombre: ${maskedName}, Email: ${maskedEmail}`,
+    );
   }
 
   /**
@@ -96,8 +102,10 @@ export class SecureLoggerService {
   logPasswordChange(userId: number, success: boolean): void {
     const maskedUserId = this.maskUserId(userId);
     const status = success ? 'exitoso' : 'fallido';
-    
-    this.logger.log(`Cambio de contraseña ${status} - Usuario: ${maskedUserId}`);
+
+    this.logger.log(
+      `Cambio de contraseña ${status} - Usuario: ${maskedUserId}`,
+    );
   }
 
   /**
@@ -106,20 +114,27 @@ export class SecureLoggerService {
   logPasswordReset(email: string, success: boolean): void {
     const maskedEmail = this.maskEmail(email);
     const status = success ? 'exitoso' : 'fallido';
-    
+
     this.logger.log(`Reset de contraseña ${status} - Email: ${maskedEmail}`);
   }
 
   /**
    * Log de creación de empresa con información enmascarada
    */
-  logEmpresaCreation(empresaName: string, adminEmail: string, empresaId: number): void {
+  logEmpresaCreation(
+    empresaName: string,
+    adminEmail: string,
+    empresaId: number,
+  ): void {
     const maskedEmail = this.maskEmail(adminEmail);
-    const maskedName = empresaName.length > 10 
-      ? `${empresaName.substring(0, 10)}***` 
-      : empresaName;
-    
-    this.logger.log(`Empresa creada - ID: ${empresaId}, Nombre: ${maskedName}, Admin: ${maskedEmail}`);
+    const maskedName =
+      empresaName.length > 10
+        ? `${empresaName.substring(0, 10)}***`
+        : empresaName;
+
+    this.logger.log(
+      `Empresa creada - ID: ${empresaId}, Nombre: ${maskedName}, Admin: ${maskedEmail}`,
+    );
   }
 
   /**
@@ -127,8 +142,10 @@ export class SecureLoggerService {
    */
   logSensitiveAccess(userId: number, resource: string, action: string): void {
     const maskedUserId = this.maskUserId(userId);
-    
-    this.logger.log(`Acceso sensible - Usuario: ${maskedUserId}, Recurso: ${resource}, Acción: ${action}`);
+
+    this.logger.log(
+      `Acceso sensible - Usuario: ${maskedUserId}, Recurso: ${resource}, Acción: ${action}`,
+    );
   }
 
   /**
@@ -137,8 +154,10 @@ export class SecureLoggerService {
   logSecurityError(error: string, userId?: number, ip?: string): void {
     const maskedUserId = userId ? this.maskUserId(userId) : 'N/A';
     const maskedIp = ip ? this.maskIpAddress(ip) : 'N/A';
-    
-    this.logger.error(`Error de seguridad - Usuario: ${maskedUserId}, IP: ${maskedIp}, Error: ${error}`);
+
+    this.logger.error(
+      `Error de seguridad - Usuario: ${maskedUserId}, IP: ${maskedIp}, Error: ${error}`,
+    );
   }
 
   /**
@@ -147,8 +166,10 @@ export class SecureLoggerService {
   logSuspiciousActivity(activity: string, userId?: number, ip?: string): void {
     const maskedUserId = userId ? this.maskUserId(userId) : 'N/A';
     const maskedIp = ip ? this.maskIpAddress(ip) : 'N/A';
-    
-    this.logger.warn(`Actividad sospechosa - Usuario: ${maskedUserId}, IP: ${maskedIp}, Actividad: ${activity}`);
+
+    this.logger.warn(
+      `Actividad sospechosa - Usuario: ${maskedUserId}, IP: ${maskedIp}, Actividad: ${activity}`,
+    );
   }
 
   /**
@@ -178,4 +199,4 @@ export class SecureLoggerService {
   debug(message: string, context?: string): void {
     this.logger.debug(message, context);
   }
-} 
+}

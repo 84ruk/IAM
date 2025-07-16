@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { JwtUser } from '../../auth/interfaces/jwt-user.interface';
 
@@ -14,9 +19,11 @@ export class AdminGuard implements CanActivate {
 
     // Solo SUPERADMIN y ADMIN pueden acceder
     if (user.rol !== 'SUPERADMIN' && user.rol !== 'ADMIN') {
-      throw new ForbiddenException('Acceso denegado. Se requieren permisos de administrador');
+      throw new ForbiddenException(
+        'Acceso denegado. Se requieren permisos de administrador',
+      );
     }
 
     return true;
   }
-} 
+}

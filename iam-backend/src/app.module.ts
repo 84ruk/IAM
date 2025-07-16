@@ -20,22 +20,22 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
 
 @Module({
   imports: [
-    AuthModule, 
-    UsersModule, 
-    EmpresaModule, 
-    ProductoModule, 
-    MovimientoModule, 
-    InventarioModule, 
-    PedidoModule, 
-    ProveedorModule, 
-    DashboardModule, 
-    SensoresModule, 
+    AuthModule,
+    UsersModule,
+    EmpresaModule,
+    ProductoModule,
+    MovimientoModule,
+    InventarioModule,
+    PedidoModule,
+    ProveedorModule,
+    DashboardModule,
+    SensoresModule,
     AdminModule,
-    SuperAdminModule
+    SuperAdminModule,
   ],
   controllers: [AppController],
   providers: [
-    AppService, 
+    AppService,
     PrismaService,
     {
       provide: APP_GUARD,

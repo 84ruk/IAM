@@ -11,7 +11,7 @@ import {
   UsePipes,
   ValidationPipe,
   Query,
-  Request
+  Request,
 } from '@nestjs/common';
 import { ProductoService } from './producto.service';
 import { CreateProductoDto } from './dto/create-producto.dto';
@@ -34,13 +34,10 @@ export class ProductoController {
   @Roles(Rol.ADMIN, Rol.SUPERADMIN) // Solo ADMIN puede crear productos
   @UseGuards(RolesGuard)
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
-  async create(
-    @Body() dto: CreateProductoDto,
-    @Request() req
-  ) {
+  async create(@Body() dto: CreateProductoDto, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.create(dto, user.empresaId!);
+    return this.productoService.create(dto, user.empresaId);
   }
 
   @Get()
@@ -62,11 +59,11 @@ export class ProductoController {
     @Query('talla') talla?: string,
     @Query('color') color?: string,
     @Query('sku') sku?: string,
-    @Query('codigoBarras') codigoBarras?: string
+    @Query('codigoBarras') codigoBarras?: string,
   ) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.findAll(user.empresaId!, {
+    return this.productoService.findAll(user.empresaId, {
       search,
       etiqueta,
       estado,
@@ -83,7 +80,7 @@ export class ProductoController {
       talla,
       color,
       sku,
-      codigoBarras
+      codigoBarras,
     });
   }
 
@@ -91,41 +88,41 @@ export class ProductoController {
   getInactive(@Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.findInactive(user.empresaId!);
+    return this.productoService.findInactive(user.empresaId);
   }
 
   @Get('eliminados')
   getDeleted(@Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.findDeleted(user.empresaId!);
+    return this.productoService.findDeleted(user.empresaId);
   }
 
   @Get('sin-proveedor')
   getWithoutProvider(@Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.findWithoutProvider(user.empresaId!);
+    return this.productoService.findWithoutProvider(user.empresaId);
   }
 
   @Get(':id')
-  getOne(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req
-  ) {
+  getOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.findOne(id, user.empresaId!);
+    return this.productoService.findOne(id, user.empresaId);
   }
 
   @Get('buscar/:codigoBarras')
   buscarPorCodigoBarras(
     @Param('codigoBarras') codigoBarras: string,
-    @Request() req
+    @Request() req,
   ) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.buscarPorCodigoBarras(codigoBarras, user.empresaId!);
+    return this.productoService.buscarPorCodigoBarras(
+      codigoBarras,
+      user.empresaId,
+    );
   }
 
   @Patch(':id')
@@ -135,69 +132,54 @@ export class ProductoController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateProductoDto,
-    @Request() req
+    @Request() req,
   ) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.update(id, dto, user.empresaId!);
+    return this.productoService.update(id, dto, user.empresaId);
   }
 
   @Patch(':id/desactivar')
-  async deactivate(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req
-  ) {
+  async deactivate(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.deactivate(id, user.empresaId!);
+    return this.productoService.deactivate(id, user.empresaId);
   }
 
   // Endpoint para "eliminar" - oculta del frontend
   @Delete(':id')
-  async softDelete(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req
-  ) {
+  async softDelete(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.softDelete(id, user.empresaId!);
+    return this.productoService.softDelete(id, user.empresaId);
   }
 
   // Endpoint para eliminar
   @Delete(':id/permanent')
   @Roles(Rol.ADMIN, Rol.SUPERADMIN)
   @UseGuards(RolesGuard)
-  async remove(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req
-  ) {
+  async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.remove(id, user.empresaId!, user.rol);
+    return this.productoService.remove(id, user.empresaId, user.rol);
   }
 
   @Patch(':id/reactivar')
   @Roles(Rol.ADMIN)
   @UseGuards(RolesGuard)
-  async reactivate(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req
-  ) {
+  async reactivate(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.reactivate(id, user.empresaId!);
+    return this.productoService.reactivate(id, user.empresaId);
   }
 
   // Endpoint para restaurar un producto eliminado
   @Patch(':id/restaurar')
   @Roles(Rol.ADMIN)
   @UseGuards(RolesGuard)
-  async restore(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req
-  ) {
+  async restore(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.productoService.restore(id, user.empresaId!);
+    return this.productoService.restore(id, user.empresaId);
   }
 }

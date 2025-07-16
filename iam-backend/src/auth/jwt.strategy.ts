@@ -8,12 +8,10 @@ import { JwtBlacklistService } from './jwt-blacklist.service';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private readonly logger = new Logger(JwtStrategy.name);
 
-  constructor(
-    private readonly blacklistService: JwtBlacklistService
-  ) {
+  constructor(private readonly blacklistService: JwtBlacklistService) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (req) => req?.cookies?.jwt, 
+        (req) => req?.cookies?.jwt,
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
@@ -28,12 +26,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     try {
       // NUEVO: Verificar si el token está en el blacklist
       if (payload.jti) {
-        const isBlacklisted = await this.blacklistService.isTokenBlacklisted(payload.jti);
+        const isBlacklisted = await this.blacklistService.isTokenBlacklisted(
+          payload.jti,
+        );
         if (isBlacklisted) {
           this.logger.warn('Token blacklisted detected', {
             jti: payload.jti.substring(0, 8) + '...',
             userId: payload.sub,
-            email: payload.email
+            email: payload.email,
           });
           throw new UnauthorizedException('Token revocado');
         }
@@ -46,11 +46,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           hasEmail: !!payload.email,
           hasRol: !!payload.rol,
         });
-        throw new UnauthorizedException('Token inválido: claims requeridos faltantes');
+        throw new UnauthorizedException(
+          'Token inválido: claims requeridos faltantes',
+        );
       }
 
       // Validar tipos de datos (sub como string)
-      if (typeof payload.sub !== 'string' || typeof payload.email !== 'string' || typeof payload.rol !== 'string') {
+      if (
+        typeof payload.sub !== 'string' ||
+        typeof payload.email !== 'string' ||
+        typeof payload.rol !== 'string'
+      ) {
         this.logger.warn('Token inválido: tipos de datos incorrectos', {
           subType: typeof payload.sub,
           emailType: typeof payload.email,
@@ -62,26 +68,36 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // Convertir sub a number para compatibilidad
       const userId = parseInt(payload.sub, 10);
       if (isNaN(userId)) {
-        this.logger.warn('Token inválido: sub no es un número válido', { sub: payload.sub });
-        throw new UnauthorizedException('Token inválido: sub no es un número válido');
+        this.logger.warn('Token inválido: sub no es un número válido', {
+          sub: payload.sub,
+        });
+        throw new UnauthorizedException(
+          'Token inválido: sub no es un número válido',
+        );
       }
 
       // Validar rol permitido
       const rolesPermitidos = ['SUPERADMIN', 'ADMIN', 'EMPLEADO', 'PROVEEDOR'];
       if (!rolesPermitidos.includes(payload.rol)) {
-        this.logger.warn('Token inválido: rol no permitido', { rol: payload.rol });
+        this.logger.warn('Token inválido: rol no permitido', {
+          rol: payload.rol,
+        });
         throw new UnauthorizedException('Token inválido: rol no permitido');
       }
 
       // NUEVO: Verificar actividad sospechosa
-      const suspiciousActivity = await this.blacklistService.detectSuspiciousActivity(userId);
+      const suspiciousActivity =
+        await this.blacklistService.detectSuspiciousActivity(userId);
       if (suspiciousActivity.suspicious) {
-        this.logger.warn('Actividad sospechosa detectada durante validación de token', {
-          userId,
-          email: payload.email,
-          activeTokens: suspiciousActivity.activeTokens,
-          recentTokens: suspiciousActivity.recentTokens
-        });
+        this.logger.warn(
+          'Actividad sospechosa detectada durante validación de token',
+          {
+            userId,
+            email: payload.email,
+            activeTokens: suspiciousActivity.activeTokens,
+            recentTokens: suspiciousActivity.recentTokens,
+          },
+        );
         // No bloquear el token, solo loggear la actividad sospechosa
       }
 
@@ -102,7 +118,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         email: payload.email,
         rol: payload.rol,
         empresaId: payload.empresaId,
-        jti: payload.jti ? payload.jti.substring(0, 8) + '...' : undefined
+        jti: payload.jti ? payload.jti.substring(0, 8) + '...' : undefined,
       });
 
       return user;
@@ -110,17 +126,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      
+
       this.logger.error('Error validando token JWT', {
         error: error.message,
-        payload: payload ? {
-          sub: payload.sub,
-          email: payload.email,
-          rol: payload.rol,
-          jti: payload.jti ? payload.jti.substring(0, 8) + '...' : undefined
-        } : 'No payload'
+        payload: payload
+          ? {
+              sub: payload.sub,
+              email: payload.email,
+              rol: payload.rol,
+              jti: payload.jti
+                ? payload.jti.substring(0, 8) + '...'
+                : undefined,
+            }
+          : 'No payload',
       });
-      
+
       throw new UnauthorizedException('Token inválido');
     }
   }

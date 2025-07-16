@@ -1,4 +1,12 @@
-import { IsOptional, IsString, IsEnum, IsBoolean, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsBoolean,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { Rol } from '@prisma/client';
 
@@ -36,4 +44,4 @@ export class QueryUsersDto {
   @IsOptional()
   @IsString({ message: 'La dirección del orden debe ser un texto' })
   orderDirection?: 'asc' | 'desc' = 'desc';
-} 
+}

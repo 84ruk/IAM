@@ -8,14 +8,14 @@ export enum AuditAction {
   DELETE = 'DELETE',
   LOGIN = 'LOGIN',
   LOGOUT = 'LOGOUT',
-  VIEW = 'VIEW'
+  VIEW = 'VIEW',
 }
 
 export enum AuditResource {
   USER = 'USER',
   EMPRESA = 'EMPRESA',
   PRODUCTO = 'PRODUCTO',
-  AUTH = 'AUTH'
+  AUTH = 'AUTH',
 }
 
 export class GetAuditLogsQueryDto {
@@ -98,4 +98,4 @@ export class AuditLogsPaginatedResponseDto {
     total: number;
     pages: number;
   };
-} 
+}

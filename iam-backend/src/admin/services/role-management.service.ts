@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ChangeRoleDto } from '../dto/change-role.dto';
 import { Rol } from '@prisma/client';
@@ -11,12 +15,15 @@ export class RoleManagementService {
     private securityValidator: SecurityValidator,
   ) {}
 
-  async changeRole(id: number, dto: ChangeRoleDto, empresaId: number, currentUserRol: Rol) {
+  async changeRole(
+    id: number,
+    dto: ChangeRoleDto,
+    empresaId: number,
+    currentUserRol: Rol,
+  ) {
     // Verificar que el usuario existe y tiene permisos para editarlo
     const existingUser = await this.prisma.usuario.findFirst({
-      where: currentUserRol === 'SUPERADMIN' 
-        ? { id } 
-        : { id, empresaId },
+      where: currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId },
     });
 
     if (!existingUser) {
@@ -27,20 +34,26 @@ export class RoleManagementService {
     this.securityValidator.validateUserModificationPermissions(
       { id: 0, email: '', rol: currentUserRol, empresaId } as any,
       existingUser.id,
-      existingUser.empresaId || undefined
+      existingUser.empresaId || undefined,
     );
 
     // Validar que el nuevo rol sea válido
     if (currentUserRol === 'ADMIN' && dto.rol === 'SUPERADMIN') {
-      throw new ForbiddenException('Los administradores no pueden asignar rol de superadministrador');
+      throw new ForbiddenException(
+        'Los administradores no pueden asignar rol de superadministrador',
+      );
     }
 
     if (currentUserRol === 'ADMIN' && existingUser.rol === 'SUPERADMIN') {
-      throw new ForbiddenException('Los administradores no pueden modificar superadministradores');
+      throw new ForbiddenException(
+        'Los administradores no pueden modificar superadministradores',
+      );
     }
 
     // Sanitizar input
-    const sanitizedDto = this.securityValidator.validateAndSanitizeDto(dto, ['rol']);
+    const sanitizedDto = this.securityValidator.validateAndSanitizeDto(dto, [
+      'rol',
+    ]);
 
     return this.prisma.usuario.update({
       where: { id },
@@ -73,11 +86,15 @@ export class RoleManagementService {
 
   async getRoleLabel(rol: Rol): Promise<string> {
     const roles = await this.getRoles();
-    const roleInfo = roles.find(r => r.value === rol);
+    const roleInfo = roles.find((r) => r.value === rol);
     return roleInfo ? roleInfo.label : rol;
   }
 
-  async validateRoleChange(currentUserRol: Rol, targetUserRol: Rol, newRol: Rol): Promise<boolean> {
+  async validateRoleChange(
+    currentUserRol: Rol,
+    targetUserRol: Rol,
+    newRol: Rol,
+  ): Promise<boolean> {
     // SUPERADMIN puede cambiar cualquier rol
     if (currentUserRol === 'SUPERADMIN') {
       return true;
@@ -85,12 +102,16 @@ export class RoleManagementService {
 
     // ADMIN no puede modificar SUPERADMIN
     if (currentUserRol === 'ADMIN' && targetUserRol === 'SUPERADMIN') {
-      throw new ForbiddenException('Los administradores no pueden modificar superadministradores');
+      throw new ForbiddenException(
+        'Los administradores no pueden modificar superadministradores',
+      );
     }
 
     // ADMIN no puede asignar rol SUPERADMIN
     if (currentUserRol === 'ADMIN' && newRol === 'SUPERADMIN') {
-      throw new ForbiddenException('Los administradores no pueden asignar rol de superadministrador');
+      throw new ForbiddenException(
+        'Los administradores no pueden asignar rol de superadministrador',
+      );
     }
 
     // EMPLEADO no puede cambiar roles
@@ -102,9 +123,10 @@ export class RoleManagementService {
   }
 
   async getUsersByRole(role: Rol, empresaId: number, currentUserRol: Rol) {
-    const where = currentUserRol === 'SUPERADMIN' 
-      ? { rol: role, activo: true }
-      : { rol: role, empresaId, activo: true };
+    const where =
+      currentUserRol === 'SUPERADMIN'
+        ? { rol: role, activo: true }
+        : { rol: role, empresaId, activo: true };
 
     return this.prisma.usuario.findMany({
       where,
@@ -129,9 +151,10 @@ export class RoleManagementService {
   }
 
   async getRoleStatistics(empresaId: number, currentUserRol: Rol) {
-    const where = currentUserRol === 'SUPERADMIN' 
-      ? { activo: true }
-      : { empresaId, activo: true };
+    const where =
+      currentUserRol === 'SUPERADMIN'
+        ? { activo: true }
+        : { empresaId, activo: true };
 
     const users = await this.prisma.usuario.findMany({
       where,
@@ -147,10 +170,10 @@ export class RoleManagementService {
       PROVEEDOR: 0,
     };
 
-    users.forEach(user => {
+    users.forEach((user) => {
       statistics[user.rol]++;
     });
 
     return statistics;
   }
-} 
+}

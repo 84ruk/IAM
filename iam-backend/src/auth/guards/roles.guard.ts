@@ -1,5 +1,9 @@
-
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Rol } from '@prisma/client';
 import { JwtUser } from '../interfaces/jwt-user.interface';
@@ -15,11 +19,12 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
     if (!requiredRoles) return true;
-    
 
     const { user }: { user: JwtUser } = context.switchToHttp().getRequest();
-    if(!requiredRoles.includes(user.rol)) {
-      throw new ForbiddenException(`Acceso denegado: se requiere uno de los siguientes roles: ${requiredRoles.join(', ')}`);
+    if (!requiredRoles.includes(user.rol)) {
+      throw new ForbiddenException(
+        `Acceso denegado: se requiere uno de los siguientes roles: ${requiredRoles.join(', ')}`,
+      );
     }
     return requiredRoles.includes(user.rol);
   }

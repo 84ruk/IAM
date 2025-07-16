@@ -15,5 +15,5 @@ export class CreateUserDto {
   rol: Rol;
 
   @IsString()
-  empresaId: string; 
+  empresaId: string;
 }

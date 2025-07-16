@@ -34,7 +34,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
-      
+
       if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         message = (exceptionResponse as any).message || exception.message;
         details = (exceptionResponse as any).details || null;
@@ -46,14 +46,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       this.logger.error(
         `Error no manejado: ${exception}`,
         (exception as Error).stack,
-        `${request.method} ${request.url}`
+        `${request.method} ${request.url}`,
       );
     }
 
     // Log del error (sin información sensible)
     this.logger.error(
       `${request.method} ${request.url} - ${status}: ${message}`,
-      details ? JSON.stringify(details) : ''
+      details ? JSON.stringify(details) : '',
     );
 
     // Respuesta estructurada
@@ -71,4 +71,4 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     response.status(status).json(errorResponse);
   }
-} 
+}

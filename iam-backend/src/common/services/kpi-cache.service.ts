@@ -21,14 +21,29 @@ export class KPICacheService {
 
   private async initializeRedis() {
     try {
-      this.redis = createClient({
-        socket: {
-          host: process.env.REDIS_HOST || 'localhost',
-          port: parseInt(process.env.REDIS_PORT || '6379'),
-        },
-        password: process.env.REDIS_PASSWORD,
-        database: parseInt(process.env.REDIS_DB || '0'),
-      });
+      // ✅ SOPORTE PARA UPSTASH Y CONFIGURACIÓN INDIVIDUAL
+      let redisConfig: any;
+
+      if (process.env.REDIS_URL) {
+        // Usar URL completa (Upstash, Railway, etc.)
+        this.logger.log('Using REDIS_URL configuration');
+        redisConfig = {
+          url: process.env.REDIS_URL,
+        };
+      } else {
+        // Usar configuración individual (host, port, password)
+        this.logger.log('Using individual Redis configuration');
+        redisConfig = {
+          socket: {
+            host: process.env.REDIS_HOST || 'localhost',
+            port: parseInt(process.env.REDIS_PORT || '6379'),
+          },
+          password: process.env.REDIS_PASSWORD,
+          database: parseInt(process.env.REDIS_DB || '0'),
+        };
+      }
+
+      this.redis = createClient(redisConfig);
 
       this.redis.on('error', (err) => {
         this.logger.error('Redis Client Error:', err);
@@ -39,6 +54,7 @@ export class KPICacheService {
       });
 
       await this.redis.connect();
+      this.logger.log('Redis connection established successfully');
     } catch (error) {
       this.logger.error('Failed to connect to Redis:', error);
       // En desarrollo, continuar sin Redis
@@ -52,9 +68,9 @@ export class KPICacheService {
    * Obtiene un valor del cache o lo genera si no existe
    */
   async getOrSet<T>(
-    key: string, 
-    factory: () => Promise<T>, 
-    ttl: number = this.defaultTtl
+    key: string,
+    factory: () => Promise<T>,
+    ttl: number = this.defaultTtl,
   ): Promise<T> {
     if (!this.redis?.isReady) {
       this.logger.warn('Redis not available, using direct factory');
@@ -64,7 +80,7 @@ export class KPICacheService {
     try {
       const cacheKey = `kpi:${key}`;
       const cached = await this.redis.get(cacheKey);
-      
+
       if (cached) {
         this.logger.debug(`Cache hit for key: ${key}`);
         return JSON.parse(cached);
@@ -72,11 +88,11 @@ export class KPICacheService {
 
       this.logger.debug(`Cache miss for key: ${key}, generating...`);
       const result = await factory();
-      
+
       // ✅ CORREGIDO: usar setEx en lugar de setex
       await this.redis.setEx(cacheKey, ttl, JSON.stringify(result));
       this.logger.debug(`Cached result for key: ${key}`);
-      
+
       return result;
     } catch (error) {
       this.logger.error(`Cache error for key ${key}:`, error);
@@ -117,7 +133,9 @@ export class KPICacheService {
       if (keys.length > 0) {
         // ✅ CORREGIDO: usar del con array de keys
         await this.redis.del(keys);
-        this.logger.debug(`Invalidated ${keys.length} cache keys matching pattern: ${pattern}`);
+        this.logger.debug(
+          `Invalidated ${keys.length} cache keys matching pattern: ${pattern}`,
+        );
       }
     } catch (error) {
       this.logger.error(`Error invalidating pattern ${pattern}:`, error);
@@ -139,7 +157,10 @@ export class KPICacheService {
   /**
    * Invalida KPIs relacionados con un producto específico
    */
-  async invalidateProductKPIs(productoId: number, empresaId: number): Promise<void> {
+  async invalidateProductKPIs(
+    productoId: number,
+    empresaId: number,
+  ): Promise<void> {
     await Promise.all([
       this.invalidate(`kpis:${empresaId}`),
       this.invalidate(`product-kpis:${productoId}`),
@@ -162,18 +183,19 @@ export class KPICacheService {
     try {
       const [keysCount, memoryInfo] = await Promise.all([
         this.redis.dbSize(),
-        this.redis.info('memory')
+        this.redis.info('memory'),
       ]);
 
-      const memoryUsage = memoryInfo
-        .split('\n')
-        .find(line => line.startsWith('used_memory_human:'))
-        ?.split(':')[1] || 'unknown';
+      const memoryUsage =
+        memoryInfo
+          .split('\n')
+          .find((line) => line.startsWith('used_memory_human:'))
+          ?.split(':')[1] || 'unknown';
 
       return {
         isConnected: true,
         keysCount,
-        memoryUsage: memoryUsage.trim()
+        memoryUsage: memoryUsage.trim(),
       };
     } catch (error) {
       this.logger.error('Error getting cache stats:', error);
@@ -208,4 +230,4 @@ export class KPICacheService {
       this.logger.log('Redis connection closed');
     }
   }
-} 
+}

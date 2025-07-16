@@ -6,6 +6,6 @@ import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [AuthModule],
   providers: [SensoresService],
-  controllers: [SensoresController]
+  controllers: [SensoresController],
 })
 export class SensoresModule {}

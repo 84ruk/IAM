@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { cleanFormData } from '@/lib/form-utils'
 
 interface ProveedorFormModalProps {
   isOpen: boolean
@@ -43,11 +44,16 @@ export default function ProveedorFormModal({ isOpen, onClose, onSuccess, proveed
       const url = proveedor
         ? `${process.env.NEXT_PUBLIC_API_URL}/proveedores/${proveedor.id}`
         : `${process.env.NEXT_PUBLIC_API_URL}/proveedores`
+      
+      // Limpiar valores vacíos antes de enviar usando la función utilitaria
+      const formData = { nombre, email, telefono }
+      const cleanedData = cleanFormData(formData)
+      
       const res = await fetch(url, {
         method,
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, email, telefono })
+        body: JSON.stringify(cleanedData)
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))

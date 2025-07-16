@@ -1,16 +1,23 @@
-import { IsOptional, IsString, IsNumber, IsBoolean, IsArray, IsEnum } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsArray,
+  IsEnum,
+} from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 export enum UserRole {
   SUPERADMIN = 'SUPERADMIN',
   ADMIN = 'ADMIN',
   EMPLEADO = 'EMPLEADO',
-  PROVEEDOR = 'PROVEEDOR'
+  PROVEEDOR = 'PROVEEDOR',
 }
 
 export enum UserStatus {
   ACTIVE = 'true',
-  INACTIVE = 'false'
+  INACTIVE = 'false',
 }
 
 export class GetUsersQueryDto {
@@ -70,4 +77,4 @@ export class UsersPaginatedResponseDto {
     total: number;
     pages: number;
   };
-} 
+}

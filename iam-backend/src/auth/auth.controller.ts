@@ -36,9 +36,9 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 @SkipEmpresaCheck()
 export class AuthController {
   constructor(
-    private readonly authService: AuthService, 
+    private readonly authService: AuthService,
     private readonly jwtService: JwtService,
-    private readonly refreshTokenService: RefreshTokenService
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
   @Post('login')
@@ -47,8 +47,8 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ action: 'login' })
   async login(
-    @Body() dto: LoginDto, 
-    @Res({ passthrough: true }) res: Response
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const user = await this.authService.validateUser(dto.email, dto.password);
     const userParaLogin = { ...user, empresaId: user.empresaId ?? undefined };
@@ -56,8 +56,10 @@ export class AuthController {
 
     // Configuración de cookies configurable
     const isProduction = process.env.NODE_ENV === 'production';
-    const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.iaminventario.com.mx' : 'localhost');
-    
+    const cookieDomain =
+      process.env.COOKIE_DOMAIN ||
+      (isProduction ? '.iaminventario.com.mx' : 'localhost');
+
     const cookieOptions: any = {
       httpOnly: true,
       sameSite: isProduction ? 'none' : 'lax',
@@ -66,12 +68,12 @@ export class AuthController {
       domain: cookieDomain,
       path: '/',
     };
-    
+
     res.cookie('jwt', token, cookieOptions);
-    
-    return { 
+
+    return {
       message: 'Login exitoso',
-      refreshToken: refreshToken
+      refreshToken: refreshToken,
     };
   }
 
@@ -80,33 +82,35 @@ export class AuthController {
   @HttpCode(200)
   async logout(
     @CurrentUser() user: JwtUser | undefined,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ) {
     const isProduction = process.env.NODE_ENV === 'production';
-    const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.iaminventario.com.mx' : 'localhost');
-    
+    const cookieDomain =
+      process.env.COOKIE_DOMAIN ||
+      (isProduction ? '.iaminventario.com.mx' : 'localhost');
+
     // Configuración de cookies para limpiar
     const clearCookieOptions: any = {
       httpOnly: true,
-      sameSite: isProduction ? 'none' as const : 'lax' as const,
+      sameSite: isProduction ? ('none' as const) : ('lax' as const),
       secure: isProduction,
       domain: cookieDomain,
       path: '/',
       expires: new Date(0), // Expirar inmediatamente
     };
-    
+
     // Limpiar la cookie JWT
     res.clearCookie('jwt', clearCookieOptions);
-    
+
     // Si hay un usuario autenticado, revocar tokens y hacer log
     if (user) {
       // Revocar todos los refresh tokens del usuario
       await this.refreshTokenService.revokeAllUserTokens(user.id);
-      
+
       // Log de auditoría
       this.authService['jwtAuditService'].logLogout(user.id, user.email);
     }
-    
+
     return { message: 'Sesión cerrada' };
   }
 
@@ -131,18 +135,19 @@ export class AuthController {
 
   @Post('setup-empresa')
   @HttpCode(200)
-
   async setupEmpresa(
-    @Body() dto: SetupEmpresaDto, 
+    @Body() dto: SetupEmpresaDto,
     @CurrentUser() user: JwtUser,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.setupEmpresa(user.id, dto);
-    
+
     // Establecer la cookie con el nuevo token automáticamente
     const isProduction = process.env.NODE_ENV === 'production';
-    const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.iaminventario.com.mx' : 'localhost');
-    
+    const cookieDomain =
+      process.env.COOKIE_DOMAIN ||
+      (isProduction ? '.iaminventario.com.mx' : 'localhost');
+
     const cookieOptions: any = {
       httpOnly: true,
       sameSite: isProduction ? 'none' : 'lax',
@@ -151,18 +156,23 @@ export class AuthController {
       domain: cookieDomain,
       path: '/',
     };
-    
+
     res.cookie('jwt', result.token, cookieOptions);
-    
+
     // Log de auditoría para la actualización de cookie
-    this.authService['jwtAuditService'].logJwtEvent('SETUP_COOKIE_UPDATED', user.id, user.email, {
-      action: 'setup_empresa_cookie_update',
-      empresaId: result.empresa.id,
-      empresaName: result.empresa.nombre,
-      userAgent: res.req?.headers['user-agent'],
-      ip: res.req?.ip,
-    });
-    
+    this.authService['jwtAuditService'].logJwtEvent(
+      'SETUP_COOKIE_UPDATED',
+      user.id,
+      user.email,
+      {
+        action: 'setup_empresa_cookie_update',
+        empresaId: result.empresa.id,
+        empresaName: result.empresa.nombre,
+        userAgent: res.req?.headers['user-agent'],
+        ip: res.req?.ip,
+      },
+    );
+
     return result;
   }
 
@@ -170,7 +180,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async changePassword(
     @CurrentUser() user: JwtUser,
-    @Body() changePasswordDto: ChangePasswordDto
+    @Body() changePasswordDto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(user.id, changePasswordDto);
   }
@@ -201,14 +211,17 @@ export class AuthController {
   @RateLimit({ action: 'refresh' })
   async refreshToken(
     @Body() dto: RefreshTokenDto,
-    @Res({ passthrough: true }) res: Response
+    @Res({ passthrough: true }) res: Response,
   ) {
-    const { accessToken, newRefreshToken } = await this.refreshTokenService.generateNewAccessToken(dto.refreshToken);
-    
+    const { accessToken, newRefreshToken } =
+      await this.refreshTokenService.generateNewAccessToken(dto.refreshToken);
+
     // Configuración de cookies configurable
     const isProduction = process.env.NODE_ENV === 'production';
-    const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.iaminventario.com.mx' : 'localhost');
-    
+    const cookieDomain =
+      process.env.COOKIE_DOMAIN ||
+      (isProduction ? '.iaminventario.com.mx' : 'localhost');
+
     const cookieOptions: any = {
       httpOnly: true,
       sameSite: isProduction ? 'none' : 'lax',
@@ -217,12 +230,12 @@ export class AuthController {
       domain: cookieDomain,
       path: '/',
     };
-    
+
     res.cookie('jwt', accessToken, cookieOptions);
-    
-    return { 
+
+    return {
       message: 'Token renovado exitosamente',
-      refreshToken: newRefreshToken
+      refreshToken: newRefreshToken,
     };
   }
 
@@ -230,8 +243,9 @@ export class AuthController {
   @Public() // Marcar como ruta pública
   @HttpCode(200)
   async needsSetup(@Req() req: Request) {
-    const token = req.cookies?.jwt || req.headers.authorization?.replace('Bearer ', '');
-    
+    const token =
+      req.cookies?.jwt || req.headers.authorization?.replace('Bearer ', '');
+
     // Si no hay token, asumir que necesita setup
     if (!token) {
       return {
@@ -240,13 +254,13 @@ export class AuthController {
         timestamp: new Date().toISOString(),
       };
     }
-    
+
     try {
       // Verificar token
       const payload = this.jwtService.verify(token);
       const needsSetup = await this.authService.needsSetup(payload.sub);
       const userStatus = await this.authService.getUserStatus(payload.sub);
-      
+
       return {
         needsSetup,
         user: userStatus.user,
@@ -288,13 +302,19 @@ export class AuthController {
   @Get('google/callback')
   @Public() // Marcar como ruta pública
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req, @Res({ passthrough: true }) res: Response) {
+  async googleAuthRedirect(
+    @Req() req,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const googleUser = req.user;
     // Buscar o validar usuario y emitir JWT
-    const { token, refreshToken } = await this.authService.loginWithGoogle(googleUser);
+    const { token, refreshToken } =
+      await this.authService.loginWithGoogle(googleUser);
     const isProduction = process.env.NODE_ENV === 'production';
-    const cookieDomain = process.env.COOKIE_DOMAIN || (isProduction ? '.iaminventario.com.mx' : 'localhost');
-    
+    const cookieDomain =
+      process.env.COOKIE_DOMAIN ||
+      (isProduction ? '.iaminventario.com.mx' : 'localhost');
+
     const cookieOptions: any = {
       httpOnly: true,
       sameSite: isProduction ? 'none' : 'lax',
@@ -313,7 +333,8 @@ export class AuthController {
   @HttpCode(200)
   async getGoogleOAuthStatus() {
     return {
-      enabled: !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET,
+      enabled:
+        !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET,
       clientId: process.env.GOOGLE_CLIENT_ID ? 'configured' : 'not_configured',
     };
   }

@@ -9,6 +9,6 @@ import { AuthModule } from '../auth/auth.module';
   imports: [PrismaModule, CommonModule, AuthModule], // Importar CommonModule para servicios de cache
   controllers: [DashboardController],
   providers: [DashboardService],
-  exports: [DashboardService]
+  exports: [DashboardService],
 })
 export class DashboardModule {}

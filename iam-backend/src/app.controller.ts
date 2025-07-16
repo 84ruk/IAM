@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
 import { Public } from './auth/decorators/public.decorator';
@@ -7,18 +7,12 @@ import { Public } from './auth/decorators/public.decorator';
 export class AppController {
   constructor(
     private readonly appService: AppService,
-    private readonly prisma: PrismaService,
+    private readonly prismaService: PrismaService,
   ) {}
 
-  @Public()
   @Get()
-  getHello(): object {
-    return {
-      message: this.appService.getHello(),
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-      version: process.env.npm_package_version || '1.0.0'
-    };
+  getHello(): string {
+    return this.appService.getHello();
   }
 
   @Public()
@@ -29,27 +23,62 @@ export class AppController {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       environment: process.env.NODE_ENV || 'development',
-      version: process.env.npm_package_version || '1.0.0'
+      version: process.env.npm_package_version || '1.0.0',
     };
   }
 
   @Public()
   @Get('health/database')
   async getDatabaseHealth(): Promise<object> {
+    const dbHealth = await this.prismaService.checkConnection();
+    return {
+      status: dbHealth.status,
+      message: dbHealth.message,
+      timestamp: new Date().toISOString(),
+      poolStats: dbHealth.poolStats,
+    };
+  }
+
+  @Public()
+  @Get('health/connections')
+  async getConnectionPoolStats(): Promise<object> {
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      const poolStats = await this.prismaService.getConnectionPoolStats();
       return {
         status: 'ok',
-        database: 'connected',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        poolStats,
+        recommendations: this.getPoolRecommendations(poolStats),
       };
     } catch (error) {
       return {
         status: 'error',
-        database: 'disconnected',
+        timestamp: new Date().toISOString(),
+        message: 'Error al obtener estadísticas del pool de conexiones',
         error: error.message,
-        timestamp: new Date().toISOString()
       };
     }
+  }
+
+  private getPoolRecommendations(poolStats: any): string[] {
+    const recommendations: string[] = [];
+
+    if (poolStats.activeConnections > 15) {
+      recommendations.push('Muchas conexiones activas - considerar optimizar queries o aumentar el pool');
+    }
+
+    if (poolStats.idleConnections > 10) {
+      recommendations.push('Muchas conexiones inactivas - considerar reducir el tamaño del pool');
+    }
+
+    if (poolStats.totalConnections > 20) {
+      recommendations.push('Pool de conexiones cerca del límite - monitorear de cerca');
+    }
+
+    if (poolStats.activeConnections === 0 && poolStats.totalConnections > 0) {
+      recommendations.push('Todas las conexiones están inactivas - pool funcionando correctamente');
+    }
+
+    return recommendations.length > 0 ? recommendations : ['Pool de conexiones funcionando óptimamente'];
   }
 }

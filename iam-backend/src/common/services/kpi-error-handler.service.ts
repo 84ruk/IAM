@@ -19,14 +19,14 @@ export class KPIErrorHandler {
       empresaId,
       operation: context,
       timestamp: new Date(),
-      error
+      error,
     };
 
     this.logger.error(`KPI Error in ${context}`, {
       empresaId,
       error: error.message,
       stack: error.stack,
-      context
+      context,
     });
 
     // Retornar datos básicos como fallback
@@ -46,7 +46,7 @@ export class KPIErrorHandler {
       rotacionInventario: 0,
       error: true,
       errorMessage: 'Error al calcular KPIs, mostrando datos básicos',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -60,7 +60,11 @@ export class KPIErrorHandler {
     }
 
     // Validar campos críticos
-    const requiredFields = ['totalProductos', 'productosStockBajo', 'valorTotalInventario'];
+    const requiredFields = [
+      'totalProductos',
+      'productosStockBajo',
+      'valorTotalInventario',
+    ];
     for (const field of requiredFields) {
       if (typeof data[field] !== 'number' || data[field] < 0) {
         this.logger.warn(`Invalid KPI field: ${field} = ${data[field]}`);
@@ -84,7 +88,7 @@ export class KPIErrorHandler {
     this.logger.warn(`Cache error for key ${key}`, {
       empresaId,
       key,
-      error: error.message
+      error: error.message,
     });
 
     // Retornar datos básicos cuando falla el cache
@@ -94,12 +98,16 @@ export class KPIErrorHandler {
   /**
    * Maneja errores de transacciones
    */
-  handleTransactionError(error: any, operation: string, empresaId: number): never {
+  handleTransactionError(
+    error: any,
+    operation: string,
+    empresaId: number,
+  ): never {
     this.logger.error(`Transaction error in ${operation}`, {
       empresaId,
       operation,
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
 
     // Re-lanzar el error para que sea manejado por el controlador
@@ -114,7 +122,7 @@ export class KPIErrorHandler {
       empresaId,
       error: error.message,
       dataType: typeof data,
-      dataKeys: data ? Object.keys(data) : 'null'
+      dataKeys: data ? Object.keys(data) : 'null',
     });
 
     return this.getBasicKPIs(empresaId);
@@ -132,7 +140,7 @@ export class KPIErrorHandler {
     return {
       totalErrors: 0,
       errorsByType: {},
-      lastError: new Date().toISOString()
+      lastError: new Date().toISOString(),
     };
   }
-} 
+}

@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Request } from 'express';
 
 @Injectable()
@@ -12,9 +17,11 @@ export class SuperAdminGuard implements CanActivate {
     }
 
     if (user.rol !== 'SUPERADMIN') {
-      throw new ForbiddenException('Acceso denegado. Se requiere rol de Super Administrador');
+      throw new ForbiddenException(
+        'Acceso denegado. Se requiere rol de Super Administrador',
+      );
     }
 
     return true;
   }
-} 
+}

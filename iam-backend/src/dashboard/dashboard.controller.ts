@@ -48,4 +48,10 @@ export class DashboardController {
     // EmpresaGuard ya valida que empresaId existe
     return this.dashboardService.getMovimientosPorProducto(user.empresaId!);
   }
+
+  @Get('advanced-kpis')
+  async getAdvancedKPIs(@Request() req) {
+    const user = req.user as JwtUser;
+    return this.dashboardService.getAdvancedKPIs(user.empresaId!);
+  }
 }

@@ -128,9 +128,11 @@ export class SuperAdminController {
   async createInitialSuperAdmin(@CurrentUser() user: JwtUser) {
     // Solo permitir en desarrollo
     if (process.env.NODE_ENV === 'production') {
-      throw new ForbiddenException('Este endpoint no está disponible en producción');
+      throw new ForbiddenException(
+        'Este endpoint no está disponible en producción',
+      );
     }
-    
+
     return this.superAdminService.createInitialSuperAdmin();
   }
-} 
+}

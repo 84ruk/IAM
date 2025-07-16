@@ -6,7 +6,7 @@ export enum DateRange {
   SEVEN_DAYS = '7d',
   THIRTY_DAYS = '30d',
   NINETY_DAYS = '90d',
-  ONE_YEAR = '1y'
+  ONE_YEAR = '1y',
 }
 
 export class DashboardStatsQueryDto {
@@ -58,4 +58,4 @@ export class DashboardStatsResponseDto {
     uptime: string;
     lastBackup: string;
   };
-} 
+}

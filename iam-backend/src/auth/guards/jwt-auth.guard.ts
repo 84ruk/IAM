@@ -1,4 +1,8 @@
-import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { AppLoggerService } from '../../common/services/logger.service';
@@ -15,7 +19,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest();
-    
+
     // Verificar si la ruta está marcada como pública
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -23,13 +27,19 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     ]);
 
     if (isPublic) {
-      this.logger.debug(`Ruta pública detectada: ${req.method} ${req.url}`, 'JwtAuthGuard');
+      this.logger.debug(
+        `Ruta pública detectada: ${req.method} ${req.url}`,
+        'JwtAuthGuard',
+      );
       return true;
     }
-    
+
     // Log de información no sensible
-    this.logger.debug(`Validando autenticación para: ${req.method} ${req.url}`, 'JwtAuthGuard');
-    
+    this.logger.debug(
+      `Validando autenticación para: ${req.method} ${req.url}`,
+      'JwtAuthGuard',
+    );
+
     return super.canActivate(context);
   }
 
@@ -41,7 +51,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       });
       throw new UnauthorizedException('Token inválido o expirado');
     }
-    
+
     // Validación adicional de claims requeridos
     if (!user.id || !user.email || !user.rol) {
       this.logger.security('Claims faltantes en token', user.id, user.email, {
@@ -49,16 +59,18 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
           id: !user.id,
           email: !user.email,
           rol: !user.rol,
-        }
+        },
       });
-      throw new UnauthorizedException('Token malformado: claims requeridos faltantes');
+      throw new UnauthorizedException(
+        'Token malformado: claims requeridos faltantes',
+      );
     }
-    
+
     this.logger.security('Autenticación exitosa', user.id, user.email, {
       rol: user.rol,
       empresaId: user.empresaId,
     });
-    
+
     return user;
   }
 }

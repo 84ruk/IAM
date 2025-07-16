@@ -1,9 +1,24 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { DashboardStatsQueryDto, DashboardStatsResponseDto } from './dto/dashboard-stats.dto';
-import { GetUsersQueryDto, UsersPaginatedResponseDto, BulkUserActionDto } from './dto/users.dto';
+import {
+  DashboardStatsQueryDto,
+  DashboardStatsResponseDto,
+} from './dto/dashboard-stats.dto';
+import {
+  GetUsersQueryDto,
+  UsersPaginatedResponseDto,
+  BulkUserActionDto,
+} from './dto/users.dto';
 import { GetStatsQueryDto, SystemStatsResponseDto } from './dto/stats.dto';
-import { GetAuditLogsQueryDto, AuditLogsPaginatedResponseDto, AuditStatsResponseDto } from './dto/audit.dto';
+import {
+  GetAuditLogsQueryDto,
+  AuditLogsPaginatedResponseDto,
+  AuditStatsResponseDto,
+} from './dto/audit.dto';
 import { SystemConfigDto, TestEmailDto } from './dto/config.dto';
 
 @Injectable()
@@ -11,7 +26,9 @@ export class SuperAdminService {
   constructor(private prisma: PrismaService) {}
 
   // ==================== DASHBOARD STATS ====================
-  async getDashboardStats(query: DashboardStatsQueryDto): Promise<DashboardStatsResponseDto> {
+  async getDashboardStats(
+    query: DashboardStatsQueryDto,
+  ): Promise<DashboardStatsResponseDto> {
     const { range = '30d' } = query;
     const dateFilter = this.getDateFilter(range);
 
@@ -25,7 +42,7 @@ export class SuperAdminService {
       usersByRole,
       empresasByIndustry,
       recentUsers,
-      recentEmpresas
+      recentEmpresas,
     ] = await Promise.all([
       this.prisma.usuario.count(),
       this.prisma.usuario.count({ where: { activo: true } }),
@@ -35,11 +52,12 @@ export class SuperAdminService {
       this.getUsersByRole(),
       this.getEmpresasByIndustry(),
       this.getRecentUsers(),
-      this.getRecentEmpresas()
+      this.getRecentEmpresas(),
     ]);
 
     const inactiveUsers = totalUsers - activeUsers;
-    const activePercentage = totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
+    const activePercentage =
+      totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
 
     // Simular métricas del sistema (en producción vendrían de monitoreo real)
     const systemHealth = this.getSystemHealth();
@@ -52,20 +70,22 @@ export class SuperAdminService {
         inactiveUsers,
         activePercentage,
         totalProductos,
-        totalMovimientos
+        totalMovimientos,
       },
       usersByRole,
       empresasByIndustry,
-      recentUsers: recentUsers.map(u => ({
+      recentUsers: recentUsers.map((u) => ({
         id: u.id,
         nombre: u.nombre,
         email: u.email,
         rol: u.rol,
         createdAt: u.createdAt,
-        empresa: u.empresa ? { id: u.empresa.id, nombre: u.empresa.nombre } : { id: 0, nombre: '' }
+        empresa: u.empresa
+          ? { id: u.empresa.id, nombre: u.empresa.nombre }
+          : { id: 0, nombre: '' },
       })),
       recentEmpresas,
-      systemHealth
+      systemHealth,
     };
   }
 
@@ -76,12 +96,12 @@ export class SuperAdminService {
 
     // Construir filtros
     const where: any = {};
-    
+
     if (search) {
       where.OR = [
         { nombre: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
-        { empresa: { nombre: { contains: search, mode: 'insensitive' } } }
+        { empresa: { nombre: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -106,46 +126,48 @@ export class SuperAdminService {
             select: {
               id: true,
               nombre: true,
-              TipoIndustria: true
-            }
-          }
+              TipoIndustria: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: limit
+        take: limit,
       }),
-      this.prisma.usuario.count({ where })
+      this.prisma.usuario.count({ where }),
     ]);
 
     const pages = Math.ceil(total / limit);
 
     return {
-      users: users.map(user => ({
+      users: users.map((user) => ({
         id: user.id,
         nombre: user.nombre,
         email: user.email,
         rol: user.rol,
         activo: user.activo,
         createdAt: user.createdAt.toISOString(),
-        empresa: user.empresa ? {
-          id: user.empresa.id,
-          nombre: user.empresa.nombre,
-          TipoIndustria: user.empresa.TipoIndustria
-        } : undefined
+        empresa: user.empresa
+          ? {
+              id: user.empresa.id,
+              nombre: user.empresa.nombre,
+              TipoIndustria: user.empresa.TipoIndustria,
+            }
+          : undefined,
       })),
       pagination: {
         page,
         limit,
         total,
-        pages
-      }
+        pages,
+      },
     };
   }
 
   async deleteUser(userId: number): Promise<void> {
     const user = await this.prisma.usuario.findUnique({
       where: { id: userId },
-      include: { empresa: true }
+      include: { empresa: true },
     });
 
     if (!user) {
@@ -153,17 +175,19 @@ export class SuperAdminService {
     }
 
     if (user.rol === 'SUPERADMIN') {
-      throw new ForbiddenException('No se puede eliminar un Super Administrador');
+      throw new ForbiddenException(
+        'No se puede eliminar un Super Administrador',
+      );
     }
 
     await this.prisma.usuario.delete({
-      where: { id: userId }
+      where: { id: userId },
     });
   }
 
   async activateUser(userId: number): Promise<void> {
     const user = await this.prisma.usuario.findUnique({
-      where: { id: userId }
+      where: { id: userId },
     });
 
     if (!user) {
@@ -172,13 +196,13 @@ export class SuperAdminService {
 
     await this.prisma.usuario.update({
       where: { id: userId },
-      data: { activo: true }
+      data: { activo: true },
     });
   }
 
   async deactivateUser(userId: number): Promise<void> {
     const user = await this.prisma.usuario.findUnique({
-      where: { id: userId }
+      where: { id: userId },
     });
 
     if (!user) {
@@ -186,12 +210,14 @@ export class SuperAdminService {
     }
 
     if (user.rol === 'SUPERADMIN') {
-      throw new ForbiddenException('No se puede desactivar un Super Administrador');
+      throw new ForbiddenException(
+        'No se puede desactivar un Super Administrador',
+      );
     }
 
     await this.prisma.usuario.update({
       where: { id: userId },
-      data: { activo: false }
+      data: { activo: false },
     });
   }
 
@@ -199,9 +225,9 @@ export class SuperAdminService {
     await this.prisma.usuario.updateMany({
       where: {
         id: { in: userIds },
-        rol: { not: 'SUPERADMIN' } // Proteger super admins
+        rol: { not: 'SUPERADMIN' }, // Proteger super admins
       },
-      data: { activo: true }
+      data: { activo: true },
     });
   }
 
@@ -209,9 +235,9 @@ export class SuperAdminService {
     await this.prisma.usuario.updateMany({
       where: {
         id: { in: userIds },
-        rol: { not: 'SUPERADMIN' } // Proteger super admins
+        rol: { not: 'SUPERADMIN' }, // Proteger super admins
       },
-      data: { activo: false }
+      data: { activo: false },
     });
   }
 
@@ -219,8 +245,8 @@ export class SuperAdminService {
     await this.prisma.usuario.deleteMany({
       where: {
         id: { in: userIds },
-        rol: { not: 'SUPERADMIN' } // Proteger super admins
-      }
+        rol: { not: 'SUPERADMIN' }, // Proteger super admins
+      },
     });
   }
 
@@ -232,11 +258,11 @@ export class SuperAdminService {
           select: {
             usuarios: true,
             productos: true,
-            movimientos: true
-          }
-        }
+            movimientos: true,
+          },
+        },
       },
-      orderBy: { fechaCreacion: 'desc' }
+      orderBy: { fechaCreacion: 'desc' },
     });
   }
 
@@ -248,12 +274,12 @@ export class SuperAdminService {
           select: {
             id: true,
             rol: true,
-            activo: true
-          }
+            activo: true,
+          },
         },
         productos: true,
-        movimientos: true
-      }
+        movimientos: true,
+      },
     });
 
     if (!empresa) {
@@ -263,32 +289,35 @@ export class SuperAdminService {
     const usersByRole = await this.prisma.usuario.groupBy({
       by: ['rol'],
       where: { empresaId },
-      _count: { rol: true }
+      _count: { rol: true },
     });
 
     return {
       empresa: {
         id: empresa.id,
         nombre: empresa.nombre,
-        TipoIndustria: empresa.TipoIndustria
+        TipoIndustria: empresa.TipoIndustria,
       },
       stats: {
         totalUsers: empresa.usuarios.length,
-        activeUsers: empresa.usuarios.filter(u => u.activo).length,
+        activeUsers: empresa.usuarios.filter((u) => u.activo).length,
         totalProductos: empresa.productos.length,
         totalMovimientos: empresa.movimientos.length,
-        totalProveedores: empresa.usuarios.filter(u => u.rol === 'PROVEEDOR').length
+        totalProveedores: empresa.usuarios.filter((u) => u.rol === 'PROVEEDOR')
+          .length,
       },
-      usersByRole: usersByRole.map(group => ({
+      usersByRole: usersByRole.map((group) => ({
         rol: group.rol,
         count: group._count.rol,
-        label: this.getRoleLabel(group.rol)
-      }))
+        label: this.getRoleLabel(group.rol),
+      })),
     };
   }
 
   // ==================== ADVANCED STATS ====================
-  async getSystemStats(query: GetStatsQueryDto): Promise<SystemStatsResponseDto> {
+  async getSystemStats(
+    query: GetStatsQueryDto,
+  ): Promise<SystemStatsResponseDto> {
     const { range = '30d' } = query;
     const dateFilter = this.getDateFilter(range);
     const previousDateFilter = this.getPreviousDateFilter(range);
@@ -300,14 +329,14 @@ export class SuperAdminService {
       usersByRole,
       empresasByIndustry,
       activityByMonth,
-      topEmpresas
+      topEmpresas,
     ] = await Promise.all([
       this.getCurrentPeriodStats(dateFilter),
       this.getCurrentPeriodStats(previousDateFilter),
       this.getUsersByRoleWithPercentage(),
       this.getEmpresasByIndustryWithPercentage(),
       this.getActivityByMonth(),
-      this.getTopEmpresas()
+      this.getTopEmpresas(),
     ]);
 
     // Calcular crecimiento
@@ -323,25 +352,27 @@ export class SuperAdminService {
       empresasByIndustry,
       activityByMonth,
       topEmpresas,
-      systemMetrics
+      systemMetrics,
     };
   }
 
   // ==================== AUDIT LOGS ====================
-  async getAuditLogs(query: GetAuditLogsQueryDto): Promise<AuditLogsPaginatedResponseDto> {
+  async getAuditLogs(
+    query: GetAuditLogsQueryDto,
+  ): Promise<AuditLogsPaginatedResponseDto> {
     const { page = 1, limit = 50, search, action, resource, user } = query;
     const skip = (page - 1) * limit;
 
     // Construir filtros
     const where: any = {};
-    
+
     if (search) {
       where.OR = [
         { userName: { contains: search, mode: 'insensitive' } },
         { userEmail: { contains: search, mode: 'insensitive' } },
         { action: { contains: search, mode: 'insensitive' } },
         { resource: { contains: search, mode: 'insensitive' } },
-        { details: { contains: search, mode: 'insensitive' } }
+        { details: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -363,15 +394,15 @@ export class SuperAdminService {
         where,
         orderBy: { createdAt: 'desc' },
         skip,
-        take: limit
+        take: limit,
       }),
-      this.prisma.auditLog.count({ where })
+      this.prisma.auditLog.count({ where }),
     ]);
 
     const pages = Math.ceil(total / limit);
 
     return {
-      logs: logs.map(log => ({
+      logs: logs.map((log) => ({
         id: log.id,
         userId: log.userId,
         userEmail: log.userEmail,
@@ -384,14 +415,14 @@ export class SuperAdminService {
         userAgent: log.userAgent,
         createdAt: log.createdAt.toISOString(),
         empresaId: log.empresaId === null ? undefined : log.empresaId,
-        empresaName: log.empresaName === null ? undefined : log.empresaName
+        empresaName: log.empresaName === null ? undefined : log.empresaName,
       })),
       pagination: {
         page,
         limit,
         total,
-        pages
-      }
+        pages,
+      },
     };
   }
 
@@ -405,15 +436,27 @@ export class SuperAdminService {
       logsThisMonth,
       topActions,
       topUsers,
-      topResources
+      topResources,
     ] = await Promise.all([
       this.prisma.auditLog.count({ where: dateFilter }),
-      this.prisma.auditLog.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
-      this.prisma.auditLog.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
-      this.prisma.auditLog.count({ where: { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } }),
+      this.prisma.auditLog.count({
+        where: {
+          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+      }),
+      this.prisma.auditLog.count({
+        where: {
+          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        },
+      }),
+      this.prisma.auditLog.count({
+        where: {
+          createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        },
+      }),
       this.getTopAuditActions(dateFilter),
       this.getTopAuditUsers(dateFilter),
-      this.getTopAuditResources(dateFilter)
+      this.getTopAuditResources(dateFilter),
     ]);
 
     return {
@@ -423,7 +466,7 @@ export class SuperAdminService {
       logsThisMonth,
       topActions,
       topUsers,
-      topResources
+      topResources,
     };
   }
 
@@ -441,7 +484,7 @@ export class SuperAdminService {
         sessionTimeout: 60,
         maxLoginAttempts: 5,
         enableTwoFactor: false,
-        enableAuditLog: true
+        enableAuditLog: true,
       },
       email: {
         smtpHost: 'smtp.gmail.com',
@@ -450,16 +493,17 @@ export class SuperAdminService {
         smtpPassword: '',
         fromEmail: 'noreply@iam-system.com',
         fromName: 'IAM System',
-        enableEmailNotifications: true
+        enableEmailNotifications: true,
       },
       system: {
         maintenanceMode: false,
-        maintenanceMessage: 'El sistema está en mantenimiento. Por favor, intente más tarde.',
+        maintenanceMessage:
+          'El sistema está en mantenimiento. Por favor, intente más tarde.',
         maxFileSize: 10,
         allowedFileTypes: ['jpg', 'png', 'pdf', 'doc', 'xlsx'],
         backupFrequency: 'daily',
         backupRetention: 30,
-        enableAutoBackup: true
+        enableAutoBackup: true,
       },
       notifications: {
         enableEmailAlerts: true,
@@ -467,8 +511,8 @@ export class SuperAdminService {
         alertThreshold: 5,
         notifyOnUserCreation: true,
         notifyOnUserDeletion: true,
-        notifyOnSystemErrors: true
-      }
+        notifyOnSystemErrors: true,
+      },
     };
   }
 
@@ -545,107 +589,127 @@ export class SuperAdminService {
   private async getUsersByRole() {
     const result = await this.prisma.usuario.groupBy({
       by: ['rol'],
-      _count: { rol: true }
+      _count: { rol: true },
     });
 
-    return result.map(group => ({
+    return result.map((group) => ({
       rol: group.rol,
       count: group._count.rol,
-      label: this.getRoleLabel(group.rol)
+      label: this.getRoleLabel(group.rol),
     }));
   }
 
   private async getUsersByRoleWithPercentage() {
     const result = await this.prisma.usuario.groupBy({
       by: ['rol'],
-      _count: { rol: true }
+      _count: { rol: true },
     });
 
     const total = result.reduce((sum, group) => sum + group._count.rol, 0);
 
-    return result.map(group => ({
+    return result.map((group) => ({
       rol: group.rol,
       count: group._count.rol,
       label: this.getRoleLabel(group.rol),
-      percentage: total > 0 ? (group._count.rol / total) * 100 : 0
+      percentage: total > 0 ? (group._count.rol / total) * 100 : 0,
     }));
   }
 
   private async getEmpresasByIndustry() {
     const result = await this.prisma.empresa.groupBy({
       by: ['TipoIndustria'],
-      _count: { TipoIndustria: true }
+      _count: { TipoIndustria: true },
     });
 
-    return result.map(group => ({
+    return result.map((group) => ({
       industry: group.TipoIndustria,
-      count: group._count.TipoIndustria
+      count: group._count.TipoIndustria,
     }));
   }
 
   private async getEmpresasByIndustryWithPercentage() {
     const result = await this.prisma.empresa.groupBy({
       by: ['TipoIndustria'],
-      _count: { TipoIndustria: true }
+      _count: { TipoIndustria: true },
     });
 
-    const total = result.reduce((sum, group) => sum + group._count.TipoIndustria, 0);
+    const total = result.reduce(
+      (sum, group) => sum + group._count.TipoIndustria,
+      0,
+    );
 
-    return result.map(group => ({
+    return result.map((group) => ({
       industry: group.TipoIndustria,
       count: group._count.TipoIndustria,
-      percentage: total > 0 ? (group._count.TipoIndustria / total) * 100 : 0
+      percentage: total > 0 ? (group._count.TipoIndustria / total) * 100 : 0,
     }));
   }
 
   private async getRecentUsers() {
-    return this.prisma.usuario.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        empresa: {
-          select: {
-            id: true,
-            nombre: true
-          }
-        }
-      }
-    }).then(users => users.map(user => ({
-      id: user.id,
-      nombre: user.nombre,
-      email: user.email,
-      rol: user.rol,
-      createdAt: user.createdAt.toISOString(),
-      empresa: user.empresa ? {
-        id: user.empresa.id,
-        nombre: user.empresa.nombre
-      } : undefined
-    })));
+    return this.prisma.usuario
+      .findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          empresa: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+        },
+      })
+      .then((users) =>
+        users.map((user) => ({
+          id: user.id,
+          nombre: user.nombre,
+          email: user.email,
+          rol: user.rol,
+          createdAt: user.createdAt.toISOString(),
+          empresa: user.empresa
+            ? {
+                id: user.empresa.id,
+                nombre: user.empresa.nombre,
+              }
+            : undefined,
+        })),
+      );
   }
 
   private async getRecentEmpresas() {
-    return this.prisma.empresa.findMany({
-      take: 5,
-      orderBy: { fechaCreacion: 'desc' }
-    }).then(empresas => empresas.map(empresa => ({
-      id: empresa.id,
-      nombre: empresa.nombre,
-      TipoIndustria: empresa.TipoIndustria,
-      fechaCreacion: empresa.fechaCreacion.toISOString()
-    })));
+    return this.prisma.empresa
+      .findMany({
+        take: 5,
+        orderBy: { fechaCreacion: 'desc' },
+      })
+      .then((empresas) =>
+        empresas.map((empresa) => ({
+          id: empresa.id,
+          nombre: empresa.nombre,
+          TipoIndustria: empresa.TipoIndustria,
+          fechaCreacion: empresa.fechaCreacion.toISOString(),
+        })),
+      );
   }
 
   private async getCurrentPeriodStats(dateFilter: any) {
-    const [totalUsers, activeUsers, totalEmpresas, totalProductos, totalMovimientos] = await Promise.all([
+    const [
+      totalUsers,
+      activeUsers,
+      totalEmpresas,
+      totalProductos,
+      totalMovimientos,
+    ] = await Promise.all([
       this.prisma.usuario.count({ where: dateFilter }),
       this.prisma.usuario.count({ where: { ...dateFilter, activo: true } }),
       this.prisma.empresa.count({ where: dateFilter }),
       this.prisma.producto.count({ where: dateFilter }),
-      this.prisma.movimientoInventario.count({ where: dateFilter })
+      this.prisma.movimientoInventario.count({ where: dateFilter }),
     ]);
 
     const inactiveUsers = totalUsers - activeUsers;
-    const activePercentage = totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
+    const activePercentage =
+      totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
 
     return {
       totalUsers,
@@ -654,7 +718,7 @@ export class SuperAdminService {
       totalMovimientos,
       activeUsers,
       inactiveUsers,
-      activePercentage
+      activePercentage,
     };
   }
 
@@ -666,9 +730,18 @@ export class SuperAdminService {
 
     return {
       usersGrowth: calculateGrowthRate(current.totalUsers, previous.totalUsers),
-      empresasGrowth: calculateGrowthRate(current.totalEmpresas, previous.totalEmpresas),
-      productosGrowth: calculateGrowthRate(current.totalProductos, previous.totalProductos),
-      movimientosGrowth: calculateGrowthRate(current.totalMovimientos, previous.totalMovimientos)
+      empresasGrowth: calculateGrowthRate(
+        current.totalEmpresas,
+        previous.totalEmpresas,
+      ),
+      productosGrowth: calculateGrowthRate(
+        current.totalProductos,
+        previous.totalProductos,
+      ),
+      movimientosGrowth: calculateGrowthRate(
+        current.totalMovimientos,
+        previous.totalMovimientos,
+      ),
     };
   }
 
@@ -682,15 +755,18 @@ export class SuperAdminService {
       movimientos: number;
     }> = [];
     const now = new Date();
-    
+
     for (let i = 11; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push({
-        month: date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
+        month: date.toLocaleDateString('es-ES', {
+          month: 'short',
+          year: 'numeric',
+        }),
         users: Math.floor(Math.random() * 50) + 10,
         empresas: Math.floor(Math.random() * 20) + 5,
         productos: Math.floor(Math.random() * 200) + 50,
-        movimientos: Math.floor(Math.random() * 500) + 100
+        movimientos: Math.floor(Math.random() * 500) + 100,
       });
     }
 
@@ -698,45 +774,49 @@ export class SuperAdminService {
   }
 
   private async getTopEmpresas() {
-    return this.prisma.empresa.findMany({
-      take: 10,
-      include: {
-        _count: {
-          select: {
-            usuarios: true,
-            productos: true,
-            movimientos: true
-          }
-        }
-      },
-      orderBy: {
-        movimientos: {
-          _count: 'desc'
-        }
-      }
-    }).then(empresas => empresas.map(empresa => ({
-      id: empresa.id,
-      nombre: empresa.nombre,
-      TipoIndustria: empresa.TipoIndustria,
-      totalUsers: empresa._count.usuarios,
-      totalProductos: empresa._count.productos,
-      totalMovimientos: empresa._count.movimientos
-    })));
+    return this.prisma.empresa
+      .findMany({
+        take: 10,
+        include: {
+          _count: {
+            select: {
+              usuarios: true,
+              productos: true,
+              movimientos: true,
+            },
+          },
+        },
+        orderBy: {
+          movimientos: {
+            _count: 'desc',
+          },
+        },
+      })
+      .then((empresas) =>
+        empresas.map((empresa) => ({
+          id: empresa.id,
+          nombre: empresa.nombre,
+          TipoIndustria: empresa.TipoIndustria,
+          totalUsers: empresa._count.usuarios,
+          totalProductos: empresa._count.productos,
+          totalMovimientos: empresa._count.movimientos,
+        })),
+      );
   }
 
   private async getTopAuditActions(dateFilter: any) {
     const result = await this.prisma.auditLog.groupBy({
       by: ['action'],
       where: dateFilter,
-      _count: { action: true }
+      _count: { action: true },
     });
 
     const total = result.reduce((sum, group) => sum + group._count.action, 0);
 
-    return result.map(group => ({
+    return result.map((group) => ({
       action: group.action,
       count: group._count.action,
-      percentage: total > 0 ? (group._count.action / total) * 100 : 0
+      percentage: total > 0 ? (group._count.action / total) * 100 : 0,
     }));
   }
 
@@ -744,17 +824,17 @@ export class SuperAdminService {
     const result = await this.prisma.auditLog.groupBy({
       by: ['userId', 'userName', 'userEmail'],
       where: dateFilter,
-      _count: { userId: true }
+      _count: { userId: true },
     });
 
     return result
       .sort((a, b) => b._count.userId - a._count.userId)
       .slice(0, 10)
-      .map(group => ({
+      .map((group) => ({
         userId: group.userId,
         userName: group.userName,
         userEmail: group.userEmail,
-        actionCount: group._count.userId
+        actionCount: group._count.userId,
       }));
   }
 
@@ -762,15 +842,15 @@ export class SuperAdminService {
     const result = await this.prisma.auditLog.groupBy({
       by: ['resource'],
       where: dateFilter,
-      _count: { resource: true }
+      _count: { resource: true },
     });
 
     const total = result.reduce((sum, group) => sum + group._count.resource, 0);
 
-    return result.map(group => ({
+    return result.map((group) => ({
       resource: group.resource,
       count: group._count.resource,
-      percentage: total > 0 ? (group._count.resource / total) * 100 : 0
+      percentage: total > 0 ? (group._count.resource / total) * 100 : 0,
     }));
   }
 
@@ -780,7 +860,7 @@ export class SuperAdminService {
       status: 'healthy' as const,
       message: 'Sistema operativo',
       uptime: '99.9%',
-      lastBackup: new Date().toISOString()
+      lastBackup: new Date().toISOString(),
     };
   }
 
@@ -792,7 +872,7 @@ export class SuperAdminService {
       errorRate: '0.1%',
       lastBackup: new Date().toISOString(),
       storageUsed: '2.5 GB',
-      storageTotal: '10 GB'
+      storageTotal: '10 GB',
     };
   }
 
@@ -810,4 +890,4 @@ export class SuperAdminService {
         return rol;
     }
   }
-} 
+}

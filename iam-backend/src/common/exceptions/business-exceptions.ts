@@ -1,12 +1,16 @@
-
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
 export class InsufficientStockException extends BadRequestException {
-  constructor(productoId: number, stockActual: number, cantidadSolicitada: number, productoNombre?: string) {
-    const message = productoNombre 
+  constructor(
+    productoId: number,
+    stockActual: number,
+    cantidadSolicitada: number,
+    productoNombre?: string,
+  ) {
+    const message = productoNombre
       ? `Stock insuficiente para "${productoNombre}". Stock actual: ${stockActual}, cantidad solicitada: ${cantidadSolicitada}`
       : `Stock insuficiente. Stock actual: ${stockActual}, cantidad solicitada: ${cantidadSolicitada}`;
-    
+
     super({
       message,
       details: {
@@ -16,25 +20,27 @@ export class InsufficientStockException extends BadRequestException {
         stockActual,
         cantidadSolicitada,
         productoNombre,
-        deficit: cantidadSolicitada - stockActual
-      }
+        deficit: cantidadSolicitada - stockActual,
+      },
     });
   }
 }
 
 export class ProductNotFoundException extends BadRequestException {
   constructor(productoId?: number, codigoBarras?: string) {
-    const identifier = productoId ? `ID: ${productoId}` : `código de barras: ${codigoBarras}`;
+    const identifier = productoId
+      ? `ID: ${productoId}`
+      : `código de barras: ${codigoBarras}`;
     const message = `Producto no encontrado con ${identifier}`;
-    
+
     super({
       message,
       details: {
         code: 'PRODUCT_NOT_FOUND',
         suggestion: 'Verifica que el producto exista y esté activo',
         productoId,
-        codigoBarras
-      }
+        codigoBarras,
+      },
     });
   }
 }
@@ -47,8 +53,8 @@ export class InvalidMovementException extends BadRequestException {
         code: 'INVALID_MOVEMENT',
         suggestion: 'Verifica los datos del movimiento',
         tipo,
-        motivo
-      }
+        motivo,
+      },
     });
   }
 }
@@ -61,8 +67,8 @@ export class DuplicateProductException extends BadRequestException {
         code: 'DUPLICATE_PRODUCT',
         suggestion: 'Verifica que el producto no exista ya en el sistema',
         field,
-        value
-      }
+        value,
+      },
     });
   }
 }
@@ -75,8 +81,8 @@ export class InvalidProviderException extends BadRequestException {
         code: 'INVALID_PROVIDER',
         suggestion: 'Verifica que el proveedor esté registrado en tu empresa',
         providerId,
-        empresaId
-      }
+        empresaId,
+      },
     });
   }
 }
@@ -90,8 +96,8 @@ export class InsufficientPermissionsException extends ForbiddenException {
         suggestion: `Se requiere rol ${requiredRole} para realizar esta acción`,
         requiredRole,
         currentRole,
-        action
-      }
+        action,
+      },
     });
   }
-} 
+}

@@ -31,4 +31,4 @@ export class CrearMovimientoPorCodigoBarrasDto {
   @IsOptional()
   @IsString({ message: 'descripcion debe ser un texto' })
   descripcion?: string;
-} 
+}

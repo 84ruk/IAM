@@ -8,11 +8,11 @@ import { securityConfig } from './config/security.config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  
+
   try {
     // Validar configuración de seguridad antes de iniciar
     logger.log('Validando configuración de seguridad...');
-    
+
     const app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log', 'debug', 'verbose'],
     });
@@ -29,7 +29,9 @@ async function bootstrap() {
           if (process.env.NODE_ENV === 'development') {
             logger.debug('Permitiendo petición sin origen en desarrollo');
           } else {
-            logger.debug('Permitiendo petición sin origen en producción (health check/monitoreo)');
+            logger.debug(
+              'Permitiendo petición sin origen en producción (health check/monitoreo)',
+            );
           }
           return callback(null, true);
         }
@@ -41,8 +43,10 @@ async function bootstrap() {
         }
 
         // En desarrollo, ser más permisivo con localhost
-        if (process.env.NODE_ENV === 'development' && 
-            (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+        if (
+          process.env.NODE_ENV === 'development' &&
+          (origin.includes('localhost') || origin.includes('127.0.0.1'))
+        ) {
           logger.debug(`Permitiendo origen de desarrollo: ${origin}`);
           return callback(null, true);
         }
@@ -58,9 +62,13 @@ async function bootstrap() {
         'X-Requested-With',
         'Accept',
         'X-API-Key',
-        'X-Client-Version'
+        'X-Client-Version',
       ],
-      exposedHeaders: ['Set-Cookie', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+      exposedHeaders: [
+        'Set-Cookie',
+        'X-RateLimit-Remaining',
+        'X-RateLimit-Reset',
+      ],
       preflightContinue: false,
       optionsSuccessStatus: 204,
       maxAge: 86400, // Cache preflight por 24 horas
@@ -80,7 +88,7 @@ async function bootstrap() {
         errorHttpStatusCode: 400,
         exceptionFactory: (errors) => {
           return new BadRequestException({
-            message: errors.map(err => {
+            message: errors.map((err) => {
               const constraints = err.constraints
                 ? Object.values(err.constraints).join(', ')
                 : 'Error desconocido';
@@ -93,12 +101,13 @@ async function bootstrap() {
 
     const port = process.env.PORT || 8080;
     await app.listen(port, '0.0.0.0');
-    
+
     logger.log(`🚀 Aplicación iniciada en 0.0.0.0:${port}`);
     logger.log(`🔒 Configuración de seguridad aplicada`);
     logger.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
-    logger.log(`📡 Orígenes CORS permitidos: ${JSON.stringify(securityConfig.cors.allowedOrigins)}`);
-    
+    logger.log(
+      `📡 Orígenes CORS permitidos: ${JSON.stringify(securityConfig.cors.allowedOrigins)}`,
+    );
   } catch (error) {
     logger.error('❌ Error al iniciar la aplicación:', error);
     process.exit(1);

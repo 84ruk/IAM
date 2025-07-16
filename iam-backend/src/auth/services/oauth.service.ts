@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SecureLoggerService } from '../../common/services/secure-logger.service';
 import { JwtAuditService } from '../jwt-audit.service';
@@ -34,7 +38,7 @@ export class OAuthService {
       }
 
       // Buscar usuario por googleId o email
-      let user = await this.findOrCreateGoogleUser(googleUser);
+      const user = await this.findOrCreateGoogleUser(googleUser);
 
       // Generar tokens de acceso
       const { token, refreshToken } = await this.generateTokens(user);
@@ -48,10 +52,15 @@ export class OAuthService {
 
       return { token, refreshToken };
     } catch (error) {
-      this.jwtAuditService.logJwtEvent('GOOGLE_ERROR', undefined, googleUser?.email, {
-        provider: 'google',
-        error: error.message,
-      });
+      this.jwtAuditService.logJwtEvent(
+        'GOOGLE_ERROR',
+        undefined,
+        googleUser?.email,
+        {
+          provider: 'google',
+          error: error.message,
+        },
+      );
       throw error;
     }
   }
@@ -74,12 +83,9 @@ export class OAuthService {
    */
   private async findOrCreateGoogleUser(googleUser: GoogleUserData) {
     // Buscar usuario existente
-    let user = await this.prisma.usuario.findFirst({
+    const user = await this.prisma.usuario.findFirst({
       where: {
-        OR: [
-          { googleId: googleUser.googleId },
-          { email: googleUser.email },
-        ],
+        OR: [{ googleId: googleUser.googleId }, { email: googleUser.email }],
       },
     });
 
@@ -95,15 +101,20 @@ export class OAuthService {
   /**
    * Actualizar usuario existente con datos de Google
    */
-  private async updateExistingGoogleUser(user: any, googleUser: GoogleUserData) {
+  private async updateExistingGoogleUser(
+    user: any,
+    googleUser: GoogleUserData,
+  ) {
     // Verificar que el email no esté en uso por otro usuario con diferente proveedor
     if (user.email === googleUser.email && user.authProvider !== 'google') {
-      throw new BadRequestException('Este email ya está registrado con otro método de autenticación');
+      throw new BadRequestException(
+        'Este email ya está registrado con otro método de autenticación',
+      );
     }
 
     // Actualizar datos si es necesario
     const updateData: any = {};
-    
+
     if (!user.googleId) {
       updateData.googleId = googleUser.googleId;
       updateData.authProvider = 'google';
@@ -133,7 +144,9 @@ export class OAuthService {
     });
 
     if (existingUserWithEmail) {
-      throw new BadRequestException('Este email ya está registrado con otro método de autenticación');
+      throw new BadRequestException(
+        'Este email ya está registrado con otro método de autenticación',
+      );
     }
 
     const userData = {
@@ -174,7 +187,9 @@ export class OAuthService {
     };
 
     const token = this.jwtService.sign(payload);
-    const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
+    const refreshToken = await this.refreshTokenService.createRefreshToken(
+      user.id,
+    );
 
     return { token, refreshToken };
   }
@@ -220,11 +235,15 @@ export class OAuthService {
     }
 
     if (user.authProvider !== 'google') {
-      throw new BadRequestException('Este usuario no tiene una cuenta de Google vinculada');
+      throw new BadRequestException(
+        'Este usuario no tiene una cuenta de Google vinculada',
+      );
     }
 
     if (!user.password) {
-      throw new BadRequestException('No se puede desvincular Google sin tener una contraseña configurada');
+      throw new BadRequestException(
+        'No se puede desvincular Google sin tener una contraseña configurada',
+      );
     }
 
     await this.prisma.usuario.update({
@@ -235,11 +254,13 @@ export class OAuthService {
       },
     });
 
-    this.secureLogger.log(`Cuenta de Google desvinculada para usuario ${userId}`);
+    this.secureLogger.log(
+      `Cuenta de Google desvinculada para usuario ${userId}`,
+    );
     this.jwtAuditService.logJwtEvent('GOOGLE_UNLINK', userId, user.email, {
       provider: 'google',
     });
 
     return { message: 'Cuenta de Google desvinculada exitosamente' };
   }
-} 
+}

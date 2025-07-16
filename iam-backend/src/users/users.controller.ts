@@ -1,12 +1,12 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Patch, 
-  Param, 
-  Delete, 
-  Query, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -38,9 +38,9 @@ export class UsersController {
     @CurrentUser() currentUser: JwtUser,
   ) {
     return this.usersService.create(
-      createUserDto, 
-      currentUser.rol as Rol, 
-      currentUser.empresaId || 0
+      createUserDto,
+      currentUser.rol,
+      currentUser.empresaId || 0,
     );
   }
 
@@ -52,9 +52,9 @@ export class UsersController {
     @CurrentUser() currentUser: JwtUser,
   ) {
     return this.usersService.findAll(
-      query, 
-      currentUser.rol as Rol, 
-      currentUser.empresaId || 0
+      query,
+      currentUser.rol,
+      currentUser.empresaId || 0,
     );
   }
 
@@ -63,8 +63,8 @@ export class UsersController {
   @EmpresaRequired()
   async getStats(@CurrentUser() currentUser: JwtUser) {
     return this.usersService.getUsersStats(
-      currentUser.rol as Rol, 
-      currentUser.empresaId || 0
+      currentUser.rol,
+      currentUser.empresaId || 0,
     );
   }
 
@@ -76,7 +76,10 @@ export class UsersController {
     @CurrentUser() currentUser: JwtUser,
   ) {
     // Verificar permisos
-    if (currentUser.rol !== 'SUPERADMIN' && currentUser.empresaId !== Number(empresaId)) {
+    if (
+      currentUser.rol !== 'SUPERADMIN' &&
+      currentUser.empresaId !== Number(empresaId)
+    ) {
       throw new Error('No tienes permisos para ver usuarios de esta empresa');
     }
 
@@ -86,14 +89,11 @@ export class UsersController {
   @Get(':id')
   @Roles('SUPERADMIN', 'ADMIN')
   @EmpresaRequired()
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser() currentUser: JwtUser,
-  ) {
+  async findOne(@Param('id') id: string, @CurrentUser() currentUser: JwtUser) {
     return this.usersService.findOne(
-      Number(id), 
-      currentUser.rol as Rol, 
-      currentUser.empresaId || 0
+      Number(id),
+      currentUser.rol,
+      currentUser.empresaId || 0,
     );
   }
 
@@ -106,10 +106,10 @@ export class UsersController {
     @CurrentUser() currentUser: JwtUser,
   ) {
     return this.usersService.update(
-      Number(id), 
-      updateUserDto, 
-      currentUser.rol as Rol, 
-      currentUser.empresaId || 0
+      Number(id),
+      updateUserDto,
+      currentUser.rol,
+      currentUser.empresaId || 0,
     );
   }
 
@@ -117,14 +117,11 @@ export class UsersController {
   @Roles('SUPERADMIN', 'ADMIN')
   @EmpresaRequired()
   @HttpCode(HttpStatus.OK)
-  async remove(
-    @Param('id') id: string,
-    @CurrentUser() currentUser: JwtUser,
-  ) {
+  async remove(@Param('id') id: string, @CurrentUser() currentUser: JwtUser) {
     return this.usersService.remove(
-      Number(id), 
-      currentUser.rol as Rol, 
-      currentUser.empresaId || 0
+      Number(id),
+      currentUser.rol,
+      currentUser.empresaId || 0,
     );
   }
 
@@ -133,10 +130,6 @@ export class UsersController {
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() createUserDto: CreateUserDto) {
     // Para registro público, usar rol ADMIN y sin empresa
-    return this.usersService.create(
-      createUserDto, 
-      'SUPERADMIN' as Rol, 
-      0
-    );
+    return this.usersService.create(createUserDto, 'SUPERADMIN' as Rol, 0);
   }
 }

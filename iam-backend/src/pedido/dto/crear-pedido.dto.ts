@@ -1,10 +1,4 @@
-import { 
-  IsInt, 
-  Min, 
-  IsNotEmpty, 
-  IsPositive, 
-  Max 
-} from 'class-validator';
+import { IsInt, Min, IsNotEmpty, IsPositive, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CrearPedidoDto {

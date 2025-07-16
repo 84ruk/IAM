@@ -15,7 +15,7 @@ import {
   Validate,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TipoProducto, UnidadMedida } from "@prisma/client";
+import { TipoProducto, UnidadMedida } from '@prisma/client';
 
 // Validador personalizado para campos específicos de industria
 export class IndustriaValidator {
@@ -46,8 +46,14 @@ export class IndustriaValidator {
 
   static validateColor(value: string): boolean {
     const coloresValidos = [
-      'Negro', 'Blanco', 'Rojo', 'Azul', 'Verde', 
-      'Amarillo', 'Gris', 'Marrón'
+      'Negro',
+      'Blanco',
+      'Rojo',
+      'Azul',
+      'Verde',
+      'Amarillo',
+      'Gris',
+      'Marrón',
     ];
     return coloresValidos.includes(value);
   }
@@ -58,19 +64,19 @@ export class CreateProductoDto {
   @IsNotEmpty({ message: 'nombre es requerido' })
   @MinLength(2, { message: 'nombre debe tener al menos 2 caracteres' })
   @MaxLength(100, { message: 'nombre no puede exceder 100 caracteres' })
-  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()]+$/, { 
-    message: 'nombre contiene caracteres no permitidos' 
+  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()]+$/, {
+    message: 'nombre contiene caracteres no permitidos',
   })
   nombre: string;
-  
+
   @IsOptional()
   @IsString({ message: 'descripcion debe ser un texto' })
   @MaxLength(500, { message: 'descripcion no puede exceder 500 caracteres' })
-  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()!?]+$/, { 
-    message: 'descripcion contiene caracteres no permitidos' 
+  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()!?]+$/, {
+    message: 'descripcion contiene caracteres no permitidos',
   })
   descripcion?: string;
-  
+
   @IsOptional()
   @Type(() => Number)
   @IsNumber({}, { message: 'proveedorId debe ser un número' })
@@ -113,35 +119,43 @@ export class CreateProductoDto {
   @IsOptional()
   @IsArray({ message: 'etiquetas debe ser un array' })
   @IsString({ each: true, message: 'cada etiqueta debe ser un texto' })
-  @MaxLength(10, { each: true, message: 'cada etiqueta no puede exceder 10 caracteres' })
-  @MinLength(1, { each: true, message: 'cada etiqueta debe tener al menos 1 carácter' })
-  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_]+$/, { 
-    each: true, 
-    message: 'etiquetas contienen caracteres no permitidos' 
+  @MaxLength(10, {
+    each: true,
+    message: 'cada etiqueta no puede exceder 10 caracteres',
+  })
+  @MinLength(1, {
+    each: true,
+    message: 'cada etiqueta debe tener al menos 1 carácter',
+  })
+  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_]+$/, {
+    each: true,
+    message: 'etiquetas contienen caracteres no permitidos',
   })
   etiquetas?: string[];
 
   @IsOptional()
   @IsString({ message: 'codigoBarras debe ser un texto' })
   @MaxLength(50, { message: 'codigoBarras no puede exceder 50 caracteres' })
-  @Matches(/^[0-9\-_]+$/, { 
-    message: 'codigoBarras solo puede contener números, guiones y guiones bajos' 
+  @Matches(/^[0-9\-_]+$/, {
+    message:
+      'codigoBarras solo puede contener números, guiones y guiones bajos',
   })
   codigoBarras?: string;
 
   @IsOptional()
   @IsString({ message: 'rfid debe ser un texto' })
   @MaxLength(50, { message: 'rfid no puede exceder 50 caracteres' })
-  @Matches(/^[a-zA-Z0-9\-_]+$/, { 
-    message: 'rfid solo puede contener letras, números, guiones y guiones bajos' 
+  @Matches(/^[a-zA-Z0-9\-_]+$/, {
+    message:
+      'rfid solo puede contener letras, números, guiones y guiones bajos',
   })
   rfid?: string;
 
   @IsOptional()
   @IsString({ message: 'ubicacion debe ser un texto' })
   @MaxLength(100, { message: 'ubicacion no puede exceder 100 caracteres' })
-  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()]+$/, { 
-    message: 'ubicacion contiene caracteres no permitidos' 
+  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()]+$/, {
+    message: 'ubicacion contiene caracteres no permitidos',
   })
   ubicacion?: string;
 
@@ -164,11 +178,11 @@ export class CreateProductoDto {
   @IsOptional()
   @IsString({ message: 'sku debe ser un texto' })
   @MaxLength(50, { message: 'sku no puede exceder 50 caracteres' })
-  @Matches(/^[a-zA-Z0-9\-_]+$/, { 
-    message: 'sku solo puede contener letras, números, guiones y guiones bajos' 
+  @Matches(/^[a-zA-Z0-9\-_]+$/, {
+    message: 'sku solo puede contener letras, números, guiones y guiones bajos',
   })
   sku?: string;
-  
+
   @IsOptional()
   @IsString({ message: 'talla debe ser un texto' })
   @MaxLength(10, { message: 'talla no puede exceder 10 caracteres' })
@@ -182,11 +196,15 @@ export class CreateProductoDto {
   color?: string;
 
   @IsOptional()
-  @IsEnum(TipoProducto, { message: 'tipoProducto debe ser GENERICO, ROPA, ALIMENTO o ELECTRONICO' })
+  @IsEnum(TipoProducto, {
+    message: 'tipoProducto debe ser GENERICO, ROPA, ALIMENTO o ELECTRONICO',
+  })
   tipoProducto?: TipoProducto;
 
   // Validaciones de negocio
-  @ValidateIf((o) => o.precioVenta !== undefined && o.precioCompra !== undefined)
+  @ValidateIf(
+    (o) => o.precioVenta !== undefined && o.precioCompra !== undefined,
+  )
   @IsNumber({}, { message: 'precioVenta debe ser mayor al precio de compra' })
   @Min(0, { message: 'precioVenta debe ser mayor al precio de compra' })
   get precioVentaValidado(): number {

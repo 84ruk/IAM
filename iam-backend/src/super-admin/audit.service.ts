@@ -33,8 +33,8 @@ export class AuditService {
           ipAddress: data.ipAddress,
           userAgent: data.userAgent,
           empresaId: data.empresaId,
-          empresaName: data.empresaName
-        }
+          empresaName: data.empresaName,
+        },
       });
     } catch (error) {
       // En producción, esto debería ir a un logger real
@@ -53,7 +53,7 @@ export class AuditService {
     ipAddress: string,
     userAgent: string,
     empresaId?: number,
-    empresaName?: string
+    empresaName?: string,
   ): Promise<void> {
     await this.log({
       userId,
@@ -66,7 +66,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
 
@@ -77,7 +77,7 @@ export class AuditService {
     ipAddress: string,
     userAgent: string,
     empresaId?: number,
-    empresaName?: string
+    empresaName?: string,
   ): Promise<void> {
     await this.log({
       userId,
@@ -89,7 +89,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
 
@@ -100,7 +100,7 @@ export class AuditService {
     ipAddress: string,
     userAgent: string,
     empresaId?: number,
-    empresaName?: string
+    empresaName?: string,
   ): Promise<void> {
     await this.log({
       userId,
@@ -112,7 +112,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
 
@@ -125,7 +125,7 @@ export class AuditService {
     ipAddress: string,
     userAgent: string,
     empresaId?: number,
-    empresaName?: string
+    empresaName?: string,
   ): Promise<void> {
     await this.log({
       userId,
@@ -138,7 +138,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
 
@@ -152,7 +152,7 @@ export class AuditService {
     ipAddress: string,
     userAgent: string,
     empresaId?: number,
-    empresaName?: string
+    empresaName?: string,
   ): Promise<void> {
     await this.log({
       userId,
@@ -165,7 +165,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
 
@@ -178,7 +178,7 @@ export class AuditService {
     ipAddress: string,
     userAgent: string,
     empresaId?: number,
-    empresaName?: string
+    empresaName?: string,
   ): Promise<void> {
     await this.log({
       userId,
@@ -191,7 +191,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
 
@@ -205,7 +205,7 @@ export class AuditService {
     ipAddress: string,
     userAgent: string,
     empresaId?: number,
-    empresaName?: string
+    empresaName?: string,
   ): Promise<void> {
     const status = newStatus ? 'activado' : 'desactivado';
     await this.log({
@@ -219,7 +219,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
 
@@ -230,7 +230,7 @@ export class AuditService {
     empresaId: number,
     empresaName: string,
     ipAddress: string,
-    userAgent: string
+    userAgent: string,
   ): Promise<void> {
     await this.log({
       userId,
@@ -243,7 +243,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
 
@@ -258,7 +258,7 @@ export class AuditService {
     ipAddress: string,
     userAgent: string,
     empresaId?: number,
-    empresaName?: string
+    empresaName?: string,
   ): Promise<void> {
     await this.log({
       userId,
@@ -271,7 +271,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
 
@@ -287,7 +287,7 @@ export class AuditService {
     ipAddress: string,
     userAgent: string,
     empresaId?: number,
-    empresaName?: string
+    empresaName?: string,
   ): Promise<void> {
     await this.log({
       userId,
@@ -300,7 +300,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
 
@@ -313,7 +313,7 @@ export class AuditService {
     ipAddress: string,
     userAgent: string,
     empresaId?: number,
-    empresaName?: string
+    empresaName?: string,
   ): Promise<void> {
     await this.log({
       userId,
@@ -325,7 +325,7 @@ export class AuditService {
       ipAddress,
       userAgent,
       empresaId,
-      empresaName
+      empresaName,
     });
   }
-} 
+}

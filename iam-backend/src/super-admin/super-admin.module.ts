@@ -9,12 +9,12 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
 @Module({
   controllers: [SuperAdminController],
   providers: [
-    SuperAdminService, 
-    AuditService, 
+    SuperAdminService,
+    AuditService,
     AuditInterceptor,
-    PrismaService, 
-    SuperAdminGuard
+    PrismaService,
+    SuperAdminGuard,
   ],
   exports: [SuperAdminService, AuditService],
 })
-export class SuperAdminModule {} 
+export class SuperAdminModule {}

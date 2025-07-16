@@ -1,4 +1,11 @@
-import { Injectable, Logger, ServiceUnavailableException, InternalServerErrorException, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+  InternalServerErrorException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 
 @Injectable()
 export class ErrorHandlerService {
@@ -8,7 +15,10 @@ export class ErrorHandlerService {
    * Maneja errores de Prisma de manera centralizada
    */
   handlePrismaError(error: any, operation: string, context?: string) {
-    this.logger.error(`Error en ${operation}${context ? ` (${context})` : ''}:`, error);
+    this.logger.error(
+      `Error en ${operation}${context ? ` (${context})` : ''}:`,
+      error,
+    );
 
     // Errores de conexión
     if (error.code === 'P2024' || error.code === 'P2025') {
@@ -16,10 +26,11 @@ export class ErrorHandlerService {
         message: 'La base de datos no está disponible',
         details: {
           code: 'DATABASE_UNAVAILABLE',
-          suggestion: 'Verifica que el servicio de base de datos esté ejecutándose',
+          suggestion:
+            'Verifica que el servicio de base de datos esté ejecutándose',
           operation,
-          context
-        }
+          context,
+        },
       });
     }
 
@@ -31,8 +42,8 @@ export class ErrorHandlerService {
           code: 'RECORD_NOT_FOUND',
           suggestion: 'Verifica que los datos existan',
           operation,
-          context
-        }
+          context,
+        },
       });
     }
 
@@ -46,8 +57,8 @@ export class ErrorHandlerService {
           suggestion: `Utiliza un ${field} diferente`,
           operation,
           context,
-          field
-        }
+          field,
+        },
       });
     }
 
@@ -59,8 +70,8 @@ export class ErrorHandlerService {
           code: 'FOREIGN_KEY_VIOLATION',
           suggestion: 'Verifica que las referencias existan',
           operation,
-          context
-        }
+          context,
+        },
       });
     }
 
@@ -71,8 +82,8 @@ export class ErrorHandlerService {
         code: 'INTERNAL_ERROR',
         suggestion: 'Contacta al administrador del sistema',
         operation,
-        context
-      }
+        context,
+      },
     });
   }
 
@@ -81,15 +92,15 @@ export class ErrorHandlerService {
    */
   handleValidationError(error: any, operation: string) {
     this.logger.warn(`Error de validación en ${operation}:`, error);
-    
+
     throw new BadRequestException({
       message: 'Datos de entrada inválidos',
       details: {
         code: 'VALIDATION_ERROR',
         suggestion: 'Verifica que todos los campos requeridos estén completos',
         operation,
-        errors: error.errors || error.message
-      }
+        errors: error.errors || error.message,
+      },
     });
   }
 
@@ -98,14 +109,14 @@ export class ErrorHandlerService {
    */
   handleAuthError(error: any, operation: string) {
     this.logger.warn(`Error de autenticación en ${operation}:`, error);
-    
+
     throw new BadRequestException({
       message: 'Credenciales inválidas o permisos insuficientes',
       details: {
         code: 'AUTH_ERROR',
         suggestion: 'Verifica tus credenciales y permisos',
-        operation
-      }
+        operation,
+      },
     });
   }
 
@@ -115,4 +126,4 @@ export class ErrorHandlerService {
   logUnhandledError(error: any, context: string) {
     this.logger.error(`Error no manejado en ${context}:`, error);
   }
-} 
+}

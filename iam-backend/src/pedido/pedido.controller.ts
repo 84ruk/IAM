@@ -16,7 +16,12 @@ export class PedidoController {
   @Post()
   async crearPedido(@Body() dto: CrearPedidoDto, @Req() req: any) {
     const empresaId = req.user.empresaId;
-    return this.pedidoService.generarPedido(dto.productoId, dto.proveedorId, dto.cantidad, empresaId);
+    return this.pedidoService.generarPedido(
+      dto.productoId,
+      dto.proveedorId,
+      dto.cantidad,
+      empresaId,
+    );
   }
 
   @Get()

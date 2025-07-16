@@ -46,21 +46,21 @@ export class AuditInterceptor implements NestInterceptor {
               ipAddress,
               userAgent,
               empresaId: user.empresaId,
-              empresaName: user.empresa?.nombre
+              empresaName: user.empresa?.nombre,
             });
           }
         } catch (error) {
           // No fallar la operación principal si la auditoría falla
           console.error('Error en auditoría:', error);
         }
-      })
+      }),
     );
   }
 
   private getClientIp(request: Request): string {
     return (
-      request.headers['x-forwarded-for'] as string ||
-      request.headers['x-real-ip'] as string ||
+      (request.headers['x-forwarded-for'] as string) ||
+      (request.headers['x-real-ip'] as string) ||
       request.connection.remoteAddress ||
       request.socket.remoteAddress ||
       'Unknown'
@@ -101,23 +101,30 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     if (method === 'POST') {
-      if (url.includes('/config/test-email')) return 'Prueba de configuración de email';
+      if (url.includes('/config/test-email'))
+        return 'Prueba de configuración de email';
       if (url.includes('/config/backup')) return 'Inicio de backup manual';
       return 'Creación de recurso';
     }
 
     if (method === 'PUT') {
-      if (url.includes('/users/') && url.includes('/activate')) return 'Activación de usuario';
-      if (url.includes('/users/') && url.includes('/deactivate')) return 'Desactivación de usuario';
-      if (url.includes('/users/bulk/activate')) return 'Activación masiva de usuarios';
-      if (url.includes('/users/bulk/deactivate')) return 'Desactivación masiva de usuarios';
-      if (url.includes('/config')) return 'Actualización de configuración del sistema';
+      if (url.includes('/users/') && url.includes('/activate'))
+        return 'Activación de usuario';
+      if (url.includes('/users/') && url.includes('/deactivate'))
+        return 'Desactivación de usuario';
+      if (url.includes('/users/bulk/activate'))
+        return 'Activación masiva de usuarios';
+      if (url.includes('/users/bulk/deactivate'))
+        return 'Desactivación masiva de usuarios';
+      if (url.includes('/config'))
+        return 'Actualización de configuración del sistema';
       return 'Actualización de recurso';
     }
 
     if (method === 'DELETE') {
       if (url.includes('/users/')) return 'Eliminación de usuario';
-      if (url.includes('/users/bulk/delete')) return 'Eliminación masiva de usuarios';
+      if (url.includes('/users/bulk/delete'))
+        return 'Eliminación masiva de usuarios';
       return 'Eliminación de recurso';
     }
 
@@ -132,9 +139,9 @@ export class AuditInterceptor implements NestInterceptor {
       '/super-admin/audit',
       '/super-admin/stats',
       '/super-admin/config',
-      '/super-admin/dashboard'
+      '/super-admin/dashboard',
     ];
 
-    return auditEndpoints.some(endpoint => url.includes(endpoint));
+    return auditEndpoints.some((endpoint) => url.includes(endpoint));
   }
-} 
+}

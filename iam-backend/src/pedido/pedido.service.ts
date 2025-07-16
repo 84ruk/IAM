@@ -5,12 +5,19 @@ import { PrismaService } from '../prisma/prisma.service';
 export class PedidoService {
   constructor(private prisma: PrismaService) {}
 
-  async generarPedido(productoId: number, proveedorId: number, cantidad: number, empresaId: number) {
+  async generarPedido(
+    productoId: number,
+    proveedorId: number,
+    cantidad: number,
+    empresaId: number,
+  ) {
     const proveedor = await this.prisma.proveedor.findFirst({
-        where: { id: proveedorId, empresaId }
+      where: { id: proveedorId, empresaId },
     });
     if (!proveedor) {
-        throw new NotFoundException('Proveedor no encontrado o no pertenece a tu empresa');
+      throw new NotFoundException(
+        'Proveedor no encontrado o no pertenece a tu empresa',
+      );
     }
 
     return this.prisma.pedidoInventario.create({

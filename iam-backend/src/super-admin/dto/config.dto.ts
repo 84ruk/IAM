@@ -1,4 +1,11 @@
-import { IsOptional, IsString, IsNumber, IsBoolean, IsArray, IsEmail } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsArray,
+  IsEmail,
+} from 'class-validator';
 
 export class SystemConfigDto {
   security: {
@@ -57,4 +64,4 @@ export class ConfigResponseDto {
   success: boolean;
   message: string;
   config?: SystemConfigDto;
-} 
+}

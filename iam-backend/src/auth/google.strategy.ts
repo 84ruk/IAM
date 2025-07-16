@@ -23,7 +23,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   ): Promise<any> {
     try {
       const { id, displayName, emails } = profile;
-      
+
       // Validar que tenemos la información necesaria
       if (!emails || emails.length === 0) {
         this.logger.error('Google profile no contiene email');
@@ -31,7 +31,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       }
 
       const email = emails[0].value;
-      
+
       // Validar formato de email
       if (!email || !email.includes('@')) {
         this.logger.error('Email inválido en Google profile');
@@ -52,4 +52,4 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       done(error, null);
     }
   }
-} 
+}

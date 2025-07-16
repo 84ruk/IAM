@@ -1,4 +1,9 @@
-import { Injectable, Logger, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SecureLoggerService } from '../../common/services/secure-logger.service';
 import * as crypto from 'crypto';
@@ -22,7 +27,7 @@ export class TwoFactorService {
 
   constructor(
     private prisma: PrismaService,
-    private secureLogger: SecureLoggerService
+    private secureLogger: SecureLoggerService,
   ) {}
 
   /**
@@ -32,7 +37,7 @@ export class TwoFactorService {
     return speakeasy.generateSecret({
       name: 'IAM Inventario',
       issuer: 'IAM System',
-      length: 32
+      length: 32,
     }).base32;
   }
 
@@ -53,7 +58,7 @@ export class TwoFactorService {
   async setupTwoFactor(userId: number): Promise<TwoFactorSetup> {
     try {
       const user = await this.prisma.usuario.findUnique({
-        where: { id: userId }
+        where: { id: userId },
       });
 
       if (!user) {
@@ -71,14 +76,16 @@ export class TwoFactorService {
         issuer: 'IAM System',
         algorithm: 'sha1',
         digits: 6,
-        period: 30
+        period: 30,
       });
 
       const qrCode = await QRCode.toDataURL(otpauthUrl);
 
       // Guardar secret y códigos de respaldo (encriptados)
       const encryptedSecret = this.encryptSecret(secret);
-      const encryptedBackupCodes = backupCodes.map(code => this.encryptSecret(code));
+      const encryptedBackupCodes = backupCodes.map((code) =>
+        this.encryptSecret(code),
+      );
 
       await this.prisma.twoFactorAuth.create({
         data: {
@@ -86,16 +93,19 @@ export class TwoFactorService {
           secret: encryptedSecret,
           backupCodes: encryptedBackupCodes,
           isEnabled: false, // Se habilita después de la verificación
-          setupCompleted: false
-        }
+          setupCompleted: false,
+        },
       });
 
-      this.secureLogger.log(`2FA setup initiated for user ${userId}`, userId.toString());
+      this.secureLogger.log(
+        `2FA setup initiated for user ${userId}`,
+        userId.toString(),
+      );
 
       return {
         secret,
         qrCode,
-        backupCodes
+        backupCodes,
       };
     } catch (error) {
       this.logger.error(`Error setting up 2FA: ${error.message}`);
@@ -106,10 +116,13 @@ export class TwoFactorService {
   /**
    * Verificar código 2FA
    */
-  async verifyTwoFactor(userId: number, token: string): Promise<TwoFactorVerification> {
+  async verifyTwoFactor(
+    userId: number,
+    token: string,
+  ): Promise<TwoFactorVerification> {
     try {
       const twoFactorAuth = await this.prisma.twoFactorAuth.findUnique({
-        where: { userId }
+        where: { userId },
       });
 
       if (!twoFactorAuth) {
@@ -117,27 +130,36 @@ export class TwoFactorService {
       }
 
       // Verificar si es un código de respaldo
-      const backupCodes = twoFactorAuth.backupCodes.map(code => this.decryptSecret(code));
+      const backupCodes = twoFactorAuth.backupCodes.map((code) =>
+        this.decryptSecret(code),
+      );
       const isBackupCode = backupCodes.includes(token.toUpperCase());
 
       if (isBackupCode) {
         // Usar código de respaldo
-        const updatedBackupCodes = backupCodes.filter(code => code !== token.toUpperCase());
-        const encryptedBackupCodes = updatedBackupCodes.map(code => this.encryptSecret(code));
+        const updatedBackupCodes = backupCodes.filter(
+          (code) => code !== token.toUpperCase(),
+        );
+        const encryptedBackupCodes = updatedBackupCodes.map((code) =>
+          this.encryptSecret(code),
+        );
 
         await this.prisma.twoFactorAuth.update({
           where: { userId },
           data: {
             backupCodes: encryptedBackupCodes,
-            lastUsedBackupCode: new Date()
-          }
+            lastUsedBackupCode: new Date(),
+          },
         });
 
-        this.secureLogger.log(`Backup code used for user ${userId}`, userId.toString());
+        this.secureLogger.log(
+          `Backup code used for user ${userId}`,
+          userId.toString(),
+        );
 
         return {
           isValid: true,
-          backupCodeUsed: true
+          backupCodeUsed: true,
         };
       }
 
@@ -147,7 +169,7 @@ export class TwoFactorService {
         secret,
         encoding: 'base32',
         token,
-        window: 2 // Ventana de 2 períodos (60 segundos)
+        window: 2, // Ventana de 2 períodos (60 segundos)
       });
 
       if (isValid) {
@@ -155,18 +177,24 @@ export class TwoFactorService {
         await this.prisma.twoFactorAuth.update({
           where: { userId },
           data: {
-            lastUsed: new Date()
-          }
+            lastUsed: new Date(),
+          },
         });
 
-        this.secureLogger.log(`2FA verification successful for user ${userId}`, userId.toString());
+        this.secureLogger.log(
+          `2FA verification successful for user ${userId}`,
+          userId.toString(),
+        );
       } else {
-        this.secureLogger.logSecurityError(`Invalid 2FA token for user ${userId}`, userId);
+        this.secureLogger.logSecurityError(
+          `Invalid 2FA token for user ${userId}`,
+          userId,
+        );
       }
 
       return {
         isValid,
-        backupCodeUsed: false
+        backupCodeUsed: false,
       };
     } catch (error) {
       this.logger.error(`Error verifying 2FA: ${error.message}`);
@@ -184,11 +212,14 @@ export class TwoFactorService {
         data: {
           isEnabled: true,
           setupCompleted: true,
-          enabledAt: new Date()
-        }
+          enabledAt: new Date(),
+        },
       });
 
-      this.secureLogger.log(`2FA enabled for user ${userId}`, userId.toString());
+      this.secureLogger.log(
+        `2FA enabled for user ${userId}`,
+        userId.toString(),
+      );
     } catch (error) {
       this.logger.error(`Error enabling 2FA: ${error.message}`);
       throw error;
@@ -204,11 +235,14 @@ export class TwoFactorService {
         where: { userId },
         data: {
           isEnabled: false,
-          disabledAt: new Date()
-        }
+          disabledAt: new Date(),
+        },
       });
 
-      this.secureLogger.log(`2FA disabled for user ${userId}`, userId.toString());
+      this.secureLogger.log(
+        `2FA disabled for user ${userId}`,
+        userId.toString(),
+      );
     } catch (error) {
       this.logger.error(`Error disabling 2FA: ${error.message}`);
       throw error;
@@ -221,7 +255,7 @@ export class TwoFactorService {
   async isTwoFactorEnabled(userId: number): Promise<boolean> {
     try {
       const twoFactorAuth = await this.prisma.twoFactorAuth.findUnique({
-        where: { userId }
+        where: { userId },
       });
 
       return twoFactorAuth?.isEnabled || false;
@@ -237,7 +271,7 @@ export class TwoFactorService {
   async regenerateBackupCodes(userId: number): Promise<string[]> {
     try {
       const twoFactorAuth = await this.prisma.twoFactorAuth.findUnique({
-        where: { userId }
+        where: { userId },
       });
 
       if (!twoFactorAuth) {
@@ -245,17 +279,22 @@ export class TwoFactorService {
       }
 
       const newBackupCodes = this.generateBackupCodes();
-      const encryptedBackupCodes = newBackupCodes.map(code => this.encryptSecret(code));
+      const encryptedBackupCodes = newBackupCodes.map((code) =>
+        this.encryptSecret(code),
+      );
 
       await this.prisma.twoFactorAuth.update({
         where: { userId },
         data: {
           backupCodes: encryptedBackupCodes,
-          backupCodesRegeneratedAt: new Date()
-        }
+          backupCodesRegeneratedAt: new Date(),
+        },
       });
 
-      this.secureLogger.log(`Backup codes regenerated for user ${userId}`, userId.toString());
+      this.secureLogger.log(
+        `Backup codes regenerated for user ${userId}`,
+        userId.toString(),
+      );
 
       return newBackupCodes;
     } catch (error) {
@@ -277,14 +316,14 @@ export class TwoFactorService {
   }> {
     try {
       const twoFactorAuth = await this.prisma.twoFactorAuth.findUnique({
-        where: { userId }
+        where: { userId },
       });
 
       if (!twoFactorAuth) {
         return {
           isEnabled: false,
           setupCompleted: false,
-          backupCodesRemaining: 0
+          backupCodesRemaining: 0,
         };
       }
 
@@ -294,7 +333,7 @@ export class TwoFactorService {
         lastUsed: twoFactorAuth.lastUsed || undefined,
         lastUsedBackupCode: twoFactorAuth.lastUsedBackupCode || undefined,
         backupCodesRemaining: twoFactorAuth.backupCodes.length,
-        enabledAt: twoFactorAuth.enabledAt || undefined
+        enabledAt: twoFactorAuth.enabledAt || undefined,
       };
     } catch (error) {
       this.logger.error(`Error getting 2FA stats: ${error.message}`);
@@ -309,7 +348,11 @@ export class TwoFactorService {
     // En producción, usar una clave de encriptación real
     const key = process.env.ENCRYPTION_KEY || 'default-key-32-chars-long';
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(key.padEnd(32, '0').slice(0, 32)), iv);
+    const cipher = crypto.createCipheriv(
+      'aes-256-cbc',
+      Buffer.from(key.padEnd(32, '0').slice(0, 32)),
+      iv,
+    );
     let encrypted = cipher.update(secret, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return iv.toString('hex') + ':' + encrypted;
@@ -323,9 +366,13 @@ export class TwoFactorService {
     const key = process.env.ENCRYPTION_KEY || 'default-key-32-chars-long';
     const [ivHex, encrypted] = encryptedSecret.split(':');
     const iv = Buffer.from(ivHex, 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key.padEnd(32, '0').slice(0, 32)), iv);
+    const decipher = crypto.createDecipheriv(
+      'aes-256-cbc',
+      Buffer.from(key.padEnd(32, '0').slice(0, 32)),
+      iv,
+    );
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
   }
-} 
+}

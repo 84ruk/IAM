@@ -1,4 +1,16 @@
-import { Controller, Post, Get, Put, Delete, Param, Body, UseGuards, Patch, ParseIntPipe, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  Patch,
+  ParseIntPipe,
+  Request,
+} from '@nestjs/common';
 import { ProveedorService } from './proveedor.service';
 import { CrearProveedorDto } from './dto/crear-proveedor.dto';
 import { ActualizarProveedorDto } from './dto/actualizar-proveedor.dto';
@@ -22,21 +34,21 @@ export class ProveedorController {
   async crear(@Body() dto: CrearProveedorDto, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.proveedorService.crear(dto, user.empresaId!);
+    return this.proveedorService.crear(dto, user.empresaId);
   }
 
   @Get()
   async findAll(@Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.proveedorService.obtenerTodos(user.empresaId!);
+    return this.proveedorService.obtenerTodos(user.empresaId);
   }
 
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.proveedorService.obtenerUno(id, user.empresaId!);
+    return this.proveedorService.obtenerUno(id, user.empresaId);
   }
 
   @Put(':id')

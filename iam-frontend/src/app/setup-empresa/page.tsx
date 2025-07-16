@@ -13,6 +13,7 @@ import ContextualMessage from '@/components/ui/ContextualMessage'
 import { Card } from '@/components/ui/Card'
 import StepTransition from '@/components/ui/StepTransition'
 import ProgressSteps from '@/components/ui/ProgressSteps'
+import { cleanFormData } from '@/lib/form-utils'
 
 // Schema de validación
 const setupEmpresaSchema = z.object({
@@ -137,11 +138,15 @@ export default function SetupEmpresaPage() {
 
     try {
       const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/setup-empresa`
+      
+      // Limpiar valores vacíos antes de enviar
+      const cleanedData = cleanFormData(formData)
+      
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify(cleanedData),
       })
 
       if (!res.ok) {

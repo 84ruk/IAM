@@ -1,4 +1,13 @@
-import { IsOptional, IsString, IsEmail, IsEnum, IsBoolean, MinLength, MaxLength, Matches } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsEmail,
+  IsEnum,
+  IsBoolean,
+  MinLength,
+  MaxLength,
+  Matches,
+} from 'class-validator';
 import { Rol } from '@prisma/client';
 
 export class UpdateUserDto {
@@ -16,8 +25,9 @@ export class UpdateUserDto {
   @IsString({ message: 'La contraseña debe ser un texto' })
   @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
   @MaxLength(128, { message: 'La contraseña no puede exceder 128 caracteres' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, { 
-    message: 'La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial' 
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message:
+      'La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial',
   })
   password?: string;
 
@@ -28,4 +38,4 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean({ message: 'El estado activo debe ser un valor booleano' })
   activo?: boolean;
-} 
+}

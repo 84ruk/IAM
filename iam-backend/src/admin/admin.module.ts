@@ -11,4 +11,4 @@ import { AuthModule } from '../auth/auth.module'; // Importar AuthModule para ac
   controllers: [AdminController, SuperAdminController],
   providers: [AdminService, SuperAdminService],
 })
-export class AdminModule {} 
+export class AdminModule {}

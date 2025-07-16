@@ -41,16 +41,16 @@ export class CrearMovimientoDto {
   @IsString({ message: 'motivo debe ser un texto' })
   @MinLength(3, { message: 'motivo debe tener al menos 3 caracteres' })
   @MaxLength(200, { message: 'motivo no puede exceder 200 caracteres' })
-  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()!?]+$/, { 
-    message: 'motivo contiene caracteres no permitidos' 
+  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()!?]+$/, {
+    message: 'motivo contiene caracteres no permitidos',
   })
   motivo?: string;
 
   @IsOptional()
   @IsString({ message: 'descripcion debe ser un texto' })
   @MaxLength(500, { message: 'descripcion no puede exceder 500 caracteres' })
-  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()!?]+$/, { 
-    message: 'descripcion contiene caracteres no permitidos' 
+  @Matches(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()!?]+$/, {
+    message: 'descripcion contiene caracteres no permitidos',
   })
   descripcion?: string;
 }

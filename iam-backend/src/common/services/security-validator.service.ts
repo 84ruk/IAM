@@ -1,4 +1,8 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtUser } from '../../auth/interfaces/jwt-user.interface';
 import * as DOMPurify from 'isomorphic-dompurify';
 
@@ -20,19 +24,20 @@ export interface ValidationContext {
 
 @Injectable()
 export class SecurityValidator {
-  
   /**
    * Valida el acceso a un recurso basado en los requisitos especificados
    */
   validateResourceAccess(
     requirements: ResourceRequirements,
-    context: ValidationContext
+    context: ValidationContext,
   ): boolean {
     const { user } = context;
 
     // Validar empresa si es requerida
     if (requirements.empresa === 'required' && !user.empresaId) {
-      throw new ForbiddenException('Empresa requerida para acceder a este recurso');
+      throw new ForbiddenException(
+        'Empresa requerida para acceder a este recurso',
+      );
     }
 
     // Validar empresa si está prohibida
@@ -42,13 +47,17 @@ export class SecurityValidator {
 
     // Validar setup completado si es requerido
     if (requirements.setupRequired && !user.setupCompletado) {
-      throw new BadRequestException('Debe completar la configuración inicial de la empresa');
+      throw new BadRequestException(
+        'Debe completar la configuración inicial de la empresa',
+      );
     }
 
     // Validar roles si están especificados
     if (requirements.roles && requirements.roles.length > 0) {
       if (!requirements.roles.includes(user.rol)) {
-        throw new ForbiddenException(`Rol requerido: ${requirements.roles.join(', ')}`);
+        throw new ForbiddenException(
+          `Rol requerido: ${requirements.roles.join(', ')}`,
+        );
       }
     }
 
@@ -90,7 +99,7 @@ export class SecurityValidator {
    */
   validateAndSanitizeDto<T extends Record<string, any>>(
     dto: T,
-    allowedFields: string[]
+    allowedFields: string[],
   ): T {
     const sanitized: any = {};
 
@@ -113,9 +122,9 @@ export class SecurityValidator {
 
     if (typeof value === 'object' && value !== null) {
       if (Array.isArray(value)) {
-        return value.map(item => this.sanitizeValue(item));
+        return value.map((item) => this.sanitizeValue(item));
       }
-      
+
       const sanitized: any = {};
       for (const [key, val] of Object.entries(value)) {
         sanitized[key] = this.sanitizeValue(val);
@@ -129,13 +138,16 @@ export class SecurityValidator {
   /**
    * Valida parámetros de paginación
    */
-  validatePagination(page?: number, limit?: number): { page: number; limit: number } {
+  validatePagination(
+    page?: number,
+    limit?: number,
+  ): { page: number; limit: number } {
     const validatedPage = page && page > 0 ? page : 1;
     const validatedLimit = limit && limit > 0 && limit <= 100 ? limit : 10;
 
     return {
       page: validatedPage,
-      limit: validatedLimit
+      limit: validatedLimit,
     };
   }
 
@@ -145,7 +157,7 @@ export class SecurityValidator {
   validateUserModification(
     currentUser: JwtUser,
     targetUserId: number,
-    targetUserEmpresaId?: number
+    targetUserEmpresaId?: number,
   ): boolean {
     // Super admin puede modificar cualquier usuario
     if (currentUser.rol === 'SUPERADMIN') {
@@ -158,8 +170,13 @@ export class SecurityValidator {
         throw new ForbiddenException('Admin debe tener empresa asignada');
       }
 
-      if (targetUserEmpresaId && currentUser.empresaId !== targetUserEmpresaId) {
-        throw new ForbiddenException('Solo puede modificar usuarios de su empresa');
+      if (
+        targetUserEmpresaId &&
+        currentUser.empresaId !== targetUserEmpresaId
+      ) {
+        throw new ForbiddenException(
+          'Solo puede modificar usuarios de su empresa',
+        );
       }
 
       return true;
@@ -170,7 +187,9 @@ export class SecurityValidator {
       return true;
     }
 
-    throw new ForbiddenException('No tiene permisos para modificar este usuario');
+    throw new ForbiddenException(
+      'No tiene permisos para modificar este usuario',
+    );
   }
 
   /**
@@ -178,7 +197,7 @@ export class SecurityValidator {
    */
   validateResourceDeletion(
     currentUser: JwtUser,
-    resourceEmpresaId?: number
+    resourceEmpresaId?: number,
   ): boolean {
     // Super admin puede eliminar cualquier recurso
     if (currentUser.rol === 'SUPERADMIN') {
@@ -192,7 +211,9 @@ export class SecurityValidator {
       }
 
       if (resourceEmpresaId && currentUser.empresaId !== resourceEmpresaId) {
-        throw new ForbiddenException('Solo puede eliminar recursos de su empresa');
+        throw new ForbiddenException(
+          'Solo puede eliminar recursos de su empresa',
+        );
       }
 
       return true;
@@ -204,10 +225,7 @@ export class SecurityValidator {
   /**
    * Valida que un usuario pueda crear recursos
    */
-  validateResourceCreation(
-    currentUser: JwtUser,
-    empresaId?: number
-  ): boolean {
+  validateResourceCreation(currentUser: JwtUser, empresaId?: number): boolean {
     // Super admin puede crear recursos en cualquier empresa
     if (currentUser.rol === 'SUPERADMIN') {
       return true;
@@ -231,7 +249,7 @@ export class SecurityValidator {
    */
   validateResourceView(
     currentUser: JwtUser,
-    resourceEmpresaId?: number
+    resourceEmpresaId?: number,
   ): boolean {
     // Super admin puede ver cualquier recurso
     if (currentUser.rol === 'SUPERADMIN') {
@@ -256,7 +274,9 @@ export class SecurityValidator {
    */
   validateSetupCompleted(user: JwtUser): boolean {
     if (!user.setupCompletado) {
-      throw new BadRequestException('Debe completar la configuración inicial de la empresa');
+      throw new BadRequestException(
+        'Debe completar la configuración inicial de la empresa',
+      );
     }
     return true;
   }
@@ -273,7 +293,10 @@ export class SecurityValidator {
   /**
    * Valida el acceso de un usuario
    */
-  validateUserAccess(context: ValidationContext, requirements: ResourceRequirements): boolean {
+  validateUserAccess(
+    context: ValidationContext,
+    requirements: ResourceRequirements,
+  ): boolean {
     return this.validateResourceAccess(requirements, context);
   }
 
@@ -306,7 +329,9 @@ export class SecurityValidator {
       throw new BadRequestException('Contraseña inválida');
     }
     if (password.length < 8) {
-      throw new BadRequestException('La contraseña debe tener al menos 8 caracteres');
+      throw new BadRequestException(
+        'La contraseña debe tener al menos 8 caracteres',
+      );
     }
     return password;
   }
@@ -317,8 +342,12 @@ export class SecurityValidator {
   validateUserModificationPermissions(
     currentUser: JwtUser,
     targetUserId: number,
-    targetUserEmpresaId?: number
+    targetUserEmpresaId?: number,
   ): boolean {
-    return this.validateUserModification(currentUser, targetUserId, targetUserEmpresaId);
+    return this.validateUserModification(
+      currentUser,
+      targetUserId,
+      targetUserEmpresaId,
+    );
   }
-} 
+}

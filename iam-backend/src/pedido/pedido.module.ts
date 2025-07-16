@@ -8,6 +8,6 @@ import { AuthModule } from '../auth/auth.module';
   imports: [PrismaModule, AuthModule],
   controllers: [PedidoController],
   providers: [PedidoService],
-  exports: [PedidoService]
+  exports: [PedidoService],
 })
 export class PedidoModule {}

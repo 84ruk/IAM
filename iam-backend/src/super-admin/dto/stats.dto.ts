@@ -59,4 +59,4 @@ export class SystemStatsResponseDto {
     storageUsed: string;
     storageTotal: string;
   };
-} 
+}

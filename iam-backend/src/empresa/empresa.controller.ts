@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { EmpresaService } from './empresa.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
@@ -10,13 +20,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UnifiedEmpresaGuard } from '../auth/guards/unified-empresa.guard';
 import { EmpresaRequired } from '../auth/decorators/empresa-required.decorator';
 
-
-
 @UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
 @Controller('empresas')
 export class EmpresaController {
   constructor(private readonly empresaService: EmpresaService) {}
- 
+
   //PROBAR
   @Post()
   @Roles(Rol.SUPERADMIN)
@@ -48,6 +56,4 @@ export class EmpresaController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.empresaService.remove(id);
   }
-
-  
 }

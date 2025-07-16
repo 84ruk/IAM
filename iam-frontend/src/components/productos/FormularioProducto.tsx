@@ -13,7 +13,7 @@ import Button from '../ui/Button'
 import { Input } from '../ui/Input'
 import Select from '../ui/Select'
 import { useParams, useRouter } from 'next/navigation'
-import { getErrorMessage } from '@/lib/form-utils'
+import { getErrorMessage, cleanFormDataWithProveedor } from '@/lib/form-utils'
 import { ChevronDownIcon, ChevronUpIcon, Package, DollarSign, Tag, Settings, Barcode, X, User, Thermometer, Droplets, MapPin, Hash, Radio } from 'lucide-react'
 import { TipoProductoConfig } from '@/types/enums'
 import { Producto } from '@/types/producto'
@@ -131,20 +131,8 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
     console.log('Valores del formulario:', values)
     console.log('Etiquetas del estado:', etiquetas)
     
-    // Limpiar valores vacíos antes de enviar
-    const cleanedValues = Object.fromEntries(
-      Object.entries(values).map(([key, value]) => {
-        // Si el valor es string vacío, null o undefined, no incluirlo
-        if (value === '' || value === null || value === undefined) {
-          return [key, undefined]
-        }
-        // Si es proveedorId y es 0 o string vacío, no incluirlo
-        if (key === 'proveedorId' && (value === 0 || value === '')) {
-          return [key, undefined]
-        }
-        return [key, value]
-      }).filter(([_, value]) => value !== undefined)
-    )
+    // Limpiar valores vacíos antes de enviar usando la función utilitaria
+    const cleanedValues = cleanFormDataWithProveedor(values)
     
     // Asegurar que las etiquetas se incluyan
     if (etiquetas.length > 0) {

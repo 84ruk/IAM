@@ -76,7 +76,8 @@ export class RateLimiterService {
     resetTime?: Date;
     blockedUntil?: Date;
   }> {
-    const config = this.rateLimitConfigs[action] || this.rateLimitConfigs.default;
+    const config =
+      this.rateLimitConfigs[action] || this.rateLimitConfigs.default;
     const rateLimitKey = this.generateKey(key, action, ip);
     const now = new Date();
 
@@ -118,7 +119,7 @@ export class RateLimiterService {
       // Bloquear por el tiempo especificado
       entry.blockedUntil = new Date(now.getTime() + config.blockDurationMs);
       this.logRateLimitViolation(key, action, 'limit_exceeded', ip);
-      
+
       return {
         allowed: false,
         remainingAttempts: 0,
@@ -143,7 +144,11 @@ export class RateLimiterService {
   /**
    * Registrar un intento exitoso (resetear contador)
    */
-  async recordSuccess(key: string, action: string = 'default', ip?: string): Promise<void> {
+  async recordSuccess(
+    key: string,
+    action: string = 'default',
+    ip?: string,
+  ): Promise<void> {
     const rateLimitKey = this.generateKey(key, action, ip);
     this.memoryStore.delete(rateLimitKey);
   }
@@ -183,19 +188,22 @@ export class RateLimiterService {
     const expiredKeys: string[] = [];
 
     for (const [key, entry] of this.memoryStore.entries()) {
-      const isExpired = 
+      const isExpired =
         (entry.blockedUntil && entry.blockedUntil < now) ||
-        (entry.lastAttempt.getTime() + this.rateLimitConfigs.default.windowMs < now.getTime());
+        entry.lastAttempt.getTime() + this.rateLimitConfigs.default.windowMs <
+          now.getTime();
 
       if (isExpired) {
         expiredKeys.push(key);
       }
     }
 
-    expiredKeys.forEach(key => this.memoryStore.delete(key));
+    expiredKeys.forEach((key) => this.memoryStore.delete(key));
 
     if (expiredKeys.length > 0) {
-      this.logger.debug(`Limpiadas ${expiredKeys.length} entradas expiradas de rate limiting`);
+      this.logger.debug(
+        `Limpiadas ${expiredKeys.length} entradas expiradas de rate limiting`,
+      );
     }
   }
 
@@ -213,20 +221,31 @@ export class RateLimiterService {
   /**
    * Log de violaciones de rate limiting
    */
-  private logRateLimitViolation(key: string, action: string, reason: string, ip?: string): void {
+  private logRateLimitViolation(
+    key: string,
+    action: string,
+    reason: string,
+    ip?: string,
+  ): void {
     this.secureLogger.logSuspiciousActivity(
       `Rate limit violation: ${action} - ${reason}`,
       undefined,
-      ip
+      ip,
     );
 
-    this.logger.warn(`Rate limit violation - Action: ${action}, Key: ${key}, IP: ${ip}, Reason: ${reason}`);
+    this.logger.warn(
+      `Rate limit violation - Action: ${action}, Key: ${key}, IP: ${ip}, Reason: ${reason}`,
+    );
   }
 
   /**
    * Obtener información de rate limiting para un usuario/IP
    */
-  getRateLimitInfo(key: string, action: string = 'default', ip?: string): {
+  getRateLimitInfo(
+    key: string,
+    action: string = 'default',
+    ip?: string,
+  ): {
     attempts: number;
     maxAttempts: number;
     remainingAttempts: number;
@@ -234,7 +253,8 @@ export class RateLimiterService {
     blockedUntil?: Date;
     isBlocked: boolean;
   } {
-    const config = this.rateLimitConfigs[action] || this.rateLimitConfigs.default;
+    const config =
+      this.rateLimitConfigs[action] || this.rateLimitConfigs.default;
     const rateLimitKey = this.generateKey(key, action, ip);
     const entry = this.memoryStore.get(rateLimitKey);
     const now = new Date();
@@ -261,4 +281,4 @@ export class RateLimiterService {
       isBlocked,
     };
   }
-} 
+}

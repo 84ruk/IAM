@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserAdminDto } from '../dto/create-user-admin.dto';
 import { UpdateUserAdminDto } from '../dto/update-user-admin.dto';
@@ -16,9 +21,7 @@ export class UserManagementService {
   async findAll(empresaId: number, currentUserRol: Rol) {
     // SUPERADMIN puede ver todos los usuarios de todas las empresas
     // ADMIN solo puede ver usuarios de su empresa
-    const where = currentUserRol === 'SUPERADMIN' 
-      ? {} 
-      : { empresaId };
+    const where = currentUserRol === 'SUPERADMIN' ? {} : { empresaId };
 
     return this.prisma.usuario.findMany({
       where: {
@@ -46,9 +49,7 @@ export class UserManagementService {
   }
 
   async findOne(id: number, empresaId: number, currentUserRol: Rol) {
-    const where = currentUserRol === 'SUPERADMIN' 
-      ? { id } 
-      : { id, empresaId };
+    const where = currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId };
 
     const usuario = await this.prisma.usuario.findFirst({
       where: {
@@ -78,15 +79,25 @@ export class UserManagementService {
     return usuario;
   }
 
-  async create(dto: CreateUserAdminDto, empresaId: number, currentUserRol: Rol) {
+  async create(
+    dto: CreateUserAdminDto,
+    empresaId: number,
+    currentUserRol: Rol,
+  ) {
     // Validar permisos para crear usuarios
     if (currentUserRol === 'ADMIN' && dto.rol === 'SUPERADMIN') {
-      throw new ForbiddenException('Los administradores no pueden crear superadministradores');
+      throw new ForbiddenException(
+        'Los administradores no pueden crear superadministradores',
+      );
     }
 
     // Sanitizar y validar input
     const sanitizedDto = this.securityValidator.validateAndSanitizeDto(dto, [
-      'nombre', 'email', 'password', 'rol', 'empresaId'
+      'nombre',
+      'email',
+      'password',
+      'rol',
+      'empresaId',
     ]);
 
     // Validar email
@@ -107,14 +118,20 @@ export class UserManagementService {
     }
 
     // Hash de la contraseña
-    const hashedPassword = sanitizedDto.password ? await bcrypt.hash(sanitizedDto.password, 10) : null;
+    const hashedPassword = sanitizedDto.password
+      ? await bcrypt.hash(sanitizedDto.password, 10)
+      : null;
 
     // Determinar la empresa del usuario
-    const userEmpresaId = sanitizedDto.empresaId ? parseInt(sanitizedDto.empresaId.toString()) : empresaId;
+    const userEmpresaId = sanitizedDto.empresaId
+      ? parseInt(sanitizedDto.empresaId.toString())
+      : empresaId;
 
     // Si es ADMIN, puede crear usuarios solo en su empresa
     if (currentUserRol === 'ADMIN' && userEmpresaId !== empresaId) {
-      throw new ForbiddenException('Los administradores solo pueden crear usuarios en su empresa');
+      throw new ForbiddenException(
+        'Los administradores solo pueden crear usuarios en su empresa',
+      );
     }
 
     return this.prisma.usuario.create({
@@ -146,21 +163,24 @@ export class UserManagementService {
   private validateUserModificationOrThrow(
     currentUserRol: Rol,
     empresaId: number,
-    usuario: { id: number, empresaId?: number | null }
+    usuario: { id: number; empresaId?: number | null },
   ) {
     this.securityValidator.validateUserModificationPermissions(
       { id: 0, email: '', rol: currentUserRol, empresaId } as any,
       usuario.id,
-      usuario.empresaId || undefined
+      usuario.empresaId || undefined,
     );
   }
 
-  async update(id: number, dto: UpdateUserAdminDto, empresaId: number, currentUserRol: Rol) {
+  async update(
+    id: number,
+    dto: UpdateUserAdminDto,
+    empresaId: number,
+    currentUserRol: Rol,
+  ) {
     // Verificar que el usuario existe y tiene permisos para editarlo
     const existingUser = await this.prisma.usuario.findFirst({
-      where: currentUserRol === 'SUPERADMIN' 
-        ? { id } 
-        : { id, empresaId },
+      where: currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId },
     });
 
     if (!existingUser) {
@@ -168,11 +188,19 @@ export class UserManagementService {
     }
 
     // Validar permisos de modificación
-    this.validateUserModificationOrThrow(currentUserRol, empresaId, existingUser);
+    this.validateUserModificationOrThrow(
+      currentUserRol,
+      empresaId,
+      existingUser,
+    );
 
     // Sanitizar y validar input
     const sanitizedDto = this.securityValidator.validateAndSanitizeDto(dto, [
-      'nombre', 'email', 'password', 'rol', 'empresaId'
+      'nombre',
+      'email',
+      'password',
+      'rol',
+      'empresaId',
     ]);
 
     // Validar email si se está actualizando
@@ -198,11 +226,11 @@ export class UserManagementService {
 
     // Preparar datos de actualización
     const updateData: any = {};
-    
+
     if (sanitizedDto.nombre) updateData.nombre = sanitizedDto.nombre;
     if (sanitizedDto.email) updateData.email = sanitizedDto.email;
     if (sanitizedDto.rol) updateData.rol = sanitizedDto.rol;
-    
+
     if (sanitizedDto.password) {
       updateData.password = await bcrypt.hash(sanitizedDto.password, 10);
     }
@@ -233,9 +261,7 @@ export class UserManagementService {
   }
 
   async activate(id: number, empresaId: number, currentUserRol: Rol) {
-    const where = currentUserRol === 'SUPERADMIN' 
-      ? { id } 
-      : { id, empresaId };
+    const where = currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId };
 
     const usuario = await this.prisma.usuario.findFirst({
       where,
@@ -273,9 +299,7 @@ export class UserManagementService {
   }
 
   async deactivate(id: number, empresaId: number, currentUserRol: Rol) {
-    const where = currentUserRol === 'SUPERADMIN' 
-      ? { id } 
-      : { id, empresaId };
+    const where = currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId };
 
     const usuario = await this.prisma.usuario.findFirst({
       where,
@@ -313,9 +337,7 @@ export class UserManagementService {
   }
 
   async remove(id: number, empresaId: number, currentUserRol: Rol) {
-    const where = currentUserRol === 'SUPERADMIN' 
-      ? { id } 
-      : { id, empresaId };
+    const where = currentUserRol === 'SUPERADMIN' ? { id } : { id, empresaId };
 
     const usuario = await this.prisma.usuario.findFirst({
       where,
@@ -332,4 +354,4 @@ export class UserManagementService {
       where: { id },
     });
   }
-} 
+}

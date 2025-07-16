@@ -20,4 +20,4 @@ import { PrismaModule } from '../prisma/prisma.module';
     KPIErrorHandler,
   ],
 })
-export class CommonModule {} 
+export class CommonModule {}

@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RateLimiterService } from '../services/rate-limiter.service';
 import { SecureLoggerService } from '../../common/services/secure-logger.service';
@@ -23,7 +29,7 @@ export class RateLimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    
+
     // Obtener configuración de rate limiting del decorador
     const rateLimitOptions = this.reflector.getAllAndOverride<RateLimitOptions>(
       RATE_LIMIT_KEY,
@@ -36,10 +42,10 @@ export class RateLimitGuard implements CanActivate {
 
     const { action, key } = rateLimitOptions;
     const clientIp = this.getClientIp(request);
-    
+
     // Determinar la clave para rate limiting
     const rateLimitKey = key || this.determineRateLimitKey(request, action);
-    
+
     // Verificar rate limit
     const rateLimitResult = await this.rateLimiter.checkRateLimit(
       rateLimitKey,
@@ -56,8 +62,11 @@ export class RateLimitGuard implements CanActivate {
       );
 
       // Lanzar excepción con información útil
-      const errorMessage = this.getRateLimitErrorMessage(rateLimitResult, action);
-      
+      const errorMessage = this.getRateLimitErrorMessage(
+        rateLimitResult,
+        action,
+      );
+
       throw new HttpException(
         {
           message: errorMessage,
@@ -122,12 +131,15 @@ export class RateLimitGuard implements CanActivate {
   /**
    * Generar mensaje de error apropiado
    */
-  private getRateLimitErrorMessage(rateLimitResult: any, action: string): string {
+  private getRateLimitErrorMessage(
+    rateLimitResult: any,
+    action: string,
+  ): string {
     if (rateLimitResult.blockedUntil) {
       const blockedMinutes = Math.ceil(
-        (rateLimitResult.blockedUntil.getTime() - Date.now()) / (1000 * 60)
+        (rateLimitResult.blockedUntil.getTime() - Date.now()) / (1000 * 60),
       );
-      
+
       switch (action) {
         case 'login':
           return `Demasiados intentos de inicio de sesión. Intenta nuevamente en ${blockedMinutes} minutos.`;
@@ -153,13 +165,19 @@ export class RateLimitGuard implements CanActivate {
   private addRateLimitHeaders(response: any, rateLimitResult: any): void {
     response.header('X-RateLimit-Limit', rateLimitResult.maxAttempts || 10);
     response.header('X-RateLimit-Remaining', rateLimitResult.remainingAttempts);
-    
+
     if (rateLimitResult.resetTime) {
-      response.header('X-RateLimit-Reset', rateLimitResult.resetTime.toISOString());
+      response.header(
+        'X-RateLimit-Reset',
+        rateLimitResult.resetTime.toISOString(),
+      );
     }
-    
+
     if (rateLimitResult.blockedUntil) {
-      response.header('X-RateLimit-Blocked-Until', rateLimitResult.blockedUntil.toISOString());
+      response.header(
+        'X-RateLimit-Blocked-Until',
+        rateLimitResult.blockedUntil.toISOString(),
+      );
     }
   }
 }
@@ -172,4 +190,4 @@ export const RateLimit = (options: RateLimitOptions) => {
     Reflect.defineMetadata(RATE_LIMIT_KEY, options, descriptor.value);
     return descriptor;
   };
-}; 
+};

@@ -18,9 +18,9 @@ export interface SecurityConfig {
     max: number;
     skipSuccessfulRequests: boolean;
     skipFailedRequests: boolean;
-    // NUEVO: Configuración obligatoria
+    // Configuración obligatoria
     mandatory: boolean;
-    // NUEVO: Diferentes límites por tipo de acción
+    // Diferentes límites por tipo de acción
     limits: {
       login: { windowMs: number; max: number; blockDuration: number };
       register: { windowMs: number; max: number; blockDuration: number };
@@ -64,7 +64,10 @@ export interface SecurityConfig {
 }
 
 class SecurityConfigValidator {
-  static validateRequiredEnvVar(name: string, value: string | undefined): string {
+  static validateRequiredEnvVar(
+    name: string,
+    value: string | undefined,
+  ): string {
     if (!value) {
       throw new Error(`Variable de entorno requerida no encontrada: ${name}`);
     }
@@ -89,61 +92,76 @@ class SecurityConfigValidator {
 export const securityConfig: SecurityConfig = {
   jwt: {
     secret: SecurityConfigValidator.validateJwtSecret(
-      SecurityConfigValidator.validateRequiredEnvVar('JWT_SECRET', process.env.JWT_SECRET)
+      SecurityConfigValidator.validateRequiredEnvVar(
+        'JWT_SECRET',
+        process.env.JWT_SECRET,
+      ),
     ),
     expiresIn: process.env.JWT_EXPIRES_IN || '1d',
-    issuer: SecurityConfigValidator.validateRequiredEnvVar('JWT_ISSUER', process.env.JWT_ISSUER),
-    audience: SecurityConfigValidator.validateRequiredEnvVar('JWT_AUDIENCE', process.env.JWT_AUDIENCE),
+    issuer: SecurityConfigValidator.validateRequiredEnvVar(
+      'JWT_ISSUER',
+      process.env.JWT_ISSUER,
+    ),
+    audience: SecurityConfigValidator.validateRequiredEnvVar(
+      'JWT_AUDIENCE',
+      process.env.JWT_AUDIENCE,
+    ),
     refreshSecret: SecurityConfigValidator.validateJwtSecret(
-      SecurityConfigValidator.validateRequiredEnvVar('JWT_REFRESH_SECRET', process.env.JWT_REFRESH_SECRET)
+      SecurityConfigValidator.validateRequiredEnvVar(
+        'JWT_REFRESH_SECRET',
+        process.env.JWT_REFRESH_SECRET,
+      ),
     ),
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
   cors: {
     allowedOrigins: SecurityConfigValidator.validateOrigins(
       process.env.CORS_ORIGINS
-        ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
-        : [process.env.FRONTEND_URL || 'http://localhost:3000']
+        ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
+        : [process.env.FRONTEND_URL || 'http://localhost:3000'],
     ),
     credentials: true,
   },
   rateLimit: {
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: process.env.NODE_ENV === 'development' 
-      ? parseInt(process.env.RATE_LIMIT_MAX || '1000') // 1,000 requests en desarrollo
-      : parseInt(process.env.RATE_LIMIT_MAX || '100'), // 100 requests en producción
+    max:
+      process.env.NODE_ENV === 'development'
+        ? parseInt(process.env.RATE_LIMIT_MAX || '1000') // 1,000 requests en desarrollo
+        : parseInt(process.env.RATE_LIMIT_MAX || '100'), // 100 requests en producción
     skipSuccessfulRequests: false,
     skipFailedRequests: false,
     // NUEVO: Rate limiting obligatorio
-    mandatory: process.env.NODE_ENV === 'production' || process.env.FORCE_RATE_LIMIT === 'true',
+    mandatory:
+      process.env.NODE_ENV === 'production' ||
+      process.env.FORCE_RATE_LIMIT === 'true',
     // NUEVO: Límites específicos por acción
     limits: {
-      login: { 
+      login: {
         windowMs: 15 * 60 * 1000, // 15 minutos
         max: 5, // 5 intentos
-        blockDuration: 30 * 60 * 1000 // 30 minutos de bloqueo
+        blockDuration: 30 * 60 * 1000, // 30 minutos de bloqueo
       },
-      register: { 
+      register: {
         windowMs: 60 * 60 * 1000, // 1 hora
         max: 3, // 3 intentos
-        blockDuration: 2 * 60 * 60 * 1000 // 2 horas de bloqueo
+        blockDuration: 2 * 60 * 60 * 1000, // 2 horas de bloqueo
       },
-      passwordReset: { 
+      passwordReset: {
         windowMs: 60 * 60 * 1000, // 1 hora
         max: 3, // 3 intentos
-        blockDuration: 2 * 60 * 60 * 1000 // 2 horas de bloqueo
+        blockDuration: 2 * 60 * 60 * 1000, // 2 horas de bloqueo
       },
-      api: { 
+      api: {
         windowMs: 15 * 60 * 1000, // 15 minutos
         max: process.env.NODE_ENV === 'development' ? 1000 : 100,
-        blockDuration: 15 * 60 * 1000 // 15 minutos de bloqueo
+        blockDuration: 15 * 60 * 1000, // 15 minutos de bloqueo
       },
-      admin: { 
+      admin: {
         windowMs: 15 * 60 * 1000, // 15 minutos
         max: 50, // 50 requests para admin
-        blockDuration: 30 * 60 * 1000 // 30 minutos de bloqueo
-      }
-    }
+        blockDuration: 30 * 60 * 1000, // 30 minutos de bloqueo
+      },
+    },
   },
   slowDown: {
     windowMs: 15 * 60 * 1000, // 15 minutos
@@ -154,9 +172,9 @@ export const securityConfig: SecurityConfig = {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https:"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:', 'https:'],
         scriptSrc: ["'self'"],
         connectSrc: ["'self'"],
         frameSrc: ["'none'"],
@@ -185,6 +203,6 @@ export const securityConfig: SecurityConfig = {
       requireNumbers: process.env.PASSWORD_REQUIRE_NUMBERS !== 'false',
       requireSymbols: process.env.PASSWORD_REQUIRE_SYMBOLS !== 'false',
       preventCommonPasswords: process.env.PASSWORD_PREVENT_COMMON !== 'false',
-    }
-  }
-}; 
+    },
+  },
+};

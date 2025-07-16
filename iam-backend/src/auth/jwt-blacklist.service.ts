@@ -17,13 +17,17 @@ export class JwtBlacklistService {
 
   constructor(
     private prisma: PrismaService,
-    private secureLogger: SecureLoggerService
+    private secureLogger: SecureLoggerService,
   ) {}
 
   /**
    * Agregar un token al blacklist
    */
-  async blacklistToken(jti: string, userId: number, reason: string = 'manual_revocation'): Promise<void> {
+  async blacklistToken(
+    jti: string,
+    userId: number,
+    reason: string = 'manual_revocation',
+  ): Promise<void> {
     try {
       // Calcular tiempo de expiración (mismo que el token JWT)
       const expiresAt = new Date();
@@ -35,11 +39,16 @@ export class JwtBlacklistService {
           userId,
           reason,
           expiresAt,
-        }
+        },
       });
 
-      this.secureLogger.log(`Token blacklisted: ${jti.substring(0, 8)}...`, userId.toString());
-      this.logger.log(`Token blacklisted for user ${userId}, reason: ${reason}`);
+      this.secureLogger.log(
+        `Token blacklisted: ${jti.substring(0, 8)}...`,
+        userId.toString(),
+      );
+      this.logger.log(
+        `Token blacklisted for user ${userId}, reason: ${reason}`,
+      );
     } catch (error) {
       this.logger.error(`Error blacklisting token: ${error.message}`);
       throw error;
@@ -52,7 +61,7 @@ export class JwtBlacklistService {
   async isTokenBlacklisted(jti: string): Promise<boolean> {
     try {
       const blacklistedToken = await this.prisma.blacklistedToken.findUnique({
-        where: { jti }
+        where: { jti },
       });
 
       if (!blacklistedToken) {
@@ -63,7 +72,7 @@ export class JwtBlacklistService {
       if (blacklistedToken.expiresAt < new Date()) {
         // Eliminar token expirado
         await this.prisma.blacklistedToken.delete({
-          where: { jti }
+          where: { jti },
         });
         return false;
       }
@@ -78,19 +87,22 @@ export class JwtBlacklistService {
   /**
    * Blacklist todos los tokens de un usuario
    */
-  async blacklistAllUserTokens(userId: number, reason: string = 'user_logout'): Promise<number> {
+  async blacklistAllUserTokens(
+    userId: number,
+    reason: string = 'user_logout',
+  ): Promise<number> {
     try {
       // Obtener todos los refresh tokens activos del usuario
       const refreshTokens = await this.prisma.refreshToken.findMany({
-        where: { 
-          userId, 
-          isRevoked: false 
-        }
+        where: {
+          userId,
+          isRevoked: false,
+        },
       });
 
       // Blacklist cada refresh token
-      const blacklistPromises = refreshTokens.map(token => 
-        this.blacklistToken(token.jti, userId, reason)
+      const blacklistPromises = refreshTokens.map((token) =>
+        this.blacklistToken(token.jti, userId, reason),
       );
 
       await Promise.all(blacklistPromises);
@@ -98,11 +110,16 @@ export class JwtBlacklistService {
       // Revocar todos los refresh tokens
       await this.prisma.refreshToken.updateMany({
         where: { userId, isRevoked: false },
-        data: { isRevoked: true }
+        data: { isRevoked: true },
       });
 
-      this.secureLogger.log(`All tokens blacklisted for user ${userId}`, userId.toString());
-      this.logger.log(`Blacklisted ${refreshTokens.length} tokens for user ${userId}`);
+      this.secureLogger.log(
+        `All tokens blacklisted for user ${userId}`,
+        userId.toString(),
+      );
+      this.logger.log(
+        `Blacklisted ${refreshTokens.length} tokens for user ${userId}`,
+      );
 
       return refreshTokens.length;
     } catch (error) {
@@ -114,12 +131,15 @@ export class JwtBlacklistService {
   /**
    * Blacklist tokens por empresa (para casos de seguridad)
    */
-  async blacklistTokensByEmpresa(empresaId: number, reason: string = 'empresa_security'): Promise<number> {
+  async blacklistTokensByEmpresa(
+    empresaId: number,
+    reason: string = 'empresa_security',
+  ): Promise<number> {
     try {
       // Obtener todos los usuarios de la empresa
       const users = await this.prisma.usuario.findMany({
         where: { empresaId },
-        select: { id: true }
+        select: { id: true },
       });
 
       let totalBlacklisted = 0;
@@ -130,10 +150,14 @@ export class JwtBlacklistService {
         totalBlacklisted += count;
       }
 
-      this.logger.log(`Blacklisted ${totalBlacklisted} tokens for empresa ${empresaId}`);
+      this.logger.log(
+        `Blacklisted ${totalBlacklisted} tokens for empresa ${empresaId}`,
+      );
       return totalBlacklisted;
     } catch (error) {
-      this.logger.error(`Error blacklisting tokens by empresa: ${error.message}`);
+      this.logger.error(
+        `Error blacklisting tokens by empresa: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -146,13 +170,15 @@ export class JwtBlacklistService {
       const result = await this.prisma.blacklistedToken.deleteMany({
         where: {
           expiresAt: {
-            lt: new Date()
-          }
-        }
+            lt: new Date(),
+          },
+        },
       });
 
       if (result.count > 0) {
-        this.logger.log(`Cleaned up ${result.count} expired blacklisted tokens`);
+        this.logger.log(
+          `Cleaned up ${result.count} expired blacklisted tokens`,
+        );
       }
 
       return result.count;
@@ -177,35 +203,38 @@ export class JwtBlacklistService {
         this.prisma.blacklistedToken.count({
           where: {
             expiresAt: {
-              gt: new Date()
-            }
-          }
+              gt: new Date(),
+            },
+          },
         }),
         this.prisma.blacklistedToken.count({
           where: {
             expiresAt: {
-              lt: new Date()
-            }
-          }
+              lt: new Date(),
+            },
+          },
         }),
         this.prisma.blacklistedToken.groupBy({
           by: ['reason'],
           _count: {
-            reason: true
-          }
-        })
+            reason: true,
+          },
+        }),
       ]);
 
-      const byReasonMap = byReason.reduce((acc, item) => {
-        acc[item.reason] = item._count.reason;
-        return acc;
-      }, {} as Record<string, number>);
+      const byReasonMap = byReason.reduce(
+        (acc, item) => {
+          acc[item.reason] = item._count.reason;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
       return {
         totalBlacklisted: total,
         activeBlacklisted: active,
         expiredBlacklisted: expired,
-        byReason: byReasonMap
+        byReason: byReasonMap,
       };
     } catch (error) {
       this.logger.error(`Error getting blacklist stats: ${error.message}`);
@@ -213,7 +242,7 @@ export class JwtBlacklistService {
         totalBlacklisted: 0,
         activeBlacklisted: 0,
         expiredBlacklisted: 0,
-        byReason: {}
+        byReason: {},
       };
     }
   }
@@ -233,18 +262,18 @@ export class JwtBlacklistService {
             userId,
             isRevoked: false,
             expiresAt: {
-              gt: new Date()
-            }
-          }
+              gt: new Date(),
+            },
+          },
         }),
         this.prisma.refreshToken.count({
           where: {
             userId,
             createdAt: {
-              gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Últimas 24 horas
-            }
-          }
-        })
+              gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Últimas 24 horas
+            },
+          },
+        }),
       ]);
 
       const suspicious = activeTokens > 10 || recentTokens > 20;
@@ -256,22 +285,24 @@ export class JwtBlacklistService {
           JSON.stringify({
             activeTokens,
             recentTokens,
-            threshold: { active: 10, recent: 20 }
-          })
+            threshold: { active: 10, recent: 20 },
+          }),
         );
       }
 
       return {
         suspicious,
         activeTokens,
-        recentTokens
+        recentTokens,
       };
     } catch (error) {
-      this.logger.error(`Error detecting suspicious activity: ${error.message}`);
+      this.logger.error(
+        `Error detecting suspicious activity: ${error.message}`,
+      );
       return {
         suspicious: false,
         activeTokens: 0,
-        recentTokens: 0
+        recentTokens: 0,
       };
     }
   }
@@ -281,14 +312,17 @@ export class JwtBlacklistService {
    */
   scheduleCleanup(): void {
     // Ejecutar limpieza cada hora
-    setInterval(async () => {
-      try {
-        await this.cleanupExpiredTokens();
-      } catch (error) {
-        this.logger.error(`Error in scheduled cleanup: ${error.message}`);
-      }
-    }, 60 * 60 * 1000); // 1 hora
+    setInterval(
+      async () => {
+        try {
+          await this.cleanupExpiredTokens();
+        } catch (error) {
+          this.logger.error(`Error in scheduled cleanup: ${error.message}`);
+        }
+      },
+      60 * 60 * 1000,
+    ); // 1 hora
 
     this.logger.log('Scheduled blacklist cleanup every hour');
   }
-} 
+}

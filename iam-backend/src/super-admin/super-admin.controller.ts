@@ -12,7 +12,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
-  Res
+  Res,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { SuperAdminService } from './super-admin.service';
@@ -114,7 +114,10 @@ ${new Date().toISOString()},admin@test.com,LOGIN,AUTH,Inicio de sesión exitoso,
 ${new Date().toISOString()},user@test.com,CREATE,USER,Usuario creado,192.168.1.2`;
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=audit-logs-${new Date().toISOString().split('T')[0]}.csv`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=audit-logs-${new Date().toISOString().split('T')[0]}.csv`,
+    );
     res.send(csvContent);
   }
 
@@ -141,4 +144,4 @@ ${new Date().toISOString()},user@test.com,CREATE,USER,Usuario creado,192.168.1.2
   async backupNow() {
     await this.superAdminService.backupNow();
   }
-} 
+}

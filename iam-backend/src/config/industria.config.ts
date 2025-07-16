@@ -1,16 +1,13 @@
-import { TipoIndustria } from "@prisma/client"
-import { CreateProductoDto } from "src/producto/dto/create-producto.dto"
+import { TipoIndustria } from '@prisma/client';
+import { CreateProductoDto } from 'src/producto/dto/create-producto.dto';
 
-
-  
-
-type CampoProducto = keyof CreateProductoDto
+type CampoProducto = keyof CreateProductoDto;
 
 export interface IndustriaConfig {
-  label: string
-  camposRelevantes: CampoProducto[]
-  sensoresActivos?: boolean
-  mostrarTemperaturaHumedad?: boolean
+  label: string;
+  camposRelevantes: CampoProducto[];
+  sensoresActivos?: boolean;
+  mostrarTemperaturaHumedad?: boolean;
 }
 
 export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
@@ -30,12 +27,29 @@ export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
   },
   GENERICA: {
     label: 'Genérica',
-    camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion', 'talla', 'color', 'etiquetas', 'sku', 'codigoBarras', 'rfid' ],
+    camposRelevantes: [
+      'temperaturaOptima',
+      'humedadOptima',
+      'ubicacion',
+      'talla',
+      'color',
+      'etiquetas',
+      'sku',
+      'codigoBarras',
+      'rfid',
+    ],
   },
   FARMACIA: {
     label: 'Farmacia',
-    camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion', 'etiquetas', 'codigoBarras', 'rfid'],
+    camposRelevantes: [
+      'temperaturaOptima',
+      'humedadOptima',
+      'ubicacion',
+      'etiquetas',
+      'codigoBarras',
+      'rfid',
+    ],
     sensoresActivos: true,
     mostrarTemperaturaHumedad: true,
-  }
-}
+  },
+};

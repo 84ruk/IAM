@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserAdminDto } from './dto/create-user-admin.dto';
 import { UpdateUserAdminDto } from './dto/update-user-admin.dto';
@@ -20,39 +26,39 @@ export class SuperAdminService {
       usersByRole,
       empresasByIndustry,
       recentUsers,
-      recentEmpresas
+      recentEmpresas,
     ] = await Promise.all([
       // Total de usuarios
       this.prisma.usuario.count(),
-      
+
       // Total de empresas
       this.prisma.empresa.count(),
-      
+
       // Usuarios activos
       this.prisma.usuario.count({ where: { activo: true } }),
-      
+
       // Usuarios inactivos
       this.prisma.usuario.count({ where: { activo: false } }),
-      
+
       // Usuarios por rol
       this.prisma.usuario.groupBy({
         by: ['rol'],
         _count: { rol: true },
-        where: { activo: true }
+        where: { activo: true },
       }),
-      
+
       // Empresas por industria
       this.prisma.empresa.groupBy({
         by: ['TipoIndustria'],
-        _count: { TipoIndustria: true }
+        _count: { TipoIndustria: true },
       }),
-      
+
       // Usuarios recientes (últimos 7 días)
       this.prisma.usuario.findMany({
         where: {
           createdAt: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-          }
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          },
         },
         select: {
           id: true,
@@ -63,30 +69,30 @@ export class SuperAdminService {
           empresa: {
             select: {
               id: true,
-              nombre: true
-            }
-          }
+              nombre: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
-        take: 10
+        take: 10,
       }),
-      
+
       // Empresas recientes (últimos 7 días)
       this.prisma.empresa.findMany({
         where: {
           fechaCreacion: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-          }
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          },
         },
         select: {
           id: true,
           nombre: true,
           TipoIndustria: true,
-          fechaCreacion: true
+          fechaCreacion: true,
         },
         orderBy: { fechaCreacion: 'desc' },
-        take: 10
-      })
+        take: 10,
+      }),
     ]);
 
     return {
@@ -95,53 +101,47 @@ export class SuperAdminService {
         totalEmpresas,
         activeUsers,
         inactiveUsers,
-        activePercentage: totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0
+        activePercentage:
+          totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0,
       },
-      usersByRole: usersByRole.map(item => ({
+      usersByRole: usersByRole.map((item) => ({
         rol: item.rol,
         count: item._count.rol,
-        label: this.getRoleLabel(item.rol)
+        label: this.getRoleLabel(item.rol),
       })),
-      empresasByIndustry: empresasByIndustry.map(item => ({
+      empresasByIndustry: empresasByIndustry.map((item) => ({
         industry: item.TipoIndustria,
-        count: item._count.TipoIndustria
+        count: item._count.TipoIndustria,
       })),
       recentUsers,
-      recentEmpresas
+      recentEmpresas,
     };
   }
 
   // Gestión de usuarios global
   async findAllUsers(query: any = {}) {
-    const {
-      search,
-      role,
-      status,
-      empresaId,
-      page = 1,
-      limit = 20
-    } = query;
+    const { search, role, status, empresaId, page = 1, limit = 20 } = query;
 
     const skip = (page - 1) * limit;
-    
+
     // Construir filtros
     const where: any = {};
-    
+
     if (search) {
       where.OR = [
         { nombre: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } }
+        { email: { contains: search, mode: 'insensitive' } },
       ];
     }
-    
+
     if (role) {
       where.rol = role;
     }
-    
+
     if (status !== undefined) {
       where.activo = status === 'true';
     }
-    
+
     if (empresaId) {
       where.empresaId = parseInt(empresaId);
     }
@@ -160,15 +160,15 @@ export class SuperAdminService {
             select: {
               id: true,
               nombre: true,
-              TipoIndustria: true
-            }
-          }
+              TipoIndustria: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: parseInt(limit)
+        take: parseInt(limit),
       }),
-      this.prisma.usuario.count({ where })
+      this.prisma.usuario.count({ where }),
     ]);
 
     return {
@@ -177,8 +177,8 @@ export class SuperAdminService {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -200,10 +200,10 @@ export class SuperAdminService {
             nombre: true,
             TipoIndustria: true,
             rfc: true,
-            emailContacto: true
-          }
-        }
-      }
+            emailContacto: true,
+          },
+        },
+      },
     });
 
     if (!usuario) {
@@ -229,7 +229,7 @@ export class SuperAdminService {
     // Verificar que la empresa existe si se especifica
     if (dto.empresaId) {
       const empresa = await this.prisma.empresa.findUnique({
-        where: { id: parseInt(dto.empresaId) }
+        where: { id: parseInt(dto.empresaId) },
       });
 
       if (!empresa) {
@@ -245,7 +245,7 @@ export class SuperAdminService {
         rol: dto.rol,
         empresaId: dto.empresaId ? parseInt(dto.empresaId) : null,
         activo: true,
-        setupCompletado: false
+        setupCompletado: false,
       },
       select: {
         id: true,
@@ -258,17 +258,17 @@ export class SuperAdminService {
           select: {
             id: true,
             nombre: true,
-            TipoIndustria: true
-          }
-        }
-      }
+            TipoIndustria: true,
+          },
+        },
+      },
     });
   }
 
   async updateUser(id: number, dto: UpdateUserAdminDto) {
     // Verificar que el usuario existe
     const existingUser = await this.prisma.usuario.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!existingUser) {
@@ -289,7 +289,7 @@ export class SuperAdminService {
     // Verificar que la empresa existe si se especifica
     if (dto.empresaId) {
       const empresa = await this.prisma.empresa.findUnique({
-        where: { id: parseInt(dto.empresaId) }
+        where: { id: parseInt(dto.empresaId) },
       });
 
       if (!empresa) {
@@ -299,12 +299,12 @@ export class SuperAdminService {
 
     // Preparar datos de actualización
     const updateData: any = {};
-    
+
     if (dto.nombre) updateData.nombre = dto.nombre;
     if (dto.email) updateData.email = dto.email;
     if (dto.rol) updateData.rol = dto.rol;
     if (dto.activo !== undefined) updateData.activo = dto.activo;
-    
+
     if (dto.password) {
       updateData.password = await bcrypt.hash(dto.password, 10);
     }
@@ -327,17 +327,17 @@ export class SuperAdminService {
           select: {
             id: true,
             nombre: true,
-            TipoIndustria: true
-          }
-        }
-      }
+            TipoIndustria: true,
+          },
+        },
+      },
     });
   }
 
   async changeUserRole(id: number, dto: ChangeRoleDto) {
     // Verificar que el usuario existe
     const existingUser = await this.prisma.usuario.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!existingUser) {
@@ -358,16 +358,16 @@ export class SuperAdminService {
           select: {
             id: true,
             nombre: true,
-            TipoIndustria: true
-          }
-        }
-      }
+            TipoIndustria: true,
+          },
+        },
+      },
     });
   }
 
   async activateUser(id: number) {
     const usuario = await this.prisma.usuario.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!usuario) {
@@ -392,16 +392,16 @@ export class SuperAdminService {
           select: {
             id: true,
             nombre: true,
-            TipoIndustria: true
-          }
-        }
-      }
+            TipoIndustria: true,
+          },
+        },
+      },
     });
   }
 
   async deactivateUser(id: number) {
     const usuario = await this.prisma.usuario.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!usuario) {
@@ -426,16 +426,16 @@ export class SuperAdminService {
           select: {
             id: true,
             nombre: true,
-            TipoIndustria: true
-          }
-        }
-      }
+            TipoIndustria: true,
+          },
+        },
+      },
     });
   }
 
   async removeUser(id: number) {
     const usuario = await this.prisma.usuario.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!usuario) {
@@ -457,10 +457,10 @@ export class SuperAdminService {
           select: {
             id: true,
             nombre: true,
-            TipoIndustria: true
-          }
-        }
-      }
+            TipoIndustria: true,
+          },
+        },
+      },
     });
   }
 
@@ -478,11 +478,11 @@ export class SuperAdminService {
           select: {
             usuarios: true,
             productos: true,
-            movimientos: true
-          }
-        }
+            movimientos: true,
+          },
+        },
       },
-      orderBy: { fechaCreacion: 'desc' }
+      orderBy: { fechaCreacion: 'desc' },
     });
   }
 
@@ -502,10 +502,10 @@ export class SuperAdminService {
             usuarios: true,
             productos: true,
             movimientos: true,
-            proveedores: true
-          }
-        }
-      }
+            proveedores: true,
+          },
+        },
+      },
     });
 
     if (!empresa) {
@@ -517,7 +517,7 @@ export class SuperAdminService {
 
   async getEmpresaUsers(id: number) {
     const empresa = await this.prisma.empresa.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!empresa) {
@@ -532,15 +532,15 @@ export class SuperAdminService {
         email: true,
         rol: true,
         activo: true,
-        createdAt: true
+        createdAt: true,
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   async getEmpresaStats(id: number) {
     const empresa = await this.prisma.empresa.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!empresa) {
@@ -553,7 +553,7 @@ export class SuperAdminService {
       totalProductos,
       totalMovimientos,
       totalProveedores,
-      usersByRole
+      usersByRole,
     ] = await Promise.all([
       this.prisma.usuario.count({ where: { empresaId: id } }),
       this.prisma.usuario.count({ where: { empresaId: id, activo: true } }),
@@ -563,28 +563,28 @@ export class SuperAdminService {
       this.prisma.usuario.groupBy({
         by: ['rol'],
         _count: { rol: true },
-        where: { empresaId: id, activo: true }
-      })
+        where: { empresaId: id, activo: true },
+      }),
     ]);
 
     return {
       empresa: {
         id: empresa.id,
         nombre: empresa.nombre,
-        TipoIndustria: empresa.TipoIndustria
+        TipoIndustria: empresa.TipoIndustria,
       },
       stats: {
         totalUsers,
         activeUsers,
         totalProductos,
         totalMovimientos,
-        totalProveedores
+        totalProveedores,
       },
-      usersByRole: usersByRole.map(item => ({
+      usersByRole: usersByRole.map((item) => ({
         rol: item.rol,
         count: item._count.rol,
-        label: this.getRoleLabel(item.rol)
-      }))
+        label: this.getRoleLabel(item.rol),
+      })),
     };
   }
 
@@ -594,7 +594,7 @@ export class SuperAdminService {
     // En una implementación real, esto vendría de una tabla de logs
     return {
       logs: [],
-      message: 'Sistema de auditoría en desarrollo'
+      message: 'Sistema de auditoría en desarrollo',
     };
   }
 
@@ -606,7 +606,7 @@ export class SuperAdminService {
       totalMovimientos,
       totalProveedores,
       activeUsers,
-      inactiveUsers
+      inactiveUsers,
     ] = await Promise.all([
       this.prisma.usuario.count(),
       this.prisma.empresa.count(),
@@ -614,7 +614,7 @@ export class SuperAdminService {
       this.prisma.movimientoInventario.count(),
       this.prisma.proveedor.count(),
       this.prisma.usuario.count({ where: { activo: true } }),
-      this.prisma.usuario.count({ where: { activo: false } })
+      this.prisma.usuario.count({ where: { activo: false } }),
     ]);
 
     return {
@@ -626,7 +626,7 @@ export class SuperAdminService {
       activeUsers,
       inactiveUsers,
       systemHealth: 'OK',
-      lastBackup: new Date().toISOString()
+      lastBackup: new Date().toISOString(),
     };
   }
 
@@ -641,8 +641,8 @@ export class SuperAdminService {
       features: {
         googleOAuth: true,
         multiTenant: true,
-        auditLogs: false
-      }
+        auditLogs: false,
+      },
     };
   }
 
@@ -650,7 +650,7 @@ export class SuperAdminService {
     // Por ahora solo validamos y retornamos
     return {
       message: 'Configuración actualizada',
-      config
+      config,
     };
   }
 
@@ -658,20 +658,20 @@ export class SuperAdminService {
     // Verificar si ya existe un super admin
     const existingSuperAdmin = await this.prisma.usuario.findFirst({
       where: {
-        rol: 'SUPERADMIN'
-      }
+        rol: 'SUPERADMIN',
+      },
     });
 
     if (existingSuperAdmin) {
       return {
         message: 'Ya existe un super admin en el sistema',
-        email: existingSuperAdmin.email
+        email: existingSuperAdmin.email,
       };
     }
 
     // Crear el super admin
     const hashedPassword = await bcrypt.hash('SuperAdmin123!', 10);
-    
+
     const superAdmin = await this.prisma.usuario.create({
       data: {
         nombre: 'Super Administrador',
@@ -679,15 +679,15 @@ export class SuperAdminService {
         password: hashedPassword,
         rol: 'SUPERADMIN',
         activo: true,
-        setupCompletado: true
-      }
+        setupCompletado: true,
+      },
     });
 
     return {
       message: 'Super Admin creado exitosamente',
       email: superAdmin.email,
       password: 'SuperAdmin123!',
-      warning: 'IMPORTANTE: Cambia la contraseña después del primer login'
+      warning: 'IMPORTANTE: Cambia la contraseña después del primer login',
     };
   }
 
@@ -706,4 +706,4 @@ export class SuperAdminService {
         return rol;
     }
   }
-} 
+}
