@@ -18,6 +18,16 @@ export interface SecurityConfig {
     max: number;
     skipSuccessfulRequests: boolean;
     skipFailedRequests: boolean;
+    // NUEVO: Configuración obligatoria
+    mandatory: boolean;
+    // NUEVO: Diferentes límites por tipo de acción
+    limits: {
+      login: { windowMs: number; max: number; blockDuration: number };
+      register: { windowMs: number; max: number; blockDuration: number };
+      passwordReset: { windowMs: number; max: number; blockDuration: number };
+      api: { windowMs: number; max: number; blockDuration: number };
+      admin: { windowMs: number; max: number; blockDuration: number };
+    };
   };
   slowDown: {
     windowMs: number;
@@ -34,34 +44,43 @@ export interface SecurityConfig {
       preload: boolean;
     };
   };
+  // NUEVO: Configuración de seguridad avanzada
+  advanced: {
+    enableTwoFactor: boolean;
+    enableAuditLog: boolean;
+    enableSecurityMonitoring: boolean;
+    enableAutomatedTesting: boolean;
+    sessionTimeout: number;
+    maxConcurrentSessions: number;
+    passwordPolicy: {
+      minLength: number;
+      requireUppercase: boolean;
+      requireLowercase: boolean;
+      requireNumbers: boolean;
+      requireSymbols: boolean;
+      preventCommonPasswords: boolean;
+    };
+  };
 }
 
 class SecurityConfigValidator {
-  private static logger = new Logger(SecurityConfigValidator.name);
-
   static validateRequiredEnvVar(name: string, value: string | undefined): string {
-    if (!value || value.trim() === '') {
-      const error = `Variable de entorno requerida ${name} no está definida`;
-      this.logger.error(error);
-      throw new Error(error);
+    if (!value) {
+      throw new Error(`Variable de entorno requerida no encontrada: ${name}`);
     }
     return value;
   }
 
   static validateJwtSecret(secret: string): string {
     if (secret.length < 32) {
-      const error = 'JWT_SECRET debe tener al menos 32 caracteres';
-      this.logger.error(error);
-      throw new Error(error);
+      throw new Error('JWT_SECRET debe tener al menos 32 caracteres');
     }
     return secret;
   }
 
   static validateOrigins(origins: string[]): string[] {
-    if (origins.length === 0) {
-      const error = 'Debe especificar al menos un origen permitido para CORS';
-      this.logger.error(error);
-      throw new Error(error);
+    if (!origins || origins.length === 0) {
+      throw new Error('Al menos un origen CORS debe ser especificado');
     }
     return origins;
   }
@@ -90,25 +109,57 @@ export const securityConfig: SecurityConfig = {
   },
   rateLimit: {
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: parseInt(process.env.RATE_LIMIT_MAX || '100'), // 100 requests por ventana
+    max: process.env.NODE_ENV === 'development' 
+      ? parseInt(process.env.RATE_LIMIT_MAX || '1000') // 1,000 requests en desarrollo
+      : parseInt(process.env.RATE_LIMIT_MAX || '100'), // 100 requests en producción
     skipSuccessfulRequests: false,
     skipFailedRequests: false,
+    // NUEVO: Rate limiting obligatorio
+    mandatory: process.env.NODE_ENV === 'production' || process.env.FORCE_RATE_LIMIT === 'true',
+    // NUEVO: Límites específicos por acción
+    limits: {
+      login: { 
+        windowMs: 15 * 60 * 1000, // 15 minutos
+        max: 5, // 5 intentos
+        blockDuration: 30 * 60 * 1000 // 30 minutos de bloqueo
+      },
+      register: { 
+        windowMs: 60 * 60 * 1000, // 1 hora
+        max: 3, // 3 intentos
+        blockDuration: 2 * 60 * 60 * 1000 // 2 horas de bloqueo
+      },
+      passwordReset: { 
+        windowMs: 60 * 60 * 1000, // 1 hora
+        max: 3, // 3 intentos
+        blockDuration: 2 * 60 * 60 * 1000 // 2 horas de bloqueo
+      },
+      api: { 
+        windowMs: 15 * 60 * 1000, // 15 minutos
+        max: process.env.NODE_ENV === 'development' ? 1000 : 100,
+        blockDuration: 15 * 60 * 1000 // 15 minutos de bloqueo
+      },
+      admin: { 
+        windowMs: 15 * 60 * 1000, // 15 minutos
+        max: 50, // 50 requests para admin
+        blockDuration: 30 * 60 * 1000 // 30 minutos de bloqueo
+      }
+    }
   },
   slowDown: {
     windowMs: 15 * 60 * 1000, // 15 minutos
-    delayAfter: 50, // Permitir 50 requests sin delay
-    delayMs: 500, // Agregar 500ms de delay por request después del límite
+    delayAfter: process.env.NODE_ENV === 'development' ? 100 : 20, // Más restrictivo
+    delayMs: process.env.NODE_ENV === 'development' ? 200 : 1000, // Delay mayor
   },
   helmet: {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https:", "blob:"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        connectSrc: ["'self'", "https://accounts.google.com"],
-        frameSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        scriptSrc: ["'self'"],
+        connectSrc: ["'self'"],
+        frameSrc: ["'none'"],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: [],
       },
@@ -119,24 +170,21 @@ export const securityConfig: SecurityConfig = {
       preload: true,
     },
   },
-};
-
-// Validación adicional para entornos de producción
-if (process.env.NODE_ENV === 'production') {
-  const requiredProdVars = [
-    'JWT_SECRET',
-    'JWT_REFRESH_SECRET',
-    'JWT_ISSUER',
-    'JWT_AUDIENCE',
-    'FRONTEND_URL',
-  ];
-
-  for (const varName of requiredProdVars) {
-    SecurityConfigValidator.validateRequiredEnvVar(varName, process.env[varName]);
+  // NUEVO: Configuración de seguridad avanzada
+  advanced: {
+    enableTwoFactor: process.env.ENABLE_2FA === 'true',
+    enableAuditLog: process.env.ENABLE_AUDIT_LOG !== 'false', // Habilitado por defecto
+    enableSecurityMonitoring: process.env.ENABLE_SECURITY_MONITORING === 'true',
+    enableAutomatedTesting: process.env.ENABLE_AUTOMATED_TESTING === 'true',
+    sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || '3600000'), // 1 hora en ms
+    maxConcurrentSessions: parseInt(process.env.MAX_CONCURRENT_SESSIONS || '5'),
+    passwordPolicy: {
+      minLength: parseInt(process.env.PASSWORD_MIN_LENGTH || '12'),
+      requireUppercase: process.env.PASSWORD_REQUIRE_UPPERCASE !== 'false',
+      requireLowercase: process.env.PASSWORD_REQUIRE_LOWERCASE !== 'false',
+      requireNumbers: process.env.PASSWORD_REQUIRE_NUMBERS !== 'false',
+      requireSymbols: process.env.PASSWORD_REQUIRE_SYMBOLS !== 'false',
+      preventCommonPasswords: process.env.PASSWORD_PREVENT_COMMON !== 'false',
+    }
   }
-
-  // Validaciones específicas de producción
-  if (!process.env.FRONTEND_URL?.startsWith('https://')) {
-    throw new Error('FRONTEND_URL debe usar HTTPS en producción');
-  }
-} 
+}; 

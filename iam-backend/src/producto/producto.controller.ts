@@ -10,22 +10,21 @@ import {
   ParseIntPipe,
   UsePipes,
   ValidationPipe,
-  Query
+  Query,
+  Request
 } from '@nestjs/common';
 import { ProductoService } from './producto.service';
 import { CreateProductoDto } from './dto/create-producto.dto';
 import { UpdateProductoDto } from './dto/update-producto.dto';
-import { AuthGuard } from '@nestjs/passport';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { EmpresaRequiredGuard } from 'src/auth/guards/empresa-required.guard';
+import { UnifiedEmpresaGuard } from 'src/auth/guards/unified-empresa.guard';
 import { EmpresaRequired } from 'src/auth/decorators/empresa-required.decorator';
 import { Rol } from '@prisma/client';
-import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtUser } from 'src/auth/interfaces/jwt-user.interface';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-@UseGuards(JwtAuthGuard, RolesGuard, EmpresaRequiredGuard)
+@UseGuards(JwtAuthGuard, UnifiedEmpresaGuard)
 @EmpresaRequired()
 @Controller('productos')
 export class ProductoController {
@@ -33,18 +32,20 @@ export class ProductoController {
 
   @Post()
   @Roles(Rol.ADMIN, Rol.SUPERADMIN) // Solo ADMIN puede crear productos
+  @UseGuards(RolesGuard)
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async create(
     @Body() dto: CreateProductoDto,
-    @CurrentUser() user: JwtUser
+    @Request() req
   ) {
-    const empresaId = user.empresaId;
-    return this.productoService.create(dto, empresaId);
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.create(dto, user.empresaId!);
   }
 
   @Get()
   getAll(
-    @CurrentUser() user: JwtUser,
+    @Request() req,
     @Query('search') search?: string,
     @Query('etiqueta') etiqueta?: string,
     @Query('estado') estado?: string,
@@ -63,7 +64,9 @@ export class ProductoController {
     @Query('sku') sku?: string,
     @Query('codigoBarras') codigoBarras?: string
   ) {
-    return this.productoService.findAll(user.empresaId, {
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.findAll(user.empresaId!, {
       search,
       etiqueta,
       estado,
@@ -85,91 +88,116 @@ export class ProductoController {
   }
 
   @Get('inactivos')
-  getInactive(@CurrentUser() user: JwtUser) {
-    return this.productoService.findInactive(user.empresaId);
+  getInactive(@Request() req) {
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.findInactive(user.empresaId!);
   }
 
   @Get('eliminados')
-  getDeleted(@CurrentUser() user: JwtUser) {
-    return this.productoService.findDeleted(user.empresaId);
+  getDeleted(@Request() req) {
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.findDeleted(user.empresaId!);
   }
 
   @Get('sin-proveedor')
-  getWithoutProvider(@CurrentUser() user: JwtUser) {
-    return this.productoService.findWithoutProvider(user.empresaId);
+  getWithoutProvider(@Request() req) {
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.findWithoutProvider(user.empresaId!);
   }
 
   @Get(':id')
   getOne(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: JwtUser
+    @Request() req
   ) {
-    return this.productoService.findOne(id, user.empresaId);
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.findOne(id, user.empresaId!);
   }
 
   @Get('buscar/:codigoBarras')
   buscarPorCodigoBarras(
     @Param('codigoBarras') codigoBarras: string,
-    @CurrentUser() user: JwtUser
+    @Request() req
   ) {
-    return this.productoService.buscarPorCodigoBarras(codigoBarras, user.empresaId);
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.buscarPorCodigoBarras(codigoBarras, user.empresaId!);
   }
 
   @Patch(':id')
   @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  @UseGuards(RolesGuard)
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateProductoDto,
-    @CurrentUser() user: JwtUser
+    @Request() req
   ) {
-    return this.productoService.update(id, dto, user.empresaId);
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.update(id, dto, user.empresaId!);
   }
-
 
   @Patch(':id/desactivar')
   async deactivate(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: JwtUser
+    @Request() req
   ) {
-    return this.productoService.deactivate(id, user.empresaId);
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.deactivate(id, user.empresaId!);
   }
 
   // Endpoint para "eliminar" - oculta del frontend
   @Delete(':id')
   async softDelete(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: JwtUser
+    @Request() req
   ) {
-    return this.productoService.softDelete(id, user.empresaId);
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.softDelete(id, user.empresaId!);
   }
 
   // Endpoint para eliminar
   @Delete(':id/permanent')
   @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  @UseGuards(RolesGuard)
   async remove(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: JwtUser
+    @Request() req
   ) {
-    return this.productoService.remove(id, user.empresaId, user.rol);
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.remove(id, user.empresaId!, user.rol);
   }
 
   @Patch(':id/reactivar')
   @Roles(Rol.ADMIN)
+  @UseGuards(RolesGuard)
   async reactivate(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: JwtUser
+    @Request() req
   ) {
-    return this.productoService.reactivate(id, user.empresaId);
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.reactivate(id, user.empresaId!);
   }
 
   // Endpoint para restaurar un producto eliminado
   @Patch(':id/restaurar')
   @Roles(Rol.ADMIN)
+  @UseGuards(RolesGuard)
   async restore(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: JwtUser
+    @Request() req
   ) {
-    return this.productoService.restore(id, user.empresaId);
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.restore(id, user.empresaId!);
   }
 }

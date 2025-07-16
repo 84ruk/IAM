@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { InventarioService } from './inventario.service';
 import { InventarioController } from './inventario.controller';
-import { AuthModule } from 'src/auth/auth.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [AuthModule],

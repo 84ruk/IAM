@@ -7,11 +7,11 @@ import { JwtUser } from 'src/auth/interfaces/jwt-user.interface';
 import { TipoMovimiento } from '@prisma/client';
 import { CrearMovimientoPorCodigoBarrasDto } from './dto/crear-movimiento-por-codigo-barras.dto';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { EmpresaRequiredGuard } from 'src/auth/guards/empresa-required.guard';
+import { UnifiedEmpresaGuard } from 'src/auth/guards/unified-empresa.guard';
 import { EmpresaRequired } from 'src/auth/decorators/empresa-required.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-@UseGuards(JwtAuthGuard, RolesGuard, EmpresaRequiredGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
 @EmpresaRequired()
 @Controller('movimientos')
 export class MovimientoController {

@@ -6,24 +6,28 @@ import { ValidationService } from '../common/services/validation.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { EmpresaSetupService } from './services/empresa-setup.service';
 import { OAuthService } from './services/oauth.service';
-import { RateLimiterService } from './services/rate-limiter.service';
+
 import * as bcrypt from 'bcrypt';
 import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { SetupEmpresaDto } from './dto/setup-empresa.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
 import { JwtAuditService } from './jwt-audit.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { JwtBlacklistService } from './jwt-blacklist.service';
+import { CacheStrategiesService } from '../common/services/cache-strategies.service';
 
 interface JwtUserPayload {
   id: number;
   email: string;
   rol: string;
   empresaId?: number;
-  tipoIndustria?: string; 
+  tipoIndustria?: string;
+  setupCompletado?: boolean;
+  jti?: string; // Nuevo: para almacenar el JTI del token
 } 
 
 @Injectable()
@@ -31,30 +35,20 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-    private prisma: PrismaService,
-    private jwtAuditService: JwtAuditService,
+    private refreshTokenService: RefreshTokenService,
+    private blacklistService: JwtBlacklistService, // NUEVO: Servicio de blacklist
     private secureLogger: SecureLoggerService,
     private validationService: ValidationService,
-    private refreshTokenService: RefreshTokenService,
     private empresaSetupService: EmpresaSetupService,
     private oauthService: OAuthService,
-    private rateLimiterService: RateLimiterService
+    private prisma: PrismaService,
+    private jwtAuditService: JwtAuditService,
+    private cacheStrategiesService: CacheStrategiesService,
   ) {}
 
   async validateUser(email: string, password: string, ip?: string) {
     // Validar email
     const validatedEmail = this.validationService.validateEmail(email);
-    
-    // Verificar rate limiting
-    const rateLimitResult = await this.rateLimiterService.checkRateLimit(
-      validatedEmail,
-      'login',
-      ip
-    );
-
-    if (!rateLimitResult.allowed) {
-      throw new UnauthorizedException('Demasiados intentos de inicio de sesión. Intenta nuevamente más tarde.');
-    }
 
     const user = await this.usersService.findByEmail(validatedEmail);
     if (!user) {
@@ -72,9 +66,6 @@ export class AuthService {
       this.secureLogger.logLoginFailure(validatedEmail, 'Contraseña incorrecta', ip);
       throw new UnauthorizedException('Credenciales inválidas');
     }
-
-    // Registrar éxito y resetear rate limiting
-    await this.rateLimiterService.recordSuccess(validatedEmail, 'login', ip);
     
     return user;
   }
@@ -98,19 +89,23 @@ export class AuthService {
       tipoIndustria = empresa?.TipoIndustria || 'GENERICA';
     }
 
-    // Claims estándar JWT según RFC 7519
+    // Claims estándar JWT según RFC 7519 con mayor seguridad
     const now = Math.floor(Date.now() / 1000);
     const payload = {
-      // Claims estándar
+      // Claims estándar con mayor entropía
       iat: now, // Issued at - cuándo fue emitido
-      jti: uuidv4(), // JWT ID - identificador único del token
-      sub: user.id, // Subject - identificador del usuario
+      jti: crypto.randomBytes(32).toString('hex'), // JWT ID - 256 bits de entropía
+      sub: user.id.toString(), // Subject - como string para mayor compatibilidad
+      
+      // Claims de sesión para mayor seguridad
+      sessionId: crypto.randomBytes(16).toString('hex'), // ID único de sesión
       
       // Claims personalizados
       email: user.email,
       rol: user.rol,
       empresaId: user.empresaId,
       tipoIndustria: tipoIndustria,
+      setupCompletado: user.setupCompletado || false, // Incluir setupCompletado
     };
 
     
@@ -119,26 +114,32 @@ export class AuthService {
     // Crear refresh token
     const refreshToken = await this.refreshTokenService.createRefreshToken(user.id);
     
+          // NUEVO: Verificar actividad sospechosa después del login
+      const suspiciousActivity = await this.blacklistService.detectSuspiciousActivity(user.id);
+      if (suspiciousActivity.suspicious) {
+        this.secureLogger.logSecurityError(
+          `Suspicious login activity detected for user ${user.id} - Active: ${suspiciousActivity.activeTokens}, Recent: ${suspiciousActivity.recentTokens}`,
+          user.id
+        );
+      }
+    
     // Log del login exitoso con información enmascarada
     this.secureLogger.logLoginSuccess(user.email, user.id);
     this.jwtAuditService.logLogin(user.id, user.email);
+    
+    // 🎯 Cache warming después del login exitoso
+    if (user.empresaId) {
+      // Ejecutar cache warming en background para no bloquear el login
+      this.cacheStrategiesService.warmupCache(user.empresaId).catch(error => {
+        this.secureLogger.logSecurityError(`Cache warming failed for empresa ${user.empresaId}: ${error.message}`, user.id);
+      });
+    }
     
     return { token, refreshToken };
   }
 
 
   async registerEmpresa(dto: RegisterEmpresaDto, ip?: string) {
-    // Validar rate limiting para registro
-    const rateLimitResult = await this.rateLimiterService.checkRateLimit(
-      dto.email,
-      'registration',
-      ip
-    );
-
-    if (!rateLimitResult.allowed) {
-      throw new BadRequestException('Demasiados intentos de registro. Intenta nuevamente más tarde.');
-    }
-
     // Validar datos usando el servicio de validación
     const validatedData = this.validationService.validateObject(dto, {
       email: (email) => this.validationService.validateEmail(email),
@@ -149,9 +150,6 @@ export class AuthService {
 
     // Usar el servicio especializado para registrar empresa
     const result = await this.empresaSetupService.registerEmpresa(validatedData);
-    
-    // Registrar éxito y resetear rate limiting
-    await this.rateLimiterService.recordSuccess(dto.email, 'registration', ip);
     
     // Generar tokens
     const usuarioParaLogin = { 
@@ -179,7 +177,11 @@ export class AuthService {
 
     try {
       const payload = this.jwtService.verify(token);
-      const user = await this.usersService.findById(payload.sub);
+      const userId = parseInt(payload.sub, 10);
+      if (isNaN(userId)) {
+        throw new UnauthorizedException('Token inválido: ID de usuario no válido');
+      }
+      const user = await this.usersService.findById(userId);
       if (!user) {
         throw new NotFoundException('Usuario no encontrado');
       }
@@ -193,23 +195,9 @@ export class AuthService {
 
 
   async loginWithGoogle(googleUser: any, ip?: string) {
-    // Verificar rate limiting para Google auth
-    const rateLimitResult = await this.rateLimiterService.checkRateLimit(
-      ip || 'unknown',
-      'googleAuth',
-      ip
-    );
-
-    if (!rateLimitResult.allowed) {
-      throw new BadRequestException('Demasiados intentos de autenticación con Google. Intenta nuevamente más tarde.');
-    }
-
     try {
       // Usar el servicio especializado de OAuth
       const result = await this.oauthService.authenticateWithGoogle(googleUser);
-      
-      // Registrar éxito y resetear rate limiting
-      await this.rateLimiterService.recordSuccess(ip || 'unknown', 'googleAuth', ip);
       
       return result;
     } catch (error) {
@@ -403,14 +391,26 @@ export class AuthService {
   }
 
   // Método para verificar si el usuario necesita setup
-  async needsSetup(userId: number): Promise<boolean> {
+  async needsSetup(userId: number | string): Promise<boolean> {
+    // Convertir userId a number si es string (compatibilidad con JWT sub)
+    const id = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    
+    if (isNaN(id)) {
+      this.jwtAuditService.logSetupCheck(id, 'invalid', true, {
+        reason: 'invalid_user_id',
+        userId,
+        parsedId: id
+      });
+      return true;
+    }
+
     const user = await this.prisma.usuario.findUnique({
-      where: { id: userId },
+      where: { id },
       select: { empresaId: true, setupCompletado: true, email: true },
     });
 
     if (!user) {
-      this.jwtAuditService.logSetupCheck(userId, 'unknown', true, {
+      this.jwtAuditService.logSetupCheck(id, 'unknown', true, {
         reason: 'user_not_found',
         userId,
       });
@@ -421,7 +421,7 @@ export class AuthService {
     const needsSetup = !user?.empresaId || !user?.setupCompletado;
     
     // Log de auditoría para cada consulta
-    this.jwtAuditService.logSetupCheck(userId, user.email, needsSetup, {
+    this.jwtAuditService.logSetupCheck(id, user.email, needsSetup, {
       hasEmpresa: !!user.empresaId,
       setupCompletado: user.setupCompletado,
     });
@@ -430,9 +430,16 @@ export class AuthService {
   }
 
   // Método para obtener el estado completo del usuario
-  async getUserStatus(userId: number) {
+  async getUserStatus(userId: number | string) {
+    // Convertir userId a number si es string (compatibilidad con JWT sub)
+    const id = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    
+    if (isNaN(id)) {
+      throw new BadRequestException('ID de usuario inválido');
+    }
+
     const user = await this.prisma.usuario.findUnique({
-      where: { id: userId },
+      where: { id },
       include: { empresa: true },
     });
 
@@ -443,7 +450,7 @@ export class AuthService {
     const needsSetup = !user.empresaId || !user.setupCompletado;
 
     // Log de auditoría para consulta de estado
-    this.jwtAuditService.logSetupCheck(userId, user.email, needsSetup, {
+    this.jwtAuditService.logSetupCheck(id, user.email, needsSetup, {
       action: 'get_status',
       hasEmpresa: !!user.empresaId,
       setupCompletado: user.setupCompletado,
@@ -552,7 +559,7 @@ export class AuthService {
     }
 
     // Generar token único
-    const token = uuidv4();
+    const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
 
     // Guardar token en la base de datos
@@ -656,5 +663,31 @@ export class AuthService {
       success: true,
       email: resetToken.email
     };
+  }
+
+  async logout(user: JwtUserPayload) {
+    if (!user) {
+      throw new UnauthorizedException('Usuario no autenticado');
+    }
+
+    try {
+      // NUEVO: Blacklist el token actual si tiene JTI
+      if (user.jti) {
+        await this.blacklistService.blacklistToken(user.jti, user.id, 'user_logout');
+      }
+
+      // Revocar todos los refresh tokens del usuario
+      await this.refreshTokenService.revokeAllUserTokens(user.id);
+      
+      // Log de auditoría
+      this.jwtAuditService.logLogout(user.id, user.email);
+      
+      this.secureLogger.log(`Logout exitoso para usuario ${user.id}`);
+      
+      return { message: 'Sesión cerrada exitosamente' };
+    } catch (error) {
+      this.secureLogger.logSecurityError(error.message, user.id);
+      throw new BadRequestException('Error al cerrar sesión');
+    }
   }
 }

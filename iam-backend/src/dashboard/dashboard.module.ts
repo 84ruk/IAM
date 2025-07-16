@@ -2,13 +2,13 @@ import { Module } from '@nestjs/common';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { PrismaModule } from '../prisma/prisma.module';
-import { ErrorHandlerService } from '../common/services/error-handler.service';
+import { CommonModule } from '../common/common.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule], // Importar AuthModule para acceso a EmpresaGuard
+  imports: [PrismaModule, CommonModule, AuthModule], // Importar CommonModule para servicios de cache
   controllers: [DashboardController],
-  providers: [DashboardService, ErrorHandlerService],
+  providers: [DashboardService],
   exports: [DashboardService]
 })
 export class DashboardModule {}

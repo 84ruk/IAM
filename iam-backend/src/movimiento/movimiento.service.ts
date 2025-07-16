@@ -1,12 +1,18 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrearMovimientoDto } from './dto/crear-movimiento.dto';
 import { CrearMovimientoPorCodigoBarrasDto } from './dto/crear-movimiento-por-codigo-barras.dto';
 import { TipoMovimiento } from '@prisma/client';
+import { KPICacheService } from '../common/services/kpi-cache.service';
 
 @Injectable()
 export class MovimientoService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(MovimientoService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private cacheService: KPICacheService
+  ) {}
 
   async registrar(dto: CrearMovimientoDto, empresaId: number | undefined) {
     // Si el usuario no tiene empresa configurada, lanzar error
@@ -14,53 +20,111 @@ export class MovimientoService {
       throw new BadRequestException('El usuario debe tener una empresa configurada para registrar movimientos');
     }
 
-    const producto = await this.prisma.producto.findFirst({
-      where: { id: dto.productoId, empresaId },
-    });
-
-    if (!producto) {
-      throw new NotFoundException('Producto no encontrado');
-    }
-
-    // Si se proporciona un proveedorId, validar que existe
-    if (dto.proveedorId) {
-      const proveedor = await this.prisma.proveedor.findFirst({
-        where: { id: dto.proveedorId, empresaId, estado: 'ACTIVO' },
+    // ✅ IMPLEMENTAR TRANSACCIÓN CRÍTICA CON VERSIONADO OPTIMISTA
+    const movimiento = await this.prisma.$transaction(async (tx) => {
+      // 1. Validar producto con versionado optimista
+      const producto = await tx.producto.findFirst({
+        where: { id: dto.productoId, empresaId },
+        select: {
+          id: true,
+          stock: true,
+          version: true,
+          estado: true,
+          nombre: true
+        }
       });
 
-      if (!proveedor) {
-        throw new NotFoundException('Proveedor no encontrado o inactivo');
+      if (!producto) {
+        throw new NotFoundException('Producto no encontrado');
       }
-    }
 
-    // Crear el movimiento
-    const movimiento = await this.prisma.movimientoInventario.create({
-      data: {
+      if (producto.estado !== 'ACTIVO') {
+        throw new BadRequestException('No se pueden registrar movimientos para productos inactivos');
+      }
+
+      // 2. Validar proveedor si se proporciona
+      if (dto.proveedorId) {
+        const proveedor = await tx.proveedor.findFirst({
+          where: { id: dto.proveedorId, empresaId, estado: 'ACTIVO' },
+        });
+
+        if (!proveedor) {
+          throw new NotFoundException('Proveedor no encontrado o inactivo');
+        }
+      }
+
+      // 3. Calcular nuevo stock
+      const nuevoStock = dto.tipo === 'ENTRADA' 
+        ? producto.stock + dto.cantidad 
+        : producto.stock - dto.cantidad;
+
+      // 4. Validar stock suficiente para salidas
+      if (nuevoStock < 0) {
+        throw new BadRequestException('No hay suficiente stock para realizar esta salida');
+      }
+
+      // 5. Crear el movimiento
+      const movimiento = await tx.movimientoInventario.create({
+        data: {
+          tipo: dto.tipo,
+          cantidad: dto.cantidad,
+          productoId: dto.productoId,
+          empresaId,
+          motivo: dto.motivo,
+          descripcion: dto.descripcion,
+        },
+      });
+
+      // 6. Actualizar el stock del producto con versionado optimista
+      const updateResult = await tx.producto.updateMany({
+        where: { 
+          id: dto.productoId,
+          version: producto.version // Solo actualizar si la versión coincide
+        },
+        data: { 
+          stock: nuevoStock,
+          version: producto.version + 1, // Incrementar versión
+          ...(dto.proveedorId && { proveedorId: dto.proveedorId })
+        },
+      });
+
+      // 7. Verificar si la actualización fue exitosa
+      if (updateResult.count === 0) {
+        throw new BadRequestException('El producto fue modificado por otro usuario. Por favor, intente nuevamente.');
+      }
+
+      this.logger.log(`Movimiento registrado exitosamente: ${dto.tipo} ${dto.cantidad} unidades del producto ${producto.nombre}`, {
+        empresaId,
+        productoId: dto.productoId,
         tipo: dto.tipo,
         cantidad: dto.cantidad,
-        productoId: dto.productoId,
-        empresaId,
-        motivo: dto.motivo,
-        descripcion: dto.descripcion,
-      },
+        stockAnterior: producto.stock,
+        stockNuevo: nuevoStock,
+        versionAnterior: producto.version,
+        versionNueva: producto.version + 1
+      });
+
+      return movimiento;
+    }, {
+      maxWait: 5000, // Máximo 5 segundos de espera
+      timeout: 10000, // Timeout de 10 segundos
+      isolationLevel: 'Serializable', // Nivel más alto de aislamiento
     });
 
-    const nuevoStock = dto.tipo === 'ENTRADA' 
-      ? producto.stock + dto.cantidad 
-      : producto.stock - dto.cantidad;
-
-    if (nuevoStock < 0) {
-      throw new BadRequestException('No hay suficiente stock para realizar esta salida');
+    // ✅ INVALIDAR CACHE DESPUÉS DE LA TRANSACCIÓN
+    try {
+      await Promise.all([
+        this.cacheService.invalidate(`kpis:${empresaId}`),
+        this.cacheService.invalidate(`financial-kpis:${empresaId}`),
+        this.cacheService.invalidate(`product-kpis:${dto.productoId}`),
+        this.cacheService.invalidate(`movement-kpis:${empresaId}`),
+      ]);
+      
+      this.logger.debug(`Cache invalidated for empresa ${empresaId} and producto ${dto.productoId}`);
+    } catch (cacheError) {
+      this.logger.warn(`Failed to invalidate cache after movement:`, cacheError);
+      // No lanzar error, solo log
     }
-
-    // Actualizar el stock del producto y opcionalmente el proveedor
-    await this.prisma.producto.update({
-      where: { id: dto.productoId },
-      data: { 
-        stock: nuevoStock,
-        ...(dto.proveedorId && { proveedorId: dto.proveedorId })
-      },
-    });
 
     return movimiento;
   }

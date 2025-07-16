@@ -323,12 +323,20 @@ export class ProductoService {
       throw new BadRequestException('El usuario debe tener una empresa configurada para actualizar productos');
     }
 
-    // 1. Verificar que el producto exista y pertenezca a la empresa
-    const productoExistente = await this.prisma.producto.findFirst({
+    // ✅ IMPLEMENTAR TRANSACCIÓN CON VERSIONADO OPTIMISTA
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Verificar que el producto exista y pertenezca a la empresa con versión
+      const productoExistente = await tx.producto.findFirst({
       where: {
         id,
         empresaId,
       },
+        select: {
+          id: true,
+          version: true,
+          codigoBarras: true,
+          estado: true
+        }
     });
 
     if (!productoExistente) {
@@ -337,7 +345,7 @@ export class ProductoService {
 
     // 2. Si se envía proveedorId, validar que sea válido para esta empresa
     if (dto.proveedorId) {
-      const proveedor = await this.prisma.proveedor.findFirst({
+        const proveedor = await tx.proveedor.findFirst({
         where: {
           id: dto.proveedorId,
           empresaId,
@@ -351,7 +359,7 @@ export class ProductoService {
 
     // 3. Verificar duplicados de código de barras si se está actualizando
     if (dto.codigoBarras && dto.codigoBarras !== productoExistente.codigoBarras) {
-      const productoConCodigo = await this.prisma.producto.findFirst({
+        const productoConCodigo = await tx.producto.findFirst({
         where: {
           codigoBarras: dto.codigoBarras.trim(),
           empresaId,
@@ -364,18 +372,48 @@ export class ProductoService {
       }
     }
 
-    // 4. Realizar la actualización
+      // 4. Preparar datos para actualización
     const data = {
       ...dto,
       proveedorId: dto.proveedorId ?? null,
       codigoBarras: dto.codigoBarras?.trim() || null,
       rfid: dto.rfid?.trim() || null,
       sku: dto.sku?.trim() || null,
-    };
+        version: productoExistente.version + 1, // Incrementar versión
+      };
 
-    return this.prisma.producto.update({
+      // 5. Actualizar con versionado optimista
+      const updateResult = await tx.producto.updateMany({
+        where: { 
+          id,
+          version: productoExistente.version // Solo actualizar si la versión coincide
+        },
+        data,
+      });
+
+      // 6. Verificar si la actualización fue exitosa
+      if (updateResult.count === 0) {
+        throw new BadRequestException('El producto fue modificado por otro usuario. Por favor, intente nuevamente.');
+      }
+
+      // 7. Retornar el producto actualizado
+      return tx.producto.findUnique({
       where: { id },
-      data,
+        include: {
+          proveedor: {
+            select: {
+              id: true,
+              nombre: true,
+              email: true,
+              telefono: true,
+            },
+          },
+        },
+      });
+    }, {
+      maxWait: 5000, // Máximo 5 segundos de espera
+      timeout: 10000, // Timeout de 10 segundos
+      isolationLevel: 'Serializable', // Nivel más alto de aislamiento
     });
   }
 

@@ -168,7 +168,7 @@ export class RefreshTokenService {
     const payload = {
       iat: now,
       jti: uuidv4(), // Nuevo JWT ID para el access token
-      sub: user.id,
+      sub: user.id.toString(), // Convertir a string para compatibilidad
       email: user.email,
       rol: user.rol,
       empresaId: user.empresaId,

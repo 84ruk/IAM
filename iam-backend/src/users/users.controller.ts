@@ -21,15 +21,17 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtUser } from '../auth/interfaces/jwt-user.interface';
 import { Rol } from '@prisma/client';
-import { EmpresaGuard } from '../auth/guards/empresa.guard';
+import { UnifiedEmpresaGuard } from '../auth/guards/unified-empresa.guard';
+import { EmpresaRequired } from '../auth/decorators/empresa-required.decorator';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard, EmpresaGuard) // Agregar EmpresaGuard para validación inteligente
+@UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard) // Agregar UnifiedEmpresaGuard para validación inteligente
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
   @Roles('SUPERADMIN', 'ADMIN')
+  @EmpresaRequired()
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createUserDto: CreateUserDto,
@@ -44,6 +46,7 @@ export class UsersController {
 
   @Get()
   @Roles('SUPERADMIN', 'ADMIN')
+  @EmpresaRequired()
   async findAll(
     @Query() query: QueryUsersDto,
     @CurrentUser() currentUser: JwtUser,
@@ -57,6 +60,7 @@ export class UsersController {
 
   @Get('stats')
   @Roles('SUPERADMIN', 'ADMIN')
+  @EmpresaRequired()
   async getStats(@CurrentUser() currentUser: JwtUser) {
     return this.usersService.getUsersStats(
       currentUser.rol as Rol, 
@@ -66,6 +70,7 @@ export class UsersController {
 
   @Get('empresa/:empresaId')
   @Roles('SUPERADMIN', 'ADMIN')
+  @EmpresaRequired()
   async getUsersByEmpresa(
     @Param('empresaId') empresaId: string,
     @CurrentUser() currentUser: JwtUser,
@@ -80,6 +85,7 @@ export class UsersController {
 
   @Get(':id')
   @Roles('SUPERADMIN', 'ADMIN')
+  @EmpresaRequired()
   async findOne(
     @Param('id') id: string,
     @CurrentUser() currentUser: JwtUser,
@@ -93,6 +99,7 @@ export class UsersController {
 
   @Patch(':id')
   @Roles('SUPERADMIN', 'ADMIN')
+  @EmpresaRequired()
   async update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -108,6 +115,7 @@ export class UsersController {
 
   @Delete(':id')
   @Roles('SUPERADMIN', 'ADMIN')
+  @EmpresaRequired()
   @HttpCode(HttpStatus.OK)
   async remove(
     @Param('id') id: string,

@@ -4,24 +4,48 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Rol } from '@prisma/client';
-import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { JwtUser } from 'src/auth/interfaces/jwt-user.interface';
-import { EmpresaGuard } from '../auth/guards/empresa.guard';
+import { UnifiedEmpresaGuard } from '../auth/guards/unified-empresa.guard';
+import { EmpresaRequired } from '../auth/decorators/empresa-required.decorator';
+import { JwtUser } from '../auth/interfaces/jwt-user.interface';
 
 @Controller('dashboard')
-@UseGuards(JwtAuthGuard, RolesGuard, EmpresaGuard) // Agregar EmpresaGuard para validación inteligente
+@UseGuards(JwtAuthGuard, UnifiedEmpresaGuard)
+@EmpresaRequired()
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('kpis')
-  @Roles(Rol.ADMIN, Rol.EMPLEADO, Rol.SUPERADMIN)
-  async getKpis(@CurrentUser() user: JwtUser) {
-    return this.dashboardService.getKpis(user.empresaId);
+  async getKpis(@Request() req) {
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.dashboardService.getKpis(user.empresaId!);
+  }
+
+  @Get('financial-kpis')
+  async getFinancialKPIs(@Request() req) {
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.dashboardService.getFinancialKPIs(user.empresaId!);
   }
 
   @Get('data')
-  @Roles(Rol.ADMIN, Rol.EMPLEADO, Rol.SUPERADMIN)
-  async getDashboardData(@CurrentUser() user: JwtUser) {
-    return this.dashboardService.getDashboardData(user.empresaId);
+  async getDashboardData(@Request() req) {
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.dashboardService.getDashboardData(user.empresaId!);
+  }
+
+  @Get('productos-kpi')
+  async getProductosKPI(@Request() req) {
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.dashboardService.getProductosKPI(user.empresaId!);
+  }
+
+  @Get('movimientos-por-producto')
+  async getMovimientosPorProducto(@Request() req) {
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.dashboardService.getMovimientosPorProducto(user.empresaId!);
   }
 }

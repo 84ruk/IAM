@@ -40,6 +40,16 @@ model Usuario {
   empresa         Empresa?      @relation(fields: [empresaId], references: [id])
   auditLogs       AuditLog[]
   refreshTokens   RefreshToken[]
+  blacklistedTokens BlacklistedToken[]
+  twoFactorAuth   TwoFactorAuth?
+  securityEvents  SecurityEvent[]
+
+  @@index([empresaId, rol])
+  @@index([empresaId, activo])
+  @@index([rol, activo])
+  @@index([email])
+  @@index([googleId])
+  @@index([setupCompletado])
 }
 
 model Producto {
@@ -66,6 +76,7 @@ model Producto {
   unidad            UnidadMedida           @default(UNIDAD)
   estado            EstadoProducto         @default(ACTIVO)
   etiquetas         String[]
+  version           Int                    @default(1) // Campo para versionado optimista
   movimientos       MovimientoInventario[]
   pedidos           PedidoInventario[]
   empresa           Empresa                @relation(fields: [empresaId], references: [id])
@@ -73,6 +84,14 @@ model Producto {
   sensores          SensorLectura[]
 
   @@index([empresaId, etiquetas])
+  @@index([empresaId, estado])
+  @@index([empresaId, stock(sort: Asc)])
+  @@index([empresaId, tipoProducto])
+  @@index([proveedorId])
+  @@index([codigoBarras])
+  @@index([sku])
+  @@index([rfid])
+  @@index([nombre(sort: Asc)])
 }
 
 model MovimientoInventario {
@@ -88,6 +107,11 @@ model MovimientoInventario {
   estado      EstadoMovimiento @default(ACTIVO)
   empresa     Empresa          @relation(fields: [empresaId], references: [id])
   producto    Producto         @relation(fields: [productoId], references: [id])
+
+  @@index([empresaId, fecha(sort: Desc)])
+  @@index([productoId, fecha(sort: Desc)])
+  @@index([empresaId, estado])
+  @@index([tipo, fecha(sort: Desc)])
 }
 
 model Proveedor {
@@ -103,6 +127,9 @@ model Proveedor {
 
   @@unique([empresaId, nombre])
   @@unique([empresaId, email])
+  @@index([empresaId, estado])
+  @@index([empresaId, nombre(sort: Asc)])
+  @@index([email])
 }
 
 model PedidoInventario {
@@ -148,6 +175,74 @@ model RefreshToken {
   @@index([jti])
   @@index([expiresAt])
   @@index([isRevoked])
+}
+
+model BlacklistedToken {
+  id        Int      @id @default(autoincrement())
+  jti       String   @unique
+  userId    Int
+  reason    String   @default("manual_revocation")
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user      Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([jti])
+  @@index([expiresAt])
+  @@index([reason])
+}
+
+model TwoFactorAuth {
+  id                      Int       @id @default(autoincrement())
+  userId                  Int       @unique
+  secret                  String
+  backupCodes             String[]
+  isEnabled               Boolean   @default(false)
+  setupCompleted          Boolean   @default(false)
+  lastUsed                DateTime?
+  lastUsedBackupCode      DateTime?
+  enabledAt               DateTime?
+  disabledAt              DateTime?
+  backupCodesRegeneratedAt DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  user                    Usuario   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isEnabled])
+  @@index([setupCompleted])
+}
+
+model SecurityEvent {
+  id         Int      @id @default(autoincrement())
+  type       String
+  userId     Int?
+  userEmail  String?
+  ipAddress  String
+  userAgent  String
+  details    String
+  severity   String
+  timestamp  DateTime @default(now())
+  
+  user       Usuario? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([userId])
+  @@index([ipAddress])
+  @@index([severity])
+  @@index([timestamp])
+}
+
+model BlockedIP {
+  id         Int      @id @default(autoincrement())
+  ipAddress  String
+  reason     String
+  blockedAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([ipAddress])
+  @@index([expiresAt])
 }
 
 model SensorLectura {

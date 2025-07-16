@@ -3,11 +3,11 @@ import { PedidoService } from './pedido.service';
 import { CrearPedidoDto } from './dto/crear-pedido.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { EmpresaRequiredGuard } from 'src/auth/guards/empresa-required.guard';
+import { UnifiedEmpresaGuard } from 'src/auth/guards/unified-empresa.guard';
 import { EmpresaRequired } from 'src/auth/decorators/empresa-required.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-@UseGuards(JwtAuthGuard, RolesGuard, EmpresaRequiredGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
 @EmpresaRequired()
 @Controller('pedidos')
 export class PedidoController {

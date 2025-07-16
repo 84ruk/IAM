@@ -2,11 +2,11 @@ import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { InventarioService } from './inventario.service';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { EmpresaRequiredGuard } from 'src/auth/guards/empresa-required.guard';
+import { UnifiedEmpresaGuard } from 'src/auth/guards/unified-empresa.guard';
 import { EmpresaRequired } from 'src/auth/decorators/empresa-required.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-@UseGuards(JwtAuthGuard, RolesGuard, EmpresaRequiredGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
 @EmpresaRequired()
 @Controller('inventario')
 export class InventarioController {

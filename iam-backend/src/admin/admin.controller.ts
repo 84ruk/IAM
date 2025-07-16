@@ -10,6 +10,7 @@ import {
   UseGuards,
   Request,
   ParseIntPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateUserAdminDto } from './dto/create-user-admin.dto';
@@ -18,17 +19,20 @@ import { ChangeRoleDto } from './dto/change-role.dto';
 import { AdminGuard } from './guards/admin.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtUser } from '../auth/interfaces/jwt-user.interface';
-import { EmpresaGuard } from '../auth/guards/empresa.guard';
+import { UnifiedEmpresaGuard } from '../auth/guards/unified-empresa.guard';
+import { EmpresaRequired } from '../auth/decorators/empresa-required.decorator';
 
 @Controller('admin')
-@UseGuards(JwtAuthGuard, AdminGuard, EmpresaGuard) // Agregar EmpresaGuard para validación inteligente
+@UseGuards(JwtAuthGuard, AdminGuard, UnifiedEmpresaGuard) // Agregar UnifiedEmpresaGuard para validación inteligente
+@EmpresaRequired()
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get('users')
   async findAll(@Request() req) {
     const user = req.user as JwtUser;
-    return this.adminService.findAll(user.empresaId, user.rol);
+    // EmpresaGuard ya valida que empresaId existe
+    return this.adminService.findAll(user.empresaId!, user.rol);
   }
 
   @Get('users/:id')
@@ -37,7 +41,8 @@ export class AdminController {
     @Request() req,
   ) {
     const user = req.user as JwtUser;
-    return this.adminService.findOne(id, user.empresaId, user.rol);
+    // EmpresaGuard ya valida que empresaId existe
+    return this.adminService.findOne(id, user.empresaId!, user.rol);
   }
 
   @Post('users')
@@ -46,7 +51,8 @@ export class AdminController {
     @Request() req,
   ) {
     const user = req.user as JwtUser;
-    return this.adminService.create(createUserDto, user.empresaId, user.rol);
+    // EmpresaGuard ya valida que empresaId existe
+    return this.adminService.create(createUserDto, user.empresaId!, user.rol);
   }
 
   @Put('users/:id')
@@ -56,7 +62,8 @@ export class AdminController {
     @Request() req,
   ) {
     const user = req.user as JwtUser;
-    return this.adminService.update(id, updateUserDto, user.empresaId, user.rol);
+    // EmpresaGuard ya valida que empresaId existe
+    return this.adminService.update(id, updateUserDto, user.empresaId!, user.rol);
   }
 
   @Patch('users/:id/role')
@@ -66,7 +73,8 @@ export class AdminController {
     @Request() req,
   ) {
     const user = req.user as JwtUser;
-    return this.adminService.changeRole(id, changeRoleDto, user.empresaId, user.rol);
+    // EmpresaGuard ya valida que empresaId existe
+    return this.adminService.changeRole(id, changeRoleDto, user.empresaId!, user.rol);
   }
 
   @Patch('users/:id/activate')
@@ -75,7 +83,8 @@ export class AdminController {
     @Request() req,
   ) {
     const user = req.user as JwtUser;
-    return this.adminService.activate(id, user.empresaId, user.rol);
+    // EmpresaGuard ya valida que empresaId existe
+    return this.adminService.activate(id, user.empresaId!, user.rol);
   }
 
   @Patch('users/:id/deactivate')
@@ -84,7 +93,8 @@ export class AdminController {
     @Request() req,
   ) {
     const user = req.user as JwtUser;
-    return this.adminService.deactivate(id, user.empresaId, user.rol);
+    // EmpresaGuard ya valida que empresaId existe
+    return this.adminService.deactivate(id, user.empresaId!, user.rol);
   }
 
   @Delete('users/:id')
@@ -93,7 +103,8 @@ export class AdminController {
     @Request() req,
   ) {
     const user = req.user as JwtUser;
-    return this.adminService.remove(id, user.empresaId, user.rol);
+    // EmpresaGuard ya valida que empresaId existe
+    return this.adminService.remove(id, user.empresaId!, user.rol);
   }
 
   @Get('roles')

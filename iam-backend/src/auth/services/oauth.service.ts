@@ -165,7 +165,7 @@ export class OAuthService {
     const payload = {
       iat: now,
       jti: uuidv4(),
-      sub: user.id,
+      sub: user.id.toString(), // Convertir a string para compatibilidad
       email: user.email,
       rol: user.rol,
       empresaId: user.empresaId,
