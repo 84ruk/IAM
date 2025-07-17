@@ -15,13 +15,16 @@ export default function LandingPage() {
     // Verificar si el usuario está autenticado
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
           credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
         
         if (response.ok) {
           const userData = await response.json();
-          if (userData.user) {
+          if (userData.user || userData.sub) {
             setIsAuthenticated(true);
             // Redirigir al dashboard si está autenticado
             window.location.href = '/dashboard';
