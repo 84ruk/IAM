@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { requireAuth } from '@/lib/ssrAuth';
 import LandingPage from '@/components/landing/LandingPage';
 
 export const metadata: Metadata = {
@@ -55,6 +57,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
+export default async function Home() {
+  // Verificar autenticación en el servidor
+  const user = await requireAuth();
+  
+  // Si el usuario está autenticado, redirigir al dashboard
+  if (user) {
+    redirect('/dashboard');
+  }
+
+  // Si no está autenticado, mostrar la landing page
   return <LandingPage />;
 }
