@@ -9,20 +9,22 @@ datasource db {
 }
 
 model Empresa {
-  id            Int                    @id @default(autoincrement())
-  nombre        String
-  rfc           String?                @unique
-  emailContacto String?
-  direccion     String?
-  fechaCreacion DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  TipoIndustria TipoIndustria          @default(GENERICA)
-  auditLogs     AuditLog[]
-  movimientos   MovimientoInventario[]
-  pedidos       PedidoInventario[]
-  productos     Producto[]
-  proveedores   Proveedor[]
-  usuarios      Usuario[]
+  id                Int                    @id @default(autoincrement())
+  nombre            String
+  rfc               String?                @unique
+  emailContacto     String?
+  direccion         String?
+  fechaCreacion     DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  TipoIndustria     TipoIndustria          @default(GENERICA)
+  auditLogs         AuditLog[]
+  movimientos       MovimientoInventario[]
+  pedidos           PedidoInventario[]
+  productos         Producto[]
+  proveedores       Proveedor[]
+  usuarios          Usuario[]
+  alertHistories    AlertHistory[]
+  alertConfigurations AlertConfiguration[]
 }
 
 model Usuario {
@@ -82,6 +84,7 @@ model Producto {
   empresa           Empresa                @relation(fields: [empresaId], references: [id])
   proveedor         Proveedor?             @relation(fields: [proveedorId], references: [id])
   sensores          SensorLectura[]
+  alertHistories    AlertHistory[]
 
   @@index([empresaId, etiquetas])
   @@index([empresaId, estado])
@@ -276,6 +279,66 @@ model AuditLog {
   @@index([resource])
   @@index([createdAt])
   @@index([empresaId])
+}
+
+model AlertHistory {
+  id                   Int      @id @default(autoincrement())
+  empresaId            Int
+  tipo                 String
+  severidad            String
+  titulo               String
+  mensaje              String
+  productoId           Int?
+  productoNombre       String?
+  destinatarios        String[]
+  estado               String   @default("ENVIADA")
+  fechaEnvio           DateTime @default(now())
+  fechaLectura         DateTime?
+  fechaResolucion      DateTime?
+  condicionActivacion  Json?
+  emailEnviado         Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  empresa              Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  producto             Producto? @relation(fields: [productoId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId])
+  @@index([tipo])
+  @@index([estado])
+  @@index([fechaEnvio(sort: Desc)])
+}
+
+model AlertConfiguration {
+  id                    Int      @id @default(autoincrement())
+  empresaId             Int
+  tipoAlerta            String
+  activo                Boolean  @default(true)
+  destinatarios         String[]
+  frecuencia            String
+  ventanaEsperaMinutos  Int?
+  umbralCritico         Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  empresa               Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@index([tipoAlerta])
+}
+
+model NotificationTemplate {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  tipo           String
+  asunto         String
+  contenidoHtml  String
+  contenidoTexto String?
+  variables      Json?
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([name])
+  @@index([tipo])
 }
 
 enum TipoIndustria {

@@ -14,7 +14,9 @@ async function bootstrap() {
     logger.log('Validando configuración de seguridad...');
 
     const app = await NestFactory.create(AppModule, {
-      logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+      logger: process.env.NODE_ENV === 'production'
+        ? ['error', 'warn', 'log']
+        : ['error', 'warn', 'log', 'debug', 'verbose'],
     });
 
     // Configurar Helmet para headers de seguridad

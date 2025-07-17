@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
+import { IndustryKPIService } from './services/industry-kpi.service';
+import { PredictionService } from './services/prediction.service';
+import { AlertService } from './services/alert.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CommonModule } from '../common/common.module';
 import { AuthModule } from '../auth/auth.module';
@@ -8,7 +11,17 @@ import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [PrismaModule, CommonModule, AuthModule], // Importar CommonModule para servicios de cache
   controllers: [DashboardController],
-  providers: [DashboardService],
-  exports: [DashboardService],
+  providers: [
+    DashboardService, 
+    IndustryKPIService, 
+    PredictionService, 
+    AlertService
+  ],
+  exports: [
+    DashboardService, 
+    IndustryKPIService, 
+    PredictionService, 
+    AlertService
+  ],
 })
 export class DashboardModule {}

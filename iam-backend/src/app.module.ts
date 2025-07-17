@@ -14,6 +14,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { SensoresModule } from './sensores/sensores.module';
 import { AdminModule } from './admin/admin.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
+import { NotificationModule } from './notifications/notification.module';
 import { PrismaService } from './prisma/prisma.service';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { SecurityMiddleware } from './common/middleware/security.middleware';
@@ -32,6 +33,7 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
     SensoresModule,
     AdminModule,
     SuperAdminModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [
