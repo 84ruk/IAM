@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { EmpresaGuard } from '../auth/guards/empresa.guard';
+import { SimpleEmpresaGuard } from '../auth/guards/simple-empresa.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtUser } from '../auth/interfaces/jwt-user.interface';
+import { EmailTemplatesService } from './templates/email-templates.service';
+import { Logger } from '@nestjs/common';
 
 export interface CreateAlertConfigurationDto {
   tipoAlerta: string;
@@ -24,11 +26,14 @@ export interface UpdateAlertConfigurationDto {
 }
 
 @Controller('notifications')
-@UseGuards(JwtAuthGuard, EmpresaGuard)
+@UseGuards(JwtAuthGuard, SimpleEmpresaGuard)
 export class NotificationController {
+  private readonly logger = new Logger(NotificationController.name);
+
   constructor(
     private readonly notificationService: NotificationService,
     private readonly prisma: PrismaService,
+    private readonly emailTemplates: EmailTemplatesService,
   ) {}
 
   /**
@@ -454,5 +459,257 @@ export class NotificationController {
     });
 
     return resumen;
+  }
+
+  /**
+   * 📊 Enviar reporte semanal del dashboard
+   */
+  @Post('weekly-report/:empresaId')
+  @UseGuards(JwtAuthGuard, SimpleEmpresaGuard)
+  async sendWeeklyReport(
+    @Param('empresaId', ParseIntPipe) empresaId: number,
+    @Body() body: { periodo: string }
+  ) {
+    try {
+      const result = await this.notificationService.sendWeeklyDashboardReport(empresaId, body.periodo);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? 'Reporte semanal enviado exitosamente' 
+          : `Error al enviar reporte: ${result.error}`,
+        messageId: result.messageId,
+        destinatarios: result.destinatarios.length
+      };
+    } catch (error) {
+      this.logger.error(`Error sending weekly report for empresa ${empresaId}:`, error);
+      throw new BadRequestException('Error al enviar reporte semanal');
+    }
+  }
+
+  /**
+   * 🎨 Enviar alerta de stock mejorada
+   */
+  @Post('enhanced-stock-alert/:empresaId')
+  @UseGuards(JwtAuthGuard, SimpleEmpresaGuard)
+  async sendEnhancedStockAlert(
+    @Param('empresaId', ParseIntPipe) empresaId: number,
+    @Body() body: { productoId: number }
+  ) {
+    try {
+      // Obtener producto con información completa
+      const producto = await this.prisma.producto.findUnique({
+        where: { id: body.productoId },
+        include: {
+          proveedor: {
+            select: { nombre: true }
+          }
+        }
+      });
+
+      if (!producto) {
+        throw new BadRequestException('Producto no encontrado');
+      }
+
+      const empresa = await this.prisma.empresa.findUnique({
+        where: { id: empresaId },
+        select: { nombre: true }
+      });
+
+      if (!empresa) {
+        throw new BadRequestException('Empresa no encontrada');
+      }
+
+      const result = await this.notificationService.sendEnhancedStockAlert(
+        producto, 
+        empresaId, 
+        empresa.nombre
+      );
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? 'Alerta de stock mejorada enviada exitosamente' 
+          : `Error al enviar alerta: ${result.error}`,
+        messageId: result.messageId,
+        destinatarios: result.destinatarios.length
+      };
+    } catch (error) {
+      this.logger.error(`Error sending enhanced stock alert for empresa ${empresaId}:`, error);
+      throw new BadRequestException('Error al enviar alerta de stock mejorada');
+    }
+  }
+
+  /**
+   * 📈 Enviar reporte de inventario mensual
+   */
+  @Post('inventory-report/:empresaId')
+  @UseGuards(JwtAuthGuard, SimpleEmpresaGuard)
+  async sendInventoryReport(
+    @Param('empresaId', ParseIntPipe) empresaId: number,
+    @Body() body: { mes: string }
+  ) {
+    try {
+      const result = await this.notificationService.sendInventoryReport(empresaId, body.mes);
+      
+      return {
+        success: result.success,
+        message: result.success 
+          ? 'Reporte de inventario enviado exitosamente' 
+          : `Error al enviar reporte: ${result.error}`,
+        messageId: result.messageId,
+        destinatarios: result.destinatarios.length
+      };
+    } catch (error) {
+      this.logger.error(`Error sending inventory report for empresa ${empresaId}:`, error);
+      throw new BadRequestException('Error al enviar reporte de inventario');
+    }
+  }
+
+  /**
+   * 🎨 Obtener preview de plantillas de email
+   */
+  @Get('preview/:templateType')
+  @UseGuards(JwtAuthGuard)
+  async getEmailPreview(
+    @Param('templateType') templateType: string,
+    @Query() query: any
+  ) {
+    try {
+      let template: any;
+
+      switch (templateType) {
+        case 'weekly-dashboard-report':
+          template = this.emailTemplates.getWeeklyDashboardReportTemplate({
+            empresa: 'Empresa Demo',
+            periodo: '1-7 Enero 2024',
+            kpis: {
+              valorInventario: 125000,
+              valorVentas: 45000,
+              margenPromedio: 25.5,
+              productosCriticos: 3,
+              productosSinStock: 1,
+              productosConStockBajo: 2,
+              productosConStockOptimo: 15,
+              productosConStockAlto: 8
+            },
+            topProductos: [
+              {
+                nombre: 'Producto Crítico 1',
+                stock: 2,
+                stockMinimo: 10,
+                precioVenta: 150,
+                movimientos: 5
+              },
+              {
+                nombre: 'Producto Crítico 2',
+                stock: 0,
+                stockMinimo: 5,
+                precioVenta: 75,
+                movimientos: 3
+              }
+            ],
+            alertas: [
+              {
+                tipo: 'stock-critical',
+                mensaje: '3 productos con stock crítico',
+                severidad: 'ALTA'
+              },
+              {
+                tipo: 'stockout',
+                mensaje: '1 producto sin stock',
+                severidad: 'ALTA'
+              }
+            ]
+          });
+          break;
+
+        case 'enhanced-stock-alert':
+          template = this.emailTemplates.getEnhancedStockAlertTemplate(
+            {
+              id: 1,
+              nombre: 'Producto Demo',
+              stock: 2,
+              stockMinimo: 10,
+              precioVenta: 150,
+              codigoBarras: '123456789',
+              etiquetas: ['Electrónicos'],
+              proveedor: { nombre: 'Proveedor Demo' }
+            },
+            'Empresa Demo',
+            [
+              { mensaje: 'Producto Relacionado 1: Stock 3/8' },
+              { mensaje: 'Producto Relacionado 2: Stock 1/5' }
+            ]
+          );
+          break;
+
+        case 'inventory-report':
+          template = this.emailTemplates.getInventoryReportTemplate({
+            empresa: 'Empresa Demo',
+            mes: 'Enero 2024',
+            resumen: {
+              totalProductos: 45,
+              productosActivos: 42,
+              productosInactivos: 3,
+              valorTotalInventario: 125000,
+              productosConStockBajo: 5,
+              productosSinStock: 2
+            },
+            topProductos: [
+              {
+                nombre: 'Producto Valioso 1',
+                stock: 50,
+                precioVenta: 500,
+                valorInventario: 25000,
+                movimientos: 12
+              },
+              {
+                nombre: 'Producto Valioso 2',
+                stock: 30,
+                precioVenta: 300,
+                valorInventario: 9000,
+                movimientos: 8
+              }
+            ],
+            categorias: [
+              {
+                nombre: 'Electrónicos',
+                cantidad: 15,
+                valor: 45000,
+                porcentaje: 36.0
+              },
+              {
+                nombre: 'Ropa',
+                cantidad: 20,
+                valor: 35000,
+                porcentaje: 28.0
+              }
+            ],
+            tendencias: [
+              { fecha: '01', valor: 118750 },
+              { fecha: '15', valor: 123750 },
+              { fecha: '30', valor: 125000 }
+            ]
+          });
+          break;
+
+        default:
+          throw new BadRequestException('Tipo de plantilla no válido');
+      }
+
+      return {
+        success: true,
+        template: {
+          nombre: template.nombre,
+          asunto: template.asunto,
+          contenidoHtml: template.contenidoHtml,
+          contenidoTexto: template.contenidoTexto
+        }
+      };
+    } catch (error) {
+      this.logger.error(`Error getting email preview for template ${templateType}:`, error);
+      throw new BadRequestException('Error al obtener preview de plantilla');
+    }
   }
 } 

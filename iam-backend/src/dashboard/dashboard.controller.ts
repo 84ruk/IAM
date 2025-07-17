@@ -39,7 +39,6 @@ export class DashboardController {
   @Get('data')
   async getDashboardData(@Request() req) {
     const user = req.user as JwtUser;
-    // EmpresaGuard ya valida que empresaId existe
     return this.dashboardService.getDashboardData(user.empresaId!);
   }
 

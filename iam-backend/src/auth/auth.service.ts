@@ -24,6 +24,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtBlacklistService } from './jwt-blacklist.service';
 import { CacheStrategiesService } from '../common/services/cache-strategies.service';
+import { NotificationService } from '../notifications/notification.service';
 
 interface JwtUserPayload {
   id: number;
@@ -49,6 +50,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtAuditService: JwtAuditService,
     private cacheStrategiesService: CacheStrategiesService,
+    private notificationService: NotificationService, // NUEVO: Servicio de notificaciones
   ) {}
 
   async validateUser(email: string, password: string, ip?: string) {
@@ -638,18 +640,49 @@ export class AuthService {
       },
     });
 
-    // En un entorno real, aquí enviarías el email
-    // Por ahora, solo retornamos el token para pruebas
+    // Generar URL de reset
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
 
-    console.log('🔗 Enlace de recuperación:', resetUrl);
+    try {
+      // Enviar email de recuperación de contraseña
+      const result = await this.notificationService.sendPasswordResetEmail(
+        email,
+        user.nombre || 'Usuario',
+        resetUrl
+      );
 
-    return {
-      message: 'Se ha enviado un enlace de recuperación a tu email',
-      success: true,
-      // Solo en desarrollo
-      ...(process.env.NODE_ENV === 'development' && { resetUrl }),
-    };
+      if (result.success) {
+        // Log de envío exitoso
+        this.secureLogger.log(`Email de recuperación enviado exitosamente a ${email}`);
+        
+        return {
+          message: 'Se ha enviado un enlace de recuperación a tu email',
+          success: true,
+        };
+      } else {
+        // Log de error en envío
+        this.secureLogger.logSecurityError(
+          `Error al enviar email de recuperación a ${email}: ${result.error}`,
+          user.id
+        );
+        
+        return {
+          message: 'Error al enviar el email de recuperación. Por favor, intenta nuevamente.',
+          success: false,
+        };
+      }
+    } catch (error) {
+      // Log de error en envío
+      this.secureLogger.logSecurityError(
+        `Error al enviar email de recuperación a ${email}: ${error.message}`,
+        user.id
+      );
+      
+      return {
+        message: 'Error al enviar el email de recuperación. Por favor, intenta nuevamente.',
+        success: false,
+      };
+    }
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {

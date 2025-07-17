@@ -10,6 +10,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { GoogleStrategy } from './google.strategy';
 import { JwtAuditService } from './jwt-audit.service';
 import { UnifiedEmpresaGuard } from './guards/unified-empresa.guard';
+import { SimpleEmpresaGuard } from './guards/simple-empresa.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CommonModule } from '../common/common.module';
 import { EmpresaCacheService } from './empresa-cache.service';
@@ -25,12 +26,14 @@ import { securityConfig } from '../config/security.config';
 import { JwtBlacklistService } from './jwt-blacklist.service';
 import { TwoFactorService } from './services/two-factor.service';
 import { TwoFactorController } from './two-factor.controller';
+import { NotificationModule } from '../notifications/notification.module';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule), // Usar forwardRef para evitar dependencia circular
     PrismaModule,
     CommonModule, // Importar CommonModule para servicios de cache
+    NotificationModule, // NUEVO: Módulo de notificaciones
     PassportModule,
     ThrottlerModule.forRoot([
       {
@@ -63,6 +66,7 @@ import { TwoFactorController } from './two-factor.controller';
     GoogleStrategy,
     JwtAuditService,
     UnifiedEmpresaGuard, // Guard unificado que reemplaza los tres guards anteriores
+    SimpleEmpresaGuard, // Guard simplificado para NotificationModule
     EmpresaCacheService,
     AppLoggerService,
     SecureLoggerService,
@@ -84,6 +88,7 @@ import { TwoFactorController } from './two-factor.controller';
     TwoFactorService, // NUEVO: Exportar servicio de 2FA
     JwtAuditService,
     UnifiedEmpresaGuard, // Exportar el guard unificado
+    SimpleEmpresaGuard, // Exportar el guard simplificado
     EmpresaCacheService,
     AppLoggerService,
     SecureLoggerService,

@@ -4,6 +4,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { join } from 'path';
 import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
+import { SendGridService } from './sendgrid.service';
 import { EmailTemplatesService } from './templates/email-templates.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
@@ -21,7 +22,7 @@ import { PrismaModule } from '../prisma/prisma.module';
           },
         },
         defaults: {
-          from: `"IAM Inventario" <${process.env.FROM_EMAIL || 'noreply@iaminventario.com'}>`,
+          from: `"IAM Inventario" <${process.env.SENDGRID_FROM_EMAIL || process.env.FROM_EMAIL || 'noreply@iaminventario.com'}>`,
         },
         template: {
           dir: join(__dirname, 'templates'),
@@ -35,7 +36,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     PrismaModule,
   ],
   controllers: [NotificationController],
-  providers: [NotificationService, EmailTemplatesService],
-  exports: [NotificationService, EmailTemplatesService],
+  providers: [NotificationService, SendGridService, EmailTemplatesService],
+  exports: [NotificationService, SendGridService, EmailTemplatesService],
 })
 export class NotificationModule {} 

@@ -10,10 +10,14 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
 import * as bcrypt from 'bcrypt';
 import { Rol } from '@prisma/client';
+import { NotificationService } from '../notifications/notification.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
 
   async create(
     data: CreateUserDto,
@@ -58,7 +62,7 @@ export class UsersService {
       );
     }
 
-    return this.prisma.usuario.create({
+    const newUser = await this.prisma.usuario.create({
       data: {
         nombre: data.nombre,
         email: data.email,
@@ -85,6 +89,16 @@ export class UsersService {
         },
       },
     });
+
+    // Enviar email de bienvenida automáticamente
+    try {
+      await this.notificationService.sendWelcomeEmailForNewUser(newUser.id, newUser.empresa?.id);
+    } catch (e) {
+      // No bloquear la creación si falla el email
+      console.error('Error enviando email de bienvenida:', e.message);
+    }
+
+    return newUser;
   }
 
   async findAll(

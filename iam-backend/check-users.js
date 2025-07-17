@@ -3,58 +3,79 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function checkUsers() {
-  console.log('👥 VERIFICANDO USUARIOS EXISTENTES');
-  console.log('==================================\n');
-
   try {
-    // Obtener todos los usuarios
+    console.log('🔍 Verificando usuarios en la base de datos...\n');
+
     const users = await prisma.usuario.findMany({
       select: {
         id: true,
-        nombre: true,
         email: true,
         rol: true,
         empresaId: true,
-        setupCompletado: true,
-        authProvider: true,
-        createdAt: true
+        activo: true,
+        createdAt: true,
+        empresa: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
       }
     });
 
-    console.log(`✅ Se encontraron ${users.length} usuario(s):\n`);
-    
+    if (users.length === 0) {
+      console.log('❌ No hay usuarios en la base de datos');
+      console.log('💡 Crea un usuario primero usando el script create-super-admin.js');
+      return;
+    }
+
+    console.log(`✅ Se encontraron ${users.length} usuarios:\n`);
+
     users.forEach((user, index) => {
       console.log(`${index + 1}. ID: ${user.id}`);
-      console.log(`   - Nombre: ${user.nombre}`);
-      console.log(`   - Email: ${user.email}`);
-      console.log(`   - Rol: ${user.rol}`);
-      console.log(`   - Empresa ID: ${user.empresaId || 'N/A'}`);
-      console.log(`   - Setup completado: ${user.setupCompletado}`);
-      console.log(`   - Auth Provider: ${user.authProvider}`);
-      console.log(`   - Creado: ${user.createdAt.toISOString()}`);
+      console.log(`   Email: ${user.email}`);
+      console.log(`   Rol: ${user.rol}`);
+      console.log(`   Activo: ${user.activo ? '✅' : '❌'}`);
+      console.log(`   Empresa: ${user.empresa ? user.empresa.nombre : 'Sin empresa'}`);
+      console.log(`   Creado: ${user.createdAt.toLocaleDateString()}`);
       console.log('');
     });
 
-    // Buscar usuario específico de pruebas
-    const testUser = users.find(u => u.email === 'test-security-new@example.com');
-    if (testUser) {
-      console.log('🔍 USUARIO DE PRUEBAS ENCONTRADO:');
-      console.log(`   - ID: ${testUser.id}`);
-      console.log(`   - Email: ${testUser.email}`);
-      console.log(`   - Setup completado: ${testUser.setupCompletado}`);
-      console.log(`   - Empresa ID: ${testUser.empresaId || 'N/A'}`);
-    } else {
-      console.log('❌ Usuario de pruebas NO encontrado');
+    // Mostrar usuarios admin
+    const admins = users.filter(u => u.rol === 'ADMIN' || u.rol === 'SUPERADMIN');
+    if (admins.length > 0) {
+      console.log('👑 Usuarios con permisos de administrador:');
+      admins.forEach(admin => {
+        console.log(`   - ${admin.email} (${admin.rol})`);
+      });
+      console.log('');
     }
 
+    // Mostrar usuarios activos
+    const activeUsers = users.filter(u => u.activo);
+    if (activeUsers.length > 0) {
+      console.log('✅ Usuarios activos:');
+      activeUsers.forEach(user => {
+        console.log(`   - ${user.email} (${user.rol})`);
+      });
+      console.log('');
+    }
+
+    console.log('💡 Para usar en las pruebas de notificaciones, copia el email de un usuario ADMIN o SUPERADMIN activo');
+
   } catch (error) {
-    console.error('❌ Error verificando usuarios:', error);
+    console.error('❌ Error al verificar usuarios:', error);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-checkUsers(); 
+// Ejecutar si se llama directamente
+if (require.main === module) {
+  checkUsers().catch(console.error);
+}
+
+module.exports = { checkUsers }; 

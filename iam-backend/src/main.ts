@@ -15,7 +15,7 @@ async function bootstrap() {
 
     const app = await NestFactory.create(AppModule, {
       logger: process.env.NODE_ENV === 'production'
-        ? ['error', 'warn', 'log']
+        ? ['error', 'warn'] // Solo errores y warnings en producción
         : ['error', 'warn', 'log', 'debug', 'verbose'],
     });
 
@@ -30,17 +30,15 @@ async function bootstrap() {
         if (!origin) {
           if (process.env.NODE_ENV === 'development') {
             logger.debug('Permitiendo petición sin origen en desarrollo');
-          } else {
-            logger.debug(
-              'Permitiendo petición sin origen en producción (health check/monitoreo)',
-            );
           }
           return callback(null, true);
         }
 
         // Verificar orígenes permitidos
         if (securityConfig.cors.allowedOrigins.includes(origin)) {
-          logger.debug(`Origen permitido: ${origin}`);
+          if (process.env.NODE_ENV === 'development') {
+            logger.debug(`Origen permitido: ${origin}`);
+          }
           return callback(null, true);
         }
 

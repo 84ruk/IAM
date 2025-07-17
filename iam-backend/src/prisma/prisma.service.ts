@@ -21,11 +21,17 @@ export class PrismaService
 
   constructor() {
     super({
-      log: [
-        { emit: 'stdout', level: 'error' },
-        { emit: 'stdout', level: 'warn' },
-        { emit: 'stdout', level: 'info' },
-      ],
+      log: process.env.NODE_ENV === 'production' 
+        ? [
+            { emit: 'stdout', level: 'error' },
+            { emit: 'stdout', level: 'warn' },
+          ]
+        : [
+            { emit: 'stdout', level: 'error' },
+            { emit: 'stdout', level: 'warn' },
+            { emit: 'stdout', level: 'info' },
+            { emit: 'stdout', level: 'query' },
+          ],
       datasources: {
         db: {
           url: process.env.DATABASE_URL,
@@ -76,8 +82,8 @@ export class PrismaService
       try {
         await this.updateConnectionStats();
         
-        // Log de estadísticas si hay actividad
-        if (this.connectionPoolStats.activeConnections > 0) {
+        // Log de estadísticas solo en desarrollo o si hay muchas conexiones activas
+        if (process.env.NODE_ENV === 'development' && this.connectionPoolStats.activeConnections > 0) {
           this.logger.debug('Estadísticas del pool de conexiones:', {
             activas: this.connectionPoolStats.activeConnections,
             totales: this.connectionPoolStats.totalConnections,
@@ -93,7 +99,7 @@ export class PrismaService
       } catch (error) {
         this.logger.error('Error al actualizar estadísticas de conexiones:', error);
       }
-    }, 30000); // 30 segundos
+    }, process.env.NODE_ENV === 'production' ? 60000 : 30000); // 1 minuto en producción, 30 segundos en desarrollo
   }
 
   // ✅ ACTUALIZAR ESTADÍSTICAS DE CONEXIONES
