@@ -1,4 +1,4 @@
-const axios = require('axios');
+wconst axios = require('axios');
 
 // Configuración para las pruebas
 const BASE_URL = 'http://localhost:3001';

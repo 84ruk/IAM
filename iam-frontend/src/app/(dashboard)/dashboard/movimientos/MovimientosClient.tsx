@@ -162,28 +162,29 @@ export default function MovimientosClient() {
   }
 
   return (
-    <div className="min-h-screen ">
+    <div className="min-h-screen">
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Movimientos</h1>
               <p className="text-gray-600 mt-1">
                 Gestiona el flujo de inventario de tu empresa
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <Link
                 href="/dashboard/movimientos/eliminados"
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-all duration-200 border border-gray-200"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-all duration-200 border border-gray-200 text-sm"
               >
                 <Trash2 className="w-4 h-4" />
-                Papelera
+                <span className="hidden sm:inline">Papelera</span>
+                <span className="sm:hidden">🗑️</span>
               </Link>
               <button
                 onClick={() => router.push('/dashboard/movimientos/nuevo')}
-                className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-[#8E94F2] text-white rounded-xl hover:bg-[#7278e0] transition-all duration-200 shadow-sm hover:shadow-md"
+                className="flex items-center gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-[#8E94F2] text-white rounded-xl hover:bg-[#7278e0] transition-all duration-200 shadow-sm hover:shadow-md text-sm"
               >
                 <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="hidden sm:inline">Nuevo Movimiento</span>
@@ -193,24 +194,24 @@ export default function MovimientosClient() {
           </div>
 
           {/* Estadísticas */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <button
               onClick={() => {
                 setFiltro('')
                 setFiltroTipo('TODOS')
                 setFiltroFecha('')
               }}
-              className={`p-4 rounded-xl border transition-all duration-200 ${
+              className={`p-3 sm:p-4 rounded-xl border transition-all duration-200 ${
                 filtrosActivos.total
                   ? 'bg-[#8E94F2] text-white border-[#8E94F2] shadow-lg'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-[#8E94F2] hover:shadow-md'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <Package className="w-5 h-5" />
+                <Package className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="text-xs font-medium">TOTAL</span>
               </div>
-              <div className="text-2xl font-bold">{estadisticas.total}</div>
+              <div className="text-xl sm:text-2xl font-bold">{estadisticas.total}</div>
               <div className="text-xs opacity-75">movimientos</div>
             </button>
 
@@ -220,17 +221,17 @@ export default function MovimientosClient() {
                 setFiltroTipo('ENTRADA')
                 setFiltroFecha('')
               }}
-              className={`p-4 rounded-xl border transition-all duration-200 ${
+              className={`p-3 sm:p-4 rounded-xl border transition-all duration-200 ${
                 filtrosActivos.entradas
                   ? 'bg-green-500 text-white border-green-500 shadow-lg'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-green-500 hover:shadow-md'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <TrendingUp className="w-5 h-5" />
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="text-xs font-medium">ENTRADAS</span>
               </div>
-              <div className="text-2xl font-bold">{estadisticas.entradas}</div>
+              <div className="text-xl sm:text-2xl font-bold">{estadisticas.entradas}</div>
               <div className="text-xs opacity-75">ingresos</div>
             </button>
 
@@ -240,17 +241,17 @@ export default function MovimientosClient() {
                 setFiltroTipo('SALIDA')
                 setFiltroFecha('')
               }}
-              className={`p-4 rounded-xl border transition-all duration-200 ${
+              className={`p-3 sm:p-4 rounded-xl border transition-all duration-200 ${
                 filtrosActivos.salidas
                   ? 'bg-red-500 text-white border-red-500 shadow-lg'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-red-500 hover:shadow-md'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <TrendingDown className="w-5 h-5" />
+                <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="text-xs font-medium">SALIDAS</span>
               </div>
-              <div className="text-2xl font-bold">{estadisticas.salidas}</div>
+              <div className="text-xl sm:text-2xl font-bold">{estadisticas.salidas}</div>
               <div className="text-xs opacity-75">egresos</div>
             </button>
 
@@ -260,38 +261,38 @@ export default function MovimientosClient() {
                 setFiltroTipo('TODOS')
                 setFiltroFecha(fechaHoy)
               }}
-              className={`p-4 rounded-xl border transition-all duration-200 ${
+              className={`p-3 sm:p-4 rounded-xl border transition-all duration-200 ${
                 filtrosActivos.hoy
                   ? 'bg-blue-500 text-white border-blue-500 shadow-lg'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-blue-500 hover:shadow-md'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <Calendar className="w-5 h-5" />
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="text-xs font-medium">HOY</span>
               </div>
-              <div className="text-2xl font-bold">{estadisticas.hoy}</div>
+              <div className="text-xl sm:text-2xl font-bold">{estadisticas.hoy}</div>
               <div className="text-xs opacity-75">movimientos</div>
             </button>
           </div>
 
           {/* Filtros */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por producto, motivo o descripción..."
-                    value={filtro}
-                    onChange={(e) => setFiltro(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent"
-                  />
-                </div>
+            <div className="space-y-4">
+              {/* Búsqueda */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Buscar por producto, motivo o descripción..."
+                  value={filtro}
+                  onChange={(e) => setFiltro(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm"
+                />
               </div>
               
-              <div className="flex gap-2">
+              {/* Filtros secundarios */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <Select
                   value={filtroTipo}
                   onChange={(e) => setFiltroTipo(e.target.value as 'TODOS' | 'ENTRADA' | 'SALIDA')}
@@ -300,14 +301,14 @@ export default function MovimientosClient() {
                     { value: 'ENTRADA', label: 'Entradas' },
                     { value: 'SALIDA', label: 'Salidas' }
                   ]}
-                  className="mb-0"
+                  className="mb-0 flex-1"
                 />
                 
                 <input
                   type="date"
                   value={filtroFecha}
                   onChange={(e) => setFiltroFecha(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm flex-1"
                 />
                 
                 <button
@@ -316,7 +317,7 @@ export default function MovimientosClient() {
                     setFiltroTipo('TODOS')
                     setFiltroFecha('')
                   }}
-                  className="px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm whitespace-nowrap"
                 >
                   Limpiar
                 </button>
@@ -328,7 +329,7 @@ export default function MovimientosClient() {
           {(filtro !== '' || filtroTipo !== 'TODOS' || filtroFecha !== '') && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
               <h3 className="text-sm font-medium text-blue-800 mb-2">Resultados del filtro:</h3>
-              <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-blue-600">Movimientos encontrados:</span>
                   <span className="font-semibold text-blue-800">{movimientosFiltrados.length}</span>
@@ -351,7 +352,7 @@ export default function MovimientosClient() {
         </div>
 
         {/* Lista de movimientos */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {movimientosFiltrados.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Trash2 className="w-16 h-16 text-gray-300 mb-4" />
@@ -373,32 +374,32 @@ export default function MovimientosClient() {
               >
                 <div className="p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`p-2 rounded-lg flex-shrink-0 ${
                         movimiento.tipo === 'ENTRADA' 
                           ? 'bg-green-100 text-green-600' 
                           : 'bg-red-100 text-red-600'
                       }`}>
                         {movimiento.tipo === 'ENTRADA' ? (
-                          <ArrowUpRight className="w-5 h-5" />
+                          <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5" />
                         ) : (
-                          <ArrowDownLeft className="w-5 h-5" />
+                          <ArrowDownLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                         )}
                       </div>
                       
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
                           {movimiento.producto?.nombre || 'Producto no disponible'}
                         </h3>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-xs sm:text-sm text-gray-600">
                           {formatearCantidadConUnidad(movimiento.cantidad, movimiento.producto?.unidad || 'unidad')}
                         </p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                       <div className="text-right">
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-xs sm:text-sm font-medium text-gray-900">
                           {formatearFechaEspanol(movimiento.fecha)}
                         </p>
                         <p className={`text-xs px-2 py-1 rounded-full ${
@@ -426,34 +427,34 @@ export default function MovimientosClient() {
                   {/* Detalles expandidos */}
                   {movimientosExpandidos.has(movimiento.id) && (
                     <div className="mt-4 pt-4 border-t border-gray-100">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div>
                           <h4 className="text-sm font-medium text-gray-700 mb-2">Detalles del movimiento</h4>
                           <div className="space-y-2 text-sm">
                             {movimiento.motivo && (
                               <div className="flex items-start gap-2">
-                                <MessageCircle className="w-4 h-4 text-gray-400 mt-0.5" />
-                                <div>
+                                <MessageCircle className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                <div className="min-w-0">
                                   <span className="font-medium text-gray-600">Motivo:</span>
-                                  <p className="text-gray-800">{movimiento.motivo}</p>
+                                  <p className="text-gray-800 break-words">{movimiento.motivo}</p>
                                 </div>
                               </div>
                             )}
                             {movimiento.descripcion && (
                               <div className="flex items-start gap-2">
-                                <FileText className="w-4 h-4 text-gray-400 mt-0.5" />
-                                <div>
+                                <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                <div className="min-w-0">
                                   <span className="font-medium text-gray-600">Descripción:</span>
-                                  <p className="text-gray-800">{movimiento.descripcion}</p>
+                                  <p className="text-gray-800 break-words">{movimiento.descripcion}</p>
                                 </div>
                               </div>
                             )}
                             {movimiento.producto?.proveedor && (
                               <div className="flex items-start gap-2">
-                                <User className="w-4 h-4 text-gray-400 mt-0.5" />
-                                <div>
+                                <User className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                <div className="min-w-0">
                                   <span className="font-medium text-gray-600">Proveedor:</span>
-                                  <p className="text-gray-800">{movimiento.producto.proveedor.nombre}</p>
+                                  <p className="text-gray-800 break-words">{movimiento.producto.proveedor.nombre}</p>
                                 </div>
                               </div>
                             )}
@@ -462,17 +463,17 @@ export default function MovimientosClient() {
                         
                         <div>
                           <h4 className="text-sm font-medium text-gray-700 mb-2">Acciones</h4>
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <Link
                               href={`/dashboard/movimientos/${movimiento.id}`}
-                              className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
                             >
                               <Eye className="w-4 h-4" />
                               Ver detalles
                             </Link>
                             <Link
                               href={`/dashboard/movimientos/${movimiento.id}/editar`}
-                              className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                              className="flex items-center justify-center gap-2 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                             >
                               <RotateCcw className="w-4 h-4" />
                               Editar

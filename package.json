@@ -28,6 +28,7 @@
     "cookie-parser": "^1.4.7",
     "isomorphic-dompurify": "^2.26.0",
     "mjml": "^4.15.3",
+    "mqtt": "^5.13.2",
     "nodemailer": "^7.0.5",
     "qrcode": "^1.5.4",
     "react-tooltip": "^5.29.1",

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { ArrowRight, Play, Star } from 'lucide-react';
+import { ArrowRight, Play, Star, GraduationCap, Code, Database, Brain } from 'lucide-react';
 
 export default function HeroSection() {
   return (
@@ -14,28 +14,44 @@ export default function HeroSection() {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
         <div className="text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-800 text-sm font-medium mb-8">
-            <Star className="w-4 h-4 mr-2 fill-current" />
-            ERP Inteligente para PYMEs
+          {/* Academic Badge */}
+          <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 text-sm font-medium mb-6">
+            <GraduationCap className="w-4 h-4 mr-2" />
+            Proyecto Innovatec 2025
           </div>
 
           {/* Main heading */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            Revoluciona tu{' '}
+            IAM - Sistema de{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8E94F2] to-[#6366F1]">
-              gestión de inventario
+              Gestión de Inventario
             </span>
             <br />
-            con inteligencia artificial
+            con Inteligencia Artificial
           </h1>
 
           {/* Subtitle */}
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-            IAM es el ERP inteligente que automatiza tu inventario, predice tendencias y 
-            optimiza tus operaciones. Diseñado específicamente para PYMEs que quieren 
-            crecer sin complicaciones.
+          <p className="text-xl text-gray-600 mb-8 max-w-4xl mx-auto leading-relaxed">
+            Un ERP completo desarrollado como proyecto académico que demuestra la aplicación 
+            de tecnologías modernas en la gestión empresarial. Combina Next.js, TypeScript, 
+            Prisma y análisis predictivo para crear una solución real de inventario.
           </p>
+
+          {/* Technical highlights */}
+          <div className="flex flex-wrap justify-center gap-6 mb-8">
+            <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200">
+              <Code className="w-5 h-5 text-blue-600" />
+              <span className="text-sm font-medium text-gray-700">Next.js 15</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200">
+              <Database className="w-5 h-5 text-green-600" />
+              <span className="text-sm font-medium text-gray-700">PostgreSQL</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200">
+              <Brain className="w-5 h-5 text-purple-600" />
+              <span className="text-sm font-medium text-gray-700">IA Predictiva</span>
+            </div>
+          </div>
 
           {/* CTA buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
@@ -43,28 +59,28 @@ export default function HeroSection() {
               href="/register"
               className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-[#8E94F2] to-[#6366F1] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
             >
-              Comenzar gratis
+              Probar Demo
               <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
             
             <button className="inline-flex items-center px-8 py-4 bg-white text-gray-700 font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 border border-gray-200">
               <Play className="mr-2 w-5 h-5 text-[#8E94F2]" />
-              Ver demo
+              Ver Código
             </button>
           </div>
 
-          {/* Trust indicators */}
+          {/* Project info */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-8 text-sm text-gray-500">
             <div className="flex items-center">
               <div className="flex -space-x-2 mr-3">
-                {[1, 2, 3, 4].map((i) => (
+                {[1, 2, 3].map((i) => (
                   <div
                     key={i}
                     className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 border-2 border-white"
                   ></div>
                 ))}
               </div>
-              <span>+500 empresas confían en IAM</span>
+              <span>Desarrollado por estudiantes</span>
             </div>
             
             <div className="flex items-center">
@@ -73,7 +89,7 @@ export default function HeroSection() {
                   <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
                 ))}
               </div>
-              <span>4.9/5 calificación</span>
+              <span>Proyecto académico</span>
             </div>
           </div>
         </div>

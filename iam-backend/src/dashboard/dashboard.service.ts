@@ -4,6 +4,8 @@ import { ErrorHandlerService } from '../common/services/error-handler.service';
 import { KPICacheService } from '../common/services/kpi-cache.service';
 import { KPIErrorHandler } from '../common/services/kpi-error-handler.service';
 import { CacheStrategiesService } from '../common/services/cache-strategies.service';
+import { FinancialDataFilterService, FinancialDataFilterOptions } from './services/financial-data-filter.service';
+import { Rol } from '@prisma/client';
 
 export interface KPIData {
   totalProductos: number;
@@ -288,30 +290,49 @@ export class DashboardService {
     private cacheService: KPICacheService,
     private kpiErrorHandler: KPIErrorHandler,
     private cacheStrategies: CacheStrategiesService,
+    private financialDataFilter: FinancialDataFilterService,
   ) {}
 
-  async getKpis(empresaId: number): Promise<KPIData> {
+  async getKpis(empresaId: number, userRole?: Rol): Promise<KPIData> {
     try {
       // 🔄 Usar Refresh-Ahead para KPIs que necesitan estar siempre disponibles
-      return await this.cacheStrategies.refreshAhead(
+      const kpis = await this.cacheStrategies.refreshAhead(
         `kpis:${empresaId}`,
         () => this.calculateKPIs(empresaId),
         'dynamic',
       );
+
+      // Aplicar filtros de datos financieros si se especifica rol
+      if (userRole) {
+        const accessLevel = this.getAccessLevel(userRole);
+        const filterOptions = this.financialDataFilter.getFilterOptions(userRole, accessLevel);
+        return this.financialDataFilter.filterFinancialKPIs(kpis, filterOptions) as KPIData;
+      }
+
+      return kpis;
     } catch (error) {
       this.logger.error(`Error getting KPIs for empresa ${empresaId}:`, error);
       return this.kpiErrorHandler.handleKPIError(error, 'getKpis', empresaId);
     }
   }
 
-  async getFinancialKPIs(empresaId: number): Promise<FinancialKPIs> {
+  async getFinancialKPIs(empresaId: number, userRole?: Rol): Promise<FinancialKPIs> {
     try {
       // 🔄 Usar Refresh-Ahead para KPIs financieros que necesitan estar siempre disponibles
-      return await this.cacheStrategies.refreshAhead(
+      const financialKPIs = await this.cacheStrategies.refreshAhead(
         `financial-kpis:${empresaId}`,
         () => this.calculateFinancialKPIs(empresaId),
         'dynamic',
       );
+
+      // Aplicar filtros de datos financieros si se especifica rol
+      if (userRole) {
+        const accessLevel = this.getAccessLevel(userRole);
+        const filterOptions = this.financialDataFilter.getFilterOptions(userRole, accessLevel);
+        return this.financialDataFilter.filterFinancialKPIs(financialKPIs, filterOptions) as FinancialKPIs;
+      }
+
+      return financialKPIs;
     } catch (error) {
       this.logger.error(
         `Error getting Financial KPIs for empresa ${empresaId}:`,
@@ -843,10 +864,10 @@ export class DashboardService {
     };
   }
 
-  async getProductosKPI(empresaId: number) {
+  async getProductosKPI(empresaId: number, userRole?: Rol) {
     try {
       // 🔥 Usar Cache-Aside para productos que se leen frecuentemente
-      return await this.cacheStrategies.cacheAside(
+      const productos = await this.cacheStrategies.cacheAside(
         `productos-kpi:${empresaId}`,
         async () => {
           // Obtener productos con movimientos recientes
@@ -891,6 +912,17 @@ export class DashboardService {
         },
         'producto',
       );
+
+      // Aplicar filtros de datos financieros si se especifica rol
+      if (userRole) {
+        const accessLevel = this.getAccessLevel(userRole);
+        const filterOptions = this.financialDataFilter.getFilterOptions(userRole, accessLevel);
+        return productos.map(producto => 
+          this.financialDataFilter.filterProductData(producto, filterOptions)
+        );
+      }
+
+      return productos;
     } catch (error) {
       this.errorHandler.handlePrismaError(
         error,
@@ -948,7 +980,7 @@ export class DashboardService {
     }
   }
 
-  async getDashboardData(empresaId: number) {
+  async getDashboardData(empresaId: number, userRole?: Rol) {
     try {
       // Calcular el primer día del mes actual
       const primerDiaDelMes = new Date();
@@ -1166,7 +1198,7 @@ export class DashboardService {
         });
       }
 
-      return {
+      const dashboardData = {
         kpis: {
           stockInicial,
           unidadesVendidas,
@@ -1199,6 +1231,15 @@ export class DashboardService {
           movimientosPorTipo,
         },
       };
+
+      // Aplicar filtros de datos financieros si se especifica rol
+      if (userRole) {
+        const accessLevel = this.getAccessLevel(userRole);
+        const filterOptions = this.financialDataFilter.getFilterOptions(userRole, accessLevel);
+        return this.financialDataFilter.filterDashboardData(dashboardData, filterOptions);
+      }
+
+      return dashboardData;
     } catch (error) {
       this.errorHandler.handlePrismaError(
         error,
@@ -1777,6 +1818,23 @@ export class DashboardService {
     } catch (error) {
       this.logger.error(`Error getting Sensor KPIs for empresa ${empresaId}:`, error);
       return this.kpiErrorHandler.handleKPIError(error, 'getSensorKPIs', empresaId);
+    }
+  }
+
+  /**
+   * Determina el nivel de acceso basado en el rol del usuario
+   */
+  private getAccessLevel(userRole: Rol): 'full' | 'limited' {
+    switch (userRole) {
+      case 'SUPERADMIN':
+      case 'ADMIN':
+        return 'full';
+      case 'EMPLEADO':
+        return 'limited';
+      case 'PROVEEDOR':
+        return 'limited';
+      default:
+        return 'limited';
     }
   }
 

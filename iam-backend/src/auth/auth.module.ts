@@ -26,6 +26,8 @@ import { securityConfig } from '../config/security.config';
 import { JwtBlacklistService } from './jwt-blacklist.service';
 import { TwoFactorService } from './services/two-factor.service';
 import { TwoFactorController } from './two-factor.controller';
+import { SessionManagementController } from './session-management.controller';
+import { SessionManagementService } from './services/session-management.service';
 import { NotificationModule } from '../notifications/notification.module';
 
 @Module({
@@ -76,11 +78,13 @@ import { NotificationModule } from '../notifications/notification.module';
     OAuthService, // Servicio especializado para OAuth
     RateLimiterService, // Servicio de rate limiting
     RateLimitGuard, // Guard de rate limiting
+    SessionManagementService, // NUEVO: Servicio de gestión de sesiones
   ],
-  controllers: [
-    AuthController,
-    TwoFactorController, // NUEVO: Controlador de 2FA
-  ],
+      controllers: [
+      AuthController,
+      TwoFactorController, // NUEVO: Controlador de 2FA
+      SessionManagementController, // NUEVO: Controlador de gestión de sesiones
+    ],
   exports: [
     AuthService,
     RefreshTokenService,
@@ -98,6 +102,7 @@ import { NotificationModule } from '../notifications/notification.module';
     OAuthService, // Exportar el servicio de OAuth
     RateLimiterService, // Exportar el servicio de rate limiting
     RateLimitGuard, // Exportar el guard de rate limiting
+    SessionManagementService, // NUEVO: Exportar el servicio de gestión de sesiones
   ],
 })
 export class AuthModule {}

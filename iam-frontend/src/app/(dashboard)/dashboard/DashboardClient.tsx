@@ -322,69 +322,141 @@ export default function DashboardClient() {
               <RefreshCw className="w-4 h-4" />
               Reintentar
             </button>
-                  </div>
-
-        {/* Enlaces Rápidos */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Acceso Rápido</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <a 
-              href="/dashboard/kpis" 
-              className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <BarChart3 className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">KPIs Detallados</p>
-                <p className="text-sm text-gray-600">Análisis completo</p>
-              </div>
-            </a>
-
-            <a 
-              href="/dashboard/productos" 
-              className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Package className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Productos</p>
-                <p className="text-sm text-gray-600">Gestionar inventario</p>
-              </div>
-            </a>
-
-            <a 
-              href="/dashboard/movimientos" 
-              className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Activity className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Movimientos</p>
-                <p className="text-sm text-gray-600">Entradas y salidas</p>
-              </div>
-            </a>
-
-            <a 
-              href="/dashboard/proveedores" 
-              className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <ShoppingCart className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Proveedores</p>
-                <p className="text-sm text-gray-600">Gestión de compras</p>
-              </div>
-            </a>
           </div>
         </div>
       </div>
-    </div>
-  )
-}
+    )
+  }
+
+  // Verificar si no hay datos
+  const hasNoData = !kpis || !ventasPorDia || !stockPorCategoria || 
+    (Array.isArray(ventasPorDia) && ventasPorDia.length === 0) ||
+    (Array.isArray(stockPorCategoria) && stockPorCategoria.length === 0) ||
+    (Array.isArray(productos) && productos.length === 0);
+
+  if (hasNoData) {
+    return (
+      <div className="min-h-screen">
+        <div className="p-6 max-w-7xl mx-auto">
+          {/* Header con controles */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+              <p className="text-gray-600 mt-1">
+                Análisis completo de tu inventario y ventas
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {/* Indicador de conexión */}
+              <div className="flex items-center gap-2 text-sm">
+                {isOnline ? (
+                  <Wifi className="w-4 h-4 text-green-500" />
+                ) : (
+                  <WifiOff className="w-4 h-4 text-red-500" />
+                )}
+                <span className={isOnline ? 'text-green-600' : 'text-red-600'}>
+                  {isOnline ? 'En línea' : 'Sin conexión'}
+                </span>
+              </div>
+
+              {/* Botón de refresh */}
+              <button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Actualizar</span>
+              </button>
+
+              {/* Toggle auto-refresh */}
+              <button
+                onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  autoRefreshEnabled 
+                    ? 'bg-[#8E94F2] text-white hover:bg-[#7278e0]' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                <span className="hidden sm:inline">Auto</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Estado vacío */}
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+              <BarChart3 className="w-12 h-12 text-gray-400" />
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-2">No hay datos disponibles</h2>
+            <p className="text-gray-600 mb-6 max-w-md">
+              Tu dashboard aparecerá aquí una vez que agregues productos y realices movimientos de inventario.
+            </p>
+            
+            {/* Enlaces Rápidos */}
+            <div className="w-full max-w-4xl">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Comienza aquí</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <a 
+                  href="/dashboard/productos/nuevo" 
+                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Package className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Agregar Producto</p>
+                    <p className="text-sm text-gray-600">Registra tu primer producto</p>
+                  </div>
+                </a>
+
+                <a 
+                  href="/dashboard/proveedores" 
+                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <ShoppingCart className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Proveedores</p>
+                    <p className="text-sm text-gray-600">Gestiona tus proveedores</p>
+                  </div>
+                </a>
+
+                <a 
+                  href="/dashboard/movimientos/nuevo" 
+                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Activity className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Movimientos</p>
+                    <p className="text-sm text-gray-600">Registra entradas y salidas</p>
+                  </div>
+                </a>
+
+                <a 
+                  href="/dashboard/kpis" 
+                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">KPIs</p>
+                    <p className="text-sm text-gray-600">Ver métricas detalladas</p>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen">

@@ -4,6 +4,7 @@ import { DashboardService } from './dashboard.service';
 import { IndustryKPIService } from './services/industry-kpi.service';
 import { PredictionService } from './services/prediction.service';
 import { AlertService } from './services/alert.service';
+import { FinancialDataFilterService } from './services/financial-data-filter.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CommonModule } from '../common/common.module';
 import { AuthModule } from '../auth/auth.module';
@@ -15,13 +16,15 @@ import { AuthModule } from '../auth/auth.module';
     DashboardService, 
     IndustryKPIService, 
     PredictionService, 
-    AlertService
+    AlertService,
+    FinancialDataFilterService
   ],
   exports: [
     DashboardService, 
     IndustryKPIService, 
     PredictionService, 
-    AlertService
+    AlertService,
+    FinancialDataFilterService
   ],
 })
 export class DashboardModule {}

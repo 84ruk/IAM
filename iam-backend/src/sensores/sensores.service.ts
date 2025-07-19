@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CreateSensorLecturaDto, TipoSensor } from './dto/create-sensor.dto';
+export { TipoSensor };
 import { PrismaService } from '../prisma/prisma.service';
 import { SensorTipo } from '@prisma/client';
 

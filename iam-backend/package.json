@@ -19,6 +19,12 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:dashboard-cqrs": "./scripts/test-dashboard-cqrs.sh",
+    "test:dashboard-unit": "npm test -- --testPathPattern=\"dashboard.*handler.spec.ts|dashboard-cqrs.service.spec.ts\"",
+    "test:dashboard-e2e": "npm run test:e2e -- --testPathPattern=\"dashboard-cqrs.e2e-spec.ts\"",
+    "test:dashboard-performance": "node scripts/performance-test.js",
+    "test:dashboard-cache": "node scripts/cache-test.js",
+    "test:dashboard-stress": "node scripts/stress-test.js",
     "test:security": "node test-security-improvements.js",
     "test:full": "npm run build && npm run test:security && npm run test:api && npm run test:database",
     "test:api": "node scripts/test-api-endpoints.js",
@@ -31,7 +37,9 @@
     "db:migrate": "npx prisma migrate deploy",
     "db:generate": "npx prisma generate",
     "db:seed": "node scripts/seed-database.js",
-    "health:check": "node scripts/health-check.js"
+    "health:check": "node scripts/health-check.js",
+    "mqtt:check": "node scripts/check-mqtt-status.js",
+    "test:sessions": "node scripts/test-session-management.js"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^2.0.2",
@@ -63,6 +71,7 @@
     "helmet": "^8.1.0",
     "isomorphic-dompurify": "^2.26.0",
     "mjml": "^4.15.3",
+    "mqtt": "^5.13.3",
     "nodemailer": "^7.0.5",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",

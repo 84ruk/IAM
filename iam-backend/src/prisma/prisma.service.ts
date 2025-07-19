@@ -23,14 +23,18 @@ export class PrismaService
     super({
       log: process.env.NODE_ENV === 'production' 
         ? [
-            { emit: 'stdout', level: 'error' },
-            { emit: 'stdout', level: 'warn' },
+            { emit: 'stdout' as const, level: 'error' as const },
+            { emit: 'stdout' as const, level: 'warn' as const },
           ]
         : [
-            { emit: 'stdout', level: 'error' },
-            { emit: 'stdout', level: 'warn' },
-            { emit: 'stdout', level: 'info' },
-            { emit: 'stdout', level: 'query' },
+            { emit: 'stdout' as const, level: 'error' as const },
+            { emit: 'stdout' as const, level: 'warn' as const },
+            // Removido 'info' y 'query' para reducir logs verbosos
+            // Solo mostrar queries si DEBUG_PRISMA=true
+            ...(process.env.DEBUG_PRISMA === 'true' ? [
+              { emit: 'stdout' as const, level: 'info' as const },
+              { emit: 'stdout' as const, level: 'query' as const },
+            ] : []),
           ],
       datasources: {
         db: {
@@ -82,8 +86,9 @@ export class PrismaService
       try {
         await this.updateConnectionStats();
         
-        // Log de estadísticas solo en desarrollo o si hay muchas conexiones activas
-        if (process.env.NODE_ENV === 'development' && this.connectionPoolStats.activeConnections > 0) {
+        // Log de estadísticas solo si hay muchas conexiones activas o DEBUG_POOL=true
+        if ((process.env.DEBUG_POOL === 'true' || this.connectionPoolStats.activeConnections > 10) && 
+            this.connectionPoolStats.activeConnections > 0) {
           this.logger.debug('Estadísticas del pool de conexiones:', {
             activas: this.connectionPoolStats.activeConnections,
             totales: this.connectionPoolStats.totalConnections,

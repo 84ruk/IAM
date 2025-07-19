@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { MovimientoService } from './movimiento.service';
 import { CrearMovimientoDto } from './dto/crear-movimiento.dto';
-import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { JwtUser } from 'src/auth/interfaces/jwt-user.interface';
 import { TipoMovimiento } from '@prisma/client';

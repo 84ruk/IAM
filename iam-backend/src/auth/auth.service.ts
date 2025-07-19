@@ -25,6 +25,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtBlacklistService } from './jwt-blacklist.service';
 import { CacheStrategiesService } from '../common/services/cache-strategies.service';
 import { NotificationService } from '../notifications/notification.service';
+import { SessionManagementService } from './services/session-management.service';
 
 interface JwtUserPayload {
   id: number;
@@ -51,6 +52,7 @@ export class AuthService {
     private jwtAuditService: JwtAuditService,
     private cacheStrategiesService: CacheStrategiesService,
     private notificationService: NotificationService, // NUEVO: Servicio de notificaciones
+    private sessionManagementService: SessionManagementService, // NUEVO: Servicio de gestión de sesiones
   ) {}
 
   async validateUser(email: string, password: string, ip?: string) {
@@ -121,6 +123,19 @@ export class AuthService {
     };
 
     const token = this.jwtService.sign(payload);
+
+    // NUEVO: Verificar límites de sesiones concurrentes
+    const sessionLimits = await this.sessionManagementService.checkSessionLimits(user.id, user.rol as any);
+    
+    if (sessionLimits.needsRevocation) {
+      // Revocar sesiones excedentes (las más antiguas)
+      const revokedCount = await this.sessionManagementService.revokeExcessSessions(user.id, user.rol as any);
+      
+      this.secureLogger.log(
+        `Session limit exceeded for user ${user.id}. Revoked ${revokedCount} excess sessions.`,
+        user.id.toString(),
+      );
+    }
 
     // Crear refresh token
     const refreshToken = await this.refreshTokenService.createRefreshToken(

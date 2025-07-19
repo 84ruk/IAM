@@ -12,7 +12,7 @@ import { EmpresaRequired } from '../auth/decorators/empresa-required.decorator';
 import { JwtUser } from '../auth/interfaces/jwt-user.interface';
 
 @Controller('dashboard')
-@UseGuards(JwtAuthGuard, UnifiedEmpresaGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
 @EmpresaRequired()
 export class DashboardController {
   constructor(
@@ -23,17 +23,19 @@ export class DashboardController {
   ) {}
 
   @Get('kpis')
+  @Roles(Rol.SUPERADMIN, Rol.ADMIN, Rol.EMPLEADO)
   async getKpis(@Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.dashboardService.getKpis(user.empresaId!);
+    return this.dashboardService.getKpis(user.empresaId!, user.rol);
   }
 
   @Get('financial-kpis')
+  @Roles(Rol.SUPERADMIN, Rol.ADMIN)
   async getFinancialKPIs(@Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.dashboardService.getFinancialKPIs(user.empresaId!);
+    return this.dashboardService.getFinancialKPIs(user.empresaId!, user.rol);
   }
 
   @Get('data')
@@ -43,10 +45,11 @@ export class DashboardController {
   }
 
   @Get('productos-kpi')
+  @Roles(Rol.SUPERADMIN, Rol.ADMIN, Rol.EMPLEADO)
   async getProductosKPI(@Request() req) {
     const user = req.user as JwtUser;
     // EmpresaGuard ya valida que empresaId existe
-    return this.dashboardService.getProductosKPI(user.empresaId!);
+    return this.dashboardService.getProductosKPI(user.empresaId!, user.rol);
   }
 
   @Get('movimientos-por-producto')
@@ -57,6 +60,7 @@ export class DashboardController {
   }
 
   @Get('advanced-kpis')
+  @Roles(Rol.SUPERADMIN, Rol.ADMIN, Rol.EMPLEADO)
   async getAdvancedKPIs(@Request() req) {
     const user = req.user as JwtUser;
     return this.dashboardService.getAdvancedKPIs(user.empresaId!);

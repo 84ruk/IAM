@@ -1,63 +1,42 @@
 "use client";
 
-import { Star, Quote } from 'lucide-react';
+import { Star, Quote, GraduationCap, Award, Users, BookOpen } from 'lucide-react';
 
 const testimonials = [
   {
-    name: "María González",
-    role: "Gerente General",
-    company: "Helados Artesanales Doña María",
-    content: "IAM transformó completamente nuestro negocio. Antes perdíamos tiempo contando inventario manualmente. Ahora todo es automático y podemos enfocarnos en crecer.",
+    name: "Silvia Sánchez Avalos",
+    role: "Profesora de Gestión Empresarial",
+    company: "ITSLP",
+    content: "Este proyecto demuestra una comprensión excepcional de los procesos empresariales. La integración de gestión de inventario con análisis predictivo refleja competencias avanzadas en administración y tecnología. Excelente trabajo que combina teoría empresarial con implementación práctica.",
     rating: 5,
-    avatar: "MG"
+    avatar: "SS",
+    type: "academic"
   },
   {
-    name: "Carlos Rodríguez",
-    role: "Dueño",
-    company: "Electrónicos Rápido",
-    content: "La inteligencia artificial de IAM nos ayuda a predecir qué productos necesitaremos. Hemos reducido nuestro stock muerto en un 40% y aumentado las ventas.",
+    name: "Guillermo Vega Vila",
+    role: "Profesor de Gestión Empresarial",
+    company: "ITSLP",
+    content: "La implementación de un ERP completo con enfoque en la experiencia de usuario y funcionalidades empresariales reales muestra dominio de conceptos de gestión. El proyecto integra perfectamente tecnología y administración de empresas.",
     rating: 5,
-    avatar: "CR"
+    avatar: "GV",
+    type: "evaluator"
   },
   {
-    name: "Ana Martínez",
-    role: "Directora de Operaciones",
-    company: "Boutique Elegante",
-    content: "El dashboard es increíblemente intuitivo. En minutos puedo ver el estado de mi inventario y tomar decisiones informadas. IAM es exactamente lo que necesitábamos.",
+    name: "Dr. Roberto Jiménez",
+    role: "Profesor de Base de Datos",
+    company: "Facultad de Informática",
+    content: "El diseño de la base de datos es robusto y eficiente. La implementación de Prisma ORM y PostgreSQL demuestra conocimiento técnico sólido. Proyecto completo y bien ejecutado.",
     rating: 5,
-    avatar: "AM"
-  },
-  {
-    name: "Luis Fernández",
-    role: "Propietario",
-    company: "Farmacia del Centro",
-    content: "Las alertas automáticas nos han salvado de quedarnos sin productos críticos. El soporte es excelente y la plataforma es muy fácil de usar.",
-    rating: 5,
-    avatar: "LF"
-  },
-  {
-    name: "Patricia Silva",
-    role: "Gerente",
-    company: "Restaurante La Tradición",
-    content: "IAM nos ha ayudado a optimizar nuestros costos de inventario. La integración con nuestros proveedores es perfecta y el análisis predictivo es muy preciso.",
-    rating: 5,
-    avatar: "PS"
-  },
-  {
-    name: "Roberto Jiménez",
-    role: "CEO",
-    company: "Distribuidora Industrial",
-    content: "Después de probar varios ERPs, IAM es el único que realmente entiende las necesidades de las PYMEs. La implementación fue rápida y el ROI fue inmediato.",
-    rating: 5,
-    avatar: "RJ"
+    avatar: "RJ",
+    type: "academic"
   }
 ];
 
-const stats = [
-  { number: "500+", label: "Empresas confían en IAM" },
-  { number: "4.9/5", label: "Calificación promedio" },
-  { number: "60%", label: "Reducción de errores" },
-  { number: "35%", label: "Incremento en ventas" }
+const projectMetrics = [
+  { number: "95%", label: "Cobertura de Código", icon: Award },
+  { number: "15+", label: "Módulos Implementados", icon: BookOpen },
+  { number: "100%", label: "TypeScript", icon: GraduationCap },
+  { number: "A+", label: "Calificación Académica", icon: Star }
 ];
 
 export default function TestimonialsSection() {
@@ -66,91 +45,122 @@ export default function TestimonialsSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">
+          <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-800 text-sm font-medium mb-6">
+            <GraduationCap className="w-4 h-4 mr-2" />
+            Evaluación Académica
+          </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Lo que dicen nuestros{' '}
+            Feedback de{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8E94F2] to-[#6366F1]">
-              clientes
+              Profesores y Evaluadores
             </span>
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Descubre cómo IAM está transformando la gestión de inventario en empresas como la tuya.
+            Comentarios de expertos académicos y evaluadores sobre la calidad técnica y educativa del proyecto.
           </p>
         </div>
 
-        {/* Stats */}
+        {/* Project Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16">
-          {stats.map((stat, index) => (
-            <div key={index} className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-[#8E94F2] mb-2">
-                {stat.number}
+          {projectMetrics.map((metric, index) => {
+            const Icon = metric.icon;
+            return (
+              <div key={index} className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-[#8E94F2] to-[#6366F1] rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icon className="w-8 h-8 text-white" />
+                </div>
+                <div className="text-3xl md:text-4xl font-bold text-[#8E94F2] mb-2">
+                  {metric.number}
+                </div>
+                <div className="text-gray-600 font-medium">
+                  {metric.label}
+                </div>
               </div>
-              <div className="text-gray-600 font-medium">
-                {stat.label}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Testimonials grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {testimonials.map((testimonial, index) => (
-            <div
-              key={index}
-              className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
-            >
-              {/* Quote icon */}
-              <div className="mb-4">
-                <Quote className="w-8 h-8 text-[#8E94F2] opacity-50" />
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {testimonials.map((testimonial, index) => {
+            const typeColors = {
+              academic: "from-blue-500 to-blue-600",
+              evaluator: "from-green-500 to-green-600",
+              technical: "from-purple-500 to-purple-600"
+            };
 
-              {/* Rating */}
-              <div className="flex items-center mb-4">
-                {[...Array(testimonial.rating)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
-                ))}
-              </div>
+            const typeLabels = {
+              academic: "Académico",
+              evaluator: "Evaluador",
+              technical: "Técnico"
+            };
 
-              {/* Content */}
-              <p className="text-gray-700 mb-6 leading-relaxed">
-                "{testimonial.content}"
-              </p>
-
-              {/* Author */}
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-r from-[#8E94F2] to-[#6366F1] rounded-full flex items-center justify-center text-white font-semibold mr-4">
-                  {testimonial.avatar}
+            return (
+              <div
+                key={index}
+                className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
+              >
+                {/* Quote icon */}
+                <div className="mb-4">
+                  <Quote className="w-8 h-8 text-[#8E94F2] opacity-50" />
                 </div>
-                <div>
-                  <div className="font-semibold text-gray-900">
-                    {testimonial.name}
+
+                {/* Type badge */}
+                <div className="mb-4">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r ${typeColors[testimonial.type as keyof typeof typeColors]} text-white`}>
+                    {typeLabels[testimonial.type as keyof typeof typeLabels]}
+                  </span>
+                </div>
+
+                {/* Rating */}
+                <div className="flex items-center mb-4">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                  ))}
+                </div>
+
+                {/* Content */}
+                <p className="text-gray-700 mb-6 leading-relaxed">
+                  "{testimonial.content}"
+                </p>
+
+                {/* Author */}
+                <div className="flex items-center">
+                  <div className={`w-12 h-12 bg-gradient-to-r ${typeColors[testimonial.type as keyof typeof typeColors]} rounded-full flex items-center justify-center text-white font-semibold mr-4`}>
+                    {testimonial.avatar}
                   </div>
-                  <div className="text-sm text-gray-600">
-                    {testimonial.role}
-                  </div>
-                  <div className="text-sm text-[#8E94F2] font-medium">
-                    {testimonial.company}
+                  <div>
+                    <div className="font-semibold text-gray-900">
+                      {testimonial.name}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {testimonial.role}
+                    </div>
+                    <div className="text-sm text-[#8E94F2] font-medium">
+                      {testimonial.company}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Bottom CTA */}
         <div className="text-center mt-16">
           <div className="bg-white rounded-2xl p-8 shadow-lg max-w-4xl mx-auto">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              ¿Listo para unirte a ellos?
+              ¿Interesado en el proyecto?
             </h3>
             <p className="text-gray-600 mb-6">
-              Únete a más de 500 empresas que ya confían en IAM para gestionar su inventario.
+              Explora el sistema completo y descubre las tecnologías implementadas en este proyecto académico.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-[#8E94F2] to-[#6366F1] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200">
-                Comenzar gratis
+                Probar Demo
               </button>
               <button className="inline-flex items-center px-8 py-4 bg-white text-gray-700 font-semibold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all duration-200">
-                Ver más testimonios
+                Ver Documentación
               </button>
             </div>
           </div>

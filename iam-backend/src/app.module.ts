@@ -12,6 +12,7 @@ import { InventarioModule } from './inventario/inventario.module';
 import { PedidoModule } from './pedido/pedido.module';
 import { ProveedorModule } from './proveedor/proveedor.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { DashboardCQRSModule } from './dashboard/dashboard-cqrs.module';
 import { SensoresModule } from './sensores/sensores.module';
 import { AdminModule } from './admin/admin.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
@@ -19,12 +20,15 @@ import { NotificationModule } from './notifications/notification.module';
 import { PrismaService } from './prisma/prisma.service';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { SecurityMiddleware } from './common/middleware/security.middleware';
+import { MqttSensorModule } from './microservices/mqtt-sensor/mqtt-sensor.module';
+import mqttConfig from './config/mqtt.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      load: [mqttConfig],
     }),
     AuthModule,
     UsersModule,
@@ -35,10 +39,12 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
     PedidoModule,
     ProveedorModule,
     DashboardModule,
+    DashboardCQRSModule,
     SensoresModule,
     AdminModule,
     SuperAdminModule,
     NotificationModule,
+    MqttSensorModule,
   ],
   controllers: [AppController],
   providers: [
