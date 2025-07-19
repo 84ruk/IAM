@@ -5,8 +5,9 @@ import Button from './Button'
 
 interface EmptyStateProps {
   icon?: LucideIcon
-  title: string
-  description: string
+  title?: string
+  description?: string
+  text?: string // Prop simplificada para compatibilidad
   actionLabel?: string
   onAction?: () => void
   showAction?: boolean
@@ -45,6 +46,7 @@ export default function EmptyState({
   icon: Icon,
   title,
   description,
+  text,
   actionLabel,
   onAction,
   showAction = false,
@@ -52,6 +54,10 @@ export default function EmptyState({
   className = ""
 }: EmptyStateProps) {
   const styles = variantStyles[variant]
+  
+  // Usar text como title si no se proporciona title
+  const displayTitle = title || text || 'Sin datos'
+  const displayDescription = description || 'No hay datos disponibles para mostrar'
 
   return (
     <div className={`flex flex-col items-center justify-center p-8 text-center ${className}`}>
@@ -62,11 +68,11 @@ export default function EmptyState({
       )}
       
       <h3 className={`text-lg font-semibold mb-2 ${styles.titleColor}`}>
-        {title}
+        {displayTitle}
       </h3>
       
       <p className={`mb-6 max-w-md ${styles.descriptionColor}`}>
-        {description}
+        {displayDescription}
       </p>
 
       {showAction && actionLabel && onAction && (

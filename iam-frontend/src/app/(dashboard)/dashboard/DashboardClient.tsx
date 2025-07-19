@@ -7,6 +7,7 @@ import { useMemo, useState, useCallback, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { CardSkeleton } from '@/components/ui/CardSkeleton'
 import { useAutoRefresh } from '@/lib/useAutoRefresh'
+import { useAllKPIs } from '@/hooks/useKPIs'
 import { 
   TrendingUp, 
   Package, 
@@ -23,11 +24,16 @@ import {
   PercentCircle,
   Info,
   Wifi,
-  WifiOff
+  WifiOff,
+  Target,
+  Activity,
+  TrendingDown
 } from 'lucide-react'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
 import { Loader2 } from 'lucide-react'
 import Select from '@/components/ui/Select'
+import KPICard from '@/components/dashboard/KPICard'
+import { formatCurrency, formatPercentage, getValueColor } from '@/lib/kpi-utils'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, { 
@@ -108,6 +114,15 @@ export default function DashboardClient() {
     errorRetryCount: 3, // Mejorar retry de errores
     errorRetryInterval: 5000, // Intervalo de retry más corto
   })
+  
+  // Hook para KPIs avanzados
+  const {
+    kpis: advancedKpis,
+    financial: financialKpis,
+    isLoading: kpisLoading,
+    error: kpisError
+  } = useAllKPIs('mes', 'general', 30)
+  
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [monthLoading, setMonthLoading] = useState(false)
   const [lastUpdate, setLastUpdate] = useState(new Date())
@@ -196,6 +211,7 @@ export default function DashboardClient() {
   const kpisAdicionales = useMemo(() => {
     if (!productos || productos.length === 0) {
       return {
+        totalProductos: 0,
         valorInventario: 0,
         valorVentas: 0,
         margenPromedio: 0,
@@ -207,6 +223,7 @@ export default function DashboardClient() {
       }
     }
 
+    const totalProductos = productos.length
     const valorInventario = productos.reduce((acc, p) => acc + (p.stock * p.precioVenta), 0)
     const valorVentas = productos.reduce((acc, p) => acc + (p.movimientos * p.precioVenta), 0)
     
@@ -222,6 +239,7 @@ export default function DashboardClient() {
     const productosConStockAlto = productos.filter(p => p.stock > p.stockMinimo * 2).length
 
     return {
+      totalProductos,
       valorInventario,
       valorVentas,
       margenPromedio,
@@ -304,11 +322,69 @@ export default function DashboardClient() {
               <RefreshCw className="w-4 h-4" />
               Reintentar
             </button>
+                  </div>
+
+        {/* Enlaces Rápidos */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Acceso Rápido</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <a 
+              href="/dashboard/kpis" 
+              className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">KPIs Detallados</p>
+                <p className="text-sm text-gray-600">Análisis completo</p>
+              </div>
+            </a>
+
+            <a 
+              href="/dashboard/productos" 
+              className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Package className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Productos</p>
+                <p className="text-sm text-gray-600">Gestionar inventario</p>
+              </div>
+            </a>
+
+            <a 
+              href="/dashboard/movimientos" 
+              className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Activity className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Movimientos</p>
+                <p className="text-sm text-gray-600">Entradas y salidas</p>
+              </div>
+            </a>
+
+            <a 
+              href="/dashboard/proveedores" 
+              className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <ShoppingCart className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Proveedores</p>
+                <p className="text-sm text-gray-600">Gestión de compras</p>
+              </div>
+            </a>
           </div>
         </div>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   return (
     <div className="min-h-screen">
@@ -381,73 +457,99 @@ export default function DashboardClient() {
 
         {/* KPIs principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Valor del Inventario</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${kpisAdicionales.valorInventario.toLocaleString()}
-                  </p>
-                </div>
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Package className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* KPI: Total Productos */}
+          <KPICard
+            title="Total Productos"
+            value={advancedKpis?.totalProductos || kpisAdicionales.totalProductos || 0}
+            icon={Package}
+            iconColor="text-blue-600"
+            isLoading={kpisLoading || isLoading}
+            error={!!kpisError || !!error}
+          />
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Ventas del Mes</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ${kpisAdicionales.valorVentas.toLocaleString()}
-                  </p>
-                </div>
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <TrendingUp className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* KPI: Stock Crítico */}
+          <KPICard
+            title="Stock Crítico"
+            value={advancedKpis?.productosStockBajo || kpisAdicionales.productosCriticos || 0}
+            icon={AlertTriangle}
+            iconColor="text-red-600"
+            valueColor="text-red-600"
+            isLoading={kpisLoading || isLoading}
+            error={!!kpisError || !!error}
+          />
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Margen Promedio</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {kpisAdicionales.margenPromedio.toFixed(1)}%
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <PercentCircle className="w-6 h-6 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* KPI: Valor Inventario */}
+          <KPICard
+            title="Valor Inventario"
+            value={formatCurrency(advancedKpis?.valorTotalInventario || kpisAdicionales.valorInventario || 0)}
+            icon={DollarSign}
+            iconColor="text-green-600"
+            isLoading={kpisLoading || isLoading}
+            error={!!kpisError || !!error}
+          />
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Productos Críticos</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {kpisAdicionales.productosCriticos}
-                    {kpisAdicionales.productosCriticos > 0 && (
-                      <Badge text="¡Atención!" color="bg-red-100 text-red-800" />
-                    )}
-                  </p>
-                </div>
-                <div className="p-3 bg-red-100 rounded-lg">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* KPI: Ventas del Mes */}
+          <KPICard
+            title="Ventas del Mes"
+            value={formatCurrency(advancedKpis?.movimientosUltimoMes || kpisAdicionales.valorVentas || 0)}
+            icon={TrendingUp}
+            iconColor="text-blue-600"
+            isLoading={kpisLoading || isLoading}
+            error={!!kpisError || !!error}
+          />
         </div>
+
+        {/* KPIs Financieros */}
+        {financialKpis && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Financieros</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Margen Bruto */}
+              <KPICard
+                title="Margen Bruto"
+                value={formatPercentage(financialKpis.margenBruto || 0)}
+                icon={PercentCircle}
+                iconColor="text-blue-600"
+                valueColor={getValueColor(financialKpis.margenBruto || 0, 20)}
+                isLoading={kpisLoading}
+                error={!!kpisError}
+              />
+
+              {/* Margen Neto */}
+              <KPICard
+                title="Margen Neto"
+                value={formatPercentage(financialKpis.margenNeto || 0)}
+                icon={Target}
+                iconColor="text-purple-600"
+                valueColor={getValueColor(financialKpis.margenNeto || 0, 10)}
+                isLoading={kpisLoading}
+                error={!!kpisError}
+              />
+
+              {/* ROI Inventario */}
+              <KPICard
+                title="ROI Inventario"
+                value={formatPercentage(financialKpis.roiInventario || 0)}
+                icon={TrendingUp}
+                iconColor="text-green-600"
+                valueColor={getValueColor(financialKpis.roiInventario || 0, 15)}
+                isLoading={kpisLoading}
+                error={!!kpisError}
+              />
+
+              {/* Eficiencia Operativa */}
+              <KPICard
+                title="Eficiencia Operativa"
+                value={formatPercentage(financialKpis.eficienciaOperativa || 0)}
+                icon={TrendingDown}
+                iconColor="text-red-600"
+                valueColor={getValueColor(financialKpis.eficienciaOperativa || 0, 80)}
+                isLoading={kpisLoading}
+                error={!!kpisError}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Gráficos y análisis */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -498,6 +600,43 @@ export default function DashboardClient() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        {/* KPIs Adicionales y Métricas */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Métricas Adicionales</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Movimientos del Mes */}
+            <KPICard
+              title="Movimientos del Mes"
+              value={advancedKpis?.movimientosUltimoMes || 0}
+              icon={Activity}
+              iconColor="text-indigo-600"
+              isLoading={kpisLoading || isLoading}
+              error={!!kpisError || !!error}
+            />
+
+            {/* Margen Promedio (del cálculo original) */}
+            <KPICard
+              title="Margen Promedio"
+              value={`${kpisAdicionales.margenPromedio.toFixed(1)}%`}
+              icon={PercentCircle}
+              iconColor="text-purple-600"
+              valueColor={getValueColor(kpisAdicionales.margenPromedio, 20)}
+              isLoading={isLoading}
+              error={!!error}
+            />
+
+            {/* Total de Productos (del cálculo original) */}
+            <KPICard
+              title="Total Productos"
+              value={kpisAdicionales.totalProductos || 0}
+              icon={Package}
+              iconColor="text-blue-600"
+              isLoading={isLoading}
+              error={!!error}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -51,16 +51,7 @@ export default function Navbar({ user, logout }: { user: User, logout?: () => vo
 
       {user && (
         <div className="flex items-center gap-2 sm:gap-3 ml-2">
-          {isAdmin && (
-            <Link
-              href="/admin/users"
-              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-xs sm:text-sm text-[#8E94F2] bg-[#8E94F2]/10 hover:bg-[#8E94F2]/20 transition rounded-xl whitespace-nowrap"
-            >
-              <Settings size={14} className="sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Administración</span>
-              <span className="sm:hidden">Admin</span>
-            </Link>
-          )}
+          
           {logout && (
             <button
               onClick={logout}
@@ -68,7 +59,6 @@ export default function Navbar({ user, logout }: { user: User, logout?: () => vo
             >
               <LogOut size={14} className="sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Cerrar sesión</span>
-              <span className="sm:hidden">Salir</span>
             </button>
           )}
         </div>

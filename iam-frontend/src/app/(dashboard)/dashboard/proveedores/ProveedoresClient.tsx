@@ -296,8 +296,12 @@ export default function ProveedoresClient() {
             {/* Paginación */}
             {totalPaginas > 1 && (
               <Pagination
-                pagina={pagina}
-                totalPaginas={totalPaginas}
+                currentPage={pagina}
+                totalPages={totalPaginas}
+                totalItems={proveedoresFiltrados.length}
+                itemsPerPage={itemsPorPagina}
+                startIndex={(pagina - 1) * itemsPorPagina}
+                endIndex={Math.min(pagina * itemsPorPagina, proveedoresFiltrados.length)}
                 onPageChange={setPagina}
               />
             )}

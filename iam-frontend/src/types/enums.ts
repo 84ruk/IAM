@@ -1,3 +1,42 @@
+export enum TipoMovimiento {
+  ENTRADA = 'ENTRADA',
+  SALIDA = 'SALIDA'
+}
+
+export enum Rol {
+  ADMIN = 'ADMIN',
+  EMPLEADO = 'EMPLEADO',
+  PROVEEDOR = 'PROVEEDOR',
+  SUPERADMIN = 'SUPERADMIN'
+}
+
+export enum EstadoProducto {
+  ACTIVO = 'ACTIVO',
+  INACTIVO = 'INACTIVO',
+  ELIMINADO = 'ELIMINADO'
+}
+
+export enum EstadoProveedor {
+  ACTIVO = 'ACTIVO',
+  INACTIVO = 'INACTIVO',
+  ELIMINADO = 'ELIMINADO'
+}
+
+export enum TipoProducto {
+  GENERICO = 'GENERICO',
+  ROPA = 'ROPA',
+  ALIMENTO = 'ALIMENTO',
+  ELECTRONICO = 'ELECTRONICO'
+}
+
+export enum UnidadMedida {
+  UNIDAD = 'UNIDAD',
+  KILO = 'KILO',
+  LITRO = 'LITRO',
+  CAJA = 'CAJA',
+  PAQUETE = 'PAQUETE'
+}
+
 export type TipoIndustria = 'ALIMENTOS' | 'ROPA' | 'ELECTRONICA' | 'GENERICA' | 'FARMACIA'
 
 export const TipoIndustriaLabel: Record<TipoIndustria, string> = {
@@ -7,8 +46,6 @@ export const TipoIndustriaLabel: Record<TipoIndustria, string> = {
   FARMACIA: 'Farmacia',
   GENERICA: 'Genérica',
 }
-
-export type TipoProducto = 'GENERICO' | 'ROPA' | 'ALIMENTO' | 'ELECTRONICO'
 
 export const TipoProductoConfig: Record<TipoProducto, {
   label: string

@@ -71,7 +71,7 @@ export default function MovimientosClient() {
     
     return movimientos.filter(movimiento => {
       const cumpleFiltroTexto = filtro === '' || 
-        movimiento.producto.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
+        movimiento.producto?.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
         movimiento.motivo?.toLowerCase().includes(filtro.toLowerCase()) ||
         movimiento.descripcion?.toLowerCase().includes(filtro.toLowerCase())
       
@@ -92,7 +92,7 @@ export default function MovimientosClient() {
     
     // Producto más movido
     const productosCount = movimientosFiltrados.reduce((acc, mov) => {
-      const key = mov.producto.nombre
+      const key = mov.producto?.nombre || 'Producto no disponible'
       acc[key] = (acc[key] || 0) + mov.cantidad
       return acc
     }, {} as Record<string, number>)
@@ -388,10 +388,10 @@ export default function MovimientosClient() {
                       
                       <div>
                         <h3 className="font-semibold text-gray-900">
-                          {movimiento.producto.nombre}
+                          {movimiento.producto?.nombre || 'Producto no disponible'}
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {formatearCantidadConUnidad(movimiento.cantidad, movimiento.producto.unidad)}
+                          {formatearCantidadConUnidad(movimiento.cantidad, movimiento.producto?.unidad || 'unidad')}
                         </p>
                       </div>
                     </div>
@@ -448,7 +448,7 @@ export default function MovimientosClient() {
                                 </div>
                               </div>
                             )}
-                            {movimiento.producto.proveedor && (
+                            {movimiento.producto?.proveedor && (
                               <div className="flex items-start gap-2">
                                 <User className="w-4 h-4 text-gray-400 mt-0.5" />
                                 <div>

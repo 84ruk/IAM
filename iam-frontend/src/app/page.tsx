@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: 'IAM - ERP Inteligente para Gestión de Inventario | PYMEs',
   description: 'IAM es el ERP inteligente que revoluciona la gestión de inventario para PYMEs. Automatización, IA, análisis predictivo y control total en una plataforma moderna.',
   keywords: 'ERP, inventario, PYMEs, gestión empresarial, automatización, inteligencia artificial, análisis predictivo',
-  authors: [{ name: 'IAM Team' }],
+  authors: [{ name: 'Equipo IAM' }],
   creator: 'IAM',
   publisher: 'IAM',
   formatDetection: {

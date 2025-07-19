@@ -1,23 +1,44 @@
 'use client'
 
-import { BarChart2, Home, Package, Truck, X } from 'lucide-react'
+import { BarChart2, Home, Package, Truck, X, TrendingUp, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { User } from '@/types/user'
 
-const navItems = [
-  { href: '/dashboard', label: 'Inicio', icon: <Home size={18} /> },
-  { href: '/dashboard/productos', label: 'Productos', icon: <Package size={18} /> },
-  { href: '/dashboard/movimientos', label: 'Movimientos', icon: <BarChart2 size={18} /> },
-  { href: '/dashboard/proveedores', label: 'Proveedores', icon: <Truck size={18} /> },
-]
+// Definir navegación con control de acceso
+const getNavItems = (user: User | null) => {
+  const baseItems = [
+    { href: '/dashboard', label: 'Inicio', icon: <Home size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
+    { href: '/dashboard/productos', label: 'Productos', icon: <Package size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
+    { href: '/dashboard/movimientos', label: 'Movimientos', icon: <BarChart2 size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
+    { href: '/dashboard/proveedores', label: 'Proveedores', icon: <Truck size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
+    { href: '/dashboard/kpis', label: 'KPIs', icon: <TrendingUp size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
+  ]
+
+  // Agregar enlaces de admin solo para usuarios autorizados
+  if (user && ['SUPERADMIN', 'ADMIN'].includes(user.rol)) {
+    baseItems.push({
+      href: '/admin/users',
+      label: 'Administración',
+      icon: <Shield size={18} />,
+      roles: ['SUPERADMIN', 'ADMIN']
+    })
+  }
+
+  // Filtrar items según el rol del usuario
+  return baseItems.filter(item => 
+    user && item.roles.includes(user.rol)
+  )
+}
 
 interface SidebarProps {
   isOpen?: boolean
   onClose?: () => void
+  user?: User | null
 }
 
-export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen = false, onClose, user }: SidebarProps) {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
 
@@ -25,6 +46,9 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Obtener items de navegación filtrados por rol
+  const navItems = getNavItems(user || null)
 
   // Sidebar para escritorio
   const sidebarContent = (
@@ -56,7 +80,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       {/* Sidebar escritorio */}
       <aside className="w-64 bg-white border-r border-gray-200 h-screen hidden md:flex flex-col justify-between py-6 shadow-sm">
         {sidebarContent}
-        <div className="text-xs text-gray-400 px-3">v1.0 - Junio 2025</div>
+        <div className="text-xs text-gray-400 px-3">v2.0 - Agosto 2025</div>
       </aside>
       {/* Sidebar móvil (overlay) */}
       {isOpen && (
@@ -78,7 +102,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               <X className="w-6 h-6" />
             </button>
             {sidebarContent}
-            <div className="text-xs text-gray-400 px-3">v1.0 - Junio 2025</div>
+            <div className="text-xs text-gray-400 px-3">v2.0 - Agosto 2025</div>
           </aside>
         </div>
       )}

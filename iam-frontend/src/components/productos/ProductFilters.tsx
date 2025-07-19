@@ -1,5 +1,5 @@
 import React from 'react'
-import { Search, Filter, X } from 'lucide-react'
+import { Search, Filter, X, Loader2 } from 'lucide-react'
 import Select from '@/components/ui/Select'
 import { TipoProductoConfig } from '@/types/enums'
 
@@ -19,6 +19,7 @@ interface ProductFiltersProps {
   etiquetasUnicas: string[]
   hayFiltrosActivos: boolean
   onLimpiarFiltros: () => void
+  isSearching?: boolean // Nuevo prop para indicar si está buscando
 }
 
 export default function ProductFilters({
@@ -36,7 +37,8 @@ export default function ProductFilters({
   setMostrarFiltros,
   etiquetasUnicas,
   hayFiltrosActivos,
-  onLimpiarFiltros
+  onLimpiarFiltros,
+  isSearching = false
 }: ProductFiltersProps) {
   const tiposProducto = ['GENERICO', 'ROPA', 'ALIMENTO', 'ELECTRONICO']
 
@@ -70,17 +72,32 @@ export default function ProductFilters({
           placeholder="Buscar por nombre o descripción..."
           value={filtroTexto}
           onChange={(e) => setFiltroTexto(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200"
+          className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200"
         />
-        {filtroTexto && (
-          <button
-            onClick={() => setFiltroTexto('')}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+          {isSearching && (
+            <Loader2 className="w-4 h-4 text-[#8E94F2] animate-spin" />
+          )}
+          {filtroTexto && !isSearching && (
+            <button
+              onClick={() => setFiltroTexto('')}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Indicador de búsqueda en progreso */}
+      {isSearching && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-2 text-blue-700">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Buscando productos...</span>
+          </div>
+        </div>
+      )}
 
       {/* Filtros avanzados colapsables */}
       {mostrarFiltros && (

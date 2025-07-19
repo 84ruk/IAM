@@ -136,7 +136,7 @@ export default function DashboardShell({ children, user }: { children: React.Rea
   // Renderizado normal cuando todo está configurado
   return (
     <div className="flex h-screen bg-[#F9FAFB] text-gray-800 font-sans">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="md:hidden flex items-center px-3 py-2 bg-white border-b border-gray-100 shadow-sm">
           <button

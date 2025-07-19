@@ -3,8 +3,10 @@ export interface Proveedor {
   nombre: string
   email?: string
   telefono?: string
-  empresaId: number
   estado: 'ACTIVO' | 'INACTIVO' | 'ELIMINADO'
+  empresaId: number
+  createdAt: string
+  updatedAt: string
   productos?: {
     id: number
     nombre: string
@@ -12,14 +14,10 @@ export interface Proveedor {
   }[]
 }
 
-export interface CrearProveedorDto {
+export interface CreateProveedorDto {
   nombre: string
   email?: string
   telefono?: string
 }
 
-export interface ActualizarProveedorDto {
-  nombre?: string
-  email?: string
-  telefono?: string
-} 
+export interface UpdateProveedorDto extends Partial<CreateProveedorDto> {} 

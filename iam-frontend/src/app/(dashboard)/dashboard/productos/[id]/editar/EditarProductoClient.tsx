@@ -87,8 +87,8 @@ export default function EditarProductoClient() {
         producto={producto ? {
           nombre: producto.nombre,
           stock: producto.stock,
-          stockMinimo: producto.stockMinimo,
-          unidad: producto.unidad
+          stockMinimo: producto.stockMinimo || 0,
+          unidad: producto.unidad || 'unidad'
         } : null}
       />
     </div>

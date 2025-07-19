@@ -115,8 +115,8 @@ export default function MovimientosEliminadosClient() {
   }
 
   const movimientosFiltrados = movimientos.filter((m) =>
-    m.producto.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-    m.producto.etiquetas?.some(etiqueta => etiqueta.toLowerCase().includes(filtro.toLowerCase())) ||
+    m.producto?.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
+    m.producto?.etiquetas?.some(etiqueta => etiqueta.toLowerCase().includes(filtro.toLowerCase())) ||
     m.motivo?.toLowerCase().includes(filtro.toLowerCase())
   )
 
@@ -276,7 +276,7 @@ export default function MovimientosEliminadosClient() {
           {movimientosFiltrados.map((movimiento) => {
             const tipoInfo = getTipoInfo(movimiento.tipo)
             const TipoIcon = tipoInfo.icon
-            const unidadPlural = pluralizarUnidad(movimiento.cantidad, movimiento.producto.unidad)
+            const unidadPlural = pluralizarUnidad(movimiento.cantidad, movimiento.producto?.unidad || 'unidad')
             
             return (
               <Card key={movimiento.id} className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
@@ -296,13 +296,13 @@ export default function MovimientosEliminadosClient() {
                   <div className="flex items-start justify-between mb-4 pr-16">
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-800 text-lg mb-1 line-clamp-2">
-                        {movimiento.producto.nombre}
+                        {movimiento.producto?.nombre || 'Producto no disponible'}
                       </h3>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium bg-red-100 text-red-700">
                           Eliminado
                         </span>
-                        {movimiento.producto.etiquetas && movimiento.producto.etiquetas.length > 0 && (
+                        {movimiento.producto?.etiquetas && movimiento.producto.etiquetas.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {movimiento.producto.etiquetas.map((etiqueta, index) => (
                               <span 

@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { cn } from '@/lib/utils'
+import { useSearchDebounce } from '@/hooks/useDebounce'
 import { 
   ArrowDownIcon, 
   ArrowUpIcon, 
@@ -57,6 +58,8 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
+
+
 export default function ProductosClient() {
   const router = useRouter()
   
@@ -80,10 +83,18 @@ export default function ProductosClient() {
   const [showProductFormModal, setShowProductFormModal] = useState(false)
   const [productoEdit, setProductoEdit] = useState<Producto | null>(null)
 
-  // Construir URL con filtros
-  const buildUrl = () => {
+  // Aplicar debounce al filtro de texto (500ms)
+  const { debouncedValue: debouncedFiltroTexto, isSearching } = useSearchDebounce(filtroTexto, 500)
+
+  // Estado local para mantener datos durante la búsqueda
+  const [localProductos, setLocalProductos] = useState<any[]>([])
+  const [localTotal, setLocalTotal] = useState(0)
+  const [hasInitialData, setHasInitialData] = useState(false)
+
+  // Construir URL con filtros (usando el valor debounced)
+  const buildUrl = useCallback(() => {
     const params = new URLSearchParams()
-    if (filtroTexto) params.set('search', filtroTexto)
+    if (debouncedFiltroTexto) params.set('search', debouncedFiltroTexto)
     if (filtroEtiqueta) params.set('etiqueta', filtroEtiqueta)
     if (filtroTipoProducto) params.set('tipoProducto', filtroTipoProducto)
     if (filtroEstado) params.set('estado', filtroEstado)
@@ -91,13 +102,33 @@ export default function ProductosClient() {
     
     const queryString = params.toString()
     return `/productos${queryString ? `?${queryString}` : ''}`
-  }
+  }, [debouncedFiltroTexto, filtroEtiqueta, filtroTipoProducto, filtroEstado, mostrarAgotados])
 
   // Obtener productos con filtros aplicados en el backend
-  const { data: productosData, isLoading, error: errorProductos, mutate } = useSWR(buildUrl(), fetcher)
+  const { data: productosData, error: errorProductos, mutate } = useSWR(buildUrl(), fetcher, {
+    // Configuración optimizada para evitar recargas innecesarias
+    revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+    dedupingInterval: 1000, // Evitar requests duplicados en 1 segundo
+    errorRetryCount: 2,
+    errorRetryInterval: 3000,
+  })
 
-  const productos = productosData?.productos || []
-  const totalProductos = productosData?.total || 0
+  // Actualizar datos locales cuando lleguen nuevos datos del servidor
+  useEffect(() => {
+    if (productosData) {
+      setLocalProductos(productosData.productos || [])
+      setLocalTotal(productosData.total || 0)
+      setHasInitialData(true)
+    }
+  }, [productosData])
+
+  // Estado de carga personalizado - solo mostrar loading si no hay datos iniciales
+  const isLoading = !hasInitialData && !isSearching
+
+  // Usar datos locales para evitar skeleton screens durante la búsqueda
+  const productos = localProductos
+  const totalProductos = localTotal
   const itemsPorPagina = 12
 
   const productosFiltrados = productos // ya viene paginado
@@ -125,20 +156,20 @@ export default function ProductosClient() {
   }
 
   // Función para limpiar filtros
-  const limpiarFiltros = () => {
+  const limpiarFiltros = useCallback(() => {
     setFiltroTexto('')
     setFiltroEtiqueta('')
     setFiltroTipoProducto('')
     setFiltroEstado('')
     setMostrarAgotados(false)
     setPagina(1)
-  }
+  }, [])
 
   // Verificar si hay filtros activos
-  const hayFiltrosActivos = Boolean(filtroTexto || filtroEtiqueta || filtroTipoProducto || filtroEstado || mostrarAgotados)
+  const hayFiltrosActivos = Boolean(debouncedFiltroTexto || filtroEtiqueta || filtroTipoProducto || filtroEstado || mostrarAgotados)
 
   // Función para filtrar por etiqueta al hacer clic en etiqueta
-  const filtrarPorEtiqueta = (etiqueta: string) => {
+  const filtrarPorEtiqueta = useCallback((etiqueta: string) => {
     if (filtroEtiqueta === etiqueta) {
       setFiltroEtiqueta('') // Si ya está activo, lo desactivamos
     } else {
@@ -146,7 +177,7 @@ export default function ProductosClient() {
       setMostrarFiltros(true) // Mostrar filtros para que el usuario vea el filtro activo
     }
     setPagina(1)
-  }
+  }, [filtroEtiqueta])
 
   // Función para mostrar errores
   const mostrarError = (mensaje: string) => {
@@ -242,8 +273,8 @@ export default function ProductosClient() {
 
   const getStockStatus = (producto: Producto) => {
     if (producto.stock === 0) return { status: 'agotado', color: 'text-red-600', bg: 'bg-red-50' }
-    if (producto.stock <= producto.stockMinimo) return { status: 'crítico', color: 'text-orange-600', bg: 'bg-orange-50' }
-    if (producto.stock <= producto.stockMinimo * 2) return { status: 'bajo', color: 'text-yellow-600', bg: 'bg-yellow-50' }
+    if (producto.stockMinimo && producto.stock <= producto.stockMinimo) return { status: 'crítico', color: 'text-orange-600', bg: 'bg-orange-50' }
+    if (producto.stockMinimo && producto.stock <= producto.stockMinimo * 2) return { status: 'bajo', color: 'text-yellow-600', bg: 'bg-yellow-50' }
     return { status: 'normal', color: 'text-green-600', bg: 'bg-green-50' }
   }
 
@@ -265,6 +296,8 @@ export default function ProductosClient() {
     setShowProductFormModal(false)
     mutate()
   }
+
+
 
   if (isLoading) {
     return (
@@ -384,7 +417,7 @@ export default function ProductosClient() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Stock Crítico</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {productos.filter((p: { stock: number; stockMinimo: number }) => p.stock <= p.stockMinimo && p.stock > 0).length}
+                    {productos.filter((p: { stock: number; stockMinimo?: number }) => p.stockMinimo && p.stock <= p.stockMinimo && p.stock > 0).length}
                   </p>
                 </div>
                 <div className="p-3 bg-orange-100 rounded-lg">
@@ -415,6 +448,7 @@ export default function ProductosClient() {
           hayFiltrosActivos={hayFiltrosActivos}
           onLimpiarFiltros={limpiarFiltros}
           etiquetasUnicas={etiquetasUnicas}
+          isSearching={isSearching}
         />
           </div>
 
@@ -624,8 +658,12 @@ export default function ProductosClient() {
             {/* Paginación */}
             {totalPaginas > 1 && (
               <Pagination
-                pagina={pagina}
-                totalPaginas={totalPaginas}
+                currentPage={pagina}
+                totalPages={totalPaginas}
+                totalItems={totalProductos}
+                itemsPerPage={itemsPorPagina}
+                startIndex={(pagina - 1) * itemsPorPagina}
+                endIndex={pagina * itemsPorPagina}
                 onPageChange={setPagina}
               />
             )}
@@ -639,8 +677,8 @@ export default function ProductosClient() {
           producto={selectedProducto ? {
             nombre: selectedProducto.nombre,
             stock: selectedProducto.stock,
-            stockMinimo: selectedProducto.stockMinimo,
-            unidad: selectedProducto.unidad
+            stockMinimo: selectedProducto.stockMinimo || 0,
+            unidad: selectedProducto.unidad || 'unidades'
           } : null}
         />
 

@@ -267,8 +267,8 @@ export default function ProveedorDetalleClient() {
 
   const getStockStatus = (producto: Producto) => {
     if (producto.stock === 0) return { color: 'bg-red-100 text-red-700', icon: XCircle, text: 'Agotado' }
-    if (producto.stock <= producto.stockMinimo) return { color: 'bg-orange-100 text-orange-700', icon: AlertTriangle, text: 'Crítico' }
-    if (producto.stock > producto.stockMinimo * 3) return { color: 'bg-yellow-100 text-yellow-700', icon: TrendingUp, text: 'Alto' }
+    if (producto.stockMinimo && producto.stock <= producto.stockMinimo) return { color: 'bg-orange-100 text-orange-700', icon: AlertTriangle, text: 'Crítico' }
+    if (producto.stockMinimo && producto.stock > producto.stockMinimo * 3) return { color: 'bg-yellow-100 text-yellow-700', icon: TrendingUp, text: 'Alto' }
     return { color: 'bg-green-100 text-green-700', icon: CheckCircle, text: 'Normal' }
   }
 
@@ -499,8 +499,12 @@ export default function ProveedorDetalleClient() {
                     {/* Paginación */}
                     {totalProductos > itemsPorPagina && (
                       <Pagination
-                        pagina={paginaProductos}
-                        totalPaginas={Math.ceil(totalProductos / itemsPorPagina)}
+                        currentPage={paginaProductos}
+                        totalPages={Math.ceil(totalProductos / itemsPorPagina)}
+                        totalItems={totalProductos}
+                        itemsPerPage={itemsPorPagina}
+                        startIndex={(paginaProductos - 1) * itemsPorPagina}
+                        endIndex={Math.min(paginaProductos * itemsPorPagina, totalProductos)}
                         onPageChange={setPaginaProductos}
                       />
                     )}

@@ -146,7 +146,9 @@ export default function MovimientoEliminadoDetalleClient() {
   }
 
   const tipoInfo = getTipoInfo(movimiento.tipo);
-  const stockStatus = movimiento.producto ? getStockStatus(movimiento.producto.stock, movimiento.producto.stockMinimo) : null;
+  const stockStatus = movimiento.producto && movimiento.producto.stockMinimo !== undefined 
+    ? getStockStatus(movimiento.producto.stock, movimiento.producto.stockMinimo) 
+    : null;
 
   return (
     <div className="container mx-auto p-6">

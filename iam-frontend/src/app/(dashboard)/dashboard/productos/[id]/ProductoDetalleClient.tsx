@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2, Package, AlertTriangle, TrendingUp, DollarSign, Calendar, CheckCircle, XCircle, Tag, Eye } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Producto } from '@/types/producto'
-import { TipoProductoConfig } from '@/types/enums'
+import { TipoProductoConfig, TipoProducto } from '@/types/enums'
 import ProductTypeIcon from '@/components/ui/ProductTypeIcon'
 import EtiquetaTag from '@/components/ui/EtiquetaTag'
 import StockInfoModal from '@/components/ui/StockInfoModal'
@@ -83,8 +83,8 @@ export default function ProductoDetalleClient() {
 
   const getStockStatus = (producto: Producto) => {
     if (producto.stock === 0) return { color: 'bg-red-100 text-red-700', badge: 'bg-red-100 text-red-700', icon: XCircle, text: 'Agotado' }
-    if (producto.stock <= producto.stockMinimo) return { color: 'bg-orange-100 text-orange-700', badge: 'bg-orange-100 text-orange-700', icon: AlertTriangle, text: 'Crítico' }
-    if (producto.stock > producto.stockMinimo * 3) return { color: 'bg-yellow-100 text-yellow-700', badge: 'bg-yellow-100 text-yellow-700', icon: TrendingUp, text: 'Alto' }
+    if (producto.stockMinimo && producto.stock <= producto.stockMinimo) return { color: 'bg-orange-100 text-orange-700', badge: 'bg-orange-100 text-orange-700', icon: AlertTriangle, text: 'Crítico' }
+    if (producto.stockMinimo && producto.stock > producto.stockMinimo * 3) return { color: 'bg-yellow-100 text-yellow-700', badge: 'bg-yellow-100 text-yellow-700', icon: TrendingUp, text: 'Alto' }
     return { color: 'bg-green-100 text-green-700', badge: 'bg-green-100 text-green-700', icon: CheckCircle, text: 'Normal' }
   }
 

@@ -1,36 +1,54 @@
-// src/types/movimiento.ts
+import { TipoMovimiento } from './enums'
 
-export type Movimiento = {
+export interface Movimiento {
   id: number
-  tipo: 'ENTRADA' | 'SALIDA'
+  tipo: TipoMovimiento
   cantidad: number
-  fecha: string
-  motivo?: string | null
-  descripcion?: string | null
+  productoId: number
+  empresaId: number
+  motivo?: string
+  descripcion?: string
   estado: 'ACTIVO' | 'ELIMINADO'
-  producto: {
+  fecha: string
+  createdAt: string
+  updatedAt: string
+  producto?: {
     id: number
     nombre: string
-    descripcion?: string | null
+    descripcion?: string
     stock: number
-    stockMinimo: number
+    stockMinimo?: number
     precioCompra: number
     precioVenta: number
-    unidad: string
-    etiquetas?: string[]
-    codigoBarras?: string | null
-    rfid?: string | null
-    sku?: string | null
+    unidad?: string
+    etiquetas: string[]
+    codigoBarras?: string
+    rfid?: string
+    sku?: string
     estado: string
-    tipoProducto: string
+    tipoProducto?: string
     proveedor?: {
       id: number
       nombre: string
-      email?: string | null
-      telefono?: string | null
+      email?: string
+      telefono?: string
       estado: string
-    } | null
+    }
   }
+}
+
+export interface CreateMovimientoDto {
+  tipo: TipoMovimiento
+  cantidad: number
+  productoId: number
+  proveedorId?: number
+  motivo?: string
+  descripcion?: string
+}
+
+export interface UpdateMovimientoDto {
+  motivo?: string
+  descripcion?: string
 }
 
 export type MovimientoDetalle = {
@@ -76,12 +94,4 @@ export type EstadisticasMovimientos = {
 export type MovimientosResponse = {
   movimientos: Movimiento[]
   estadisticas: EstadisticasMovimientos
-}
-
-export type CrearMovimiento = {
-  tipo: 'ENTRADA' | 'SALIDA'
-  cantidad: number
-  productoId: number
-  motivo?: string
-  descripcion?: string
 }

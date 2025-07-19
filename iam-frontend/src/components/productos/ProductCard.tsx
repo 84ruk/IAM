@@ -12,6 +12,7 @@ import {
 import { Card, CardContent } from '@/components/ui/Card'
 import { pluralizarUnidad, formatearCantidadConUnidad } from '@/lib/pluralization'
 import { Producto } from '@/types/producto'
+import { TipoProducto } from '@/types/enums'
 import ProductTypeIcon from '@/components/ui/ProductTypeIcon'
 import EtiquetaTag from '@/components/ui/EtiquetaTag'
 
@@ -42,7 +43,7 @@ export default function ProductCard({
         color: "bg-red-100 text-red-700",
         icon: Package
       }
-    } else if (producto.stock <= producto.stockMinimo) {
+    } else if (producto.stockMinimo !== undefined && producto.stock <= producto.stockMinimo) {
       return {
         color: "bg-yellow-100 text-yellow-700",
         icon: Package
@@ -123,7 +124,7 @@ export default function ProductCard({
             stockStatus.color
           )}>
             <StockIcon className="w-3 h-3" />
-            {formatearCantidadConUnidad(producto.stock, producto.unidad.toLowerCase())}
+            {formatearCantidadConUnidad(producto.stock, producto.unidad?.toLowerCase() || 'unidad')}
           </span>
         </div>
 
