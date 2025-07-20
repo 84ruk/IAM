@@ -18,10 +18,10 @@ export default function EditarProductoClient() {
 
   useEffect(() => {
     const fetchProducto = async () => {
-      if (!params.id) return
+      if (!params?.id) return
       
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos/${params.id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos/${params?.id}`, {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
@@ -45,7 +45,7 @@ export default function EditarProductoClient() {
     }
 
     fetchProducto()
-  }, [params.id])
+      }, [params?.id])
 
   if (isLoading) {
     return (
@@ -66,9 +66,9 @@ export default function EditarProductoClient() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
-        <VolverAtras href={`/dashboard/productos/${params.id}`} label="Volver a detalles" />
+        <VolverAtras href={`/dashboard/productos/${params?.id}`} label="Volver a detalles" />
         <Link
-          href={`/dashboard/productos/${params.id}`}
+                      href={`/dashboard/productos/${params?.id}`}
           className="inline-flex items-center gap-2 px-3 py-1 rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-[#8E94F2] hover:border-[#8E94F2] transition-colors text-sm shadow-sm"
           title="Ver detalles del producto"
         >

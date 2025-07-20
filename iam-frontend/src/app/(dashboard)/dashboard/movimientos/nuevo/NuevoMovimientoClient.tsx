@@ -340,7 +340,7 @@ export default function NuevoMovimientoClient() {
 
   // Preseleccionar proveedor si viene en la URL
   useEffect(() => {
-    const proveedorIdFromUrl = searchParams.get('proveedorId')
+    const proveedorIdFromUrl = searchParams?.get('proveedorId')
     if (proveedorIdFromUrl && proveedores.length > 0) {
       const proveedor = proveedores.find(p => p.id === parseInt(proveedorIdFromUrl))
       if (proveedor && proveedor.estado === 'ACTIVO') {

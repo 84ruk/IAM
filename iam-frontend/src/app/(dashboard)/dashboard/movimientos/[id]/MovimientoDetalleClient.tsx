@@ -56,11 +56,11 @@ export default function MovimientoDetalleClient() {
 
   useEffect(() => {
     const cargarMovimiento = async () => {
-      if (!params.id) return
+      if (!params?.id) return
       
       try {
         setIsLoading(true)
-        const data = await fetcher(`${process.env.NEXT_PUBLIC_API_URL}/movimientos/${params.id}`)
+        const data = await fetcher(`${process.env.NEXT_PUBLIC_API_URL}/movimientos/${params?.id}`)
         setMovimiento(data)
       } catch (error) {
         console.error('Error al cargar el movimiento:', error)
@@ -71,7 +71,7 @@ export default function MovimientoDetalleClient() {
     }
 
     cargarMovimiento()
-  }, [params.id])
+  }, [params?.id])
 
   const eliminarMovimiento = async () => {
     if (!movimiento || !confirm('¿Estás seguro de que deseas eliminar este movimiento? Esta acción no se puede deshacer.')) {

@@ -40,11 +40,11 @@ export default function EditarMovimientoClient() {
 
   useEffect(() => {
     const cargarMovimiento = async () => {
-      if (!params.id) return
+      if (!params?.id) return
       
       try {
         setIsLoading(true)
-        const data = await fetcher(`${process.env.NEXT_PUBLIC_API_URL}/movimientos/${params.id}`)
+        const data = await fetcher(`${process.env.NEXT_PUBLIC_API_URL}/movimientos/${params?.id}`)
         setMovimiento(data)
         setMotivo(data.motivo || '')
         setDescripcion(data.descripcion || '')
@@ -57,7 +57,7 @@ export default function EditarMovimientoClient() {
     }
 
     cargarMovimiento()
-  }, [params.id])
+  }, [params?.id])
 
   const guardarCambios = async () => {
     if (!movimiento) return

@@ -11,7 +11,7 @@ import { useSearchParams } from 'next/navigation'
 
 function ResetPasswordContent() {
   const searchParams = useSearchParams()
-  const token = searchParams.get('token')
+  const token = searchParams?.get('token')
   
   const [formData, setFormData] = useState({
     newPassword: '',

@@ -39,7 +39,7 @@ export default function ProductoDetalleClient() {
     const cargarProducto = async () => {
       try {
         setIsLoading(true)
-        const data = await fetcher(`/productos/${params.id}`)
+        const data = await fetcher(`/productos/${params?.id}`)
         setProducto(data)
       } catch (err) {
         setError('Error al cargar el producto')
@@ -49,10 +49,10 @@ export default function ProductoDetalleClient() {
       }
     }
 
-    if (params.id) {
+    if (params?.id) {
       cargarProducto()
     }
-  }, [params.id])
+  }, [params?.id])
 
   const eliminarProducto = async () => {
     if (!producto || !confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción lo ocultará del inventario pero podrás restaurarlo desde la papelera.')) {

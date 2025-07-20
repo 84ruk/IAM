@@ -97,10 +97,10 @@ export default function ProveedorDetalleClient() {
   // Cargar proveedor
   useEffect(() => {
     const fetchProveedor = async () => {
-      if (!params.id) return
+      if (!params?.id) return
       
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/proveedores/${params.id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/proveedores/${params?.id}`, {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
@@ -122,17 +122,17 @@ export default function ProveedorDetalleClient() {
     }
 
     fetchProveedor()
-  }, [params.id])
+  }, [params?.id])
 
   // Cargar productos del proveedor
   useEffect(() => {
     const fetchProductos = async () => {
-      if (!params.id) return
+      if (!params?.id) return
       
       try {
         setProductosLoading(true)
         const searchParams = new URLSearchParams()
-        searchParams.set('proveedorId', params.id as string)
+        searchParams.set('proveedorId', params?.id as string)
         searchParams.set('page', paginaProductos.toString())
         searchParams.set('limit', itemsPorPagina.toString())
         if (filtroProductos) searchParams.set('search', filtroProductos)
@@ -158,7 +158,7 @@ export default function ProveedorDetalleClient() {
     }
 
     fetchProductos()
-  }, [params.id, paginaProductos, filtroProductos])
+  }, [params?.id, paginaProductos, filtroProductos])
 
   // Asignar productos al proveedor
   const asignarProductos = async () => {
@@ -173,7 +173,7 @@ export default function ProveedorDetalleClient() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            proveedorId: parseInt(params.id as string)
+            proveedorId: parseInt(params?.id as string)
           })
         })
       )

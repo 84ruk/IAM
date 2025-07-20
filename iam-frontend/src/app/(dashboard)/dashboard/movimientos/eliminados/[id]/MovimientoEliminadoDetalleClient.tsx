@@ -22,7 +22,7 @@ export default function MovimientoEliminadoDetalleClient() {
   useEffect(() => {
     const fetchMovimiento = async () => {
       try {
-        const response = await fetch(`/api/movimientos/eliminados/${params.id}`, {
+        const response = await fetch(`/api/movimientos/eliminados/${params?.id}`, {
           credentials: 'include',
         });
 
@@ -39,10 +39,10 @@ export default function MovimientoEliminadoDetalleClient() {
       }
     };
 
-    if (params.id) {
+    if (params?.id) {
       fetchMovimiento();
     }
-  }, [params.id]);
+  }, [params?.id]);
 
   const handleRestaurar = async () => {
     if (!movimiento) return;
