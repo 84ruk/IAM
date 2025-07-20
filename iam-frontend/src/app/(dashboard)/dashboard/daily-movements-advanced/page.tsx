@@ -30,7 +30,7 @@ export default function DailyMovementsAdvancedPage() {
     groupBy: 'day',
     sortBy: 'date',
     sortOrder: 'desc'
-  })
+  } as FiltersType)
   
   const [showFilters, setShowFilters] = useState(true)
   const [showChart, setShowChart] = useState(true)
@@ -180,8 +180,13 @@ export default function DailyMovementsAdvancedPage() {
             }>
               <DailyMovementsFilters
                 onFiltersChange={handleFiltersChange}
-                showAdvanced={true}
-                collapsible={true}
+                onReset={() => setCurrentFilters({
+                  period: '7d',
+                  chartType: 'combined',
+                  groupBy: 'day',
+                  sortBy: 'date',
+                  sortOrder: 'desc'
+                } as FiltersType)}
               />
             </Suspense>
           </div>

@@ -71,35 +71,65 @@ export class GetDailyMovementsHandler {
 
     this.logger.log(`Calculando movimientos para empresa ${empresaId}, días: ${days}, fecha límite: ${fechaLimite.toISOString()}`);
 
-    // Consulta optimizada para obtener movimientos diarios
+    // ✅ MEJORADO: Consulta más completa con información de productos y proveedores
     const movimientos = await this.prisma.$queryRaw<Array<{
       fecha: string;
       tipo: 'ENTRADA' | 'SALIDA';
       cantidad: number;
       valor: number;
+      productoId: number;
+      productoNombre: string;
+      tipoProducto: string;
+      proveedorNombre?: string;
+      motivo?: string;
+      precioCompra: number;
+      precioVenta: number;
     }>>`
       SELECT 
         DATE(m.fecha) as fecha,
         m.tipo,
-        SUM(m.cantidad) as cantidad,
-        SUM(m.cantidad * p."precioVenta") as valor
+        CAST(SUM(m.cantidad) AS INTEGER) as cantidad,
+        CAST(SUM(m.cantidad * p."precioVenta") AS DECIMAL(10,2)) as valor,
+        CAST(p.id AS INTEGER) as "productoId",
+        p.nombre as "productoNombre",
+        p."tipoProducto" as "tipoProducto",
+        pr.nombre as "proveedorNombre",
+        m.motivo,
+        CAST(p."precioCompra" AS DECIMAL(10,2)) as "precioCompra",
+        CAST(p."precioVenta" AS DECIMAL(10,2)) as "precioVenta"
       FROM "MovimientoInventario" m
       INNER JOIN "Producto" p ON m."productoId" = p.id
+      LEFT JOIN "Proveedor" pr ON p."proveedorId" = pr.id
       WHERE m."empresaId" = ${empresaId}
         AND m.fecha >= ${fechaLimite}
-      GROUP BY DATE(m.fecha), m.tipo
-      ORDER BY fecha ASC
+      GROUP BY DATE(m.fecha), m.tipo, p.id, p.nombre, p."tipoProducto", pr.nombre, m.motivo, p."precioCompra", p."precioVenta"
+      ORDER BY fecha ASC, cantidad DESC
     `;
+
+    // ✅ NUEVO: Obtener información adicional de productos y stock
+    const productosInfo = await this.prisma.producto.findMany({
+      where: { empresaId },
+      select: {
+        id: true,
+        nombre: true,
+        stock: true,
+        stockMinimo: true,
+        tipoProducto: true,
+        precioCompra: true,
+        precioVenta: true,
+        proveedor: {
+          select: { nombre: true }
+        }
+      }
+    });
 
     // ✅ CORREGIDO: Log seguro sin JSON.stringify
     this.logger.log(`Movimientos obtenidos de la base de datos: ${movimientos.length} registros`);
-    if (movimientos.length > 0) {
-      this.logger.log(`Primer movimiento: ${movimientos[0].fecha} - ${movimientos[0].tipo} - ${movimientos[0].cantidad}`);
-    }
+    this.logger.log(`Productos en inventario: ${productosInfo.length}`);
 
     // Procesar datos y crear estructura por día
-    const dailyData = this.processDailyData(movimientos, days);
-    const summary = this.calculateSummary(dailyData);
+    const dailyData = this.processDailyData(movimientos, days, productosInfo);
+    const summary = this.calculateSummary(dailyData, movimientos, productosInfo);
 
     // ✅ CORREGIDO: Log seguro sin JSON.stringify
     this.logger.log(`Datos procesados: ${dailyData.length} días con datos`);
@@ -112,12 +142,19 @@ export class GetDailyMovementsHandler {
         source: 'cqrs',
         generatedAt: new Date().toISOString(),
         daysRequested: days,
-        totalDays: dailyData.length
+        totalDays: dailyData.length,
+        // ✅ NUEVO: Metadatos adicionales
+        totalProductos: productosInfo.length,
+        totalProveedores: new Set(productosInfo.map(p => p.proveedor?.nombre).filter(Boolean)).size,
+        rangoFechas: {
+          inicio: fechaLimite.toISOString().split('T')[0],
+          fin: new Date().toISOString().split('T')[0]
+        }
       }
     };
   }
 
-  private processDailyData(movimientos: any[], days: number): DailyMovementData[] {
+  private processDailyData(movimientos: any[], days: number, productosInfo: any[]): DailyMovementData[] {
     const dailyMap = new Map<string, DailyMovementData>();
     
     // Inicializar todos los días con valores en cero
@@ -133,16 +170,28 @@ export class GetDailyMovementsHandler {
         neto: 0,
         valorEntradas: 0,
         valorSalidas: 0,
-        valorNeto: 0
+        valorNeto: 0,
+        // ✅ NUEVO: Campos adicionales
+        productosUnicos: 0,
+        proveedoresUnicos: 0,
+        margenPromedio: 0,
+        stockBajoCount: 0
       });
     }
 
     // Procesar movimientos reales
+    const movimientosPorDia = new Map<string, any[]>();
+    
     movimientos.forEach(mov => {
       // Convertir la fecha del movimiento a string en formato YYYY-MM-DD
       const fechaMovimiento = typeof mov.fecha === 'string' 
         ? mov.fecha 
         : new Date(mov.fecha).toISOString().split('T')[0];
+      
+      if (!movimientosPorDia.has(fechaMovimiento)) {
+        movimientosPorDia.set(fechaMovimiento, []);
+      }
+      movimientosPorDia.get(fechaMovimiento)!.push(mov);
       
       const dayData = dailyMap.get(fechaMovimiento);
       if (dayData) {
@@ -159,19 +208,50 @@ export class GetDailyMovementsHandler {
       }
     });
 
+    // ✅ NUEVO: Calcular métricas adicionales por día
+    dailyMap.forEach((dayData, fecha) => {
+      const movimientosDelDia = movimientosPorDia.get(fecha) || [];
+      
+      // Productos únicos del día
+      const productosUnicos = new Set(movimientosDelDia.map(m => m.productoId));
+      dayData.productosUnicos = productosUnicos.size;
+      
+      // Proveedores únicos del día
+      const proveedoresUnicos = new Set(movimientosDelDia.map(m => m.proveedorNombre).filter(Boolean));
+      dayData.proveedoresUnicos = proveedoresUnicos.size;
+      
+      // Margen promedio del día
+      const margenes = movimientosDelDia.map(m => {
+        const margen = m.precioVenta - m.precioCompra;
+        return margen > 0 ? margen : 0;
+      });
+      dayData.margenPromedio = margenes.length > 0 ? margenes.reduce((a, b) => a + b, 0) / margenes.length : 0;
+      
+      // Productos con stock bajo
+      const productosConStockBajo = productosInfo.filter(p => p.stock <= p.stockMinimo);
+      dayData.stockBajoCount = productosConStockBajo.length;
+    });
+
     // Convertir a array y ordenar por fecha
     return Array.from(dailyMap.values())
       .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
   }
 
-  private calculateSummary(data: DailyMovementData[]): DailyMovementsSummary {
+  private calculateSummary(data: DailyMovementData[], movimientos: any[], productosInfo: any[]): DailyMovementsSummary {
     if (data.length === 0) {
       return {
         avgEntradasDiarias: 0,
         avgSalidasDiarias: 0,
         diaMaxActividad: '',
         totalMovimientos: 0,
-        tendencia: 'ESTABLE'
+        tendencia: 'ESTABLE',
+        // ✅ NUEVO: Campos adicionales
+        valorTotalInventario: 0,
+        margenBrutoPromedio: 0,
+        productosMasVendidos: [],
+        proveedoresPrincipales: [],
+        alertasStock: [],
+        distribucionPorTipo: []
       };
     }
 
@@ -202,12 +282,103 @@ export class GetDailyMovementsHandler {
       tendencia = 'DECRECIENTE';
     }
 
+    // ✅ NUEVO: Calcular métricas adicionales
+    const valorTotalInventario = productosInfo.reduce((sum, p) => sum + (p.stock * p.precioVenta), 0);
+    
+    const margenBrutoPromedio = productosInfo.length > 0 
+      ? productosInfo.reduce((sum, p) => sum + (p.precioVenta - p.precioCompra), 0) / productosInfo.length 
+      : 0;
+
+    // Productos más vendidos
+    const productosVentas = new Map<number, { nombre: string; cantidad: number; valor: number }>();
+    movimientos.forEach(mov => {
+      if (mov.tipo === 'SALIDA') {
+        const existing = productosVentas.get(mov.productoId) || { nombre: mov.productoNombre, cantidad: 0, valor: 0 };
+        existing.cantidad += mov.cantidad;
+        existing.valor += mov.valor;
+        productosVentas.set(mov.productoId, existing);
+      }
+    });
+
+    const productosMasVendidos = Array.from(productosVentas.entries())
+      .map(([id, data]) => ({
+        productoId: id,
+        nombre: data.nombre,
+        cantidadTotal: data.cantidad,
+        valorTotal: data.valor,
+        porcentaje: (data.cantidad / totalSalidas) * 100
+      }))
+      .sort((a, b) => b.cantidadTotal - a.cantidadTotal)
+      .slice(0, 5);
+
+    // Proveedores principales
+    const proveedoresVentas = new Map<string, { cantidad: number; valor: number }>();
+    movimientos.forEach(mov => {
+      if (mov.tipo === 'ENTRADA' && mov.proveedorNombre) {
+        const existing = proveedoresVentas.get(mov.proveedorNombre) || { cantidad: 0, valor: 0 };
+        existing.cantidad += mov.cantidad;
+        existing.valor += mov.valor;
+        proveedoresVentas.set(mov.proveedorNombre, existing);
+      }
+    });
+
+    const proveedoresPrincipales = Array.from(proveedoresVentas.entries())
+      .map(([nombre, data]) => ({
+        proveedorId: 0, // No tenemos ID del proveedor en la consulta
+        nombre,
+        cantidadTotal: data.cantidad,
+        valorTotal: data.valor,
+        porcentaje: (data.cantidad / totalEntradas) * 100
+      }))
+      .sort((a, b) => b.cantidadTotal - a.cantidadTotal)
+      .slice(0, 5);
+
+    // Alertas de stock
+    const alertasStock = productosInfo
+      .filter(p => p.stock <= p.stockMinimo)
+      .map(p => ({
+        productoId: p.id,
+        nombre: p.nombre,
+        stockActual: p.stock,
+        stockMinimo: p.stockMinimo,
+        diasRestantes: Math.floor(p.stock / (totalSalidas / data.length / productosInfo.length)),
+        severidad: p.stock === 0 ? 'CRITICA' as const : p.stock <= p.stockMinimo * 0.5 ? 'ADVERTENCIA' as const : 'INFO' as const
+      }))
+      .sort((a, b) => a.stockActual - b.stockActual)
+      .slice(0, 10);
+
+    // Distribución por tipo de producto
+    const distribucionPorTipo = new Map<string, { cantidad: number; valor: number }>();
+    movimientos.forEach(mov => {
+      const existing = distribucionPorTipo.get(mov.tipoProducto) || { cantidad: 0, valor: 0 };
+      existing.cantidad += mov.cantidad;
+      existing.valor += mov.valor;
+      distribucionPorTipo.set(mov.tipoProducto, existing);
+    });
+
+    const totalCantidad = Array.from(distribucionPorTipo.values()).reduce((sum, d) => sum + d.cantidad, 0);
+    const distribucionPorTipoArray = Array.from(distribucionPorTipo.entries())
+      .map(([tipo, data]) => ({
+        tipo,
+        cantidad: data.cantidad,
+        valor: data.valor,
+        porcentaje: (data.cantidad / totalCantidad) * 100
+      }))
+      .sort((a, b) => b.cantidad - a.cantidad);
+
     return {
       avgEntradasDiarias: totalEntradas / data.length,
       avgSalidasDiarias: totalSalidas / data.length,
       diaMaxActividad,
       totalMovimientos,
-      tendencia
+      tendencia,
+      // ✅ NUEVO: Métricas adicionales
+      valorTotalInventario,
+      margenBrutoPromedio,
+      productosMasVendidos,
+      proveedoresPrincipales,
+      alertasStock,
+      distribucionPorTipo: distribucionPorTipoArray
     };
   }
 } 

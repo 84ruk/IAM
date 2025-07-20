@@ -99,7 +99,9 @@ export default function DailyMovementsChart({
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
-      currency: 'MXN'
+      currency: 'MXN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(value)
   }
 

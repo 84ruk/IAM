@@ -4,80 +4,86 @@ import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
 import { 
   Search, 
   Download, 
-  RefreshCw, 
-  Package, 
-  Activity,
+  Filter, 
+  SortAsc, 
+  SortDesc,
+  Eye,
+  EyeOff,
+  RefreshCw,
   TrendingUp,
   TrendingDown,
   Minus,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
-  Calendar,
-  DollarSign
+  DollarSign,
+  Package,
+  Activity
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useDailyMovements } from '@/hooks/useDailyMovements'
-import { DailyMovementsResponse } from '@/types/kpis'
+import { formatCurrency, formatPercentage } from '@/lib/kpi-utils'
 
 interface DailyMovementsTableProps {
-  className?: string
   initialDays?: number
   showSearch?: boolean
   showExport?: boolean
   maxRows?: number
+  className?: string
 }
 
 type SortField = 'fecha' | 'entradas' | 'salidas' | 'neto' | 'valorEntradas' | 'valorSalidas' | 'valorNeto'
 type SortDirection = 'asc' | 'desc'
 
 export default function DailyMovementsTable({
-  className = '',
   initialDays = 7,
   showSearch = true,
   showExport = true,
-  maxRows = 50
+  maxRows = 20,
+  className = ''
 }: DailyMovementsTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortField, setSortField] = useState<SortField>('fecha')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [showDetails, setShowDetails] = useState(false)
 
   const { data, isLoading, error, refetch } = useDailyMovements({
     days: initialDays,
-    autoRefresh: false
+    autoRefresh: true,
+    refreshInterval: 5 * 60 * 1000
   })
 
   // Procesar y filtrar datos
   const processedData = useMemo(() => {
     if (!data?.data) return []
 
-    let filtered = data.data
+    let processed = data.data.map(item => ({
+      ...item,
+      fecha: format(new Date(item.fecha), 'dd/MM/yyyy'),
+      fechaOriginal: item.fecha,
+      totalMovimientos: (item.entradas || 0) + (item.salidas || 0),
+      margen: item.valorEntradas > 0 ? ((item.valorNeto / item.valorEntradas) * 100) : 0,
+      tendencia: item.neto > 0 ? 'CRECIENTE' : item.neto < 0 ? 'DECRECIENTE' : 'ESTABLE'
+    }))
 
-    // Aplicar búsqueda
+    // Filtrar por término de búsqueda
     if (searchTerm) {
-      const term = searchTerm.toLowerCase()
-      filtered = filtered.filter(item => 
-        format(new Date(item.fecha), 'dd/MM/yyyy').includes(term) ||
-        item.entradas.toString().includes(term) ||
-        item.salidas.toString().includes(term) ||
-        item.neto.toString().includes(term)
+      processed = processed.filter(item => 
+        item.fecha.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.tendencia.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
-    // Aplicar ordenamiento
-    filtered.sort((a, b) => {
-      let aValue: any = a[sortField]
-      let bValue: any = b[sortField]
+    // Ordenar datos
+    processed.sort((a, b) => {
+      let aValue = a[sortField]
+      let bValue = b[sortField]
 
-      // Convertir fechas para comparación
+      // Manejar fechas
       if (sortField === 'fecha') {
-        aValue = new Date(aValue).getTime()
-        bValue = new Date(bValue).getTime()
+        aValue = new Date(a.fechaOriginal).getTime()
+        bValue = new Date(b.fechaOriginal).getTime()
       }
 
       if (sortDirection === 'asc') {
@@ -87,13 +93,11 @@ export default function DailyMovementsTable({
       }
     })
 
-    console.log('filtered', filtered)
-    console.log('data', data)
     // Limitar filas
-    return filtered.slice(0, maxRows)
-  }, [data?.data, searchTerm, sortField, sortDirection, maxRows])
+    return processed.slice(0, maxRows)
+  }, [data, searchTerm, sortField, sortDirection, maxRows])
 
-  // Manejar ordenamiento
+  // Función para cambiar ordenamiento
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
@@ -103,41 +107,23 @@ export default function DailyMovementsTable({
     }
   }
 
-  // Formatear valor monetario
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN'
-    }).format(value)
-  }
-
-  // Formatear número
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('es-MX').format(value)
-  }
-
-  // Obtener color para valores netos
-  const getNetColor = (value: number) => {
-    if (value > 0) return 'text-green-600'
-    if (value < 0) return 'text-red-600'
-    return 'text-gray-600'
-  }
-
-  // Exportar datos
-  const exportData = () => {
+  // Función para exportar datos
+  const handleExport = () => {
     if (!processedData.length) return
 
-    const headers = ['Fecha', 'Entradas', 'Salidas', 'Neto', 'Valor Entradas', 'Valor Salidas', 'Valor Neto']
+    const headers = ['Fecha', 'Entradas', 'Salidas', 'Neto', 'Valor Entradas', 'Valor Salidas', 'Valor Neto', 'Margen', 'Tendencia']
     const csvContent = [
       headers.join(','),
-      ...processedData.map(row => [
-        format(new Date(row.fecha), 'dd/MM/yyyy'),
-        row.entradas,
-        row.salidas,
-        row.neto,
-        row.valorEntradas,
-        row.valorSalidas,
-        row.valorNeto
+      ...processedData.map(item => [
+        item.fecha,
+        item.entradas,
+        item.salidas,
+        item.neto,
+        item.valorEntradas,
+        item.valorSalidas,
+        item.valorNeto,
+        `${item.margen.toFixed(2)}%`,
+        item.tendencia
       ].join(','))
     ].join('\n')
 
@@ -152,203 +138,258 @@ export default function DailyMovementsTable({
     document.body.removeChild(link)
   }
 
-  // Renderizar encabezado de tabla con ordenamiento
-  const renderSortableHeader = (field: SortField, label: string) => (
-    <TableHead className="cursor-pointer hover:bg-gray-50" onClick={() => handleSort(field)}>
-      <div className="flex items-center gap-1">
-        {label}
-        {sortField === field ? (
-          sortDirection === 'asc' ? (
-            <ArrowUp className="w-4 h-4" />
-          ) : (
-            <ArrowDown className="w-4 h-4" />
-          )
-        ) : (
-          <ArrowUpDown className="w-4 h-4 text-gray-400" />
-        )}
-      </div>
-    </TableHead>
-  )
+  // Obtener color de tendencia
+  const getTendencyColor = (tendencia: string) => {
+    switch (tendencia) {
+      case 'CRECIENTE': return 'text-green-600 bg-green-100'
+      case 'DECRECIENTE': return 'text-red-600 bg-red-100'
+      default: return 'text-yellow-600 bg-yellow-100'
+    }
+  }
+
+  // Obtener icono de tendencia
+  const getTendencyIcon = (tendencia: string) => {
+    switch (tendencia) {
+      case 'CRECIENTE': return <TrendingUp className="w-4 h-4" />
+      case 'DECRECIENTE': return <TrendingDown className="w-4 h-4" />
+      default: return <Minus className="w-4 h-4" />
+    }
+  }
+
+  // Obtener icono de ordenamiento
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return null
+    return sortDirection === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />
+  }
+
+  if (error) {
+    return (
+      <Card className={className}>
+        <CardContent className="p-6">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">Error al cargar datos</div>
+            <Button onClick={() => refetch()} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Reintentar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
-          Tabla de Movimientos Diarios
-        </CardTitle>
-        {data?.meta && (
-          <p className="text-sm text-gray-500">
-            Mostrando {processedData.length} de {data.meta.totalDays} días
-          </p>
-        )}
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Tabla de Movimientos Diarios
+          </CardTitle>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowDetails(!showDetails)}
+              variant="outline"
+              size="sm"
+            >
+              {showDetails ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+              {showDetails ? 'Ocultar Detalles' : 'Mostrar Detalles'}
+            </Button>
+
+            {showExport && (
+              <Button onClick={handleExport} variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Exportar CSV
+              </Button>
+            )}
+          </div>
+        </div>
       </CardHeader>
-      
+
       <CardContent>
-        {/* Controles */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          {showSearch && (
+        {/* Controles de búsqueda y filtros */}
+        {showSearch && (
+          <div className="mb-6 flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Buscar por fecha, entradas, salidas..."
+                placeholder="Buscar por fecha o tendencia..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-          )}
-          
-          {showExport && (
-            <Button
-              variant="outline"
-              onClick={exportData}
-              disabled={!processedData.length}
-              className="flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Exportar CSV
-            </Button>
-          )}
-          
-          <Button
-            variant="outline"
-            onClick={refetch}
-            disabled={isLoading}
-            className="flex items-center gap-2"
-          >
-            <Package className="w-4 h-4" />
-            Actualizar
-          </Button>
-        </div>
+            
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Filter className="w-4 h-4" />
+              <span>{processedData.length} de {data?.data?.length || 0} registros</span>
+            </div>
+          </div>
+        )}
 
         {/* Tabla */}
-        <div className="relative">
-          {isLoading && (
-            <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                <span>Cargando datos...</span>
-              </div>
-            </div>
-          )}
-          
-          {error && (
-            <div className="text-center py-8">
-              <p className="text-red-600 font-medium">Error al cargar datos</p>
-              <p className="text-sm text-gray-500 mt-1">{error.message}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={refetch}
-                className="mt-4"
-              >
-                Reintentar
-              </Button>
-            </div>
-          )}
-          
-          {!isLoading && !error && processedData.length === 0 && (
-            <div className="text-center py-8">
-              <Calendar className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-600 font-medium">
-                {searchTerm ? 'No se encontraron resultados' : 'No hay datos disponibles'}
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Los movimientos aparecerán cuando registres entradas o salidas de inventario'}
-              </p>
-            </div>
-          )}
-          
-          {!isLoading && !error && processedData.length > 0 && (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {renderSortableHeader('fecha', 'Fecha')}
-                    {renderSortableHeader('entradas', 'Entradas')}
-                    {renderSortableHeader('salidas', 'Salidas')}
-                    {renderSortableHeader('neto', 'Neto')}
-                    {renderSortableHeader('valorEntradas', 'Valor Entradas')}
-                    {renderSortableHeader('valorSalidas', 'Valor Salidas')}
-                    {renderSortableHeader('valorNeto', 'Valor Neto')}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {processedData.map((row, index) => (
-                    <TableRow key={index} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">
-                        {format(new Date(row.fecha), 'dd/MM/yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                          {formatNumber(row.entradas)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                          {formatNumber(row.salidas)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className={`font-medium ${getNetColor(row.neto)}`}>
-                          {row.neto > 0 ? '+' : ''}{formatNumber(row.neto)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <DollarSign className="w-3 h-3 text-green-600" />
-                          <span className="text-green-600 font-medium">
-                            {formatCurrency(row.valorEntradas)}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th 
+                  className="text-left py-3 px-4 font-medium text-gray-900 cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleSort('fecha')}
+                >
+                  <div className="flex items-center gap-1">
+                    Fecha
+                    {getSortIcon('fecha')}
+                  </div>
+                </th>
+                <th 
+                  className="text-right py-3 px-4 font-medium text-gray-900 cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleSort('entradas')}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Entradas
+                    {getSortIcon('entradas')}
+                  </div>
+                </th>
+                <th 
+                  className="text-right py-3 px-4 font-medium text-gray-900 cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleSort('salidas')}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Salidas
+                    {getSortIcon('salidas')}
+                  </div>
+                </th>
+                <th 
+                  className="text-right py-3 px-4 font-medium text-gray-900 cursor-pointer hover:bg-gray-50"
+                  onClick={() => handleSort('neto')}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Neto
+                    {getSortIcon('neto')}
+                  </div>
+                </th>
+                {showDetails && (
+                  <>
+                    <th 
+                      className="text-right py-3 px-4 font-medium text-gray-900 cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort('valorEntradas')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <DollarSign className="w-4 h-4" />
+                        Valor Entradas
+                        {getSortIcon('valorEntradas')}
+                      </div>
+                    </th>
+                    <th 
+                      className="text-right py-3 px-4 font-medium text-gray-900 cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort('valorSalidas')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <DollarSign className="w-4 h-4" />
+                        Valor Salidas
+                        {getSortIcon('valorSalidas')}
+                      </div>
+                    </th>
+                    <th 
+                      className="text-right py-3 px-4 font-medium text-gray-900 cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSort('valorNeto')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <DollarSign className="w-4 h-4" />
+                        Valor Neto
+                        {getSortIcon('valorNeto')}
+                      </div>
+                    </th>
+                  </>
+                )}
+                <th className="text-center py-3 px-4 font-medium text-gray-900">
+                  Tendencia
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={showDetails ? 8 : 5} className="text-center py-8">
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <span className="ml-2">Cargando datos...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : processedData.length === 0 ? (
+                <tr>
+                  <td colSpan={showDetails ? 8 : 5} className="text-center py-8 text-gray-500">
+                    No se encontraron datos
+                  </td>
+                </tr>
+              ) : (
+                processedData.map((item, index) => (
+                  <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 font-medium text-gray-900">
+                      {item.fecha}
+                    </td>
+                    <td className="py-3 px-4 text-right text-green-600 font-medium">
+                      {item.entradas.toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4 text-right text-red-600 font-medium">
+                      {item.salidas.toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4 text-right font-medium">
+                      <span className={item.neto >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {item.neto >= 0 ? '+' : ''}{item.neto.toLocaleString()}
+                      </span>
+                    </td>
+                    {showDetails && (
+                      <>
+                        <td className="py-3 px-4 text-right text-gray-600">
+                          {formatCurrency(item.valorEntradas)}
+                        </td>
+                        <td className="py-3 px-4 text-right text-gray-600">
+                          {formatCurrency(item.valorSalidas)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-medium">
+                          <span className={item.valorNeto >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {item.valorNeto >= 0 ? '+' : ''}{formatCurrency(item.valorNeto)}
                           </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <DollarSign className="w-3 h-3 text-red-600" />
-                          <span className="text-red-600 font-medium">
-                            {formatCurrency(row.valorSalidas)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <DollarSign className={`w-3 h-3 ${getNetColor(row.valorNeto)}`} />
-                          <span className={`font-medium ${getNetColor(row.valorNeto)}`}>
-                            {row.valorNeto > 0 ? '+' : ''}{formatCurrency(row.valorNeto)}
-                          </span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                        </td>
+                      </>
+                    )}
+                    <td className="py-3 px-4 text-center">
+                      <Badge className={getTendencyColor(item.tendencia)}>
+                        {getTendencyIcon(item.tendencia)}
+                        {item.tendencia}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
         {/* Resumen */}
-        {data?.summary && processedData.length > 0 && (
+        {processedData.length > 0 && (
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-medium text-gray-900 mb-3">Resumen del Período</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div>
-                <p className="text-gray-600">Promedio Entradas:</p>
-                <p className="font-medium text-green-600">{data.summary.avgEntradasDiarias.toFixed(1)}</p>
+                <span className="font-medium text-gray-700">Total Entradas:</span>
+                <span className="ml-2 text-green-600 font-semibold">
+                  {processedData.reduce((sum, item) => sum + item.entradas, 0).toLocaleString()}
+                </span>
               </div>
               <div>
-                <p className="text-gray-600">Promedio Salidas:</p>
-                <p className="font-medium text-red-600">{data.summary.avgSalidasDiarias.toFixed(1)}</p>
+                <span className="font-medium text-gray-700">Total Salidas:</span>
+                <span className="ml-2 text-red-600 font-semibold">
+                  {processedData.reduce((sum, item) => sum + item.salidas, 0).toLocaleString()}
+                </span>
               </div>
               <div>
-                <p className="text-gray-600">Total Movimientos:</p>
-                <p className="font-medium text-blue-600">{data.summary.totalMovimientos}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Tendencia:</p>
-                <Badge className="mt-1">
-                  {data.summary.tendencia}
-                </Badge>
+                <span className="font-medium text-gray-700">Neto Total:</span>
+                <span className="ml-2 font-semibold">
+                  {processedData.reduce((sum, item) => sum + item.neto, 0).toLocaleString()}
+                </span>
               </div>
             </div>
           </div>

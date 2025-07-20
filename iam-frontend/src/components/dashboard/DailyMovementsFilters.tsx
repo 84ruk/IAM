@@ -9,627 +9,288 @@ import { Badge } from '@/components/ui/Badge'
 import { 
   Filter, 
   X, 
-  Save, 
-  Download, 
-  Upload, 
-  RefreshCw,
   Calendar,
-  Package,
-  Truck,
-  Activity,
+  TrendingUp,
+  TrendingDown,
+  Minus,
   DollarSign,
-  Users,
-  Settings,
-  ChevronDown,
-  ChevronUp
+  Activity,
+  RefreshCw,
+  Eye,
+  EyeOff
 } from 'lucide-react'
-import { useDailyMovementsFilters } from '@/hooks/useDailyMovementsFilters'
-import { DailyMovementsFilters as FiltersType, FilterPreset } from '@/types/filters'
 
 interface DailyMovementsFiltersProps {
+  onFiltersChange: (filters: any) => void
+  onReset: () => void
   className?: string
-  onFiltersChange?: (filters: FiltersType) => void
-  showAdvanced?: boolean
-  collapsible?: boolean
 }
 
 export default function DailyMovementsFilters({
-  className = '',
   onFiltersChange,
-  showAdvanced = false,
-  collapsible = true
+  onReset,
+  className = ''
 }: DailyMovementsFiltersProps) {
-  const [isExpanded, setIsExpanded] = useState(!collapsible)
-  const [showSavePreset, setShowSavePreset] = useState(false)
-  const [presetName, setPresetName] = useState('')
-  const [presetDescription, setPresetDescription] = useState('')
-
-  const {
-    filters,
-    filterOptions,
-    isLoadingOptions,
-    presets,
-    activePreset,
-    hasActiveFilters,
-    getFilterSummary,
-    updateFilters,
-    resetFilters,
-    applyPreset,
-    savePreset,
-    deletePreset,
-    exportFilters,
-    importFilters
-  } = useDailyMovementsFilters({
-    onFiltersChange
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [filters, setFilters] = useState({
+    days: '7',
+    chartType: 'combined',
+    showDetails: false,
+    minValue: '',
+    maxValue: '',
+    trend: 'all',
+    sortBy: 'fecha',
+    sortOrder: 'desc'
   })
 
-  // Manejar cambio de filtros
-  const handleFilterChange = (key: keyof FiltersType, value: any) => {
-    // Validación básica de tipos
-    if (value === undefined || value === null) {
-      updateFilters({ [key]: undefined })
-      return
-    }
-
-    // Validación específica por tipo
-    switch (key) {
-      case 'period':
-        if (typeof value === 'string' && ['7d', '15d', '30d', '60d', '90d', 'custom'].includes(value)) {
-          updateFilters({ [key]: value as '7d' | '15d' | '30d' | '60d' | '90d' | 'custom' })
-        }
-        break
-      case 'chartType':
-        if (typeof value === 'string' && ['line', 'bar', 'area', 'combined'].includes(value)) {
-          updateFilters({ [key]: value as 'line' | 'bar' | 'area' | 'combined' })
-        }
-        break
-      case 'productIds':
-      case 'supplierIds':
-      case 'userIds':
-        if (Array.isArray(value) && value.every(v => typeof v === 'number')) {
-          updateFilters({ [key]: value as number[] })
-        }
-        break
-      case 'movementTypes':
-        if (Array.isArray(value) && value.every(v => ['ENTRADA', 'SALIDA'].includes(v))) {
-          updateFilters({ [key]: value as ('ENTRADA' | 'SALIDA')[] })
-        }
-        break
-      case 'minValue':
-      case 'maxValue':
-      case 'minQuantity':
-      case 'maxQuantity':
-        if (typeof value === 'number' && isFinite(value)) {
-          updateFilters({ [key]: value as number })
-        }
-        break
-      default:
-        updateFilters({ [key]: value })
-    }
+  const handleFilterChange = (key: string, value: any) => {
+    const newFilters = { ...filters, [key]: value }
+    setFilters(newFilters)
+    onFiltersChange(newFilters)
   }
 
-  // Manejar guardar preset
-  const handleSavePreset = () => {
-    if (presetName.trim()) {
-      savePreset(presetName.trim(), presetDescription.trim())
-      setPresetName('')
-      setPresetDescription('')
-      setShowSavePreset(false)
+  const handleReset = () => {
+    const defaultFilters = {
+      days: '7',
+      chartType: 'combined',
+      showDetails: false,
+      minValue: '',
+      maxValue: '',
+      trend: 'all',
+      sortBy: 'fecha',
+      sortOrder: 'desc'
     }
+    setFilters(defaultFilters)
+    onReset()
   }
 
-  // Manejar importar filtros
-  const handleImportFilters = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const content = e.target?.result as string
-        importFilters(content)
-      }
-      reader.readAsText(file)
-    }
-  }
-
-  // Renderizar filtros básicos
-  const renderBasicFilters = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Período */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Período
-        </label>
-        <Select
-          value={filters.period}
-          onValueChange={(value) => handleFilterChange('period', value)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7d">Últimos 7 días</SelectItem>
-            <SelectItem value="15d">Últimos 15 días</SelectItem>
-            <SelectItem value="30d">Últimos 30 días</SelectItem>
-            <SelectItem value="60d">Últimos 60 días</SelectItem>
-            <SelectItem value="90d">Últimos 90 días</SelectItem>
-            <SelectItem value="custom">Personalizado</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Tipo de Gráfica */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Tipo de Gráfica
-        </label>
-        <Select
-          value={filters.chartType}
-          onValueChange={(value) => handleFilterChange('chartType', value)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="line">Líneas</SelectItem>
-            <SelectItem value="bar">Barras</SelectItem>
-            <SelectItem value="area">Áreas</SelectItem>
-            <SelectItem value="combined">Combinada</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Agrupar por */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Agrupar por
-        </label>
-        <Select
-          value={filters.groupBy}
-          onValueChange={(value) => handleFilterChange('groupBy', value)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="day">Día</SelectItem>
-            <SelectItem value="week">Semana</SelectItem>
-            <SelectItem value="month">Mes</SelectItem>
-            <SelectItem value="product">Producto</SelectItem>
-            <SelectItem value="supplier">Proveedor</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Ordenar por */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Ordenar por
-        </label>
-        <Select
-          value={filters.sortBy}
-          onValueChange={(value) => handleFilterChange('sortBy', value)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="date">Fecha</SelectItem>
-            <SelectItem value="quantity">Cantidad</SelectItem>
-            <SelectItem value="value">Valor</SelectItem>
-            <SelectItem value="product">Producto</SelectItem>
-            <SelectItem value="supplier">Proveedor</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  )
-
-  // Renderizar filtros avanzados
-  const renderAdvancedFilters = () => (
-    <div className="space-y-6">
-      {/* Filtros de Producto */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-          <Package className="w-4 h-4" />
-          Productos
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Productos específicos
-            </label>
-            <Select
-              value=""
-              onValueChange={(value) => {
-                const currentIds = filters.productIds || []
-                if (!currentIds.includes(parseInt(value))) {
-                  handleFilterChange('productIds', [...currentIds, parseInt(value)])
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar producto" />
-              </SelectTrigger>
-              <SelectContent>
-                {filterOptions?.products.map((product) => (
-                  <SelectItem key={product.value} value={product.value.toString()}>
-                    {product.label} ({product.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {/* Productos seleccionados */}
-            {filters.productIds && filters.productIds.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {filters.productIds.map((id) => {
-                  const product = filterOptions?.products.find(p => p.value === id)
-                  return (
-                    <Badge key={id} variant="secondary" className="flex items-center gap-1">
-                      {product?.label || `Producto ${id}`}
-                      <button
-                        onClick={() => {
-                          const newIds = filters.productIds?.filter(pid => pid !== id) || []
-                          handleFilterChange('productIds', newIds)
-                        }}
-                        className="ml-1 hover:text-red-600"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Categorías
-            </label>
-            <Select
-              value=""
-              onValueChange={(value) => {
-                const currentCategories = filters.productCategories || []
-                if (!currentCategories.includes(value)) {
-                  handleFilterChange('productCategories', [...currentCategories, value])
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                {filterOptions?.categories.map((category) => (
-                  <SelectItem key={category.value} value={category.value.toString()}>
-                    {category.label} ({category.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Filtros de Proveedor */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-          <Truck className="w-4 h-4" />
-          Proveedores
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Proveedores específicos
-            </label>
-            <Select
-              value=""
-              onValueChange={(value) => {
-                const currentIds = filters.supplierIds || []
-                if (!currentIds.includes(parseInt(value))) {
-                  handleFilterChange('supplierIds', [...currentIds, parseInt(value)])
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar proveedor" />
-              </SelectTrigger>
-              <SelectContent>
-                {filterOptions?.suppliers.map((supplier) => (
-                  <SelectItem key={supplier.value} value={supplier.value.toString()}>
-                    {supplier.label} ({supplier.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Filtros de Movimiento */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-          <Activity className="w-4 h-4" />
-          Tipos de Movimiento
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tipo
-            </label>
-            <div className="space-y-2">
-              {['ENTRADA', 'SALIDA'].map((type) => (
-                <label key={type} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={filters.movementTypes?.includes(type as 'ENTRADA' | 'SALIDA') || false}
-                    onChange={(e) => {
-                      const currentTypes = filters.movementTypes || []
-                      if (e.target.checked) {
-                        handleFilterChange('movementTypes', [...currentTypes, type as 'ENTRADA' | 'SALIDA'])
-                      } else {
-                        handleFilterChange('movementTypes', currentTypes.filter(t => t !== type))
-                      }
-                    }}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm">{type}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Motivos
-            </label>
-            <Select
-              value=""
-              onValueChange={(value) => {
-                const currentReasons = filters.movementReasons || []
-                if (!currentReasons.includes(value)) {
-                  handleFilterChange('movementReasons', [...currentReasons, value])
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar motivo" />
-              </SelectTrigger>
-              <SelectContent>
-                {filterOptions?.reasons.map((reason) => (
-                  <SelectItem key={reason.value} value={reason.value.toString()}>
-                    {reason.label} ({reason.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Filtros de Valor */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-          <DollarSign className="w-4 h-4" />
-          Rango de Valores
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Valor mínimo
-            </label>
-            <Input
-              type="number"
-              placeholder="0"
-              value={filters.minValue || ''}
-              onChange={(e) => handleFilterChange('minValue', e.target.value ? parseFloat(e.target.value) : undefined)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Valor máximo
-            </label>
-            <Input
-              type="number"
-              placeholder="1000000"
-              value={filters.maxValue || ''}
-              onChange={(e) => handleFilterChange('maxValue', e.target.value ? parseFloat(e.target.value) : undefined)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Cantidad mínima
-            </label>
-            <Input
-              type="number"
-              placeholder="0"
-              value={filters.minQuantity || ''}
-              onChange={(e) => handleFilterChange('minQuantity', e.target.value ? parseInt(e.target.value) : undefined)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Cantidad máxima
-            </label>
-            <Input
-              type="number"
-              placeholder="1000"
-              value={filters.maxQuantity || ''}
-              onChange={(e) => handleFilterChange('maxQuantity', e.target.value ? parseInt(e.target.value) : undefined)}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  const activeFiltersCount = Object.values(filters).filter(value => 
+    value !== '7' && value !== 'combined' && value !== false && value !== 'all' && value !== 'fecha' && value !== 'desc' && value !== ''
+  ).length
 
   return (
     <Card className={className}>
-      <CardHeader className="pb-4">
+      <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
+          <CardTitle className="flex items-center gap-2">
             <Filter className="w-5 h-5" />
             Filtros Avanzados
-            {hasActiveFilters && (
+            {activeFiltersCount > 0 && (
               <Badge variant="secondary" className="ml-2">
-                {getFilterSummary()}
+                {activeFiltersCount}
               </Badge>
             )}
           </CardTitle>
           
           <div className="flex items-center gap-2">
-            {collapsible && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsExpanded(!isExpanded)}
-              >
-                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </Button>
-            )}
-            
             <Button
+              onClick={() => setIsExpanded(!isExpanded)}
               variant="outline"
               size="sm"
-              onClick={resetFilters}
-              disabled={!hasActiveFilters}
             >
-              <X className="w-4 h-4 mr-1" />
-              Limpiar
+              {isExpanded ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+              {isExpanded ? 'Ocultar' : 'Mostrar'}
             </Button>
+
+            {activeFiltersCount > 0 && (
+              <Button onClick={handleReset} variant="outline" size="sm">
+                <X className="w-4 h-4 mr-2" />
+                Limpiar
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
 
       {isExpanded && (
-        <CardContent className="space-y-6">
-          {/* Presets */}
-          <div>
-            <h4 className="text-sm font-medium text-gray-900 mb-3">Presets Rápidos</h4>
-            <div className="flex flex-wrap gap-2">
-              {presets.map((preset) => (
-                <Button
-                  key={preset.id}
-                  variant={activePreset?.id === preset.id ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => applyPreset(preset.id)}
-                >
-                  {preset.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Filtros básicos */}
-          <div>
-            <h4 className="text-sm font-medium text-gray-900 mb-3">Configuración Básica</h4>
-            {renderBasicFilters()}
-          </div>
-
-          {/* Filtros avanzados */}
-          {showAdvanced && (
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Período */}
             <div>
-              <h4 className="text-sm font-medium text-gray-900 mb-3">Filtros Avanzados</h4>
-              {isLoadingOptions ? (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="w-5 h-5 animate-spin mr-2" />
-                  <span>Cargando opciones...</span>
-                </div>
-              ) : (
-                renderAdvancedFilters()
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Período de Análisis
+              </label>
+              <Select value={filters.days} onValueChange={(value) => handleFilterChange('days', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Últimos 7 días</SelectItem>
+                  <SelectItem value="15">Últimos 15 días</SelectItem>
+                  <SelectItem value="30">Últimos 30 días</SelectItem>
+                  <SelectItem value="60">Últimos 60 días</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
 
-          {/* Acciones */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSavePreset(true)}
-              >
-                <Save className="w-4 h-4 mr-1" />
-                Guardar Preset
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const dataStr = exportFilters()
-                  const dataBlob = new Blob([dataStr], { type: 'application/json' })
-                  const url = URL.createObjectURL(dataBlob)
-                  const link = document.createElement('a')
-                  link.href = url
-                  link.download = `filtros-movimientos-${new Date().toISOString().split('T')[0]}.json`
-                  link.click()
-                  URL.revokeObjectURL(url)
-                }}
-              >
-                <Download className="w-4 h-4 mr-1" />
-                Exportar
-              </Button>
-              
+            {/* Tipo de Gráfica */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tipo de Gráfica
+              </label>
+              <Select value={filters.chartType} onValueChange={(value) => handleFilterChange('chartType', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="combined">Combinada</SelectItem>
+                  <SelectItem value="line">Líneas</SelectItem>
+                  <SelectItem value="bar">Barras</SelectItem>
+                  <SelectItem value="area">Áreas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Tendencia */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filtrar por Tendencia
+              </label>
+              <Select value={filters.trend} onValueChange={(value) => handleFilterChange('trend', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las tendencias</SelectItem>
+                  <SelectItem value="CRECIENTE">Solo crecientes</SelectItem>
+                  <SelectItem value="DECRECIENTE">Solo decrecientes</SelectItem>
+                  <SelectItem value="ESTABLE">Solo estables</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Valor Mínimo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Valor Mínimo
+              </label>
               <div className="relative">
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={handleImportFilters}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={filters.minValue}
+                  onChange={(e) => handleFilterChange('minValue', e.target.value)}
+                  className="pl-10"
                 />
-                <Button variant="outline" size="sm">
-                  <Upload className="w-4 h-4 mr-1" />
-                  Importar
-                </Button>
               </div>
             </div>
 
-            <div className="text-sm text-gray-500">
-              {hasActiveFilters ? `${getFilterSummary()}` : 'Sin filtros aplicados'}
+            {/* Valor Máximo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Valor Máximo
+              </label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  type="number"
+                  placeholder="999999.99"
+                  value={filters.maxValue}
+                  onChange={(e) => handleFilterChange('maxValue', e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Ordenamiento */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ordenar por
+              </label>
+              <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange('sortBy', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fecha">Fecha</SelectItem>
+                  <SelectItem value="entradas">Entradas</SelectItem>
+                  <SelectItem value="salidas">Salidas</SelectItem>
+                  <SelectItem value="neto">Neto</SelectItem>
+                  <SelectItem value="valorEntradas">Valor Entradas</SelectItem>
+                  <SelectItem value="valorSalidas">Valor Salidas</SelectItem>
+                  <SelectItem value="valorNeto">Valor Neto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Orden */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Orden
+              </label>
+              <Select value={filters.sortOrder} onValueChange={(value) => handleFilterChange('sortOrder', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Descendente</SelectItem>
+                  <SelectItem value="asc">Ascendente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Mostrar Detalles */}
+            <div className="flex items-center">
+              <Button
+                onClick={() => handleFilterChange('showDetails', !filters.showDetails)}
+                variant={filters.showDetails ? "default" : "outline"}
+                size="sm"
+                className="w-full"
+              >
+                {filters.showDetails ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                {filters.showDetails ? 'Ocultar Detalles' : 'Mostrar Detalles'}
+              </Button>
             </div>
           </div>
 
-          {/* Modal para guardar preset */}
-          {showSavePreset && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                <h3 className="text-lg font-medium mb-4">Guardar Preset</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nombre del preset
-                    </label>
-                    <Input
-                      value={presetName}
-                      onChange={(e) => setPresetName(e.target.value)}
-                      placeholder="Mi preset personalizado"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Descripción (opcional)
-                    </label>
-                    <Input
-                      value={presetDescription}
-                      onChange={(e) => setPresetDescription(e.target.value)}
-                      placeholder="Descripción del preset"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 mt-6">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowSavePreset(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handleSavePreset}
-                    disabled={!presetName.trim()}
-                  >
-                    Guardar
-                  </Button>
-                </div>
+          {/* Filtros Activos */}
+          {activeFiltersCount > 0 && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-3">Filtros Activos:</h4>
+              <div className="flex flex-wrap gap-2">
+                {filters.days !== '7' && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {filters.days} días
+                  </Badge>
+                )}
+                {filters.chartType !== 'combined' && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Activity className="w-3 h-3" />
+                    {filters.chartType}
+                  </Badge>
+                )}
+                {filters.trend !== 'all' && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    {filters.trend === 'CRECIENTE' ? <TrendingUp className="w-3 h-3" /> :
+                     filters.trend === 'DECRECIENTE' ? <TrendingDown className="w-3 h-3" /> :
+                     <Minus className="w-3 h-3" />}
+                    {filters.trend}
+                  </Badge>
+                )}
+                {filters.minValue && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <DollarSign className="w-3 h-3" />
+                    Min: ${filters.minValue}
+                  </Badge>
+                )}
+                {filters.maxValue && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <DollarSign className="w-3 h-3" />
+                    Max: ${filters.maxValue}
+                  </Badge>
+                )}
+                {filters.sortBy !== 'fecha' && (
+                  <Badge variant="secondary">
+                    Orden: {filters.sortBy}
+                  </Badge>
+                )}
+                {filters.sortOrder !== 'desc' && (
+                  <Badge variant="secondary">
+                    {filters.sortOrder === 'asc' ? 'Ascendente' : 'Descendente'}
+                  </Badge>
+                )}
               </div>
             </div>
           )}

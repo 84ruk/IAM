@@ -1,12 +1,12 @@
 // Utilidades para formateo y cálculo de datos de KPIs
 
 /**
- * Formatea un número como moneda en euros
+ * Formatea un número como moneda en pesos mexicanos
  */
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-ES', {
+  return new Intl.NumberFormat('es-MX', {
     style: 'currency',
-    currency: 'EUR',
+    currency: 'MXN',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value)
@@ -216,13 +216,20 @@ export function getIndustryName(industry: string): string {
 }
 
 /**
- * Formatea un número como moneda en pesos mexicanos
+ * Formatea un número como moneda en pesos mexicanos (alias para compatibilidad)
  */
 export function formatCurrencyMXN(value: number): string {
+  return formatCurrency(value)
+}
+
+/**
+ * Formatea un número como moneda en pesos mexicanos con decimales opcionales
+ */
+export function formatCurrencyMXNWithDecimals(value: number, decimals: number = 2): string {
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   }).format(value)
 } 

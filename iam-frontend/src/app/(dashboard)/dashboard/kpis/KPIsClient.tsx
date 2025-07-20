@@ -64,7 +64,7 @@ import { CardSkeleton } from '@/components/ui/CardSkeleton'
 import Pagination from '@/components/ui/Pagination'
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, ComposedChart, AreaChart, Area, Legend } from 'recharts'
 import { KPIData, FinancialKPIs, IndustryKPIs, PredictiveKPIs, KPICardData, TrendData, ProductDetail, Recommendation } from '@/types/kpis'
-import { formatCurrencyMXN, formatPercentage, getValueColor } from '@/lib/kpi-utils'
+import { formatCurrency, formatPercentage, getValueColor } from '@/lib/kpi-utils'
 import KPICard from '@/components/dashboard/KPICard'
 import KPIGraph from '@/components/dashboard/KPIGraph'
 import PredictionsPanel from '@/components/dashboard/PredictionsPanel'
@@ -858,7 +858,7 @@ export default function KPIsClient() {
                 <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
               </div>
               <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                {kpisData?.valorTotalInventario !== undefined ? formatCurrencyMXN(kpisData.valorTotalInventario) : '--'}
+                {kpisData?.valorTotalInventario !== undefined ? formatCurrency(kpisData.valorTotalInventario) : '--'}
               </div>
               <div className="text-xs text-gray-500">
                 {kpisData?.valorTotalInventario !== undefined ? 'Valor Inventario' : 'Datos insuficientes'}
@@ -888,7 +888,7 @@ export default function KPIsClient() {
                 <Percent className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
               </div>
               <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                {kpisData?.margenPromedio !== undefined ? formatCurrencyMXN(kpisData.margenPromedio) : '--'}
+                {kpisData?.margenPromedio !== undefined ? formatCurrency(kpisData.margenPromedio) : '--'}
               </div>
               <div className="text-xs text-gray-500">
                 {kpisData?.margenPromedio !== undefined ? 'Margen Promedio' : 'Datos insuficientes'}
