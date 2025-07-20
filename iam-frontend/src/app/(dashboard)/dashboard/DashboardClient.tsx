@@ -33,6 +33,7 @@ import { Tooltip as ReactTooltip } from 'react-tooltip'
 import { Loader2 } from 'lucide-react'
 import Select from '@/components/ui/Select'
 import KPICard from '@/components/dashboard/KPICard'
+import DailyMovementsChart from '@/components/dashboard/DailyMovementsChart'
 import { formatCurrency, formatPercentage, getValueColor } from '@/lib/kpi-utils'
 
 const fetcher = (url: string) =>
@@ -398,7 +399,7 @@ export default function DashboardClient() {
             {/* Enlaces Rápidos */}
             <div className="w-full max-w-4xl">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Comienza aquí</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <a 
                   href="/dashboard/productos/nuevo" 
                   className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -448,6 +449,19 @@ export default function DashboardClient() {
                   <div>
                     <p className="font-medium text-gray-900">KPIs</p>
                     <p className="text-sm text-gray-600">Ver métricas detalladas</p>
+                  </div>
+                </a>
+
+                <a 
+                  href="/dashboard/daily-movements" 
+                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <Activity className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Movimientos Diarios</p>
+                    <p className="text-sm text-gray-600">Análisis detallado por día</p>
                   </div>
                 </a>
               </div>
@@ -569,6 +583,66 @@ export default function DashboardClient() {
             isLoading={kpisLoading || isLoading}
             error={!!kpisError || !!error}
           />
+        </div>
+
+        {/* Gráfica de Movimientos Diarios */}
+        <div className="mb-8">
+          <DailyMovementsChart 
+            initialDays={7}
+            showControls={true}
+            showSummary={true}
+            chartType="combined"
+            height={350}
+          />
+        </div>
+
+        {/* Sección de Movimientos Diarios Detallados */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Movimientos Diarios Detallados</h2>
+              <p className="text-gray-600 mt-1">
+                Análisis completo de entradas y salidas de inventario por día
+              </p>
+            </div>
+            <a 
+              href="/dashboard/daily-movements" 
+              className="flex items-center gap-2 px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors"
+            >
+              <Activity className="w-4 h-4" />
+              Ver Detalles Completos
+            </a>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Gráfica de Líneas - 15 días */}
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Tendencia de 15 Días</h3>
+                <DailyMovementsChart 
+                  initialDays={15}
+                  showControls={false}
+                  showSummary={false}
+                  chartType="line"
+                  height={250}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Gráfica de Barras - 30 días */}
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Análisis de 30 Días</h3>
+                <DailyMovementsChart 
+                  initialDays={30}
+                  showControls={false}
+                  showSummary={false}
+                  chartType="bar"
+                  height={250}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* KPIs Financieros */}
