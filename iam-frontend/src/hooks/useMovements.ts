@@ -19,7 +19,7 @@ const fetcher = (url: string) =>
 export function useMovements(tipo?: TipoMovimiento) {
   const url = tipo ? `/movimientos?tipo=${tipo}` : '/movimientos'
   
-  const { data, error, isLoading, mutate } = useSWR<Movimiento[]>(
+  const { data, error, isLoading, mutate } = useSWR<{ movimientos: Movimiento[], estadisticas: any }>(
     url,
     fetcher,
     {
@@ -30,7 +30,8 @@ export function useMovements(tipo?: TipoMovimiento) {
   )
 
   return {
-    movements: Array.isArray(data) ? data : [],
+    movements: Array.isArray(data?.movimientos) ? data.movimientos : [],
+    estadisticas: data?.estadisticas || { total: 0, entradas: 0, salidas: 0, hoy: 0 },
     isLoading,
     error,
     mutate

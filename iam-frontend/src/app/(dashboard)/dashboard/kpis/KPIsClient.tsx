@@ -110,15 +110,25 @@ function getGraphTooltips() {
 
 // Utilidad para generar datos de gráfica basados en movimientos reales
 function generateChartData(movements: any[], selectedMonth: string) {
-  if (!movements.length || !selectedMonth) {
-    console.log('⚠️ No hay movimientos o mes seleccionado, generando datos de ejemplo')
+  console.log('🔍 Debug - generateChartData iniciado:')
+  console.log('movements:', movements)
+  console.log('selectedMonth:', selectedMonth)
+  
+  if (!Array.isArray(movements) || movements.length === 0) {
+    console.log('⚠️ No hay movimientos disponibles, generando datos de ejemplo')
+    return generateSampleData(selectedMonth)
+  }
+  
+  if (!selectedMonth) {
+    console.log('⚠️ No hay mes seleccionado, generando datos de ejemplo')
     return generateSampleData(selectedMonth)
   }
   
   try {
-    console.log('🔍 Debug - generateChartData:')
+    console.log('🔍 Debug - generateChartData procesando:')
     console.log('selectedMonth:', selectedMonth)
     console.log('movements count:', movements.length)
+    console.log('movements sample:', movements.slice(0, 3))
     
     // Obtener el primer y último día del mes seleccionado
     const [monthName, year] = selectedMonth.split(' ')
@@ -139,15 +149,19 @@ function generateChartData(movements: any[], selectedMonth: string) {
     
     let processedCount = 0
     let matchedCount = 0
+    let validMovements = 0
     
     // Procesar movimientos del mes seleccionado
     movements.forEach(mov => {
       processedCount++
       
+      // Validar que el movimiento tenga los campos necesarios
       if (!mov.fecha || !mov.cantidad || typeof mov.cantidad !== 'number') {
         console.log('❌ Movimiento inválido:', mov)
         return
       }
+      
+      validMovements++
       
       const date = new Date(mov.fecha)
       const movMonth = date.getMonth()
@@ -178,7 +192,7 @@ function generateChartData(movements: any[], selectedMonth: string) {
       }
     })
     
-    console.log(`✅ Procesados: ${processedCount}, Coinciden: ${matchedCount}`)
+    console.log(`✅ Procesados: ${processedCount}, Válidos: ${validMovements}, Coinciden: ${matchedCount}`)
     
     // Si no hay movimientos coincidentes, usar datos de ejemplo
     if (matchedCount === 0) {
@@ -196,15 +210,44 @@ function generateChartData(movements: any[], selectedMonth: string) {
     console.log('dailyData final:', dailyData)
     return dailyData
   } catch (error) {
-    console.error('Error generando datos de gráfica:', error)
+    console.error('❌ Error generando datos de gráfica:', error)
     return generateSampleData(selectedMonth)
   }
 }
 
 // Función para generar datos de ejemplo cuando no hay movimientos reales
 function generateSampleData(selectedMonth: string) {
-  // Retornar array vacío para indicar que no hay datos
-  return []
+  console.log('📊 Generando datos de ejemplo para:', selectedMonth)
+  
+  // Obtener el número de días del mes
+  const [monthName, year] = selectedMonth.split(' ')
+  const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth()
+  const yearNum = parseInt(year)
+  const daysInMonth = new Date(yearNum, monthIndex + 1, 0).getDate()
+  
+  // Generar datos de ejemplo más realistas
+  const sampleData = Array.from({ length: daysInMonth }, (_, i) => {
+    const day = i + 1
+    const baseEntradas = Math.floor(Math.random() * 50) + 10
+    const baseSalidas = Math.floor(Math.random() * 30) + 5
+    
+    return {
+      dia: day,
+      entradas: baseEntradas,
+      salidas: baseSalidas,
+      balance: 0 // Se calculará después
+    }
+  })
+  
+  // Calcular balance acumulado
+  let balanceAcumulado = 0
+  sampleData.forEach(day => {
+    balanceAcumulado += day.entradas - day.salidas
+    day.balance = balanceAcumulado
+  })
+  
+  console.log('📊 Datos de ejemplo generados:', sampleData)
+  return sampleData
 }
 
 // Utilidad para obtener meses únicos de los movimientos/productos
@@ -374,7 +417,25 @@ export default function KPIsClient() {
 
   // Datos para gráfica basados en movimientos reales del mes seleccionado
   const { chartData, isRealData } = useMemo(() => {
-    if (!selectedMonth || !Array.isArray(movements)) return { chartData: [], isRealData: false }
+    console.log('🔍 Debug - Calculando datos para gráfica:')
+    console.log('selectedMonth:', selectedMonth)
+    console.log('movements:', movements)
+    console.log('movements length:', movements?.length)
+    
+    if (!selectedMonth) {
+      console.log('⚠️ No hay mes seleccionado')
+      return { chartData: [], isRealData: false }
+    }
+    
+    if (!Array.isArray(movements)) {
+      console.log('⚠️ Movements no es un array válido')
+      return { chartData: [], isRealData: false }
+    }
+    
+    if (movements.length === 0) {
+      console.log('⚠️ No hay movimientos disponibles')
+      return { chartData: generateSampleData(selectedMonth), isRealData: false }
+    }
     
     // Debug: Log de datos para diagnóstico
     console.log('🔍 Debug - Datos para gráfica:')
@@ -682,74 +743,76 @@ export default function KPIsClient() {
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         {/* Header con navegación */}
         <div className="mb-6">
-          
-          
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-                <Package className="w-8 h-8 text-[#8E94F2]" />
+                <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#8E94F2]" />
                 Análisis de Inventario
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">
                 KPIs en tiempo real basados en datos del sistema
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setVistaDetallada(!vistaDetallada)}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-all duration-200 border border-gray-200"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-all duration-200 border border-gray-200 text-sm"
               >
                 {vistaDetallada ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                {vistaDetallada ? 'Vista Simple' : 'Vista Detallada'}
+                <span className="hidden sm:inline">{vistaDetallada ? 'Vista Simple' : 'Vista Detallada'}</span>
+                <span className="sm:hidden">{vistaDetallada ? 'Simple' : 'Detallada'}</span>
               </button>
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-all duration-200 border border-gray-200"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-all duration-200 border border-gray-200 text-sm"
               >
                 <Download className="w-4 h-4" />
-                Exportar
+                <span className="hidden sm:inline">Exportar</span>
+                <span className="sm:hidden">📥</span>
               </button>
               <button
                 onClick={handleRefresh}
-                className="flex items-center gap-2 px-4 py-2 bg-[#8E94F2] text-white rounded-xl hover:bg-[#7278e0] transition-all duration-200 shadow-sm hover:shadow-md"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#8E94F2] text-white rounded-xl hover:bg-[#7278e0] transition-all duration-200 shadow-sm hover:shadow-md text-sm"
               >
                 <RefreshCw className="w-4 h-4" />
                 <span className="hidden sm:inline">Actualizar</span>
+                <span className="sm:hidden">🔄</span>
               </button>
             </div>
           </div>
 
           {/* Información de última actualización */}
-          <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-500 mb-4 gap-2">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
               Última actualización: {format(lastRefresh, 'dd/MM/yyyy HH:mm')}
             </div>
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4" />
-              Los datos se actualizan automáticamente cada 5 minutos
+              <span className="hidden sm:inline">Los datos se actualizan automáticamente cada 5 minutos</span>
+              <span className="sm:hidden">Auto-actualización cada 5 min</span>
             </div>
           </div>
         </div>
 
         {/* KPIs Principales - Grid de 6 tarjetas */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
           {/* Total Productos */}
           <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between mb-2">
-                <Package className="w-5 h-5 text-blue-600" />
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 <select 
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="text-xs border border-gray-200 rounded px-2 py-1 bg-gray-50"
+                  className="text-xs border border-gray-200 rounded px-1 sm:px-2 py-1 bg-gray-50"
                 >
                   {availableMonths.map(month => (
                     <option key={month} value={month}>{month}</option>
                   ))}
                 </select>
               </div>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">
                 {kpisData?.totalProductos !== undefined ? kpisData.totalProductos : '--'}
               </div>
               <div className="text-xs text-gray-500">
@@ -760,11 +823,11 @@ export default function KPIsClient() {
 
           {/* Productos Stock Bajo */}
           <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between mb-2">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
               </div>
-              <div className="text-2xl font-bold text-red-600">
+              <div className="text-xl sm:text-2xl font-bold text-red-600">
                 {kpisData?.productosStockBajo !== undefined ? kpisData.productosStockBajo : '--'}
               </div>
               <div className="text-xs text-gray-500">
@@ -775,11 +838,11 @@ export default function KPIsClient() {
 
           {/* Movimientos Último Mes */}
           <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between mb-2">
-                <Activity className="w-5 h-5 text-green-600" />
+                <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
               </div>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">
                 {kpisData?.movimientosUltimoMes !== undefined ? kpisData.movimientosUltimoMes : '--'}
               </div>
               <div className="text-xs text-gray-500">
@@ -790,11 +853,11 @@ export default function KPIsClient() {
 
           {/* Valor Total Inventario */}
           <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between mb-2">
-                <DollarSign className="w-5 h-5 text-purple-600" />
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
               </div>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">
                 {kpisData?.valorTotalInventario !== undefined ? formatCurrencyMXN(kpisData.valorTotalInventario) : '--'}
               </div>
               <div className="text-xs text-gray-500">
@@ -805,11 +868,11 @@ export default function KPIsClient() {
 
           {/* Rotación Inventario */}
           <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between mb-2">
-                <RotateCcw className="w-5 h-5 text-orange-600" />
+                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
               </div>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">
                 {kpisData?.rotacionInventario !== undefined ? kpisData.rotacionInventario.toFixed(2) : '--'}
               </div>
               <div className="text-xs text-gray-500">
@@ -820,11 +883,11 @@ export default function KPIsClient() {
 
           {/* Margen Promedio */}
           <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between mb-2">
-                <Percent className="w-5 h-5 text-indigo-600" />
+                <Percent className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
               </div>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">
                 {kpisData?.margenPromedio !== undefined ? formatCurrencyMXN(kpisData.margenPromedio) : '--'}
               </div>
               <div className="text-xs text-gray-500">
@@ -837,17 +900,17 @@ export default function KPIsClient() {
         {/* KPIs Financieros */}
         {mostrarFinancieros && financialData && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-green-600" />
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
               Indicadores Financieros
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               <Card className="bg-white shadow-sm border-0">
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
+                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                   </div>
-                  <div className="text-xl font-bold text-green-600">
+                  <div className="text-lg sm:text-xl font-bold text-green-600">
                     {formatPercentage(financialData.margenBruto)}
                   </div>
                   <div className="text-xs text-gray-500">Margen Bruto</div>
@@ -855,11 +918,11 @@ export default function KPIsClient() {
               </Card>
 
               <Card className="bg-white shadow-sm border-0">
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Target className="w-5 h-5 text-blue-600" />
+                    <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   </div>
-                  <div className="text-xl font-bold text-blue-600">
+                  <div className="text-lg sm:text-xl font-bold text-blue-600">
                     {formatPercentage(financialData.margenNeto)}
                   </div>
                   <div className="text-xs text-gray-500">Margen Neto</div>
@@ -867,11 +930,11 @@ export default function KPIsClient() {
               </Card>
 
               <Card className="bg-white shadow-sm border-0">
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Zap className="w-5 h-5 text-purple-600" />
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                   </div>
-                  <div className="text-xl font-bold text-purple-600">
+                  <div className="text-lg sm:text-xl font-bold text-purple-600">
                     {formatPercentage(financialData.roiInventario)}
                   </div>
                   <div className="text-xs text-gray-500">ROI Inventario</div>
@@ -879,11 +942,11 @@ export default function KPIsClient() {
               </Card>
 
               <Card className="bg-white shadow-sm border-0">
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Gauge className="w-5 h-5 text-orange-600" />
+                    <Gauge className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
                   </div>
-                  <div className="text-xl font-bold text-orange-600">
+                  <div className="text-lg sm:text-xl font-bold text-orange-600">
                     {financialData.eficienciaOperativa.toFixed(1)}%
                   </div>
                   <div className="text-xs text-gray-500">Eficiencia Operativa</div>
@@ -895,31 +958,19 @@ export default function KPIsClient() {
 
         {/* Gráfica Universal: Entradas vs Salidas */}
         <Card className="bg-white shadow-sm border-0 mb-8">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-6">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Flujo de Inventario: Entradas vs Salidas</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Flujo de Inventario: Entradas vs Salidas</h3>
                 <p className="text-sm text-gray-600">Movimientos diarios del mes seleccionado</p>
-                {chartData.length > 0 && isRealData && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-xs text-green-600 font-medium">Datos reales del sistema</span>
-                  </div>
-                )}
-                {chartData.length > 0 && !isRealData && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <span className="text-xs text-yellow-600 font-medium">Datos de demostración</span>
-                  </div>
-                )}
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-500" />
                   <select 
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="text-sm border border-gray-200 rounded px-3 py-1 bg-gray-50"
+                    className="text-sm border border-gray-200 rounded px-2 sm:px-3 py-1 bg-gray-50"
                   >
                     {availableMonths.map(month => (
                       <option key={month} value={month}>{month}</option>
@@ -953,12 +1004,12 @@ export default function KPIsClient() {
             </div>
             
             {/* Gráfica */}
-            <div className="h-80">
+            <div className="h-64 sm:h-80">
               {chartData.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center text-gray-500">
-                    <BarChart3 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg font-medium mb-2">Sin datos disponibles</p>
+                    <BarChart3 className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-base sm:text-lg font-medium mb-2">Sin datos disponibles</p>
                     <p className="text-sm">No hay movimientos registrados para {selectedMonth}</p>
                     <p className="text-xs text-gray-400 mt-2">Agrega movimientos de inventario para ver la gráfica</p>
                   </div>
@@ -969,13 +1020,13 @@ export default function KPIsClient() {
                     <RechartsLineChart data={chartData}>
                       <XAxis 
                         dataKey="dia" 
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
                         axisLine={false}
                         tickLine={false}
                         label={{ value: getGraphLabels().diaDelMes, position: 'insideBottom', offset: -10 }}
                       />
                       <YAxis 
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
                         axisLine={false}
                         tickLine={false}
                         label={{ value: getGraphLabels().cantidad, angle: -90, position: 'insideLeft' }}
@@ -999,32 +1050,36 @@ export default function KPIsClient() {
                         type="monotone" 
                         dataKey="entradas" 
                         stroke={getGraphColors().entradas} 
-                        strokeWidth={3}
-                        dot={{ fill: getGraphColors().entradas, strokeWidth: 2, r: 4 }}
-                        name={getGraphLabels().entradas}
-                        activeDot={{ r: 6, stroke: getGraphColors().entradas, strokeWidth: 2 }}
+                        strokeWidth={2}
+                        name={getGraphTooltips().entradas}
                       />
                       <Line 
                         type="monotone" 
                         dataKey="salidas" 
                         stroke={getGraphColors().salidas} 
-                        strokeWidth={3}
-                        dot={{ fill: getGraphColors().salidas, strokeWidth: 2, r: 4 }}
-                        name={getGraphLabels().salidas}
-                        activeDot={{ r: 6, stroke: getGraphColors().salidas, strokeWidth: 2 }}
+                        strokeWidth={2}
+                        name={getGraphTooltips().salidas}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="balance" 
+                        stroke={getGraphColors().balance} 
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        name={getGraphTooltips().balance}
                       />
                     </RechartsLineChart>
                   ) : vistaGrafico === 'bar' ? (
                     <RechartsBarChart data={chartData}>
                       <XAxis 
                         dataKey="dia" 
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
                         axisLine={false}
                         tickLine={false}
                         label={{ value: getGraphLabels().diaDelMes, position: 'insideBottom', offset: -10 }}
                       />
                       <YAxis 
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
                         axisLine={false}
                         tickLine={false}
                         label={{ value: getGraphLabels().cantidad, angle: -90, position: 'insideLeft' }}
@@ -1038,24 +1093,26 @@ export default function KPIsClient() {
                         }}
                         formatter={(value: any, name: string) => [
                           `${value} ${getGraphLabels().unidades}`, 
-                          name === 'entradas' ? getGraphTooltips().entradas : getGraphTooltips().salidas
+                          name === 'entradas' ? getGraphTooltips().entradas : 
+                          name === 'salidas' ? getGraphTooltips().salidas : 
+                          getGraphTooltips().balance
                         ]}
                         labelFormatter={(label) => `Día ${label}`}
                       />
-                      <Bar dataKey="entradas" fill={getGraphColors().entradas} name={getGraphLabels().entradas} radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="salidas" fill={getGraphColors().salidas} name={getGraphLabels().salidas} radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="entradas" fill={getGraphColors().entradas} name={getGraphTooltips().entradas} />
+                      <Bar dataKey="salidas" fill={getGraphColors().salidas} name={getGraphTooltips().salidas} />
                     </RechartsBarChart>
                   ) : (
                     <AreaChart data={chartData}>
                       <XAxis 
                         dataKey="dia" 
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
                         axisLine={false}
                         tickLine={false}
                         label={{ value: getGraphLabels().diaDelMes, position: 'insideBottom', offset: -10 }}
                       />
                       <YAxis 
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
                         axisLine={false}
                         tickLine={false}
                         label={{ value: getGraphLabels().cantidad, angle: -90, position: 'insideLeft' }}
@@ -1069,25 +1126,29 @@ export default function KPIsClient() {
                         }}
                         formatter={(value: any, name: string) => [
                           `${value} ${getGraphLabels().unidades}`, 
-                          name === 'entradas' ? getGraphTooltips().entradas : getGraphTooltips().salidas
+                          name === 'entradas' ? getGraphTooltips().entradas : 
+                          name === 'salidas' ? getGraphTooltips().salidas : 
+                          getGraphTooltips().balance
                         ]}
                         labelFormatter={(label) => `Día ${label}`}
                       />
                       <Area 
                         type="monotone" 
                         dataKey="entradas" 
+                        stackId="1"
                         stroke={getGraphColors().entradas} 
                         fill={getGraphColors().entradas}
-                        fillOpacity={0.3}
-                        name={getGraphLabels().entradas}
+                        fillOpacity={0.6}
+                        name={getGraphTooltips().entradas}
                       />
                       <Area 
                         type="monotone" 
                         dataKey="salidas" 
+                        stackId="1"
                         stroke={getGraphColors().salidas} 
                         fill={getGraphColors().salidas}
-                        fillOpacity={0.3}
-                        name={getGraphLabels().salidas}
+                        fillOpacity={0.6}
+                        name={getGraphTooltips().salidas}
                       />
                     </AreaChart>
                   )}
@@ -1095,6 +1156,23 @@ export default function KPIsClient() {
               )}
             </div>
             
+            {/* Indicador de tipo de datos */}
+            {chartData.length > 0 && (
+              <div className="mt-4 text-center">
+                {isRealData ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-xs text-green-600 font-medium">Datos reales del sistema</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span className="text-xs text-yellow-600 font-medium">Datos de demostración</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Leyenda personalizada */}
             <div className="flex items-center justify-center gap-8 mt-6 pt-4 border-t border-gray-100">
               <div className="flex items-center gap-2">
@@ -1135,77 +1213,88 @@ export default function KPIsClient() {
 
         {/* Detalles de Productos */}
         <Card className="bg-white shadow-sm border-0 mb-8">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Detalles de productos</h3>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span>Total: {totalItems} productos</span>
-                <span>•</span>
-                <span>Página {currentPage} de {totalPages}</span>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+              <div>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Detalles de Productos</h3>
+                <p className="text-sm text-gray-600">Análisis detallado del inventario por producto</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setMostrarFinancieros(!mostrarFinancieros)}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                >
+                  <DollarSign className="w-4 h-4" />
+                  <span className="hidden sm:inline">Financieros</span>
+                  <span className="sm:hidden">💰</span>
+                </button>
+                <button
+                  onClick={() => setMostrarPredictivos(!mostrarPredictivos)}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                >
+                  <Target className="w-4 h-4" />
+                  <span className="hidden sm:inline">Predictivos</span>
+                  <span className="sm:hidden">🎯</span>
+                </button>
               </div>
             </div>
-            
-            {/* Filtros */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-              <select
-                value={filtroCategoria}
-                onChange={(e) => setFiltroCategoria(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent"
-                disabled={productsLoading}
-              >
-                <option value="">Todas las categorías</option>
-                {Array.from(new Set(backendProducts.map(p => p.tipoProducto).filter(Boolean))).map(categoria => (
-                  <option key={categoria} value={categoria}>{categoria}</option>
-                ))}
-              </select>
-              
-              <select
-                value={filtroProveedor}
-                onChange={(e) => setFiltroProveedor(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent"
-                disabled={providersLoading}
-              >
-                <option value="">Todos los proveedores</option>
-                {providers.map(provider => (
-                  <option key={provider.id} value={provider.nombre}>{provider.nombre}</option>
-                ))}
-              </select>
-              
-              <select
-                value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent"
-              >
-                <option value="">Todos los estados</option>
-                <option value="optimal">Óptimo</option>
-                <option value="warning">Advertencia</option>
-                <option value="critical">Crítico</option>
-              </select>
 
-              <select
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent"
-              >
-                <option value={5}>5 por página</option>
-                <option value={10}>10 por página</option>
-                <option value={20}>20 por página</option>
-                <option value={50}>50 por página</option>
-              </select>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={handleApplyFilters}
-                  className="px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors text-sm"
-                >
-                  Aplicar
-                </button>
-                <button
-                  onClick={handleClearFilters}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-                >
-                  Limpiar
-                </button>
+            {/* Filtros */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                  <select
+                    value={filtroCategoria}
+                    onChange={(e) => setFiltroCategoria(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm"
+                  >
+                    <option value="">Todas las categorías</option>
+                    {Array.from(new Set(backendProducts.map(p => p.tipoProducto).filter(Boolean))).map(categoria => (
+                      <option key={categoria} value={categoria}>{categoria}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+                  <select
+                    value={filtroProveedor}
+                    onChange={(e) => setFiltroProveedor(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm"
+                  >
+                    <option value="">Todos los proveedores</option>
+                    {providers.map(provider => (
+                      <option key={provider.id} value={provider.nombre}>{provider.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                  <select
+                    value={filtroEstado}
+                    onChange={(e) => setFiltroEstado(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm"
+                  >
+                    <option value="">Todos los estados</option>
+                    <option value="critical">Crítico</option>
+                    <option value="warning">Advertencia</option>
+                    <option value="optimal">Óptimo</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleApplyFilters}
+                    className="flex-1 px-3 sm:px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors text-sm"
+                  >
+                    Aplicar
+                  </button>
+                  <button
+                    onClick={handleClearFilters}
+                    className="flex-1 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                  >
+                    Limpiar
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1215,11 +1304,12 @@ export default function KPIsClient() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th 
-                      className="text-left py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                       onClick={() => handleSort('producto')}
                     >
                       <div className="flex items-center gap-1">
-                        Nombre de producto
+                        <span className="hidden sm:inline">Nombre de producto</span>
+                        <span className="sm:hidden">Producto</span>
                         {sortField === 'producto' && (
                           sortDirection === 'asc' ? 
                             <ArrowUpRight className="w-3 h-3" /> : 
@@ -1228,7 +1318,7 @@ export default function KPIsClient() {
                       </div>
                     </th>
                     <th 
-                      className="text-left py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                       onClick={() => handleSort('inicio')}
                     >
                       <div className="flex items-center gap-1">
@@ -1241,11 +1331,12 @@ export default function KPIsClient() {
                       </div>
                     </th>
                     <th 
-                      className="text-left py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                       onClick={() => handleSort('movimientos')}
                     >
                       <div className="flex items-center gap-1">
-                        Movimientos
+                        <span className="hidden sm:inline">Movimientos</span>
+                        <span className="sm:hidden">Mov.</span>
                         {sortField === 'movimientos' && (
                           sortDirection === 'asc' ? 
                             <ArrowUpRight className="w-3 h-3" /> : 
@@ -1254,7 +1345,7 @@ export default function KPIsClient() {
                       </div>
                     </th>
                     <th 
-                      className="text-left py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                       onClick={() => handleSort('final')}
                     >
                       <div className="flex items-center gap-1">
@@ -1267,7 +1358,7 @@ export default function KPIsClient() {
                       </div>
                     </th>
                     <th 
-                      className="text-left py-3 px-4 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                      className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                       onClick={() => handleSort('estado')}
                     >
                       <div className="flex items-center gap-1">
@@ -1279,41 +1370,51 @@ export default function KPIsClient() {
                         )}
                       </div>
                     </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Categoría</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Proveedor</th>
+                    <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700">
+                      <span className="hidden sm:inline">Categoría</span>
+                      <span className="sm:hidden">Cat.</span>
+                    </th>
+                    <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700">
+                      <span className="hidden sm:inline">Proveedor</span>
+                      <span className="sm:hidden">Prov.</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {currentProducts.length !== 0 && (
                     currentProducts.map((product, index) => (
                       <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{product.producto}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{product.inicio}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{product.movimientos}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{product.final}</td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-900">
+                          <span className="truncate block max-w-[120px] sm:max-w-none">{product.producto}</span>
+                        </td>
+                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">{product.inicio}</td>
+                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">{product.movimientos}</td>
+                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">{product.final}</td>
+                        <td className="py-3 px-2 sm:px-4">
                           {product.estado === 'critical' && (
-                            <div className="flex items-center gap-2">
-                              <XCircle className="w-4 h-4 text-red-500" />
+                            <div className="flex items-center gap-1 sm:gap-2">
+                              <XCircle className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
                               <span className="text-xs text-red-600">Crítico</span>
                             </div>
                           )}
                           {product.estado === 'warning' && (
-                            <div className="flex items-center gap-2">
-                              <AlertCircle className="w-4 h-4 text-yellow-500" />
+                            <div className="flex items-center gap-1 sm:gap-2">
+                              <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
                               <span className="text-xs text-yellow-600">Advertencia</span>
                             </div>
                           )}
                           {product.estado === 'optimal' && (
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            <div className="flex items-center gap-1 sm:gap-2">
+                              <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" />
                               <span className="text-xs text-green-600">Óptimo</span>
                             </div>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{product.categoria}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
-                          <span className="font-medium">{product.proveedor}</span>
+                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
+                          <span className="truncate block max-w-[80px] sm:max-w-none">{product.categoria}</span>
+                        </td>
+                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
+                          <span className="font-medium truncate block max-w-[100px] sm:max-w-none">{product.proveedor}</span>
                         </td>
                       </tr>
                     ))
@@ -1323,23 +1424,25 @@ export default function KPIsClient() {
             </div>
 
             {/* Paginación */}
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={totalItems}
-              itemsPerPage={itemsPerPage}
-              startIndex={startIndex}
-              endIndex={endIndex}
-              onPageChange={handlePageChange}
-              onItemsPerPageChange={setItemsPerPage}
-              showItemsPerPage={true}
-            />
+            <div className="mt-6">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                startIndex={startIndex}
+                endIndex={endIndex}
+                onPageChange={handlePageChange}
+                onItemsPerPageChange={setItemsPerPage}
+                showItemsPerPage={true}
+              />
+            </div>
 
             {/* Estado vacío */}
             {currentProducts.length === 0 && (
               <div className="text-center py-8">
-                <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No se encontraron productos con los filtros aplicados</p>
+                <Package className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-sm sm:text-base text-gray-500">No se encontraron productos con los filtros aplicados</p>
                 <button
                   onClick={handleClearFilters}
                   className="mt-2 text-[#8E94F2] hover:text-[#7278e0] text-sm"
@@ -1354,20 +1457,20 @@ export default function KPIsClient() {
         {/* Agente IAM Recomienda */}
         {recommendations.length > 0 && (
           <Card className="bg-white shadow-sm border-0 mb-8">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-6">
-                <Cake className="w-6 h-6 text-[#8E94F2]" />
-                <h3 className="text-lg font-semibold text-gray-900">Agente IAM Recomienda</h3>
+                <Cake className="w-5 h-5 sm:w-6 sm:h-6 text-[#8E94F2]" />
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Agente IAM Recomienda</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 {recommendations.map((recommendation, index) => (
-                  <div key={index} className={`p-4 rounded-lg border ${recommendation.bgColor}`}>
-                    <div className="flex items-start gap-3">
-                      <recommendation.icon className={`w-6 h-6 mt-1 ${recommendation.color}`} />
+                  <div key={index} className={`p-3 sm:p-4 rounded-lg border ${recommendation.bgColor}`}>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <recommendation.icon className={`w-5 h-5 sm:w-6 sm:h-6 mt-1 ${recommendation.color}`} />
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 mb-1">{recommendation.title}</h4>
-                        <p className="text-sm text-gray-600">{recommendation.description}</p>
+                        <h4 className="font-medium text-gray-900 mb-1 text-sm sm:text-base">{recommendation.title}</h4>
+                        <p className="text-xs sm:text-sm text-gray-600">{recommendation.description}</p>
                       </div>
                     </div>
                   </div>
@@ -1380,23 +1483,23 @@ export default function KPIsClient() {
         {/* KPIs Predictivos */}
         {mostrarPredictivos && predictiveData && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Target className="w-5 h-5 text-purple-600" />
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Target className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
               Análisis Predictivo
             </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {predictiveData.prediccionDemanda.length > 0 && (
                 <Card className="bg-white shadow-sm border-0">
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Predicción de Demanda</h3>
+                  <CardContent className="p-4 sm:p-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Predicción de Demanda</h3>
                     <div className="space-y-3">
                       {predictiveData.prediccionDemanda.slice(0, 5).map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-gray-900">{item.nombre}</p>
-                            <p className="text-sm text-gray-600">Demanda estimada: {item.demandaEstimada}</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 text-sm sm:text-base truncate">{item.nombre}</p>
+                            <p className="text-xs sm:text-sm text-gray-600">Demanda estimada: {item.demandaEstimada}</p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex-shrink-0 ml-2">
                             <p className="text-sm font-medium text-blue-600">{item.confianza}%</p>
                             <p className="text-xs text-gray-500">Confianza</p>
                           </div>
@@ -1409,18 +1512,18 @@ export default function KPIsClient() {
 
               {predictiveData.prediccionQuiebres.length > 0 && (
                 <Card className="bg-white shadow-sm border-0">
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Riesgo de Quiebre</h3>
+                  <CardContent className="p-4 sm:p-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Riesgo de Quiebre</h3>
                     <div className="space-y-3">
                       {predictiveData.prediccionQuiebres.slice(0, 5).map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-gray-900">{item.nombre}</p>
-                            <p className="text-sm text-gray-600">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 text-sm sm:text-base truncate">{item.nombre}</p>
+                            <p className="text-xs sm:text-sm text-gray-600">
                               {format(new Date(item.fechaPrediccion), 'dd/MM/yyyy')}
                             </p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex-shrink-0 ml-2">
                             <p className="text-sm font-medium text-red-600">{item.probabilidad}%</p>
                             <p className="text-xs text-gray-500">Probabilidad</p>
                           </div>
@@ -1435,27 +1538,20 @@ export default function KPIsClient() {
         )}
 
         {/* Botones de Acción */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <button
             onClick={handleGenerateReplenishmentPlan}
-            className="flex-1 px-6 py-3 bg-[#8E94F2] text-white rounded-xl hover:bg-[#7278e0] transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+            className="flex-1 px-4 sm:px-6 py-3 bg-[#8E94F2] text-white rounded-xl hover:bg-[#7278e0] transition-all duration-200 shadow-sm hover:shadow-md font-medium text-sm sm:text-base"
           >
             Generar plan de reabastecimiento
           </button>
           <button
             onClick={handleRecommendPrices}
-            className="flex-1 px-6 py-3 bg-white text-gray-900 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
+            className="flex-1 px-4 sm:px-6 py-3 bg-white text-gray-900 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium text-sm sm:text-base"
           >
             Recomendar precios
           </button>
         </div>
-
-        {/* Mensaje de error */}
-        {error && (
-          <div className="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
-            {error}
-          </div>
-        )}
       </div>
     </div>
   )

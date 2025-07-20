@@ -10,6 +10,7 @@ import { GetKpisHandler } from './handlers/get-kpis.handler';
 import { GetFinancialKpisHandler } from './handlers/get-financial-kpis.handler';
 import { GetIndustryKpisHandler } from './handlers/get-industry-kpis.handler';
 import { GetPredictiveKpisHandler } from './handlers/get-predictive-kpis.handler';
+import { GetDailyMovementsHandler } from './handlers/get-daily-movements.handler';
 
 // Servicios auxiliares (mantener compatibilidad)
 import { IndustryKPIService } from './services/industry-kpi.service';
@@ -29,6 +30,7 @@ import { FinancialDataFilterService } from './services/financial-data-filter.ser
     GetFinancialKpisHandler,
     GetIndustryKpisHandler,
     GetPredictiveKpisHandler,
+    GetDailyMovementsHandler,
     
     // Servicios auxiliares (para compatibilidad)
     IndustryKPIService,
@@ -42,6 +44,7 @@ import { FinancialDataFilterService } from './services/financial-data-filter.ser
     GetFinancialKpisHandler,
     GetIndustryKpisHandler,
     GetPredictiveKpisHandler,
+    GetDailyMovementsHandler,
     IndustryKPIService,
     PredictionService,
     AlertService,

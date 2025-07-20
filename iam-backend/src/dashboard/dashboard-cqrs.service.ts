@@ -3,12 +3,16 @@ import { GetKpisHandler } from './handlers/get-kpis.handler';
 import { GetFinancialKpisHandler } from './handlers/get-financial-kpis.handler';
 import { GetIndustryKpisHandler } from './handlers/get-industry-kpis.handler';
 import { GetPredictiveKpisHandler } from './handlers/get-predictive-kpis.handler';
+import { GetDailyMovementsHandler } from './handlers/get-daily-movements.handler';
 import { GetKpisQuery } from './queries/get-kpis.query';
 import { GetFinancialKpisQuery } from './queries/get-financial-kpis.query';
 import { GetIndustryKpisQuery } from './queries/get-industry-kpis.query';
 import { GetPredictiveKpisQuery } from './queries/get-predictive-kpis.query';
+import { GetDailyMovementsQuery } from './queries/get-daily-movements.query';
 import { KPIData } from './interfaces/kpi-data.interface';
 import { FinancialKPIs } from './interfaces/financial-kpis.interface';
+import { DailyMovementsResponse } from './interfaces/daily-movements.interface';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class DashboardCQRSService {
@@ -19,6 +23,8 @@ export class DashboardCQRSService {
     private readonly getFinancialKpisHandler: GetFinancialKpisHandler,
     private readonly getIndustryKpisHandler: GetIndustryKpisHandler,
     private readonly getPredictiveKpisHandler: GetPredictiveKpisHandler,
+    private readonly getDailyMovementsHandler: GetDailyMovementsHandler,
+    private readonly prisma: PrismaService,
   ) {}
 
   // QUERIES - Operaciones de lectura
@@ -40,6 +46,164 @@ export class DashboardCQRSService {
   async getPredictiveKPIs(empresaId: number, days?: number, userRole?: string, forceRefresh?: boolean): Promise<any> {
     const query = new GetPredictiveKpisQuery(empresaId, days, userRole, forceRefresh);
     return this.getPredictiveKpisHandler.execute(query);
+  }
+
+  async getDailyMovements(empresaId: number, days?: number, userRole?: string, forceRefresh?: boolean): Promise<DailyMovementsResponse> {
+    this.logger.log('🎯 Servicio getDailyMovements llamado', { empresaId, days, userRole, forceRefresh });
+    
+    try {
+      const query = new GetDailyMovementsQuery(empresaId, userRole, days, forceRefresh);
+      this.logger.log('✅ Query creada', { 
+        empresaId: query.empresaId,
+        userRole: query.userRole,
+        days: query.days,
+        forceRefresh: query.forceRefresh
+      });
+      
+      this.logger.log('🚀 Ejecutando handler...');
+      const result = await this.getDailyMovementsHandler.execute(query);
+      this.logger.log('✅ Resultado obtenido del handler', { 
+        dataLength: result.data?.length,
+        summary: result.summary,
+        meta: result.meta
+      });
+      
+      return result;
+    } catch (error) {
+      this.logger.error('❌ Error en servicio getDailyMovements', error);
+      throw error;
+    }
+  }
+
+  async getFilterOptions(empresaId: number) {
+    this.logger.log('Obteniendo opciones de filtro', { empresaId });
+    
+    try {
+      // Obtener productos activos
+      const products = await this.prisma.producto.findMany({
+        where: { 
+          empresaId, 
+          estado: 'ACTIVO'
+        },
+        select: {
+          id: true,
+          nombre: true,
+          etiquetas: true
+        },
+        orderBy: { nombre: 'asc' }
+      });
+
+      // Obtener proveedores activos
+      const suppliers = await this.prisma.proveedor.findMany({
+        where: { 
+          empresaId, 
+          estado: 'ACTIVO'
+        },
+        select: {
+          id: true,
+          nombre: true
+        },
+        orderBy: { nombre: 'asc' }
+      });
+
+      // Obtener usuarios activos
+      const users = await this.prisma.usuario.findMany({
+        where: { 
+          empresaId, 
+          activo: true
+        },
+        select: {
+          id: true,
+          nombre: true,
+          email: true
+        },
+        orderBy: { nombre: 'asc' }
+      });
+
+      // Obtener categorías únicas de productos
+      const categories = await this.prisma.producto.findMany({
+        where: { 
+          empresaId, 
+          estado: 'ACTIVO'
+        },
+        select: {
+          etiquetas: true
+        }
+      });
+
+      // Obtener motivos únicos de movimientos
+      const reasons = await this.prisma.movimientoInventario.findMany({
+        where: { 
+          empresaId,
+          estado: 'ACTIVO'
+        },
+        select: {
+          motivo: true
+        },
+        distinct: ['motivo']
+      });
+
+      // Procesar categorías (etiquetas)
+      const uniqueCategories = new Set<string>();
+      categories.forEach(product => {
+        if (product.etiquetas && Array.isArray(product.etiquetas)) {
+          product.etiquetas.forEach(tag => uniqueCategories.add(tag));
+        }
+      });
+
+      // Rangos de fechas predefinidos
+      const dateRanges = [
+        { value: '7d', label: 'Últimos 7 días' },
+        { value: '15d', label: 'Últimos 15 días' },
+        { value: '30d', label: 'Últimos 30 días' },
+        { value: '60d', label: 'Últimos 60 días' },
+        { value: '90d', label: 'Últimos 90 días' },
+        { value: 'custom', label: 'Período personalizado' }
+      ];
+
+      return {
+        products: products.map(p => ({
+          value: p.id.toString(),
+          label: p.nombre,
+          count: 0 // Se puede calcular si es necesario
+        })),
+        suppliers: suppliers.map(s => ({
+          value: s.id.toString(),
+          label: s.nombre,
+          count: 0
+        })),
+        categories: Array.from(uniqueCategories).map(cat => ({
+          value: cat,
+          label: cat,
+          count: 0
+        })),
+        tags: Array.from(uniqueCategories).map(cat => ({
+          value: cat,
+          label: cat,
+          count: 0
+        })),
+        reasons: reasons
+          .filter(r => r.motivo)
+          .map(r => ({
+            value: r.motivo!,
+            label: r.motivo!,
+            count: 0
+          })),
+        users: users.map(u => ({
+          value: u.id.toString(),
+          label: u.nombre,
+          count: 0
+        })),
+        dateRanges: dateRanges.map(dr => ({
+          value: dr.value,
+          label: dr.label,
+          count: 0
+        }))
+      };
+    } catch (error) {
+      this.logger.error('Error obteniendo opciones de filtro', error);
+      throw error;
+    }
   }
 
   async getDashboardData(empresaId: number, userRole?: string): Promise<{
