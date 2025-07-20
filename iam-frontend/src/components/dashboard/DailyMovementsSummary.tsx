@@ -78,7 +78,10 @@ export default function DailyMovementsSummary({
   const totalValorEntradas = data.data.reduce((sum: number, item: any) => sum + (item.valorEntradas || 0), 0)
   const totalValorSalidas = data.data.reduce((sum: number, item: any) => sum + (item.valorSalidas || 0), 0)
   const totalValorNeto = totalValorEntradas - totalValorSalidas
-  const margenPromedio = totalValorEntradas > 0 ? ((totalValorNeto / totalValorEntradas) * 100) : 0
+  // Usar el margen del backend si está disponible, sino calcular correctamente
+  const margenPromedio = data.summary?.margenBrutoPromedio !== undefined 
+    ? data.summary.margenBrutoPromedio 
+    : (totalValorEntradas > 0 ? ((totalValorSalidas - totalValorEntradas) / totalValorEntradas) * 100 : 0)
   const diasConActividad = data.data.filter((item: any) => (item.entradas || 0) + (item.salidas || 0) > 0).length
   const promedioDiario = data.data.length > 0 ? ((totalEntradas + totalSalidas) / data.data.length) : 0
 

@@ -108,33 +108,29 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
     }
   }, [data])
 
-  // Datos para gráfica de productos más vendidos (simulado)
+  // Datos para gráfica de productos más vendidos (reales del backend)
   const topProductsData = useMemo(() => {
-    if (!chartData.length) return []
+    if (!data?.summary?.productosMasVendidos) return []
     
-    // Simular datos de productos más vendidos basados en los movimientos
-    return [
-      { nombre: 'Producto A', ventas: 45, porcentaje: 25 },
-      { nombre: 'Producto B', ventas: 38, porcentaje: 21 },
-      { nombre: 'Producto C', ventas: 32, porcentaje: 18 },
-      { nombre: 'Producto D', ventas: 28, porcentaje: 16 },
-      { nombre: 'Producto E', ventas: 22, porcentaje: 12 },
-      { nombre: 'Otros', ventas: 15, porcentaje: 8 }
-    ]
-  }, [chartData])
+    // Usar datos reales del backend
+    return data.summary.productosMasVendidos.map(producto => ({
+      nombre: producto.nombre,
+      ventas: producto.cantidadTotal,
+      porcentaje: producto.porcentaje
+    }))
+  }, [data?.summary?.productosMasVendidos])
 
-  // Datos para distribución por tipo (simulado)
+  // Datos para distribución por tipo (reales del backend)
   const distributionData = useMemo(() => {
-    if (!chartData.length) return []
+    if (!data?.summary?.distribucionPorTipo) return []
     
-    const totalEntradas = chartData.reduce((sum, item) => sum + (item.entradas || 0), 0)
-    const totalSalidas = chartData.reduce((sum, item) => sum + (item.salidas || 0), 0)
-    
-    return [
-      { name: 'Entradas', value: totalEntradas, color: '#00C49F' },
-      { name: 'Salidas', value: totalSalidas, color: '#FF8042' }
-    ]
-  }, [chartData])
+    // Usar datos reales del backend
+    return data.summary.distribucionPorTipo.map(tipo => ({
+      name: tipo.tipo,
+      value: tipo.cantidad,
+      color: tipo.tipo === 'ALIMENTO' ? '#00C49F' : '#FF8042'
+    }))
+  }, [data?.summary?.distribucionPorTipo])
 
   // Datos para flujo de inventario
   const inventoryFlowData = useMemo(() => {
@@ -149,17 +145,17 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
     }))
   }, [chartData])
 
-  // Datos para proveedores principales (simulado)
+  // Datos para proveedores principales (reales del backend)
   const providersData = useMemo(() => {
-    if (!chartData.length) return []
+    if (!data?.summary?.proveedoresPrincipales) return []
     
-    return [
-      { proveedor: 'Proveedor A', volumen: 120, porcentaje: 35 },
-      { proveedor: 'Proveedor B', volumen: 95, porcentaje: 28 },
-      { proveedor: 'Proveedor C', volumen: 78, porcentaje: 23 },
-      { proveedor: 'Proveedor D', volumen: 45, porcentaje: 14 }
-    ]
-  }, [chartData])
+    // Usar datos reales del backend
+    return data.summary.proveedoresPrincipales.map(proveedor => ({
+      proveedor: proveedor.nombre,
+      volumen: proveedor.cantidadTotal,
+      porcentaje: proveedor.porcentaje
+    }))
+  }, [data?.summary?.proveedoresPrincipales])
 
   // Datos para margen promedio diario
   const marginData = useMemo(() => {
@@ -172,14 +168,18 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
     }))
   }, [chartData])
 
-  // Datos para alertas de stock (simulado)
+  // Datos para alertas de stock (reales del backend)
   const stockAlerts = useMemo(() => {
-    return [
-      { producto: 'Producto A', stock: 5, minimo: 10, estado: 'CRÍTICO' },
-      { producto: 'Producto B', stock: 8, minimo: 15, estado: 'BAJO' },
-      { producto: 'Producto C', stock: 12, minimo: 20, estado: 'NORMAL' }
-    ]
-  }, [])
+    if (!data?.summary?.alertasStock) return []
+    
+    // Usar datos reales del backend
+    return data.summary.alertasStock.map(alerta => ({
+      producto: alerta.nombre,
+      stock: alerta.stockActual,
+      minimo: alerta.stockMinimo,
+      estado: alerta.severidad
+    }))
+  }, [data?.summary?.alertasStock])
 
   // Datos para comparación de días
   const comparisonData = useMemo(() => {
@@ -266,7 +266,10 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
     const totalSalidas = data.data.reduce((sum, item) => sum + (item.salidas || 0), 0)
     const totalValorEntradas = data.data.reduce((sum, item) => sum + (item.valorEntradas || 0), 0)
     const totalValorSalidas = data.data.reduce((sum, item) => sum + (item.valorSalidas || 0), 0)
-    const margenPromedio = totalValorEntradas > 0 ? ((totalValorSalidas - totalValorEntradas) / totalValorEntradas) * 100 : 0
+    // Usar el margen del backend para consistencia
+    const margenPromedio = data.summary?.margenBrutoPromedio !== undefined 
+      ? data.summary.margenBrutoPromedio 
+      : (totalValorEntradas > 0 ? ((totalValorSalidas - totalValorEntradas) / totalValorEntradas) * 100 : 0)
 
     return {
       totalEntradas,
@@ -471,9 +474,21 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={topProductsData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="nombre" />
+                <XAxis 
+                  dataKey="nombre" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 12 }}
+                />
                 <YAxis />
-                <Tooltip />
+                <Tooltip 
+                  formatter={(value: number, name: string) => [
+                    value,
+                    name === 'ventas' ? 'Cantidad Vendida' : name
+                  ]}
+                  labelFormatter={(label) => `Producto: ${label}`}
+                />
                 <Bar dataKey="ventas" fill="#8884D8" />
               </BarChart>
             </ResponsiveContainer>

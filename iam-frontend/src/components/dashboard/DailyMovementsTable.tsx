@@ -63,7 +63,7 @@ export default function DailyMovementsTable({
       fecha: format(new Date(item.fecha), 'dd/MM/yyyy'),
       fechaOriginal: item.fecha,
       totalMovimientos: (item.entradas || 0) + (item.salidas || 0),
-      margen: item.valorEntradas > 0 ? ((item.valorNeto / item.valorEntradas) * 100) : 0,
+      margen: item.margenPromedio !== undefined ? item.margenPromedio : (item.valorEntradas > 0 ? ((item.valorNeto / item.valorEntradas) * 100) : 0),
       tendencia: item.neto > 0 ? 'CRECIENTE' : item.neto < 0 ? 'DECRECIENTE' : 'ESTABLE'
     }))
 
