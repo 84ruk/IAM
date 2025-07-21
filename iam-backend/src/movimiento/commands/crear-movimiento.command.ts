@@ -36,4 +36,8 @@ export class CrearMovimientoCommand {
   @IsString()
   @MaxLength(1000)
   descripcion?: string;
+
+  @IsOptional()
+  @IsString()
+  fecha?: string;
 }

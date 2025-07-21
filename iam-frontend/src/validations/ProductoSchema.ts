@@ -64,8 +64,12 @@ export const productoSchema = z.object({
   .optional(),
 
   codigoBarras: z.string()
-    .max(50, 'El código de barras no puede exceder 50 caracteres.')
     .regex(/^[0-9\-_]*$/, 'El código de barras solo puede contener números, guiones y guiones bajos.')
+    .refine((val) => {
+      if (!val) return true; // Opcional
+      const cleanVal = val.replace(/[^0-9]/g, ''); // Solo números
+      return cleanVal.length === 12 || cleanVal.length === 13;
+    }, 'El código de barras debe tener 12 o 13 dígitos numéricos.')
     .optional(),
 
   rfid: z.string()
@@ -105,6 +109,10 @@ export const productoSchema = z.object({
   sku: z.string()
     .max(50, 'El SKU no puede exceder 50 caracteres.')
     .regex(/^[a-zA-Z0-9\-_]*$/, 'El SKU solo puede contener letras, números, guiones y guiones bajos.')
+    .refine((val) => {
+      if (!val) return true; // Opcional
+      return val.length >= 3; // Mínimo 3 caracteres para SKU
+    }, 'El SKU debe tener al menos 3 caracteres.')
     .optional(),
 
   talla: z.string()

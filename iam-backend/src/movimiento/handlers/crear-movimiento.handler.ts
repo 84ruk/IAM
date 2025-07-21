@@ -71,6 +71,16 @@ export class CrearMovimientoHandler {
           );
         }
 
+        // Validar que la fecha no sea futura (si se proporciona)
+        const fechaMovimiento = command.fecha ? new Date(command.fecha) : new Date();
+        const hoy = new Date();
+        const mañana = new Date(hoy);
+        mañana.setDate(hoy.getDate() + 1);
+        
+        if (fechaMovimiento > mañana) {
+          throw new BadRequestException('La fecha del movimiento no puede ser futura');
+        }
+
         const movimiento = await tx.movimientoInventario.create({
           data: {
             tipo: command.tipo,
@@ -79,6 +89,7 @@ export class CrearMovimientoHandler {
             empresaId,
             motivo: command.motivo,
             descripcion: command.descripcion,
+            fecha: fechaMovimiento,
           },
         });
 

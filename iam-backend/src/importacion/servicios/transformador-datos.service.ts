@@ -199,7 +199,14 @@ export class TransformadorDatosService {
           transformador: (valor) => {
             if (!valor) return new Date();
             const fecha = new Date(valor);
-            return isNaN(fecha.getTime()) ? new Date() : fecha;
+            if (isNaN(fecha.getTime())) return new Date();
+            
+            // Evitar fechas futuras (más de 1 día en el futuro)
+            const hoy = new Date();
+            const mañana = new Date(hoy);
+            mañana.setDate(hoy.getDate() + 1);
+            
+            return fecha > mañana ? new Date() : fecha;
           },
         },
         {
@@ -363,6 +370,16 @@ export class TransformadorDatosService {
           }
           if (!['ENTRADA', 'SALIDA'].includes(movimiento.tipo)) {
             errores.push(`Fila ${index + 2}: Tipo de movimiento inválido`);
+          }
+          
+          // Validar fecha no futura
+          const fecha = new Date(movimiento.fecha);
+          const hoy = new Date();
+          const mañana = new Date(hoy);
+          mañana.setDate(hoy.getDate() + 1);
+          
+          if (fecha > mañana) {
+            errores.push(`Fila ${index + 2}: La fecha no puede ser futura`);
           }
         });
         break;

@@ -280,6 +280,21 @@ export class ImportacionMovimientosProcesador {
         mensaje: 'La fecha debe tener un formato válido (YYYY-MM-DD)',
         tipo: 'validacion',
       });
+    } else {
+      // Evitar fechas futuras (más de 1 día en el futuro)
+      const hoy = new Date();
+      const mañana = new Date(hoy);
+      mañana.setDate(hoy.getDate() + 1);
+      
+      if (fecha > mañana) {
+        errores.push({
+          fila: registro._filaOriginal,
+          columna: 'fecha',
+          valor: registro.fecha,
+          mensaje: 'La fecha no puede ser futura (más de 1 día en el futuro)',
+          tipo: 'validacion',
+        });
+      }
     }
 
     return errores;

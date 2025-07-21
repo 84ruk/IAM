@@ -233,7 +233,14 @@ export class ValidadorDatosService {
     if (!valor) return true; // Campos opcionales
 
     const fecha = new Date(valor);
-    return !isNaN(fecha.getTime());
+    if (isNaN(fecha.getTime())) return false;
+
+    // Evitar fechas futuras (más de 1 día en el futuro)
+    const hoy = new Date();
+    const mañana = new Date(hoy);
+    mañana.setDate(hoy.getDate() + 1);
+    
+    return fecha <= mañana;
   }
 
   // Reglas de validación por tipo de entidad
@@ -374,7 +381,7 @@ export class ValidadorDatosService {
       {
         campo: 'fecha',
         tipo: 'fecha',
-        mensaje: 'La fecha debe tener un formato válido (YYYY-MM-DD)',
+        mensaje: 'La fecha debe tener un formato válido (YYYY-MM-DD) y no puede ser futura',
         condicion: 'YYYY-MM-DD',
       },
       {

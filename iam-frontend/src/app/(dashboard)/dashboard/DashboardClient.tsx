@@ -332,71 +332,24 @@ export default function DashboardClient() {
             </div>
             
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  // Función mejorada para scroll a la sección de importación
-                  const scrollToImportacion = () => {
-                    try {
-                      // Intentar encontrar la sección por ID
-                      const importacionSection = document.getElementById('importacion-section')
-                      
-                      if (importacionSection) {
-                        // Si se encuentra, hacer scroll suave
-                        importacionSection.scrollIntoView({ 
-                          behavior: 'smooth',
-                          block: 'start'
-                        })
-                        return true
-                      } else {
-                        // Si no se encuentra por ID, buscar por texto
-                        const sections = document.querySelectorAll('div')
-                        const importacionDiv = Array.from(sections).find(section => 
-                          section.textContent?.includes('Importación') || 
-                          section.textContent?.includes('Importar')
-                        )
-                        
-                        if (importacionDiv) {
-                          importacionDiv.scrollIntoView({ 
-                            behavior: 'smooth',
-                            block: 'start'
-                          })
-                          return true
-                        }
-                        
-                        // Fallback: scroll hacia abajo
-                        window.scrollTo({
-                          top: document.body.scrollHeight * 0.8,
-                          behavior: 'smooth'
-                        })
-                        return false
-                      }
-                    } catch (error) {
-                      console.error('Error en scroll:', error)
-                      // Fallback final: scroll hacia abajo
-                      window.scrollTo({
-                        top: document.body.scrollHeight * 0.8,
-                        behavior: 'smooth'
-                      })
-                      return false
-                    }
-                  }
-                  
-                  // Ejecutar la función
-                  const success = scrollToImportacion()
-                  
-                  // Mostrar feedback visual
-                  if (!success) {
-                    // Si no se pudo encontrar la sección, mostrar un mensaje temporal
-                    const button = event?.target as HTMLButtonElement
-                    if (button) {
-                      const originalText = button.innerHTML
-                      button.innerHTML = '<span>Buscando...</span>'
-                      setTimeout(() => {
-                        button.innerHTML = originalText
-                      }, 1000)
-                    }
-                  }
-                }}
+                          <button
+              onClick={() => {
+                // Verificar si el elemento existe
+                const importacionSection = document.getElementById('importacion-section')
+
+                if (importacionSection) {
+                  importacionSection.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                  })
+                } else {
+                  // Scroll manual hacia abajo
+                  window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: 'smooth'
+                  })
+                }
+              }}
                 className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-[#8E94F2] to-[#7278e0] text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-medium text-base"
               >
                 <Upload className="w-5 h-5" />
@@ -488,6 +441,11 @@ export default function DashboardClient() {
                 </a>
               </div>
             </div>
+            
+            {/* Sección de Importación - también disponible en estado sin datos */}
+            <div id="importacion-section" className="mb-8 mt-12">
+              <ImportacionCard />
+            </div>
           </div>
         </div>
       </div>
@@ -506,23 +464,17 @@ export default function DashboardClient() {
           </div>
           
           <div className="flex items-center gap-3">
-            <button
+                        <button
               onClick={() => {
-                console.log('Botón Importar Datos clickeado')
-                
                 // Verificar si el elemento existe
                 const importacionSection = document.getElementById('importacion-section')
-                console.log('Elemento encontrado:', importacionSection)
-                
+
                 if (importacionSection) {
-                  console.log('Haciendo scroll a la sección...')
-                  importacionSection.scrollIntoView({ 
+                  importacionSection.scrollIntoView({
                     behavior: 'smooth',
                     block: 'start'
                   })
-                  console.log('Scroll completado')
                 } else {
-                  console.log('Elemento no encontrado, haciendo scroll manual...')
                   // Scroll manual hacia abajo
                   window.scrollTo({
                     top: document.body.scrollHeight,
