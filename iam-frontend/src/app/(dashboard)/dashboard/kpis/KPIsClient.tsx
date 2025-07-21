@@ -888,7 +888,7 @@ export default function KPIsClient() {
                 <Percent className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
               </div>
               <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                {kpisData?.margenPromedio !== undefined ? formatCurrency(kpisData.margenPromedio) : '--'}
+                {kpisData?.margenPromedio !== undefined ? kpisData.margenPromedio.toFixed(2) : '--'}
               </div>
               <div className="text-xs text-gray-500">
                 {kpisData?.margenPromedio !== undefined ? 'Margen Promedio' : 'Datos insuficientes'}

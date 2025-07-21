@@ -415,10 +415,10 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
 
           <KPICard
             title="Margen Promedio"
-            value={formatPercentage(additionalMetrics?.margenPromedio || 0)}
+            value={formatPercentage(Number(additionalMetrics?.margenPromedio.toFixed(2)) || 0)}
             icon={PercentCircle}
             iconColor="text-purple-600"
-            valueColor={getValueColor(additionalMetrics?.margenPromedio || 0, 20)}
+            valueColor={getValueColor(Number(additionalMetrics?.margenPromedio.toFixed(2)) || 0, 20)}
             isLoading={isLoading}
             error={!!error}
           />
@@ -638,8 +638,8 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
                       </div>
                       <Badge 
                         className={
-                          alert.estado === 'CRÍTICO' ? 'bg-red-100 text-red-800' :
-                          alert.estado === 'BAJO' ? 'bg-yellow-100 text-yellow-800' :
+                          alert.estado === 'CRITICA' ? 'bg-red-100 text-red-800' :
+                          alert.estado === 'ADVERTENCIA' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-green-100 text-green-800'
                         }
                       >

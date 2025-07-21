@@ -1,0 +1,61 @@
+{
+  "archivos": {
+    "productos": {
+      "ruta": "./uploads/test/ejemplos/productos_ejemplo.xlsx",
+      "opciones": {
+        "saltarPrimeraFila": true,
+        "validarStock": true,
+        "crearProveedores": true,
+        "actualizarExistentes": false
+      }
+    },
+    "proveedores": {
+      "ruta": "./uploads/test/ejemplos/proveedores_ejemplo.xlsx",
+      "opciones": {
+        "saltarPrimeraFila": true,
+        "validarContacto": true,
+        "actualizarExistentes": false
+      }
+    },
+    "movimientos": {
+      "ruta": "./uploads/test/ejemplos/movimientos_ejemplo.xlsx",
+      "opciones": {
+        "saltarPrimeraFila": true,
+        "validarStock": true,
+        "crearProductos": false,
+        "crearProveedores": false
+      }
+    }
+  },
+  "validaciones": {
+    "productos": {
+      "campos_requeridos": ["nombre", "codigo", "stock", "precio_compra", "precio_venta"],
+      "campos_opcionales": ["descripcion", "categoria", "proveedor", "ubicacion", "etiquetas"],
+      "reglas": {
+        "stock": ">= 0",
+        "precio_compra": "> 0",
+        "precio_venta": "> precio_compra",
+        "nombre": "max 100 caracteres",
+        "codigo": "único por empresa"
+      }
+    },
+    "proveedores": {
+      "campos_requeridos": ["nombre", "ruc"],
+      "campos_opcionales": ["direccion", "telefono", "email", "contacto_principal"],
+      "reglas": {
+        "ruc": "11 dígitos",
+        "email": "formato válido",
+        "telefono": "formato válido"
+      }
+    },
+    "movimientos": {
+      "campos_requeridos": ["tipo_movimiento", "producto_codigo", "cantidad", "fecha_movimiento"],
+      "campos_opcionales": ["motivo", "proveedor", "lote", "observaciones"],
+      "reglas": {
+        "cantidad": "> 0",
+        "tipo_movimiento": "ENTRADA|SALIDA|AJUSTE",
+        "fecha_movimiento": "fecha válida"
+      }
+    }
+  }
+}

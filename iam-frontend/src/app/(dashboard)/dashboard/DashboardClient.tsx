@@ -27,7 +27,10 @@ import {
   WifiOff,
   Target,
   Activity,
-  TrendingDown
+  TrendingDown,
+  Upload,
+  Plus,
+  ArrowRight
 } from 'lucide-react'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
 import { Loader2 } from 'lucide-react'
@@ -35,6 +38,7 @@ import Select from '@/components/ui/Select'
 import KPICard from '@/components/dashboard/KPICard'
 import DailyMovementsChart from '@/components/dashboard/DailyMovementsChart'
 import { formatCurrency, formatPercentage, getValueColor } from '@/lib/kpi-utils'
+import ImportacionCard from '@/components/importacion/ImportacionCard'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, { 
@@ -47,7 +51,6 @@ const fetcher = (url: string) =>
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       
-      // Manejar errores específicos de base de datos
       if (res.status === 503) {
         throw new Error('La base de datos no está disponible. Verifica que el servicio esté ejecutándose.');
       }
@@ -62,7 +65,6 @@ const fetcher = (url: string) =>
         throw new Error('No se encontraron datos para tu empresa. Verifica que tengas productos registrados.');
       }
       
-      // Error genérico con detalles si están disponibles
       const errorMessage = errorData.message || `Error ${res.status}: ${res.statusText}`;
       throw new Error(errorMessage);
     }
@@ -76,12 +78,10 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ]
 
-// Badge para valores críticos
 const Badge = ({ text, color }: { text: string; color: string }) => (
   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${color}`}>{text}</span>
 )
 
-// Tipos para los datos reales del backend
 type ProductoKPI = {
   id: number;
   nombre: string;
@@ -90,8 +90,8 @@ type ProductoKPI = {
   precioVenta: number;
   precioCompra: number;
   etiqueta: string | null;
-  movimientos: number; // cantidad total de salidas del mes
-  cantidadMovimientos: number; // número de movimientos de salida del mes
+  movimientos: number;
+  cantidadMovimientos: number;
 }
 
 type MovimientoKPI = {
@@ -108,15 +108,14 @@ type MovimientoKPI = {
 
 export default function DashboardClient() {
   const { data, isLoading, error, mutate } = useSWR('/dashboard/data', fetcher, {
-    refreshInterval: 120000, // Cambiar de 30s a 2 minutos para mejor eficiencia
-    revalidateOnFocus: false, // Desactivar revalidación al enfocar para mejor UX
-    revalidateOnReconnect: true, // Mantener revalidación al reconectar
-    dedupingInterval: 60000, // Evitar requests duplicados en 1 minuto
-    errorRetryCount: 3, // Mejorar retry de errores
-    errorRetryInterval: 5000, // Intervalo de retry más corto
+    refreshInterval: 120000,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: true,
+    dedupingInterval: 60000,
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
   })
   
-  // Hook para KPIs avanzados
   const {
     kpis: advancedKpis,
     financial: financialKpis,
@@ -142,19 +141,13 @@ export default function DashboardClient() {
   const diasGraficos = data?.diasGraficos || []
   const productos = useMemo(() => data?.productos || [], [data]) as ProductoKPI[]
   const movimientos = useMemo(() => data?.movimientos || [], [data]) as MovimientoKPI[]
-
-  console.log('Datos de análisis:', { kpis, ventasPorDia, stockCritico, productos, movimientos })
-  console.log('Datos de gráfica:', diasGraficos)
-  console.log('Productos para KPIs:', productos)
   
-  // Función para refrescar manualmente - optimizada pero misma funcionalidad
   const handleRefresh = useCallback(async (isAuto = false) => {
     setIsRefreshing(true)
     try {
-      await mutate() // Revalidar datos
+      await mutate()
       setLastUpdate(new Date())
       
-      // Mostrar notificación si es actualización automática
       if (isAuto) {
         setShowUpdateNotification(true)
         setTimeout(() => setShowUpdateNotification(false), 3000)
@@ -166,19 +159,16 @@ export default function DashboardClient() {
     }
   }, [mutate])
 
-  // Función para refresh manual (sin parámetros) - mantener igual
   const handleManualRefresh = useCallback(() => {
     handleRefresh(false)
   }, [handleRefresh])
 
-  // Auto-refresh personalizado - optimizado a 2 minutos
   useAutoRefresh({
-    interval: 120000, // Cambiar de 30s a 2 minutos
+    interval: 120000,
     enabled: autoRefreshEnabled && isOnline,
     onRefresh: () => handleRefresh(true)
   })
 
-  // Detectar estado de conexión - mantener igual
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
     const handleOffline = () => setIsOnline(false)
@@ -192,11 +182,9 @@ export default function DashboardClient() {
     }
   }, [])
 
-  // Detectar cuando la ventana recupera el foco - optimizado
   useEffect(() => {
     const handleFocus = () => {
       if (autoRefreshEnabled) {
-        // Solo revalidar si han pasado más de 30 segundos desde la última actualización
         const timeSinceLastUpdate = Date.now() - lastUpdate.getTime()
         if (timeSinceLastUpdate > 30000) {
           handleRefresh()
@@ -208,7 +196,6 @@ export default function DashboardClient() {
     return () => window.removeEventListener('focus', handleFocus)
   }, [autoRefreshEnabled, handleRefresh, lastUpdate])
 
-  // Calcular KPIs adicionales con datos reales
   const kpisAdicionales = useMemo(() => {
     if (!productos || productos.length === 0) {
       return {
@@ -252,11 +239,9 @@ export default function DashboardClient() {
     }
   }, [productos])
 
-  // Función para cambiar mes - mantener igual
   const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedMonth(parseInt(e.target.value))
     setMonthLoading(true)
-    // Simular carga de datos del mes
     setTimeout(() => setMonthLoading(false), 1000)
   }
 
@@ -288,11 +273,11 @@ export default function DashboardClient() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="p-6 max-w-7xl mx-auto">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="bg-white rounded-xl p-6 shadow-sm">
                   <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
@@ -311,7 +296,7 @@ export default function DashboardClient() {
 
   if (error) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="p-6 max-w-7xl mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
             <div className="text-red-600 text-lg font-medium mb-2">Error al cargar datos</div>
@@ -329,7 +314,6 @@ export default function DashboardClient() {
     )
   }
 
-  // Verificar si no hay datos
   const hasNoData = !kpis || !ventasPorDia || !stockPorCategoria || 
     (Array.isArray(ventasPorDia) && ventasPorDia.length === 0) ||
     (Array.isArray(stockPorCategoria) && stockPorCategoria.length === 0) ||
@@ -337,9 +321,8 @@ export default function DashboardClient() {
 
   if (hasNoData) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="p-6 max-w-7xl mx-auto">
-          {/* Header con controles */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
@@ -349,120 +332,159 @@ export default function DashboardClient() {
             </div>
             
             <div className="flex items-center gap-3">
-              {/* Indicador de conexión */}
-              <div className="flex items-center gap-2 text-sm">
-                {isOnline ? (
-                  <Wifi className="w-4 h-4 text-green-500" />
-                ) : (
-                  <WifiOff className="w-4 h-4 text-red-500" />
-                )}
-                <span className={isOnline ? 'text-green-600' : 'text-red-600'}>
-                  {isOnline ? 'En línea' : 'Sin conexión'}
-                </span>
-              </div>
-
-              {/* Botón de refresh */}
               <button
-                onClick={handleManualRefresh}
-                disabled={isRefreshing}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                onClick={() => {
+                  // Función mejorada para scroll a la sección de importación
+                  const scrollToImportacion = () => {
+                    try {
+                      // Intentar encontrar la sección por ID
+                      const importacionSection = document.getElementById('importacion-section')
+                      
+                      if (importacionSection) {
+                        // Si se encuentra, hacer scroll suave
+                        importacionSection.scrollIntoView({ 
+                          behavior: 'smooth',
+                          block: 'start'
+                        })
+                        return true
+                      } else {
+                        // Si no se encuentra por ID, buscar por texto
+                        const sections = document.querySelectorAll('div')
+                        const importacionDiv = Array.from(sections).find(section => 
+                          section.textContent?.includes('Importación') || 
+                          section.textContent?.includes('Importar')
+                        )
+                        
+                        if (importacionDiv) {
+                          importacionDiv.scrollIntoView({ 
+                            behavior: 'smooth',
+                            block: 'start'
+                          })
+                          return true
+                        }
+                        
+                        // Fallback: scroll hacia abajo
+                        window.scrollTo({
+                          top: document.body.scrollHeight * 0.8,
+                          behavior: 'smooth'
+                        })
+                        return false
+                      }
+                    } catch (error) {
+                      console.error('Error en scroll:', error)
+                      // Fallback final: scroll hacia abajo
+                      window.scrollTo({
+                        top: document.body.scrollHeight * 0.8,
+                        behavior: 'smooth'
+                      })
+                      return false
+                    }
+                  }
+                  
+                  // Ejecutar la función
+                  const success = scrollToImportacion()
+                  
+                  // Mostrar feedback visual
+                  if (!success) {
+                    // Si no se pudo encontrar la sección, mostrar un mensaje temporal
+                    const button = event?.target as HTMLButtonElement
+                    if (button) {
+                      const originalText = button.innerHTML
+                      button.innerHTML = '<span>Buscando...</span>'
+                      setTimeout(() => {
+                        button.innerHTML = originalText
+                      }, 1000)
+                    }
+                  }
+                }}
+                className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-[#8E94F2] to-[#7278e0] text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-medium text-base"
               >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Actualizar</span>
-              </button>
-
-              {/* Toggle auto-refresh */}
-              <button
-                onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  autoRefreshEnabled 
-                    ? 'bg-[#8E94F2] text-white hover:bg-[#7278e0]' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Clock className="w-4 h-4" />
-                <span className="hidden sm:inline">Auto</span>
+                <Upload className="w-5 h-5" />
+                <span>Importar Datos</span>
               </button>
             </div>
           </div>
 
-          {/* Estado vacío */}
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-              <BarChart3 className="w-12 h-12 text-gray-400" />
+            <div className="w-24 h-24 bg-gradient-to-br from-[#8E94F2] to-[#7278e0] rounded-full flex items-center justify-center mb-6 shadow-lg">
+              <BarChart3 className="w-12 h-12 text-white" />
             </div>
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">No hay datos disponibles</h2>
-            <p className="text-gray-600 mb-6 max-w-md">
+            <p className="text-gray-600 mb-8 max-w-md">
               Tu dashboard aparecerá aquí una vez que agregues productos y realices movimientos de inventario.
             </p>
             
-            {/* Enlaces Rápidos */}
             <div className="w-full max-w-4xl">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Comienza aquí</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">Comienza aquí</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <a 
                   href="/dashboard/productos/nuevo" 
-                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#8E94F2] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  <div className="p-2 bg-green-100 rounded-lg">
+                  <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
                     <Package className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">Agregar Producto</p>
                     <p className="text-sm text-gray-600">Registra tu primer producto</p>
                   </div>
+                  <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#8E94F2] transition-colors ml-auto" />
                 </a>
 
                 <a 
                   href="/dashboard/proveedores" 
-                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#8E94F2] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  <div className="p-2 bg-orange-100 rounded-lg">
+                  <div className="p-2 bg-orange-100 rounded-lg group-hover:bg-orange-200 transition-colors">
                     <ShoppingCart className="w-5 h-5 text-orange-600" />
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">Proveedores</p>
                     <p className="text-sm text-gray-600">Gestiona tus proveedores</p>
                   </div>
+                  <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#8E94F2] transition-colors ml-auto" />
                 </a>
 
                 <a 
                   href="/dashboard/movimientos/nuevo" 
-                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#8E94F2] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  <div className="p-2 bg-purple-100 rounded-lg">
+                  <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
                     <Activity className="w-5 h-5 text-purple-600" />
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">Movimientos</p>
                     <p className="text-sm text-gray-600">Registra entradas y salidas</p>
                   </div>
+                  <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#8E94F2] transition-colors ml-auto" />
                 </a>
 
                 <a 
                   href="/dashboard/kpis" 
-                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#8E94F2] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  <div className="p-2 bg-blue-100 rounded-lg">
+                  <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
                     <BarChart3 className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">KPIs</p>
                     <p className="text-sm text-gray-600">Ver métricas detalladas</p>
                   </div>
+                  <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#8E94F2] transition-colors ml-auto" />
                 </a>
 
                 <a 
                   href="/dashboard/daily-movements" 
-                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#8E94F2] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  <div className="p-2 bg-indigo-100 rounded-lg">
+                  <div className="p-2 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
                     <Activity className="w-5 h-5 text-indigo-600" />
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">Movimientos Diarios</p>
                     <p className="text-sm text-gray-600">Análisis detallado por día</p>
                   </div>
+                  <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#8E94F2] transition-colors ml-auto" />
                 </a>
               </div>
             </div>
@@ -473,9 +495,8 @@ export default function DashboardClient() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="p-6 max-w-7xl mx-auto">
-        {/* Header con controles */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
@@ -485,19 +506,36 @@ export default function DashboardClient() {
           </div>
           
           <div className="flex items-center gap-3">
-            {/* Indicador de conexión */}
-            <div className="flex items-center gap-2 text-sm">
-              {isOnline ? (
-                <Wifi className="w-4 h-4 text-green-500" />
-              ) : (
-                <WifiOff className="w-4 h-4 text-red-500" />
-              )}
-              <span className={isOnline ? 'text-green-600' : 'text-red-600'}>
-                {isOnline ? 'En línea' : 'Sin conexión'}
-              </span>
-            </div>
+            <button
+              onClick={() => {
+                console.log('Botón Importar Datos clickeado')
+                
+                // Verificar si el elemento existe
+                const importacionSection = document.getElementById('importacion-section')
+                console.log('Elemento encontrado:', importacionSection)
+                
+                if (importacionSection) {
+                  console.log('Haciendo scroll a la sección...')
+                  importacionSection.scrollIntoView({ 
+                    behavior: 'smooth',
+                    block: 'start'
+                  })
+                  console.log('Scroll completado')
+                } else {
+                  console.log('Elemento no encontrado, haciendo scroll manual...')
+                  // Scroll manual hacia abajo
+                  window.scrollTo({
+                    top: document.body.scrollHeight,
+                    behavior: 'smooth'
+                  })
+                }
+              }}
+              className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-[#8E94F2] to-[#7278e0] text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-medium text-base"
+            >
+              <Upload className="w-5 h-5" />
+              <span>Importar Datos</span>
+            </button>
 
-            {/* Selector de mes */}
             <Select
               value={selectedMonth}
               onChange={(e) => handleMonthChange(e as any)}
@@ -507,33 +545,9 @@ export default function DashboardClient() {
               }))}
               className="mb-0"
             />
-
-            {/* Botón de refresh */}
-            <button
-              onClick={handleManualRefresh}
-              disabled={isRefreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Actualizar</span>
-            </button>
-
-            {/* Toggle auto-refresh */}
-            <button
-              onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                autoRefreshEnabled 
-                  ? 'bg-[#8E94F2] text-white hover:bg-[#7278e0]' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <Clock className="w-4 h-4" />
-              <span className="hidden sm:inline">Auto</span>
-            </button>
           </div>
         </div>
 
-        {/* Notificación de actualización automática */}
         {showUpdateNotification && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
             <CheckCircle className="w-5 h-5 text-green-600" />
@@ -541,9 +555,7 @@ export default function DashboardClient() {
           </div>
         )}
 
-        {/* KPIs principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* KPI: Total Productos */}
           <KPICard
             title="Total Productos"
             value={advancedKpis?.totalProductos || kpisAdicionales.totalProductos || 0}
@@ -553,7 +565,6 @@ export default function DashboardClient() {
             error={!!kpisError || !!error}
           />
 
-          {/* KPI: Stock Crítico */}
           <KPICard
             title="Stock Crítico"
             value={advancedKpis?.productosStockBajo || kpisAdicionales.productosCriticos || 0}
@@ -564,7 +575,6 @@ export default function DashboardClient() {
             error={!!kpisError || !!error}
           />
 
-          {/* KPI: Valor Inventario */}
           <KPICard
             title="Valor Inventario"
             value={formatCurrency(advancedKpis?.valorTotalInventario || kpisAdicionales.valorInventario || 0)}
@@ -574,7 +584,6 @@ export default function DashboardClient() {
             error={!!kpisError || !!error}
           />
 
-          {/* KPI: Ventas del Mes */}
           <KPICard
             title="Ventas del Mes"
             value={formatCurrency(advancedKpis?.movimientosUltimoMes || kpisAdicionales.valorVentas || 0)}
@@ -585,7 +594,6 @@ export default function DashboardClient() {
           />
         </div>
 
-        {/* Gráfica de Movimientos Diarios */}
         <div className="mb-8">
           <DailyMovementsChart 
             initialDays={7}
@@ -596,7 +604,6 @@ export default function DashboardClient() {
           />
         </div>
 
-        {/* Sección de Movimientos Diarios Detallados */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -615,7 +622,6 @@ export default function DashboardClient() {
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Gráfica de Líneas - 15 días */}
             <Card>
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Tendencia de 15 Días</h3>
@@ -629,7 +635,6 @@ export default function DashboardClient() {
               </CardContent>
             </Card>
 
-            {/* Gráfica de Barras - 30 días */}
             <Card>
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Análisis de 30 Días</h3>
@@ -645,12 +650,10 @@ export default function DashboardClient() {
           </div>
         </div>
 
-        {/* KPIs Financieros */}
         {financialKpis && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Indicadores Financieros</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Margen Bruto */}
               <KPICard
                 title="Margen Bruto"
                 value={formatPercentage(financialKpis.margenBruto || 0)}
@@ -661,7 +664,6 @@ export default function DashboardClient() {
                 error={!!kpisError}
               />
 
-              {/* Margen Neto */}
               <KPICard
                 title="Margen Neto"
                 value={formatPercentage(financialKpis.margenNeto || 0)}
@@ -672,7 +674,6 @@ export default function DashboardClient() {
                 error={!!kpisError}
               />
 
-              {/* ROI Inventario */}
               <KPICard
                 title="ROI Inventario"
                 value={formatPercentage(financialKpis.roiInventario || 0)}
@@ -683,7 +684,6 @@ export default function DashboardClient() {
                 error={!!kpisError}
               />
 
-              {/* Eficiencia Operativa */}
               <KPICard
                 title="Eficiencia Operativa"
                 value={formatPercentage(financialKpis.eficienciaOperativa || 0)}
@@ -697,9 +697,7 @@ export default function DashboardClient() {
           </div>
         )}
 
-        {/* Gráficos y análisis */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Gráfico de ventas por día */}
           <Card>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Ventas por Día</h3>
@@ -718,7 +716,6 @@ export default function DashboardClient() {
             </CardContent>
           </Card>
 
-          {/* Gráfico de stock por categoría */}
           <Card>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock por Categoría</h3>
@@ -748,11 +745,13 @@ export default function DashboardClient() {
           </Card>
         </div>
 
-        {/* KPIs Adicionales y Métricas */}
+        <div id="importacion-section" className="mb-8">
+          <ImportacionCard />
+        </div>
+
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Métricas Adicionales</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Movimientos del Mes */}
             <KPICard
               title="Movimientos del Mes"
               value={advancedKpis?.movimientosUltimoMes || 0}
@@ -762,10 +761,9 @@ export default function DashboardClient() {
               error={!!kpisError || !!error}
             />
 
-            {/* Margen Promedio (del cálculo original) */}
             <KPICard
               title="Margen Promedio"
-              value={`${kpisAdicionales.margenPromedio.toFixed(1)}%`}
+              value={`${kpisAdicionales.margenPromedio.toFixed(2)}%`}
               icon={PercentCircle}
               iconColor="text-purple-600"
               valueColor={getValueColor(kpisAdicionales.margenPromedio, 20)}
@@ -773,7 +771,6 @@ export default function DashboardClient() {
               error={!!error}
             />
 
-            {/* Total de Productos (del cálculo original) */}
             <KPICard
               title="Total Productos"
               value={kpisAdicionales.totalProductos || 0}

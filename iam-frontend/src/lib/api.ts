@@ -105,7 +105,7 @@ export class ApiClient {
     method: string,
     endpoint: string,
     data?: any,
-    options?: RequestInit,
+    options?: RequestInit & { responseType?: string },
     retryCount = 0
   ): Promise<T> {
     // Rate limiting
@@ -146,6 +146,11 @@ export class ApiClient {
 
       clearTimeout(timeoutId)
 
+      // Manejar diferentes tipos de respuesta
+      if (options?.responseType === 'blob') {
+        return response.blob() as T
+      }
+      
       return await validateApiResponse(response)
     } catch (error: unknown) {
       // Manejar errores específicos antes de reintentos
@@ -195,8 +200,24 @@ export class ApiClient {
   }
 
   // Método GET genérico
-  async get<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    return this.makeRequest<T>('GET', endpoint, undefined, options)
+  async get<T>(endpoint: string, options?: RequestInit & { params?: Record<string, any>; responseType?: string }): Promise<T> {
+    let url = endpoint
+    
+    if (options?.params) {
+      const searchParams = new URLSearchParams()
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value))
+        }
+      })
+      const queryString = searchParams.toString()
+      if (queryString) {
+        url += `?${queryString}`
+      }
+    }
+    
+    const { params, ...requestOptions } = options || {}
+    return this.makeRequest<T>('GET', url, undefined, requestOptions)
   }
 
   // Método POST genérico

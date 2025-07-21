@@ -294,8 +294,8 @@ export class GetDailyMovementsHandler {
     movimientos.forEach(mov => {
       if (mov.tipo === 'SALIDA') {
         const existing = productosVentas.get(mov.productoId) || { nombre: mov.productoNombre, cantidad: 0, valor: 0 };
-        existing.cantidad += mov.cantidad;
-        existing.valor += mov.valor;
+        existing.cantidad += Number(mov.cantidad);
+        existing.valor += Number(mov.valor);
         productosVentas.set(mov.productoId, existing);
       }
     });
@@ -305,8 +305,8 @@ export class GetDailyMovementsHandler {
         productoId: id,
         nombre: data.nombre,
         cantidadTotal: data.cantidad,
-        valorTotal: data.valor,
-        porcentaje: (data.cantidad / totalSalidas) * 100
+        valorTotal: Number(data.valor.toFixed(2)),
+        porcentaje: Number(((data.cantidad / totalSalidas) * 100).toFixed(2))
       }))
       .sort((a, b) => b.cantidadTotal - a.cantidadTotal)
       .slice(0, 5);
@@ -316,8 +316,8 @@ export class GetDailyMovementsHandler {
     movimientos.forEach(mov => {
       if (mov.tipo === 'ENTRADA' && mov.proveedorNombre) {
         const existing = proveedoresVentas.get(mov.proveedorNombre) || { cantidad: 0, valor: 0 };
-        existing.cantidad += mov.cantidad;
-        existing.valor += mov.valor;
+        existing.cantidad += Number(mov.cantidad);
+        existing.valor += Number(mov.valor);
         proveedoresVentas.set(mov.proveedorNombre, existing);
       }
     });
@@ -327,8 +327,8 @@ export class GetDailyMovementsHandler {
         proveedorId: 0, // No tenemos ID del proveedor en la consulta
         nombre,
         cantidadTotal: data.cantidad,
-        valorTotal: data.valor,
-        porcentaje: (data.cantidad / totalEntradas) * 100
+        valorTotal: Number(data.valor.toFixed(2)),
+        porcentaje: Number(((data.cantidad / totalEntradas) * 100).toFixed(2))
       }))
       .sort((a, b) => b.cantidadTotal - a.cantidadTotal)
       .slice(0, 5);
@@ -351,8 +351,8 @@ export class GetDailyMovementsHandler {
     const distribucionPorTipo = new Map<string, { cantidad: number; valor: number }>();
     movimientos.forEach(mov => {
       const existing = distribucionPorTipo.get(mov.tipoProducto) || { cantidad: 0, valor: 0 };
-      existing.cantidad += mov.cantidad;
-      existing.valor += mov.valor;
+      existing.cantidad += Number(mov.cantidad);
+      existing.valor += Number(mov.valor);
       distribucionPorTipo.set(mov.tipoProducto, existing);
     });
 
@@ -361,8 +361,8 @@ export class GetDailyMovementsHandler {
       .map(([tipo, data]) => ({
         tipo,
         cantidad: data.cantidad,
-        valor: data.valor,
-        porcentaje: (data.cantidad / totalCantidad) * 100
+        valor: Number(data.valor.toFixed(2)),
+        porcentaje: Number(((data.cantidad / totalCantidad) * 100).toFixed(2))
       }))
       .sort((a, b) => b.cantidad - a.cantidad);
 

@@ -23,6 +23,8 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { SecurityMiddleware } from './common/middleware/security.middleware';
 import { DashboardLoggingMiddleware } from './common/middleware/dashboard-logging.middleware';
 import { MqttSensorModule } from './microservices/mqtt-sensor/mqtt-sensor.module';
+import { ColasModule } from './colas/colas.module';
+import { ImportacionModule } from './importacion/importacion.module';
 import mqttConfig from './config/mqtt.config';
 
 @Module({
@@ -54,6 +56,8 @@ import mqttConfig from './config/mqtt.config';
     SuperAdminModule,
     NotificationModule,
     MqttSensorModule,
+    ColasModule, // 🆕 NUEVO - Módulo de colas para procesamiento asíncrono
+    ImportacionModule, // 🆕 NUEVO - Módulo de importación de datos
   ],
   controllers: [AppController],
   providers: [
