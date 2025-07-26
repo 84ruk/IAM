@@ -59,6 +59,14 @@ export interface TrabajoImportacion {
   errores?: string[]
 }
 
+export interface ImportacionValidationError {
+  fila: number
+  columna: string
+  valor: string
+  mensaje: string
+  tipo: string
+}
+
 export interface ResultadoImportacion {
   success: boolean
   message: string
@@ -66,6 +74,7 @@ export interface ResultadoImportacion {
   estado: string
   totalRegistros?: number
   errores?: number
+  erroresDetallados?: ImportacionValidationError[]
 }
 
 export interface ListaTrabajosResponse {
@@ -105,13 +114,16 @@ class ImportacionAPI {
       formData.append('configuracionEspecifica', JSON.stringify(opciones.configuracionEspecifica))
     }
 
-    const response = await apiClient.post('/importacion/productos', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+    console.log('🚀 Enviando solicitud de importación de productos...');
+    const response = await apiClient.post('/importacion/productos', formData)
+    console.log('📥 Respuesta recibida:', response);
+    console.log('📥 Tipo de respuesta:', typeof response);
+    
+    const resultado = response as ResultadoImportacion;
+    console.log('📥 resultado.success:', resultado.success);
+    console.log('📥 resultado.erroresDetallados:', resultado.erroresDetallados);
 
-    return response as ResultadoImportacion
+    return resultado
   }
 
   async importarProveedores(
@@ -132,11 +144,7 @@ class ImportacionAPI {
       formData.append('configuracionEspecifica', JSON.stringify(opciones.configuracionEspecifica))
     }
 
-    const response = await apiClient.post('/importacion/proveedores', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+    const response = await apiClient.post('/importacion/proveedores', formData)
 
     return response as ResultadoImportacion
   }
@@ -159,11 +167,7 @@ class ImportacionAPI {
       formData.append('configuracionEspecifica', JSON.stringify(opciones.configuracionEspecifica))
     }
 
-    const response = await apiClient.post('/importacion/movimientos', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+    const response = await apiClient.post('/importacion/movimientos', formData)
 
     return response as ResultadoImportacion
   }

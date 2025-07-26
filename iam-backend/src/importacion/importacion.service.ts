@@ -14,7 +14,8 @@ import {
   TrabajoImportacion, 
   TipoImportacion, 
   EstadoTrabajo,
-  OpcionesImportacion 
+  OpcionesImportacion,
+  ErrorImportacion
 } from '../colas/interfaces/trabajo-importacion.interface';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -25,6 +26,7 @@ export interface ResultadoImportacion {
   mensaje: string;
   totalRegistros?: number;
   errores?: number;
+  erroresDetallados?: ErrorImportacion[]; // Agregar errores detallados
 }
 
 @Injectable()
@@ -51,49 +53,105 @@ export class ImportacionService {
   ): Promise<ResultadoImportacion> {
     try {
       this.logger.log(`🚀 Iniciando importación de productos para empresa ${empresaId}`);
+      this.logger.log(`⚙️ Opciones: validarSolo=${opciones.validarSolo}, sobrescribirExistentes=${opciones.sobrescribirExistentes}`);
 
-      // Procesar archivo
-      const archivoProcesado = await this.procesadorArchivos.procesarArchivo(rutaArchivo, {
+      // Procesar archivo con configuración optimizada
+      const opcionesProcesamiento = {
         maxRegistros: 10000,
         columnasRequeridas: ['nombre', 'stock', 'precioCompra', 'precioVenta'],
         validarEncabezados: true,
-        ignorarFilasVacias: true,
+        ignorarFilasVacias: true, // Siempre ignorar filas vacías
         normalizarEncabezados: true,
-      });
+      };
+      
+      this.logger.log(`📁 Procesando archivo con opciones:`, opcionesProcesamiento);
+      const archivoProcesado = await this.procesadorArchivos.procesarArchivo(rutaArchivo, opcionesProcesamiento);
 
+      this.logger.log(`🔍 Validando ${archivoProcesado.totalRegistros} registros...`);
+      
       // Validar datos
       const resultadoValidacion = this.validadorDatos.validarProductos(
         archivoProcesado.datos, 
         empresaId
       );
 
-      if (!resultadoValidacion.esValido && opciones.validarSolo) {
+      this.logger.log(`✅ Validación completada: ${resultadoValidacion.errores.length} errores encontrados`);
+      this.logger.log(`🔍 Es válido: ${resultadoValidacion.esValido}, validarSolo: ${opciones.validarSolo}`);
+      
+      if (resultadoValidacion.errores.length > 0) {
+        this.logger.log(`❌ Errores de validación encontrados:`);
+        resultadoValidacion.errores.slice(0, 5).forEach((error, index) => {
+          this.logger.log(`   ${index + 1}. Fila ${error.fila}, Columna ${error.columna}: ${error.mensaje} (Valor: "${error.valor}")`);
+        });
+        if (resultadoValidacion.errores.length > 5) {
+          this.logger.log(`   ... y ${resultadoValidacion.errores.length - 5} errores más`);
+        }
+      }
+
+      this.logger.log(`🔍 Evaluando condición: !${resultadoValidacion.esValido} && ${opciones.validarSolo} = ${!resultadoValidacion.esValido && opciones.validarSolo}`);
+      
+      // Si hay errores y solo se está validando, retornar los errores
+      if (resultadoValidacion.errores.length > 0 && opciones.validarSolo) {
+        this.logger.log(`❌ Validación fallida, retornando error...`);
+        this.logger.log(`📤 Retornando errores detallados: ${resultadoValidacion.errores.length} errores`);
+        
+        // Agrupar errores por tipo para mejor análisis
+        const erroresPorTipo = resultadoValidacion.errores.reduce((acc, error) => {
+          const tipo = error.columna;
+          if (!acc[tipo]) acc[tipo] = [];
+          acc[tipo].push(error);
+          return acc;
+        }, {} as Record<string, ErrorImportacion[]>);
+        
+        this.logger.log(`📊 Resumen de errores por columna:`);
+        Object.entries(erroresPorTipo).forEach(([columna, errores]) => {
+          this.logger.log(`   - ${columna}: ${errores.length} errores`);
+        });
+        
         return {
           trabajoId: '',
           estado: EstadoTrabajo.ERROR,
-          mensaje: `Validación fallida: ${resultadoValidacion.errores.length} errores encontrados`,
+          mensaje: `Validación fallida: ${resultadoValidacion.errores.length} errores encontrados en ${Object.keys(erroresPorTipo).length} columnas`,
           totalRegistros: archivoProcesado.totalRegistros,
           errores: resultadoValidacion.errores.length,
+          erroresDetallados: resultadoValidacion.errores,
         };
       }
+      
+      // Si hay errores pero no es solo validación, continuar con importación parcial
+      if (resultadoValidacion.errores.length > 0) {
+        this.logger.log(`⚠️ Validación con errores, continuando con importación parcial...`);
+        this.logger.log(`📊 Se importarán ${archivoProcesado.totalRegistros - resultadoValidacion.errores.length} registros válidos`);
+      } else {
+        this.logger.log(`✅ Validación superada, continuando con la importación...`);
+      }
 
+      this.logger.log(`✅ Validación superada, continuando con la importación...`);
+      this.logger.log(`🔄 Transformando datos...`);
+      
       // Transformar datos
       const datosTransformados = this.transformadorDatos.transformarProductos(archivoProcesado.datos);
 
+      this.logger.log(`✅ Datos transformados exitosamente`);
+
+      this.logger.log(`📋 Preparando trabajo de importación...`);
+      
       // Crear trabajo de importación
       const opcionesImportacion: OpcionesImportacion = {
         sobrescribirExistentes: opciones.sobrescribirExistentes,
         validarSolo: opciones.validarSolo,
         notificarEmail: opciones.notificarEmail,
         emailNotificacion: opciones.emailNotificacion,
-        configuracionEspecifica: opciones.configuracionEspecifica,
+        configuracionEspecifica: opciones.configuracionEspecifica as Record<string, unknown>,
       };
+
+      this.logger.log(`📝 Configurando opciones de importación...`);
 
       const trabajo: Omit<TrabajoImportacion, 'id' | 'estado' | 'progreso' | 'fechaCreacion'> = {
         tipo: TipoImportacion.PRODUCTOS,
         empresaId,
         usuarioId,
-        archivoOriginal: archivoProcesado.nombreArchivo,
+        archivoOriginal: archivoProcesado.rutaArchivo,
         totalRegistros: archivoProcesado.totalRegistros,
         registrosProcesados: 0,
         registrosExitosos: 0,
@@ -104,9 +162,14 @@ export class ImportacionService {
         fechaFin: undefined,
       };
 
+      this.logger.log(`📊 Trabajo configurado para empresa ${empresaId}, usuario ${usuarioId}, ${archivoProcesado.totalRegistros} registros`);
+      this.logger.log(`📁 Ruta del archivo guardada: ${archivoProcesado.rutaArchivo}`);
+
+      this.logger.log(`📋 Creando trabajo de importación en cola...`);
       const trabajoId = await this.colasService.crearTrabajoImportacion(trabajo);
 
       this.logger.log(`✅ Trabajo de importación creado: ${trabajoId}`);
+      this.logger.log(`📊 Trabajo creado con ${archivoProcesado.totalRegistros} registros para empresa ${empresaId}`);
 
       return {
         trabajoId,
@@ -168,14 +231,14 @@ export class ImportacionService {
         validarSolo: opciones.validarSolo,
         notificarEmail: opciones.notificarEmail,
         emailNotificacion: opciones.emailNotificacion,
-        configuracionEspecifica: opciones.configuracionEspecifica,
+        configuracionEspecifica: opciones.configuracionEspecifica as Record<string, unknown>,
       };
 
       const trabajo: Omit<TrabajoImportacion, 'id' | 'estado' | 'progreso' | 'fechaCreacion'> = {
         tipo: TipoImportacion.PROVEEDORES,
         empresaId,
         usuarioId,
-        archivoOriginal: archivoProcesado.nombreArchivo,
+        archivoOriginal: archivoProcesado.rutaArchivo,
         totalRegistros: archivoProcesado.totalRegistros,
         registrosProcesados: 0,
         registrosExitosos: 0,
@@ -254,14 +317,14 @@ export class ImportacionService {
         validarSolo: opciones.validarSolo,
         notificarEmail: opciones.notificarEmail,
         emailNotificacion: opciones.emailNotificacion,
-        configuracionEspecifica: opciones.configuracionEspecifica,
+        configuracionEspecifica: opciones.configuracionEspecifica as Record<string, unknown>,
       };
 
       const trabajo: Omit<TrabajoImportacion, 'id' | 'estado' | 'progreso' | 'fechaCreacion'> = {
         tipo: TipoImportacion.MOVIMIENTOS,
         empresaId,
         usuarioId,
-        archivoOriginal: archivoProcesado.nombreArchivo,
+        archivoOriginal: archivoProcesado.rutaArchivo,
         totalRegistros: archivoProcesado.totalRegistros,
         registrosProcesados: 0,
         registrosExitosos: 0,
@@ -295,12 +358,24 @@ export class ImportacionService {
    */
   async obtenerEstadoTrabajo(trabajoId: string, empresaId: number): Promise<TrabajoImportacion> {
     try {
+      this.logger.log(`🔍 ImportacionService: Buscando trabajo ${trabajoId} para empresa ${empresaId}`);
+      
       const trabajo = await this.colasService.obtenerTrabajoImportacion(trabajoId);
       
-      if (!trabajo || trabajo.empresaId !== empresaId) {
+      if (!trabajo) {
+        this.logger.warn(`⚠️ ImportacionService: Trabajo ${trabajoId} no encontrado`);
         throw new NotFoundException('Trabajo de importación no encontrado');
       }
 
+      this.logger.log(`📋 ImportacionService: Trabajo encontrado - empresaId: ${trabajo.empresaId}, empresaId solicitada: ${empresaId}`);
+      
+      if (trabajo.empresaId !== empresaId) {
+        this.logger.warn(`⚠️ ImportacionService: EmpresaId no coincide - trabajo: ${trabajo.empresaId}, solicitada: ${empresaId}`);
+        throw new NotFoundException('Trabajo de importación no encontrado');
+      }
+
+      this.logger.log(`✅ ImportacionService: Trabajo ${trabajoId} validado correctamente`);
+      this.logger.log(`📋 Trabajo completo devuelto:`, JSON.stringify(trabajo, null, 2));
       return trabajo;
     } catch (error) {
       this.logger.error(`Error obteniendo estado del trabajo ${trabajoId}:`, error);
@@ -410,7 +485,7 @@ export class ImportacionService {
   /**
    * Obtiene productos de una empresa para validación de movimientos
    */
-  private async obtenerProductosEmpresa(empresaId: number): Promise<Map<string, any>> {
+  private async obtenerProductosEmpresa(empresaId: number): Promise<Map<string, unknown>> {
     try {
               const productos = await this.prisma.producto.findMany({
           where: {
@@ -453,5 +528,18 @@ export class ImportacionService {
     } catch (error) {
       this.logger.warn(`No se pudo limpiar archivo temporal ${rutaArchivo}:`, error);
     }
+  }
+
+  /**
+   * Obtiene estadísticas de la cola de importación
+   */
+  async obtenerEstadisticasCola(): Promise<{
+    waiting: number;
+    active: number;
+    completed: number;
+    failed: number;
+    delayed: number;
+  }> {
+    return await this.colasService.obtenerEstadisticasCola();
   }
 } 

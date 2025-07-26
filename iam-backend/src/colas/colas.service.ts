@@ -6,6 +6,9 @@ import { TrabajoImportacion, EstadoTrabajo, ResultadoImportacion } from './inter
 import { ImportacionProductosProcesador } from './procesadores/importacion-productos.procesador';
 import { ImportacionProveedoresProcesador } from './procesadores/importacion-proveedores.procesador';
 import { ImportacionMovimientosProcesador } from './procesadores/importacion-movimientos.procesador';
+import { RedisConfigService } from '../common/services/redis-config.service';
+import { ColasConfigService } from './services/colas-config.service';
+import { TrabajoSerializerService } from './services/trabajo-serializer.service';
 
 @Injectable()
 export class ColasService implements OnModuleInit, OnModuleDestroy {
@@ -17,6 +20,9 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private configService: ConfigService,
+    private redisConfigService: RedisConfigService,
+    private colasConfigService: ColasConfigService,
+    private trabajoSerializerService: TrabajoSerializerService,
     private importacionProductosProcesador: ImportacionProductosProcesador,
     private importacionProveedoresProcesador: ImportacionProveedoresProcesador,
     private importacionMovimientosProcesador: ImportacionMovimientosProcesador,
@@ -35,50 +41,76 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async inicializarRedis() {
-    const redisUrl = this.configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
-    this.redis = new Redis(redisUrl, {
-      maxRetriesPerRequest: null, // BullMQ requiere que sea null
-      enableReadyCheck: false,
-    });
+    if (!this.redisConfigService.isRedisConfigured()) {
+      this.logger.error('Redis no configurado, colas de procesamiento no pueden funcionar');
+      throw new Error('Redis configuration required for queue processing');
+    }
 
-    this.redis.on('error', (error) => {
-      this.logger.error('❌ Error de conexión Redis:', error);
-    });
+    try {
+      const redisConfig = this.redisConfigService.getIORedisConfig();
+      const redisOptions = this.colasConfigService.getRedisConfig();
+      this.redis = new Redis(redisConfig, redisOptions);
 
-    this.redis.on('connect', () => {
-      this.logger.log('🔗 Conectado a Redis');
-    });
+      this.redis.on('error', (error) => {
+        this.logger.error('❌ Error de conexión Redis:', error);
+      });
+
+      this.redis.on('connect', () => {
+        this.logger.log('🔗 Conectado a Redis para BullMQ');
+      });
+
+      this.redis.on('ready', () => {
+        this.logger.log('✅ Redis listo para BullMQ');
+      });
+
+      this.redis.on('close', () => {
+        this.logger.warn('🔌 Conexión Redis cerrada');
+      });
+
+      this.redis.on('reconnecting', () => {
+        this.logger.log('🔄 Reconectando a Redis...');
+      });
+
+      // Conectar explícitamente
+      await this.redis.connect();
+    } catch (error) {
+      this.logger.error('❌ Error inicializando Redis para BullMQ:', error);
+      throw new Error(`Redis initialization failed: ${error.message}`);
+    }
   }
 
   private async inicializarColas() {
+    const queueConfig = this.colasConfigService.getQueueConfig();
+    
     this.importacionQueue = new Queue('importacion', {
       connection: this.redis,
       defaultJobOptions: {
-        removeOnComplete: 100, // Mantener últimos 100 trabajos completados
-        removeOnFail: 50,      // Mantener últimos 50 trabajos fallidos
-        attempts: 3,           // Reintentar hasta 3 veces
+        removeOnComplete: queueConfig.removeOnComplete,
+        removeOnFail: queueConfig.removeOnFail,
+        attempts: queueConfig.attempts,
         backoff: {
-          type: 'exponential',
-          delay: 2000,         // 2 segundos inicial
+          type: queueConfig.backoffType,
+          delay: queueConfig.backoffDelay,
         },
       },
     });
-
-
 
     this.logger.log('📋 Cola de importación inicializada');
   }
 
   private async inicializarWorkers() {
+    const workerConfig = this.colasConfigService.getWorkerConfig();
+    
     this.importacionWorker = new Worker(
       'importacion',
       async (job: Job) => {
+        this.logger.log(`👷 Worker iniciando procesamiento del trabajo ${job.id}...`);
         return await this.procesarTrabajoImportacion(job);
       },
       {
         connection: this.redis,
-        concurrency: 2, // Procesar máximo 2 trabajos simultáneos
-        autorun: true,
+        concurrency: workerConfig.concurrency,
+        autorun: workerConfig.autorun,
       }
     );
 
@@ -89,7 +121,15 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
 
     this.importacionWorker.on('failed', (job: Job, err: Error) => {
       this.logger.error(`❌ Trabajo ${job.id} fallido:`, err.message);
+      this.logger.error(`📋 Datos del trabajo fallido:`, job.data);
+      this.logger.error(`🔄 Intentos realizados: ${job.attemptsMade}/${job.opts.attempts}`);
     });
+
+    this.importacionWorker.on('active', (job: Job) => {
+      this.logger.log(`🔄 Trabajo ${job.id} activo - procesando...`);
+    });
+
+
 
     this.importacionWorker.on('progress', (job: Job, progress: number) => {
       this.logger.log(`📊 Progreso trabajo ${job.id}: ${progress}%`);
@@ -132,6 +172,8 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
 
   // Métodos públicos para el controlador
   async crearTrabajoImportacion(trabajo: Omit<TrabajoImportacion, 'id' | 'estado' | 'progreso' | 'fechaCreacion'>): Promise<string> {
+    this.logger.log(`🚀 Iniciando creación de trabajo para ${trabajo.tipo}...`);
+    
     const trabajoCompleto: TrabajoImportacion = {
       ...trabajo,
       id: this.generarIdTrabajo(),
@@ -140,9 +182,20 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
       fechaCreacion: new Date(),
     };
 
+    // Validar integridad del trabajo antes de serializar
+    if (!this.trabajoSerializerService.validarIntegridadTrabajo(trabajoCompleto)) {
+      throw new Error('Datos del trabajo inválidos');
+    }
+
+    // Serializar el trabajo para almacenamiento
+    const trabajoSerializado = this.trabajoSerializerService.serializeTrabajo(trabajoCompleto);
+
+    this.logger.log(`📋 Agregando trabajo ${trabajoCompleto.id} a la cola...`);
+    this.logger.log(`📋 Datos del trabajo serializado:`, JSON.stringify(trabajoSerializado, null, 2));
+    
     const job = await this.importacionQueue.add(
       `importacion-${trabajo.tipo}`,
-      trabajoCompleto,
+      trabajoSerializado,
       {
         jobId: trabajoCompleto.id,
         priority: this.obtenerPrioridad(trabajo.tipo),
@@ -151,22 +204,56 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
     );
 
     this.logger.log(`📝 Trabajo creado: ${job.id} (${trabajo.tipo})`);
+    this.logger.log(`✅ Trabajo ${trabajoCompleto.id} agregado exitosamente a la cola`);
+    
     return trabajoCompleto.id;
   }
 
   async obtenerTrabajoImportacion(trabajoId: string): Promise<TrabajoImportacion | null> {
+    this.logger.log(`🔍 Buscando trabajo: ${trabajoId}`);
+    
     const job = await this.importacionQueue.getJob(trabajoId);
-    if (!job) return null;
+    if (!job) {
+      this.logger.warn(`⚠️ Trabajo no encontrado: ${trabajoId}`);
+      
+      // Verificar si el trabajo existe en otras colas
+      const allJobs = await this.importacionQueue.getJobs(['completed', 'failed', 'waiting', 'active', 'delayed', 'paused']);
+      const jobIds = allJobs.map(j => j.id);
+      this.logger.log(`📋 Trabajos disponibles en cola: ${jobIds.join(', ')}`);
+      
+      return null;
+    }
 
-    const estado = await job.getState();
-    const progreso = await job.progress();
-    const data = job.data as TrabajoImportacion;
+    try {
+      const estado = await job.getState();
+      const progreso = job.progress || 0;
+      
+      this.logger.log(`✅ Trabajo encontrado: ${trabajoId}, estado: ${estado}, progreso: ${progreso}`);
+      this.logger.log(`📋 Datos crudos del trabajo:`, JSON.stringify(job.data, null, 2));
 
-    return {
-      ...data,
-      estado: this.mapearEstadoBullMQ(estado),
-      progreso: typeof progreso === 'number' ? progreso : 0,
-    };
+      // Deserializar el trabajo usando el servicio
+      const trabajoDeserializado = this.trabajoSerializerService.deserializeTrabajo(job.data);
+
+      // Actualizar estado y progreso desde BullMQ
+      const trabajoCompleto = {
+        ...trabajoDeserializado,
+        estado: this.mapearEstadoBullMQ(estado),
+        progreso: typeof progreso === 'number' ? progreso : 0,
+      };
+
+      this.logger.log(`📋 Trabajo deserializado:`, JSON.stringify(trabajoCompleto, null, 2));
+
+      // Validar integridad del trabajo deserializado
+      if (!this.trabajoSerializerService.validarIntegridadTrabajo(trabajoCompleto)) {
+        this.logger.error(`⚠️ Trabajo ${trabajoId} no pasa validación de integridad`);
+        return null;
+      }
+
+      return trabajoCompleto;
+    } catch (error) {
+      this.logger.error(`Error obteniendo trabajo ${trabajoId}:`, error);
+      return null;
+    }
   }
 
   async obtenerEstadoTrabajo(trabajoId: string): Promise<TrabajoImportacion | null> {
@@ -183,27 +270,63 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
   }
 
   async obtenerTrabajosEmpresa(empresaId: number, limite: number = 50): Promise<TrabajoImportacion[]> {
-    const jobs = await this.importacionQueue.getJobs(['completed', 'failed', 'waiting', 'active'], 0, limite);
-    
-    return jobs
-      .filter(job => job.data.empresaId === empresaId)
-      .map(job => ({
-        ...job.data,
-        estado: this.mapearEstadoBullMQ(job.getState()),
-        progreso: job.progress() || 0,
-      }));
+    try {
+      const jobs = await this.importacionQueue.getJobs(['completed', 'failed', 'waiting', 'active'], 0, limite);
+      
+      const trabajosFiltrados: TrabajoImportacion[] = [];
+      
+      for (const job of jobs) {
+        try {
+          if (job.data.empresaId === empresaId) {
+            const estado = await job.getState();
+            const trabajoData = job.data as TrabajoImportacion;
+            trabajosFiltrados.push({
+              ...trabajoData,
+              estado: this.mapearEstadoBullMQ(estado),
+              progreso: job.progress || trabajoData.progreso || 0,
+            });
+          }
+        } catch (error) {
+          this.logger.warn(`Error procesando trabajo ${job.id}:`, error);
+          // Continuar con el siguiente trabajo
+        }
+      }
+      
+      return trabajosFiltrados;
+    } catch (error) {
+      this.logger.error(`Error obteniendo trabajos para empresa ${empresaId}:`, error);
+      throw error;
+    }
   }
 
   async listarTrabajosEmpresa(empresaId: number, limit: number = 50, offset: number = 0): Promise<TrabajoImportacion[]> {
-    const jobs = await this.importacionQueue.getJobs(['completed', 'failed', 'waiting', 'active'], offset, offset + limit);
-    
-    return jobs
-      .filter(job => job.data.empresaId === empresaId)
-      .map(job => ({
-        ...job.data,
-        estado: this.mapearEstadoBullMQ(job.getState()),
-        progreso: job.progress() || 0,
-      }));
+    try {
+      const jobs = await this.importacionQueue.getJobs(['completed', 'failed', 'waiting', 'active'], offset, offset + limit);
+      
+      const trabajosFiltrados: TrabajoImportacion[] = [];
+      
+      for (const job of jobs) {
+        try {
+          if (job.data.empresaId === empresaId) {
+            const estado = await job.getState();
+            const trabajoData = job.data as TrabajoImportacion;
+            trabajosFiltrados.push({
+              ...trabajoData,
+              estado: this.mapearEstadoBullMQ(estado),
+              progreso: job.progress || trabajoData.progreso || 0,
+            });
+          }
+        } catch (error) {
+          this.logger.warn(`Error procesando trabajo ${job.id}:`, error);
+          // Continuar con el siguiente trabajo
+        }
+      }
+      
+      return trabajosFiltrados;
+    } catch (error) {
+      this.logger.error(`Error listando trabajos para empresa ${empresaId}:`, error);
+      throw error;
+    }
   }
 
   async contarTrabajosEmpresa(empresaId: number): Promise<number> {
@@ -233,18 +356,72 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
     return reportePath;
   }
 
+  /**
+   * Limpia trabajos antiguos de la cola
+   */
+  async limpiarTrabajosAntiguos(diasAntiguedad: number = 7): Promise<void> {
+    try {
+      this.logger.log(`🧹 Limpiando trabajos más antiguos de ${diasAntiguedad} días...`);
+      
+      const fechaLimite = new Date();
+      fechaLimite.setDate(fechaLimite.getDate() - diasAntiguedad);
+      
+      const trabajosCompletados = await this.importacionQueue.getJobs(['completed', 'failed']);
+      let trabajosEliminados = 0;
+      
+      for (const job of trabajosCompletados) {
+        if (job.finishedOn && new Date(job.finishedOn) < fechaLimite) {
+          await job.remove();
+          trabajosEliminados++;
+        }
+      }
+      
+      this.logger.log(`✅ Limpieza completada: ${trabajosEliminados} trabajos eliminados`);
+    } catch (error) {
+      this.logger.error('Error limpiando trabajos antiguos:', error);
+    }
+  }
+
+  /**
+   * Obtiene estadísticas de la cola
+   */
+  async obtenerEstadisticasCola(): Promise<{
+    waiting: number;
+    active: number;
+    completed: number;
+    failed: number;
+    delayed: number;
+  }> {
+    try {
+      const [waiting, active, completed, failed, delayed] = await Promise.all([
+        this.importacionQueue.getWaiting(),
+        this.importacionQueue.getActive(),
+        this.importacionQueue.getCompleted(),
+        this.importacionQueue.getFailed(),
+        this.importacionQueue.getDelayed(),
+      ]);
+
+      return {
+        waiting: waiting.length,
+        active: active.length,
+        completed: completed.length,
+        failed: failed.length,
+        delayed: delayed.length,
+      };
+    } catch (error) {
+      this.logger.error('Error obteniendo estadísticas de cola:', error);
+      return { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
+    }
+  }
+
   // Métodos auxiliares
   private generarIdTrabajo(): string {
     return `import-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
   private obtenerPrioridad(tipo: string): number {
-    const prioridades = {
-      'movimientos': 1,    // Mayor prioridad
-      'productos': 2,
-      'proveedores': 3,    // Menor prioridad
-    };
-    return prioridades[tipo] || 2;
+    const prioridades = this.colasConfigService.getPriorities();
+    return prioridades[tipo as keyof typeof prioridades] || prioridades.productos;
   }
 
   private mapearEstadoBullMQ(estadoBullMQ: string): EstadoTrabajo {

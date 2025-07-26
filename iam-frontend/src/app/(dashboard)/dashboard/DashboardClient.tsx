@@ -141,7 +141,7 @@ export default function DashboardClient() {
   const diasGraficos = data?.diasGraficos || []
   const productos = useMemo(() => data?.productos || [], [data]) as ProductoKPI[]
   const movimientos = useMemo(() => data?.movimientos || [], [data]) as MovimientoKPI[]
-  
+
   const handleRefresh = useCallback(async (isAuto = false) => {
     setIsRefreshing(true)
     try {
@@ -332,7 +332,7 @@ export default function DashboardClient() {
             </div>
             
             <div className="flex items-center gap-3">
-                          <button
+              <button
               onClick={() => {
                 // Verificar si el elemento existe
                 const importacionSection = document.getElementById('importacion-section')

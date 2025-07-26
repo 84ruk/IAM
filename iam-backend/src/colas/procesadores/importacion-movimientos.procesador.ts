@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TrabajoImportacion, ResultadoImportacion, ErrorImportacion, EstadoTrabajo } from '../interfaces/trabajo-importacion.interface';
+import { ImportacionCacheService } from '../../importacion/servicios/importacion-cache.service';
 import * as XLSX from 'xlsx';
 import * as path from 'path';
 
@@ -9,7 +10,10 @@ import * as path from 'path';
 export class ImportacionMovimientosProcesador {
   private readonly logger = new Logger(ImportacionMovimientosProcesador.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cacheService: ImportacionCacheService
+  ) {}
 
   async procesar(trabajo: TrabajoImportacion, job: Job): Promise<ResultadoImportacion> {
     const inicio = Date.now();
@@ -42,8 +46,8 @@ export class ImportacionMovimientosProcesador {
         return resultado;
       }
 
-      // 3. Cargar productos de la empresa para validación
-      const productosEmpresa = await this.cargarProductosEmpresa(trabajo.empresaId);
+      // 3. Cargar productos de la empresa para validación (con cache)
+      const productosEmpresa = await this.cargarProductosEmpresaConCache(trabajo.empresaId);
 
       // 4. Procesar registros en lotes
       const loteSize = 50; // Lotes más pequeños para movimientos
@@ -51,9 +55,11 @@ export class ImportacionMovimientosProcesador {
         const lote = datos.slice(i, i + loteSize);
         await this.procesarLoteMovimientos(lote, trabajo, resultado, job, productosEmpresa);
         
-        // Actualizar progreso
+        // Actualizar progreso usando el método nativo de BullMQ
         const progreso = Math.round(((i + loteSize) / datos.length) * 100);
         await job.updateProgress(Math.min(progreso, 100));
+        // También actualizar en los datos para compatibilidad
+        // NO actualizar job.data para evitar sobrescribir los datos del trabajo
       }
 
       // 5. Generar archivo de resultados si hay errores
@@ -137,6 +143,47 @@ export class ImportacionMovimientosProcesador {
     });
 
     return errores;
+  }
+
+  private async cargarProductosEmpresaConCache(empresaId: number): Promise<Map<string, any>> {
+    // Intentar obtener del cache primero
+    const cached = await this.cacheService.getProductosEmpresaCache(empresaId);
+    if (cached) {
+      this.logger.log(`✅ Productos de empresa ${empresaId} obtenidos del cache`);
+      return cached;
+    }
+
+    // Si no está en cache, cargar de la base de datos
+    const productos = await this.prisma.producto.findMany({
+      where: {
+        empresaId,
+        estado: 'ACTIVO',
+      },
+      select: {
+        id: true,
+        nombre: true,
+        stock: true,
+        codigoBarras: true,
+        sku: true,
+      },
+    });
+
+    const productosMap = new Map<string, any>();
+    productos.forEach(producto => {
+      productosMap.set(producto.nombre.toLowerCase().trim(), producto);
+      if (producto.codigoBarras) {
+        productosMap.set(producto.codigoBarras.trim(), producto);
+      }
+      if (producto.sku) {
+        productosMap.set(producto.sku.trim(), producto);
+      }
+    });
+
+    // Guardar en cache
+    await this.cacheService.setProductosEmpresaCache(empresaId, productosMap);
+    this.logger.log(`✅ Productos de empresa ${empresaId} guardados en cache`);
+
+    return productosMap;
   }
 
   private async cargarProductosEmpresa(empresaId: number): Promise<Map<string, any>> {

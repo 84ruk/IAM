@@ -21,6 +21,7 @@ import { useImportacion } from '@/hooks/useImportacion'
 import { TipoImportacion } from '@/hooks/useImportacion'
 import ImportacionForm from './ImportacionForm'
 import TrabajosList from './TrabajosList'
+import ImportacionResponse from './ImportacionResponse'
 
 interface ImportacionCardProps {
   className?: string
@@ -29,21 +30,21 @@ interface ImportacionCardProps {
 const tipoConfig = {
   productos: {
     title: 'Productos',
-    description: 'Importa tu catálogo de productos desde Excel o CSV',
+    description: 'Importa tu catálogo de productos desde Excel, Numbers o CSV',
     icon: Package,
     color: 'bg-blue-500',
     badgeColor: 'bg-blue-100 text-blue-800'
   },
   proveedores: {
     title: 'Proveedores',
-    description: 'Importa tu lista de proveedores desde Excel o CSV',
+    description: 'Importa tu lista de proveedores desde Excel, Numbers o CSV',
     icon: ShoppingCart,
     color: 'bg-orange-500',
     badgeColor: 'bg-orange-100 text-orange-800'
   },
   movimientos: {
     title: 'Movimientos',
-    description: 'Importa movimientos de inventario desde Excel o CSV',
+    description: 'Importa movimientos de inventario desde Excel, Numbers o CSV',
     icon: Activity,
     color: 'bg-purple-500',
     badgeColor: 'bg-purple-100 text-purple-800'
@@ -61,9 +62,11 @@ export default function ImportacionCard({ className }: ImportacionCardProps) {
     trabajos,
     error,
     success,
+    validationErrors,
     descargarPlantilla,
     clearError,
-    clearSuccess
+    clearSuccess,
+    clearValidationErrors
   } = useImportacion()
 
   const handleTipoSelect = (tipo: TipoImportacion) => {
@@ -120,7 +123,7 @@ export default function ImportacionCard({ className }: ImportacionCardProps) {
                 Importación de Datos
               </CardTitle>
               <p className="text-sm text-gray-600 mt-1">
-                Importa productos, proveedores y movimientos desde archivos Excel o CSV
+                Importa productos, proveedores y movimientos desde archivos Excel, Numbers o CSV
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -137,62 +140,20 @@ export default function ImportacionCard({ className }: ImportacionCardProps) {
         </CardHeader>
 
         <CardContent>
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <XCircle className="w-4 h-4 text-red-600" />
-                <span className="text-red-800 text-sm">{error}</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={clearError}>
-                <XCircle className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
-
-          {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-green-800 text-sm">{success}</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={clearSuccess}>
-                <XCircle className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
-
-          {isImporting && currentTrabajo && (
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                  <span className="font-medium text-blue-900">
-                    Importando {tipoConfig[currentTrabajo.tipo].title}...
-                  </span>
-                </div>
-                <Badge className={getEstadoColor(currentTrabajo.estado)}>
-                  {currentTrabajo.estado}
-                </Badge>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Progreso:</span>
-                  <span>{currentTrabajo.progreso}%</span>
-                </div>
-                <div className="w-full bg-blue-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${currentTrabajo.progreso}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Registros procesados: {currentTrabajo.registrosProcesados}</span>
-                  <span>Total: {currentTrabajo.totalRegistros}</span>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* ImportacionResponse Component */}
+          <ImportacionResponse
+            isImporting={isImporting}
+            currentTrabajo={currentTrabajo}
+            error={error}
+            success={success}
+            validationErrors={validationErrors}
+            onClearError={clearError}
+            onClearSuccess={clearSuccess}
+            onClearValidationErrors={clearValidationErrors}
+            onRefresh={() => {
+              // Refresh logic can be added here
+            }}
+          />
 
           {showTrabajos ? (
             <TrabajosList 

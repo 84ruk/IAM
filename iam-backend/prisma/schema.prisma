@@ -6,6 +6,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  relationMode = "prisma"
 }
 
 model Empresa {
@@ -367,14 +368,27 @@ enum TipoProducto {
   CUIDADO_PERSONAL
   BIOLOGICO
   MATERIAL_QUIRURGICO
+  SOFTWARE
+  HARDWARE
 }
 
 enum UnidadMedida {
   UNIDAD
   KILO
+  KILOGRAMO
   LITRO
+  LITROS
   CAJA
   PAQUETE
+  METRO
+  METROS
+  GRAMO
+  GRAMOS
+  MILILITRO
+  MILILITROS
+  CENTIMETRO
+  CENTIMETROS
+  LICENCIA
 }
 
 enum EstadoProducto {

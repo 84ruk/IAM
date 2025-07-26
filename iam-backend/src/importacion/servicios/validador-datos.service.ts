@@ -78,13 +78,114 @@ export class ValidadorDatosService {
   }
 
   /**
+   * Obtiene variaciones comunes para un campo específico (enfoque en español)
+   */
+  private obtenerVariacionesCampo(campo: string): string[] {
+    const variaciones: Record<string, string[]> = {
+      'nombre': [
+        'name', 'producto', 'product', 'producto_nombre', 'nombre_producto', 'product_name', 'productname',
+        'descripcion', 'description', 'desc', 'detalle', 'detail', 'descripcion_producto', 'producto_descripcion'
+      ],
+      'stock': [
+        'cantidad', 'quantity', 'qty', 'inventario', 'inventory', 'existencia', 'existencias',
+        'stock_actual', 'stock_disponible', 'cantidad_disponible', 'cantidad_stock'
+      ],
+      'precioCompra': [
+        'preciocompra', 'precio_compra', 'precio compra', 'preciocompra_producto', 'precio_compra_producto',
+        'precio_compra_unidad', 'precio_compra_unitario', 'costo', 'costo_producto', 'costo_unidad', 'costo_unitario',
+        'precio_costo', 'costo_compra', 'purchase_price', 'purchaseprice', 'cost', 'cost_price', 'costprice'
+      ],
+      'precioVenta': [
+        'precioventa', 'precio_venta', 'precio venta', 'precioventa_producto', 'precio_venta_producto',
+        'precio_venta_unidad', 'precio_venta_unitario', 'precio', 'precio_producto', 'precio_unidad', 'precio_unitario',
+        'precio_publico', 'precio_final', 'sale_price', 'saleprice', 'price', 'selling_price', 'sellingprice'
+      ],
+      'stockMinimo': [
+        'stockminimo', 'stock_minimo', 'stock minimo', 'stock_min', 'stockmin', 'stock_minimo_requerido',
+        'stock_minimo_disponible', 'cantidad_minima', 'cantidad_min', 'cantidadminima', 'cantidadmin',
+        'min_stock', 'minstock', 'minimum_stock', 'minimumstock'
+      ],
+      'tipoProducto': [
+        'tipoproducto', 'tipo_producto', 'tipo producto', 'tipo', 'categoria', 'categoria_producto',
+        'producto_tipo', 'producto_categoria', 'clasificacion', 'clasificacion_producto',
+        'product_type', 'producttype', 'type', 'category'
+      ],
+      'unidad': [
+        'unidad', 'unidad_medida', 'unidadmedida', 'medida', 'medida_unidad',
+        'unit', 'measure', 'measurement', 'uom'
+      ],
+      'estado': [
+        'estado', 'estado_producto', 'producto_estado', 'activo', 'activo_inactivo',
+        'status', 'active'
+      ],
+      'codigoBarras': [
+        'codigobarras', 'codigo_barras', 'codigo barras', 'codigo_barras_producto',
+        'barras', 'codigo_barras_unico', 'barcode', 'bar_code', 'barcodes'
+      ],
+      'sku': [
+        'sku', 'codigo', 'codigo_producto', 'codigo_interno', 'codigo_unico', 'codigo_identificacion',
+        'identificador', 'identificador_producto', 'code', 'product_code', 'productcode', 'item_code', 'itemcode'
+      ],
+      'etiquetas': [
+        'etiquetas', 'etiqueta', 'etiquetas_producto', 'tags', 'tag', 'labels', 'label'
+      ],
+      'marca': [
+        'marca', 'marca_producto', 'producto_marca', 'fabricante', 'fabricante_producto',
+        'brand', 'manufacturer'
+      ],
+      'modelo': [
+        'modelo', 'modelo_producto', 'producto_modelo', 'version', 'version_producto', 'model'
+      ],
+      'especificaciones': [
+        'especificaciones', 'especificacion', 'especificaciones_producto', 'producto_especificaciones',
+        'detalles_tecnicos', 'caracteristicas', 'caracteristicas_producto',
+        'specifications', 'specs', 'spec', 'detalles', 'details'
+      ],
+      'ubicacion': [
+        'ubicacion', 'ubicacion_producto', 'producto_ubicacion', 'lugar', 'lugar_almacenamiento',
+        'posicion', 'posicion_almacen', 'location', 'place', 'position'
+      ],
+      'temperatura': [
+        'temperatura', 'temperatura_almacenamiento', 'temperatura_requerida', 'temp', 'temperature'
+      ],
+      'humedad': [
+        'humedad', 'humedad_almacenamiento', 'humedad_requerida', 'hum', 'humidity'
+      ]
+    };
+
+    return variaciones[campo] || [];
+  }
+
+  /**
    * Valida un registro individual contra las reglas especificadas
    */
   private validarRegistro(registro: any, reglas: ReglaValidacion[], fila: number): ErrorImportacion[] {
     const errores: ErrorImportacion[] = [];
 
     reglas.forEach(regla => {
-      const valor = registro[regla.campo];
+      // Buscar el campo en diferentes variaciones de nombre
+      let valor = registro[regla.campo];
+      
+      // Si no se encuentra, buscar variaciones normalizadas y mapeadas
+      if (valor === undefined || valor === null) {
+        const variaciones = [
+          regla.campo,
+          regla.campo.toLowerCase(),
+          regla.campo.replace(/[^a-z0-9]/g, '_'),
+          regla.campo.replace(/[^a-z0-9]/g, '').toLowerCase(),
+          // Variaciones comunes para cada campo
+          ...this.obtenerVariacionesCampo(regla.campo)
+        ];
+        
+        for (const variacion of variaciones) {
+          if (registro[variacion] !== undefined && registro[variacion] !== null) {
+            valor = registro[variacion];
+            this.logger.debug(`🔍 Campo encontrado usando variación: ${regla.campo} -> ${variacion}`);
+            break;
+          }
+        }
+      }
+      
       const esValido = this.ejecutarValidacion(valor, registro, regla);
 
       if (!esValido) {
@@ -299,14 +400,14 @@ export class ValidadorDatosService {
       {
         campo: 'tipoProducto',
         tipo: 'lista',
-        mensaje: 'El tipo de producto debe ser uno de: GENERICO, MEDICAMENTO, ALIMENTO, ROPA, ELECTRONICO',
-        condicion: ['GENERICO', 'MEDICAMENTO', 'ALIMENTO', 'ROPA', 'ELECTRONICO'],
+        mensaje: 'El tipo de producto debe ser uno de: GENERICO, MEDICAMENTO, ALIMENTO, ROPA, ELECTRONICO, SOFTWARE, HARDWARE, SUPLEMENTO, EQUIPO_MEDICO, CUIDADO_PERSONAL, BIOLOGICO, MATERIAL_QUIRURGICO',
+        condicion: ['GENERICO', 'MEDICAMENTO', 'ALIMENTO', 'ROPA', 'ELECTRONICO', 'SOFTWARE', 'HARDWARE', 'SUPLEMENTO', 'EQUIPO_MEDICO', 'CUIDADO_PERSONAL', 'BIOLOGICO', 'MATERIAL_QUIRURGICO'],
       },
       {
         campo: 'unidad',
         tipo: 'lista',
-        mensaje: 'La unidad debe ser una de: UNIDAD, CAJA, KILOGRAMO, LITRO, METRO',
-        condicion: ['UNIDAD', 'CAJA', 'KILOGRAMO', 'LITRO', 'METRO'],
+        mensaje: 'La unidad debe ser una de: UNIDAD, KILO, KILOGRAMO, LITRO, LITROS, CAJA, PAQUETE, METRO, METROS, GRAMO, GRAMOS, MILILITRO, MILILITROS, CENTIMETRO, CENTIMETROS, LICENCIA',
+        condicion: ['UNIDAD', 'KILO', 'KILOGRAMO', 'LITRO', 'LITROS', 'CAJA', 'PAQUETE', 'METRO', 'METROS', 'GRAMO', 'GRAMOS', 'MILILITRO', 'MILILITROS', 'CENTIMETRO', 'CENTIMETROS', 'LICENCIA'],
       },
     ];
   }

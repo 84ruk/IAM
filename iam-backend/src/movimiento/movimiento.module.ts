@@ -3,8 +3,7 @@ import { MovimientoService } from './movimiento.service';
 import { MovimientoController } from './movimiento.controller';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { AuthModule } from 'src/auth/auth.module';
-import { KPICacheService } from '../common/services/kpi-cache.service';
-import { KPIErrorHandler } from '../common/services/kpi-error-handler.service';
+import { CommonModule } from '../common/common.module';
 
 // Command Handlers
 import { CrearMovimientoHandler } from './handlers/crear-movimiento.handler';
@@ -22,11 +21,9 @@ import { ObtenerMovimientosEliminadosHandler } from './handlers/obtener-movimien
 import { ObtenerMovimientoEliminadoHandler } from './handlers/obtener-movimiento-eliminado.handler';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, CommonModule],
   providers: [
     MovimientoService,
-    KPICacheService,
-    KPIErrorHandler,
     // Command Handlers
     CrearMovimientoHandler,
     CrearMovimientoPorCodigoBarrasHandler,

@@ -8,65 +8,54 @@ import { Label } from '@/components/ui/Label'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Badge } from '@/components/ui/Badge'
 import { 
-  Upload, 
-  X, 
-  FileText, 
-  AlertCircle,
-  CheckCircle,
   Download,
-  Info
+  Info,
+  X,
+  Upload
 } from 'lucide-react'
 import { useImportacion } from '@/hooks/useImportacion'
 import { TipoImportacion } from '@/hooks/useImportacion'
+import { ImportacionStatus } from './ImportacionStatus'
+import { ImportacionNotifications } from './ImportacionNotifications'
+import { ImportacionLoading } from './ImportacionLoading'
+import { ValidationErrors } from './ValidationErrors'
+import FileTypeInfo from './FileTypeInfo'
+import NumbersFileNotification from './NumbersFileNotification'
+import FileUploadArea from './FileUploadArea'
+import { useFileValidation } from '@/hooks/useFileValidation'
+import { getImportacionConfig, DEFAULT_IMPORTACION_OPTIONS, IMPORTACION_MESSAGES } from '@/config/importacion.config'
 
 interface ImportacionFormProps {
   tipo: TipoImportacion
   onClose: () => void
 }
 
-const tipoConfig = {
-  productos: {
-    title: 'Productos',
-    description: 'Importa tu catálogo de productos',
-    icon: '📦',
-    camposRequeridos: ['nombre', 'stock', 'precioCompra', 'precioVenta'],
-    camposOpcionales: ['descripcion', 'stockMinimo', 'etiqueta', 'proveedor']
-  },
-  proveedores: {
-    title: 'Proveedores',
-    description: 'Importa tu lista de proveedores',
-    icon: '🏢',
-    camposRequeridos: ['nombre', 'email'],
-    camposOpcionales: ['telefono', 'direccion', 'rfc', 'contacto']
-  },
-  movimientos: {
-    title: 'Movimientos',
-    description: 'Importa movimientos de inventario',
-    icon: '📊',
-    camposRequeridos: ['producto', 'tipo', 'cantidad', 'fecha'],
-    camposOpcionales: ['motivo', 'proveedor', 'observaciones']
-  }
-}
+// Configuración centralizada de importación
 
 export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps) {
   const [archivo, setArchivo] = useState<File | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
-  const [opciones, setOpciones] = useState({
-    sobrescribirExistentes: false,
-    validarSolo: false,
-    notificarEmail: false,
-    emailNotificacion: ''
-  })
+  const [opciones, setOpciones] = useState(DEFAULT_IMPORTACION_OPTIONS)
 
+  const { validateFile, isNumbersFile, getFileSizeMB } = useFileValidation()
+  
   const {
     isImporting,
+    currentTrabajo,
+    error,
+    success,
+    validationErrors,
     importarProductos,
     importarProveedores,
     importarMovimientos,
-    descargarPlantilla
+    descargarPlantilla,
+    cancelarTrabajo,
+    clearError,
+    clearSuccess,
+    clearValidationErrors
   } = useImportacion()
 
-  const config = tipoConfig[tipo]
+  const config = getImportacionConfig(tipo)
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -91,38 +80,26 @@ export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps)
     }
   }, [])
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files && files.length > 0) {
-      const file = files[0]
-      if (validarArchivo(file)) {
-        setArchivo(file)
-      }
+  const handleFileSelect = useCallback((file: File) => {
+    if (validarArchivo(file)) {
+      setArchivo(file)
     }
   }, [])
 
+  const handleFileRemove = useCallback(() => {
+    setArchivo(null)
+  }, [])
+
   const validarArchivo = (file: File): boolean => {
-    const extensionesPermitidas = ['.xlsx', '.xls', '.csv']
-    const extension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'))
-    
-    if (!extensionesPermitidas.includes(extension)) {
-      alert('Solo se permiten archivos Excel (.xlsx, .xls) o CSV')
-      return false
-    }
-    
-    if (file.size > 50 * 1024 * 1024) { // 50MB
-      alert('El archivo es demasiado grande. Máximo 50MB')
-      return false
-    }
-    
-    return true
+    const result = validateFile(file)
+    return result.isValid
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!archivo) {
-      alert('Por favor selecciona un archivo')
+      alert(IMPORTACION_MESSAGES.NO_FILE_SELECTED)
       return
     }
 
@@ -149,6 +126,51 @@ export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps)
     await descargarPlantilla(tipo)
   }
 
+  // Mostrar estado de carga si está importando
+  if (isImporting && currentTrabajo) {
+    return (
+      <div className="space-y-4">
+        <ImportacionStatus
+          trabajo={currentTrabajo}
+          isImporting={isImporting}
+          onCancel={() => currentTrabajo && cancelarTrabajo(currentTrabajo.id)}
+          onRefresh={() => {}} // TODO: Implementar refresh
+        />
+        <ImportacionLoading
+          archivo={archivo!}
+          progreso={currentTrabajo.progreso || 0}
+          mensaje={currentTrabajo.mensaje || 'Procesando importación...'}
+          onCancel={() => currentTrabajo && cancelarTrabajo(currentTrabajo.id)}
+        />
+      </div>
+    )
+  }
+
+  // Mostrar errores de validación si existen
+  if (validationErrors && validationErrors.length > 0) {
+    return (
+      <div className="space-y-4">
+        <ImportacionNotifications
+          success={success}
+          error={error}
+          validationErrors={validationErrors}
+          onClearSuccess={clearSuccess}
+          onClearError={clearError}
+          onClearValidationErrors={clearValidationErrors}
+        />
+        <ValidationErrors
+          errors={validationErrors}
+          totalRegistros={currentTrabajo?.totalRegistros || 0}
+        />
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={onClose}>
+            Cerrar
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -167,6 +189,17 @@ export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps)
       </CardHeader>
 
       <CardContent>
+        {/* Notificaciones */}
+        <ImportacionNotifications
+          success={success}
+          error={error}
+          validationErrors={validationErrors}
+          onClearSuccess={clearSuccess}
+          onClearError={clearError}
+          onClearValidationErrors={clearValidationErrors}
+          className="mb-6"
+        />
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Selección de archivo */}
           <div>
@@ -174,62 +207,23 @@ export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps)
               Seleccionar archivo
             </Label>
             
-            <div
-              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                isDragOver 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : archivo 
-                    ? 'border-green-500 bg-green-50' 
-                    : 'border-gray-300 hover:border-gray-400'
-              }`}
+            {/* Notificación para archivos .numbers */}
+            {archivo && isNumbersFile(archivo) && (
+              <NumbersFileNotification 
+                fileName={archivo.name} 
+                className="mb-4"
+              />
+            )}
+            
+            <FileUploadArea
+              file={archivo}
+              onFileSelect={handleFileSelect}
+              onFileRemove={handleFileRemove}
+              isDragOver={isDragOver}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-            >
-              {archivo ? (
-                <div className="flex items-center justify-center gap-3">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                  <div className="text-left">
-                    <p className="font-medium text-green-900">{archivo.name}</p>
-                    <p className="text-sm text-green-700">
-                      {(archivo.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setArchivo(null)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div>
-                  <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <p className="text-gray-600 mb-2">
-                    Arrastra y suelta tu archivo aquí, o
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => document.getElementById('archivo')?.click()}
-                  >
-                    Seleccionar archivo
-                  </Button>
-                  <input
-                    id="archivo"
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Formatos soportados: Excel (.xlsx, .xls) y CSV
-                  </p>
-                </div>
-              )}
-            </div>
+            />
           </div>
 
           {/* Información de campos */}
@@ -258,6 +252,9 @@ export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps)
               ))}
             </div>
           </div>
+
+          {/* Información de tipos de archivo */}
+          <FileTypeInfo />
 
           {/* Opciones de importación */}
           <div className="space-y-4">

@@ -13,9 +13,9 @@ import {
   HttpCode,
   ParseFilePipe,
   MaxFileSizeValidator,
-  FileTypeValidator,
   BadRequestException,
 } from '@nestjs/common';
+import { FileTypeValidator } from './validators/file-type.validator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from '@nestjs/swagger';
@@ -53,7 +53,7 @@ export class ImportacionController {
         archivo: {
           type: 'string',
           format: 'binary',
-          description: 'Archivo Excel (.xlsx, .xls) o CSV',
+          description: 'Archivo Excel (.xlsx, .xls, .numbers) o CSV',
         },
         sobrescribirExistentes: {
           type: 'boolean',
@@ -96,11 +96,15 @@ export class ImportacionController {
         const allowedMimes = [
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'application/vnd.ms-excel',
+          'application/x-iwork-numbers-sffnumbers',
           'text/csv',
           'application/csv',
         ];
-        
-        if (allowedMimes.includes(file.mimetype)) {
+        const allowedExtensions = ['.xlsx', '.xls', '.numbers', '.csv'];
+        const extension = (file.originalname || '').toLowerCase().split('.').pop();
+        const extWithDot = extension ? `.${extension}` : '';
+
+        if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(extWithDot)) {
           cb(null, true);
         } else {
           cb(new Error('Tipo de archivo no permitido'), false);
@@ -113,7 +117,6 @@ export class ImportacionController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 }), // 50MB
-          new FileTypeValidator({ fileType: '.(xlsx|xls|csv)' }),
         ],
       })
     ) archivo: Express.Multer.File,
@@ -121,6 +124,10 @@ export class ImportacionController {
     @CurrentUser() usuario: JwtUser,
   ) {
     try {
+      // Validar tipo de archivo
+      const fileValidator = new FileTypeValidator();
+      fileValidator.transform(archivo);
+
       if (!usuario.empresaId) {
         throw new BadRequestException('Usuario no tiene empresa asignada');
       }
@@ -132,6 +139,32 @@ export class ImportacionController {
         usuario.id
       );
 
+      // Si hay errores de validación y es solo validación, retornar error
+      if (resultado.estado === 'error' && resultado.erroresDetallados && resultado.erroresDetallados.length > 0) {
+        return {
+          success: false,
+          message: resultado.mensaje,
+          trabajoId: resultado.trabajoId,
+          estado: resultado.estado,
+          totalRegistros: resultado.totalRegistros,
+          errores: resultado.errores,
+          erroresDetallados: resultado.erroresDetallados,
+        };
+      }
+
+      // Si hay errores pero no es solo validación, retornar advertencia
+      if (resultado.errores && resultado.errores > 0 && !opciones.validarSolo) {
+        return {
+          success: true,
+          message: `Importación iniciada con ${resultado.errores} errores de validación. Se importarán solo los registros válidos.`,
+          trabajoId: resultado.trabajoId,
+          estado: resultado.estado,
+          totalRegistros: resultado.totalRegistros,
+          errores: resultado.errores,
+          erroresDetallados: resultado.erroresDetallados,
+        };
+      }
+
       return {
         success: true,
         message: resultado.mensaje,
@@ -139,6 +172,7 @@ export class ImportacionController {
         estado: resultado.estado,
         totalRegistros: resultado.totalRegistros,
         errores: resultado.errores,
+        erroresDetallados: resultado.erroresDetallados,
       };
     } catch (error) {
       // Limpiar archivo temporal en caso de error
@@ -161,7 +195,7 @@ export class ImportacionController {
         archivo: {
           type: 'string',
           format: 'binary',
-          description: 'Archivo Excel (.xlsx, .xls) o CSV',
+          description: 'Archivo Excel (.xlsx, .xls, .numbers) o CSV',
         },
         sobrescribirExistentes: {
           type: 'boolean',
@@ -204,11 +238,15 @@ export class ImportacionController {
         const allowedMimes = [
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'application/vnd.ms-excel',
+          'application/x-iwork-numbers-sffnumbers',
           'text/csv',
           'application/csv',
         ];
-        
-        if (allowedMimes.includes(file.mimetype)) {
+        const allowedExtensions = ['.xlsx', '.xls', '.numbers', '.csv'];
+        const extension = (file.originalname || '').toLowerCase().split('.').pop();
+        const extWithDot = extension ? `.${extension}` : '';
+
+        if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(extWithDot)) {
           cb(null, true);
         } else {
           cb(new Error('Tipo de archivo no permitido'), false);
@@ -221,7 +259,6 @@ export class ImportacionController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 }), // 50MB
-          new FileTypeValidator({ fileType: '.(xlsx|xls|csv)' }),
         ],
       })
     ) archivo: Express.Multer.File,
@@ -229,6 +266,10 @@ export class ImportacionController {
     @CurrentUser() usuario: JwtUser,
   ) {
     try {
+      // Validar tipo de archivo
+      const fileValidator = new FileTypeValidator();
+      fileValidator.transform(archivo);
+
       if (!usuario.empresaId) {
         throw new BadRequestException('Usuario no tiene empresa asignada');
       }
@@ -269,7 +310,7 @@ export class ImportacionController {
         archivo: {
           type: 'string',
           format: 'binary',
-          description: 'Archivo Excel (.xlsx, .xls) o CSV',
+          description: 'Archivo Excel (.xlsx, .xls, .numbers) o CSV',
         },
         sobrescribirExistentes: {
           type: 'boolean',
@@ -312,11 +353,15 @@ export class ImportacionController {
         const allowedMimes = [
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'application/vnd.ms-excel',
+          'application/x-iwork-numbers-sffnumbers',
           'text/csv',
           'application/csv',
         ];
-        
-        if (allowedMimes.includes(file.mimetype)) {
+        const allowedExtensions = ['.xlsx', '.xls', '.numbers', '.csv'];
+        const extension = (file.originalname || '').toLowerCase().split('.').pop();
+        const extWithDot = extension ? `.${extension}` : '';
+
+        if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(extWithDot)) {
           cb(null, true);
         } else {
           cb(new Error('Tipo de archivo no permitido'), false);
@@ -329,7 +374,6 @@ export class ImportacionController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 }), // 50MB
-          new FileTypeValidator({ fileType: '.(xlsx|xls|csv)' }),
         ],
       })
     ) archivo: Express.Multer.File,
@@ -337,6 +381,10 @@ export class ImportacionController {
     @CurrentUser() usuario: JwtUser,
   ) {
     try {
+      // Validar tipo de archivo
+      const fileValidator = new FileTypeValidator();
+      fileValidator.transform(archivo);
+
       if (!usuario.empresaId) {
         throw new BadRequestException('Usuario no tiene empresa asignada');
       }
@@ -416,6 +464,26 @@ export class ImportacionController {
       total: resultado.total,
       limit: limitNum,
       offset: offsetNum,
+    };
+  }
+
+  /**
+   * Obtiene estadísticas de la cola de importación (solo para debugging)
+   */
+  @Get('cola/estadisticas')
+  @ApiOperation({ summary: 'Obtener estadísticas de la cola de importación' })
+  @ApiResponse({ status: 200, description: 'Estadísticas obtenidas' })
+  async obtenerEstadisticasCola(@CurrentUser() usuario: JwtUser) {
+    if (!usuario.empresaId) {
+      throw new BadRequestException('Usuario no tiene empresa asignada');
+    }
+
+    const estadisticas = await this.importacionService.obtenerEstadisticasCola();
+
+    return {
+      success: true,
+      estadisticas,
+      timestamp: new Date().toISOString(),
     };
   }
 

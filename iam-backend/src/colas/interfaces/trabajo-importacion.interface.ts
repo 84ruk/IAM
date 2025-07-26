@@ -28,7 +28,7 @@ export interface OpcionesImportacion {
   validarSolo: boolean;
   notificarEmail: boolean;
   emailNotificacion?: string;
-  configuracionEspecifica?: Record<string, any>;
+  configuracionEspecifica?: Record<string, unknown>;
 }
 
 export interface ErrorImportacion {
@@ -59,4 +59,59 @@ export interface ResultadoImportacion {
   errores: ErrorImportacion[];
   tiempoProcesamiento: number;
   archivoResultado?: string;
+}
+
+// Interfaces para datos de importación
+export interface RegistroImportacion {
+  _filaOriginal: number;
+  [key: string]: unknown;
+}
+
+export interface DatosExcel {
+  encabezados: string[];
+  registros: RegistroImportacion[];
+}
+
+// Interfaces para productos
+export interface ProductoImportacion extends RegistroImportacion {
+  nombre: unknown;
+  descripcion?: unknown;
+  stock: unknown;
+  precioCompra: unknown;
+  precioVenta: unknown;
+  stockMinimo?: unknown;
+  categoria?: unknown;
+  proveedor?: unknown;
+  codigoBarras?: unknown;
+  unidadMedida?: unknown;
+  ubicacion?: unknown;
+  fechaVencimiento?: unknown;
+  lote?: unknown;
+  notas?: unknown;
+}
+
+// Interfaces para proveedores
+export interface ProveedorImportacion extends RegistroImportacion {
+  nombre: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  ciudad?: string;
+  pais?: string;
+  codigoPostal?: string;
+  ruc?: string;
+  contacto?: string;
+  notas?: string;
+}
+
+// Interfaces para movimientos
+export interface MovimientoImportacion extends RegistroImportacion {
+  fecha: string;
+  tipo: 'entrada' | 'salida' | 'ajuste';
+  producto: string;
+  cantidad: number;
+  precio?: number;
+  motivo?: string;
+  referencia?: string;
+  notas?: string;
 } 

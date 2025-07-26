@@ -18,7 +18,23 @@ import { ChevronDownIcon, ChevronUpIcon, Package, DollarSign, Tag, Settings, Bar
 import { TipoProductoConfig } from '@/types/enums'
 import { Producto } from '@/types/producto'
 
-const UNIDADES = ['UNIDAD', 'KILO', 'LITRO', 'CAJA', 'PAQUETE']
+const UNIDADES = [
+  'UNIDAD',
+  'KILO',
+  'KILOGRAMO',
+  'LITRO',
+  'LITROS',
+  'CAJA',
+  'PAQUETE',
+  'METRO',
+  'METROS',
+  'GRAMO',
+  'GRAMOS',
+  'MILILITRO',
+  'MILILITROS',
+  'CENTIMETRO',
+  'CENTIMETROS'
+]
 const TIPOS_PRODUCTO = ['GENERICO', 'ROPA', 'ALIMENTO', 'ELECTRONICO']
 
 const baseSchema = z

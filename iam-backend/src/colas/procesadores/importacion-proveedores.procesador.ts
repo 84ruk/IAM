@@ -48,9 +48,11 @@ export class ImportacionProveedoresProcesador {
         const lote = datos.slice(i, i + loteSize);
         await this.procesarLoteProveedores(lote, trabajo, resultado, job);
         
-        // Actualizar progreso
+        // Actualizar progreso usando el método nativo de BullMQ
         const progreso = Math.round(((i + loteSize) / datos.length) * 100);
         await job.updateProgress(Math.min(progreso, 100));
+        // También actualizar en los datos para compatibilidad
+        // NO actualizar job.data para evitar sobrescribir los datos del trabajo
       }
 
       // 4. Generar archivo de resultados si hay errores

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 import * as path from 'path';
 import * as fs from 'fs';
+import { ImportacionCacheService } from './importacion-cache.service';
 import { promisify } from 'util';
 
 const writeFileAsync = promisify(fs.writeFile);
@@ -39,7 +40,7 @@ export class PlantillasService {
   private readonly logger = new Logger(PlantillasService.name);
   private readonly directorioPlantillas = path.join(process.cwd(), 'uploads', 'plantillas');
 
-  constructor() {
+  constructor(private readonly cacheService: ImportacionCacheService) {
     this.asegurarDirectorioPlantillas();
   }
 
@@ -47,6 +48,28 @@ export class PlantillasService {
    * Genera una plantilla de Excel para productos
    */
   async generarPlantillaProductos(): Promise<string> {
+    // Intentar obtener del cache primero
+    const cached = await this.cacheService.getPlantillaCache<string>('productos');
+    if (cached) {
+      this.logger.log('✅ Plantilla de productos obtenida del cache');
+      return cached;
+    }
+
+    // Usar la plantilla mejorada pre-generada
+    const rutaPlantillaMejorada = path.join(this.directorioPlantillas, 'plantilla-productos-mejorada.xlsx');
+    
+    if (fs.existsSync(rutaPlantillaMejorada)) {
+      this.logger.log('✅ Usando plantilla mejorada pre-generada');
+      
+      // Guardar en cache
+      await this.cacheService.setPlantillaCache('productos', 'plantilla-productos-mejorada.xlsx');
+      
+      return 'plantilla-productos-mejorada.xlsx';
+    }
+
+    // Fallback a la plantilla generada dinámicamente
+    this.logger.log('⚠️ Plantilla mejorada no encontrada, generando plantilla dinámica');
+    
     const config: PlantillaConfig = {
       nombre: 'Plantilla de Productos',
       descripcion: 'Plantilla para importar productos al sistema de inventario',
@@ -110,7 +133,7 @@ export class PlantillasService {
           descripcion: 'Unidad de medida (opcional)',
           requerida: false,
           tipo: 'lista',
-          valoresPermitidos: ['UNIDAD', 'CAJA', 'KILOGRAMO', 'LITRO', 'METRO'],
+          valoresPermitidos: ['UNIDAD', 'KILO', 'KILOGRAMO', 'LITRO', 'LITROS', 'CAJA', 'PAQUETE', 'METRO', 'METROS', 'GRAMO', 'GRAMOS', 'MILILITRO', 'MILILITROS', 'CENTIMETRO', 'CENTIMETROS'],
         },
         {
           nombre: 'etiquetas',
@@ -189,13 +212,30 @@ export class PlantillasService {
       ],
     };
 
-    return await this.generarPlantillaExcel(config, 'productos');
+    const rutaArchivo = await this.generarPlantillaExcel(config, 'productos');
+    
+    // Guardar en cache
+    await this.cacheService.setPlantillaCache('productos', rutaArchivo);
+    this.logger.log('✅ Plantilla de productos guardada en cache');
+    
+    return rutaArchivo;
   }
 
   /**
    * Genera una plantilla de Excel para proveedores
    */
   async generarPlantillaProveedores(): Promise<string> {
+    // Usar la plantilla mejorada pre-generada
+    const rutaPlantillaMejorada = path.join(this.directorioPlantillas, 'plantilla-proveedores-mejorada.xlsx');
+    
+    if (fs.existsSync(rutaPlantillaMejorada)) {
+      this.logger.log('✅ Usando plantilla mejorada pre-generada');
+      return 'plantilla-proveedores-mejorada.xlsx';
+    }
+
+    // Fallback a la plantilla generada dinámicamente
+    this.logger.log('⚠️ Plantilla mejorada no encontrada, generando plantilla dinámica');
+    
     const config: PlantillaConfig = {
       nombre: 'Plantilla de Proveedores',
       descripcion: 'Plantilla para importar proveedores al sistema',
@@ -257,6 +297,17 @@ export class PlantillasService {
    * Genera una plantilla de Excel para movimientos
    */
   async generarPlantillaMovimientos(): Promise<string> {
+    // Usar la plantilla mejorada pre-generada
+    const rutaPlantillaMejorada = path.join(this.directorioPlantillas, 'plantilla-movimientos-mejorada.xlsx');
+    
+    if (fs.existsSync(rutaPlantillaMejorada)) {
+      this.logger.log('✅ Usando plantilla mejorada pre-generada');
+      return 'plantilla-movimientos-mejorada.xlsx';
+    }
+
+    // Fallback a la plantilla generada dinámicamente
+    this.logger.log('⚠️ Plantilla mejorada no encontrada, generando plantilla dinámica');
+    
     const config: PlantillaConfig = {
       nombre: 'Plantilla de Movimientos',
       descripcion: 'Plantilla para importar movimientos de inventario',

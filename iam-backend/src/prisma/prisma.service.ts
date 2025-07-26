@@ -44,9 +44,12 @@ export class PrismaService
       // ✅ CONFIGURACIÓN AVANZADA DE CONNECTION POOLING
       // Configuración optimizada para producción y escalabilidad
       errorFormat: 'pretty',
-      // Configuración del pool de conexiones
+      // Configuración del pool de conexiones para evitar timeouts
+      // Aumentar el timeout y límites para operaciones pesadas como importación
       // Estas configuraciones se aplican cuando se usa PgBouncer o similar
       // Para Supabase, estas configuraciones se manejan automáticamente
+      // Configuración específica para evitar timeouts en importación
+      // Los valores se toman de las variables de entorno
     });
   }
 

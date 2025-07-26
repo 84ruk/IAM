@@ -135,11 +135,18 @@ export class ApiClient {
     const response = await fetch(url, {
         method,
       credentials: 'include',
-      headers: {
-        ...this.defaultHeaders,
-        ...options?.headers,
-      },
-        body: data ? JSON.stringify(data) : undefined,
+      headers: data instanceof FormData 
+        ? {
+            // Para FormData, no incluir Content-Type para que el navegador lo establezca automáticamente
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            ...options?.headers,
+          }
+        : {
+            ...this.defaultHeaders,
+            ...options?.headers,
+          },
+        body: data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined),
         signal: controller.signal,
       ...options,
     })
@@ -150,7 +157,7 @@ export class ApiClient {
       if (options?.responseType === 'blob') {
         return response.blob() as T
       }
-      
+
       return await validateApiResponse(response)
     } catch (error: unknown) {
       // Manejar errores específicos antes de reintentos

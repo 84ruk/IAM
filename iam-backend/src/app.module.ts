@@ -25,6 +25,7 @@ import { DashboardLoggingMiddleware } from './common/middleware/dashboard-loggin
 import { MqttSensorModule } from './microservices/mqtt-sensor/mqtt-sensor.module';
 import { ColasModule } from './colas/colas.module';
 import { ImportacionModule } from './importacion/importacion.module';
+import { CommonModule } from './common/common.module';
 import mqttConfig from './config/mqtt.config';
 
 @Module({
@@ -51,6 +52,7 @@ import mqttConfig from './config/mqtt.config';
     DashboardModule,     // ⚠️ SISTEMA LEGACY (baja prioridad - en migración)
     
     // 🔧 MÓDULOS DE ADMINISTRACIÓN Y SERVICIOS
+    CommonModule, // 🆕 NUEVO - Módulo común con servicios de salud
     SensoresModule,
     AdminModule,
     SuperAdminModule,

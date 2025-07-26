@@ -8,12 +8,14 @@ import { PlantillasService } from './servicios/plantillas.service';
 import { ColasModule } from '../colas/colas.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
     ColasModule,    // Para procesamiento asíncrono
     PrismaModule,   // Para acceso a base de datos
     AuthModule,     // Para autenticación y autorización
+    CommonModule,   // Para configuración Redis unificada
   ],
   controllers: [ImportacionController],
   providers: [

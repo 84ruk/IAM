@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createClient, RedisClientType } from 'redis';
+import { RedisConfigService } from './redis-config.service';
 
 export interface CacheConfig {
   host: string;
@@ -15,34 +16,18 @@ export class KPICacheService {
   private redis: RedisClientType;
   private readonly defaultTtl = 300; // 5 minutos por defecto
 
-  constructor() {
+  constructor(private readonly redisConfigService: RedisConfigService) {
     this.initializeRedis();
   }
 
   private async initializeRedis() {
+    if (!this.redisConfigService.isRedisConfigured()) {
+      this.logger.warn('Redis no configurado, KPI cache deshabilitado');
+      return;
+    }
+
     try {
-      // ✅ SOPORTE PARA UPSTASH Y CONFIGURACIÓN INDIVIDUAL
-      let redisConfig: any;
-
-      if (process.env.REDIS_URL) {
-        // Usar URL completa (Upstash, Railway, etc.)
-        this.logger.log('Using REDIS_URL configuration');
-        redisConfig = {
-          url: process.env.REDIS_URL,
-        };
-      } else {
-        // Usar configuración individual (host, port, password)
-        this.logger.log('Using individual Redis configuration');
-        redisConfig = {
-          socket: {
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT || '6379'),
-          },
-          password: process.env.REDIS_PASSWORD,
-          database: parseInt(process.env.REDIS_DB || '0'),
-        };
-      }
-
+      const redisConfig = this.redisConfigService.getRedisConfig();
       this.redis = createClient(redisConfig);
 
       this.redis.on('error', (err) => {
@@ -50,13 +35,13 @@ export class KPICacheService {
       });
 
       this.redis.on('connect', () => {
-        this.logger.log('Redis Client Connected');
+        this.logger.log('Redis Client Connected for KPI Cache');
       });
 
       await this.redis.connect();
-      this.logger.log('Redis connection established successfully');
+      this.logger.log('KPI Cache Redis connection established successfully');
     } catch (error) {
-      this.logger.error('Failed to connect to Redis:', error);
+      this.logger.error('Failed to connect to Redis for KPI Cache:', error);
       // En desarrollo, continuar sin Redis
       if (process.env.NODE_ENV === 'production') {
         throw error;
