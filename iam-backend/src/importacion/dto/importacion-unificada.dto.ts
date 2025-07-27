@@ -172,6 +172,16 @@ export class ImportacionUnificadaDto {
   configuracionMovimientos?: ConfiguracionEspecificaMovimientosUnificada;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return {};
+      }
+    }
+    return value || {};
+  })
   @IsObject()
   opciones?: any; // Para capturar propiedades adicionales del frontend
 
