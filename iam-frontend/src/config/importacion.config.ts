@@ -37,6 +37,15 @@ export const IMPORTACION_CONFIG: Record<TipoImportacion, ImportacionConfig> = {
     camposOpcionales: ['motivo', 'proveedor', 'observaciones'],
     maxFileSizeMB: 50,
     supportedFormats: ['.xlsx', '.xls', '.numbers', '.csv']
+  },
+  auto: {
+    title: 'Importación Automática',
+    description: 'Detecta automáticamente el tipo de datos',
+    icon: '🤖',
+    camposRequeridos: [],
+    camposOpcionales: [],
+    maxFileSizeMB: 50,
+    supportedFormats: ['.xlsx', '.xls', '.numbers', '.csv']
   }
 }
 

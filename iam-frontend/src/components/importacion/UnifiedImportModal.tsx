@@ -57,6 +57,13 @@ const tipoConfig = {
     icon: Activity,
     color: 'bg-purple-500',
     badgeColor: 'bg-purple-100 text-purple-800'
+  },
+  auto: {
+    title: 'Importación Automática',
+    description: 'Detecta automáticamente el tipo de datos',
+    icon: FileText,
+    color: 'bg-green-500',
+    badgeColor: 'bg-green-100 text-green-800'
   }
 }
 

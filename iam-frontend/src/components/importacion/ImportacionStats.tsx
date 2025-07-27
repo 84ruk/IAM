@@ -69,7 +69,7 @@ export default function ImportacionStats() {
         <div className="flex items-center justify-between mb-3">
           <h4 className="font-medium text-gray-900">Estado del Sistema</h4>
           <Badge 
-            variant={isReady ? 'success' : 'warning'}
+            variant={isReady ? 'default' : 'secondary'}
             className={getStatusColor(isReady ? 'success' : 'warning')}
           >
             {isReady ? 'Listo' : 'Inicializando...'}
@@ -80,7 +80,7 @@ export default function ImportacionStats() {
           <div className="flex items-center space-x-2">
             <Database className="w-4 h-4 text-blue-500" />
             <span>Datos cargados:</span>
-            <Badge variant={hasData ? 'success' : 'secondary'}>
+            <Badge variant={hasData ? 'default' : 'secondary'}>
               {hasData ? 'Sí' : 'No'}
             </Badge>
           </div>
@@ -88,7 +88,7 @@ export default function ImportacionStats() {
           <div className="flex items-center space-x-2">
             <Activity className="w-4 h-4 text-orange-500" />
             <span>Importación activa:</span>
-            <Badge variant={hasActiveImport ? 'warning' : 'secondary'}>
+            <Badge variant={hasActiveImport ? 'destructive' : 'secondary'}>
               {hasActiveImport ? 'Sí' : 'No'}
             </Badge>
           </div>
@@ -102,7 +102,7 @@ export default function ImportacionStats() {
           <div className="flex items-center space-x-2">
             <TrendingUp className="w-4 h-4 text-green-500" />
             <span>Cache activo:</span>
-            <Badge variant={lastFetchTime > 0 ? 'success' : 'secondary'}>
+            <Badge variant={lastFetchTime > 0 ? 'default' : 'secondary'}>
               {lastFetchTime > 0 ? 'Sí' : 'No'}
             </Badge>
           </div>
@@ -177,7 +177,7 @@ export default function ImportacionStats() {
                 <div className="text-sm text-green-700">100ms entre requests</div>
               </div>
             </div>
-            <Badge variant="success">Activo</Badge>
+            <Badge variant="default">Activo</Badge>
           </div>
           
           <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
@@ -188,7 +188,7 @@ export default function ImportacionStats() {
                 <div className="text-sm text-blue-700">30s para trabajos, 5m para tipos</div>
               </div>
             </div>
-            <Badge variant="success">Activo</Badge>
+            <Badge variant="default">Activo</Badge>
           </div>
           
           <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
@@ -199,7 +199,7 @@ export default function ImportacionStats() {
                 <div className="text-sm text-purple-700">Un solo estado compartido</div>
               </div>
             </div>
-            <Badge variant="success">Activo</Badge>
+            <Badge variant="default">Activo</Badge>
           </div>
           
           <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
@@ -210,7 +210,7 @@ export default function ImportacionStats() {
                 <div className="text-sm text-orange-700">Backoff exponencial</div>
               </div>
             </div>
-            <Badge variant="success">Activo</Badge>
+            <Badge variant="default">Activo</Badge>
           </div>
         </div>
       </Card>

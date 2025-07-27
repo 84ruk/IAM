@@ -12,7 +12,7 @@ import {
   TipoSoportado
 } from '@/lib/api/importacion'
 
-export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos'
+export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos' | 'auto'
 
 // Estado inicial
 interface ImportacionGlobalState {
@@ -248,7 +248,7 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
     if (isSuccess) {
       const trabajo = {
         id: trabajoId,
-        tipo,
+        tipo: tipo === 'auto' ? 'productos' : tipo,
         estado: estado as any,
         empresaId: 0,
         usuarioId: 0,
@@ -278,7 +278,7 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
       console.log('❌ Respuesta con error:', resultado)
       
       if (resultado.erroresDetallados && resultado.erroresDetallados.length > 0) {
-        const erroresCopiados = resultado.erroresDetallados.map(error => ({
+        const erroresCopiados = resultado.erroresDetallados.map((error: any) => ({
           fila: error.fila,
           columna: error.columna,
           valor: error.valor,
@@ -345,7 +345,7 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
 
     try {
       const resultado = await importacionAPI.importarAuto(archivo, opciones)
-      handleImportResponse(resultado, archivo, 'auto')
+      handleImportResponse(resultado, archivo, 'productos')
     } catch (error) {
       console.error('Error en importación automática:', error)
       dispatch({ type: 'SET_IMPORTING', payload: false })
@@ -472,11 +472,13 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
   // Función para descargar plantillas
   const descargarPlantilla = useCallback(async (tipo: TipoImportacion) => {
     try {
-      const blob = await importacionAPI.descargarPlantilla(tipo)
+      // Si el tipo es 'auto', usar 'productos' como fallback
+      const tipoPlantilla = tipo === 'auto' ? 'productos' : tipo
+      const blob = await importacionAPI.descargarPlantilla(tipoPlantilla)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `plantilla-${tipo}.xlsx`
+      a.download = `plantilla-${tipoPlantilla}.xlsx`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)

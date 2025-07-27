@@ -40,6 +40,14 @@ const tipoConfig = {
     color: 'bg-purple-500',
     badgeColor: 'bg-purple-100 text-purple-800',
     features: ['Entradas y salidas', 'Fechas y cantidades', 'Motivos y observaciones', 'Referencias de productos']
+  },
+  auto: {
+    title: 'Importación Automática',
+    description: 'Detecta automáticamente el tipo de datos desde Excel, Numbers o CSV',
+    icon: FileText,
+    color: 'bg-green-500',
+    badgeColor: 'bg-green-100 text-green-800',
+    features: ['Detección automática', 'Validación inteligente', 'Múltiples formatos', 'Procesamiento optimizado']
   }
 }
 

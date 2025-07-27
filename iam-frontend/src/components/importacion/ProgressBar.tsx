@@ -121,7 +121,7 @@ export default function ProgressBar({ trabajo }: ProgressBarProps) {
                   Importando {trabajo.tipo}
                 </h4>
                 <p className="text-sm text-gray-600">
-                  {trabajo.archivo}
+                  {trabajo.archivoOriginal}
                 </p>
               </div>
             </div>

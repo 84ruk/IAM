@@ -110,12 +110,12 @@ export default function TrabajosList({ trabajos, onClose }: TrabajosListProps) {
 
   const handleCancelarTrabajo = async (trabajoId: string) => {
     if (confirm('¿Estás seguro de que quieres cancelar este trabajo?')) {
-      await cancelarTrabajo(trabajoId)
+      await cancelarTrabajo()
     }
   }
 
   const handleDescargarErrores = async (trabajoId: string) => {
-    await descargarReporteErrores(trabajoId)
+    await descargarReporteErrores()
   }
 
   if (trabajoSeleccionado) {

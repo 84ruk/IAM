@@ -11,7 +11,7 @@ import {
   TipoSoportado
 } from '@/lib/api/importacion'
 
-export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos'
+export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos' | 'auto'
 
 interface UseImportacionOptions {
   autoPolling?: boolean
@@ -103,6 +103,27 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
     }
   }, [])
 
+  // Función para cargar trabajos
+  const loadTrabajos = useCallback(async (limit = 50, offset = 0) => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }))
+      const response = await importacionAPI.listarTrabajos(limit, offset)
+      setState(prev => ({
+        ...prev,
+        trabajos: response.trabajos || [],
+        isLoading: false
+      }))
+    } catch (error) {
+      console.error('Error al cargar trabajos:', error)
+      setState(prev => ({
+        ...prev,
+        trabajos: [],
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Error al cargar trabajos'
+      }))
+    }
+  }, [])
+
   // Función para iniciar polling
   const startPolling = useCallback((trabajoId: string) => {
     if (!config.autoPolling) return
@@ -176,27 +197,6 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
     poll()
   }, [config.autoPolling, config.pollingInterval, config.maxPollingTime, stopPolling, handleError, loadTrabajos])
 
-  // Función para cargar trabajos
-  const loadTrabajos = useCallback(async (limit = 50, offset = 0) => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }))
-      const response = await importacionAPI.listarTrabajos(limit, offset)
-      setState(prev => ({
-        ...prev,
-        trabajos: response.trabajos || [],
-        isLoading: false
-      }))
-    } catch (error) {
-      console.error('Error al cargar trabajos:', error)
-      setState(prev => ({
-        ...prev,
-        trabajos: [],
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Error al cargar trabajos'
-      }))
-    }
-  }, [])
-
   // Función para cargar tipos soportados
   const loadTiposSoportados = useCallback(async () => {
     try {
@@ -220,7 +220,7 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
   // Función para crear trabajo de importación
   const createTrabajoFromResult = useCallback((resultado: ResultadoImportacion, archivo: File, tipo: TipoImportacion) => ({
     id: resultado.trabajoId,
-    tipo,
+    tipo: tipo === 'auto' ? 'productos' : tipo,
     estado: resultado.estado as any,
     empresaId: 0,
     usuarioId: 0,
@@ -521,11 +521,13 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
   // Función para descargar plantilla
   const descargarPlantilla = useCallback(async (tipo: TipoImportacion) => {
     try {
-      const blob = await importacionAPI.descargarPlantilla(tipo)
+      // Si el tipo es 'auto', usar 'productos' como fallback
+      const tipoPlantilla = tipo === 'auto' ? 'productos' : tipo
+      const blob = await importacionAPI.descargarPlantilla(tipoPlantilla)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `plantilla-${tipo}.xlsx`
+      a.download = `plantilla-${tipoPlantilla}.xlsx`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -538,11 +540,13 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
   // Nueva función para descargar plantilla mejorada
   const descargarPlantillaMejorada = useCallback(async (tipo: TipoImportacion) => {
     try {
-      const blob = await importacionAPI.descargarPlantillaMejorada(tipo)
+      // Si el tipo es 'auto', usar 'productos' como fallback
+      const tipoPlantilla = tipo === 'auto' ? 'productos' : tipo
+      const blob = await importacionAPI.descargarPlantillaMejorada(tipoPlantilla)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `plantilla-mejorada-${tipo}.xlsx`
+      a.download = `plantilla-mejorada-${tipoPlantilla}.xlsx`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)

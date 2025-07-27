@@ -235,7 +235,7 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
     if (resultado.success) {
       const trabajo = {
         id: resultado.trabajoId,
-        tipo,
+        tipo: tipo === 'auto' ? 'productos' : tipo,
         estado: resultado.estado as any,
         empresaId: 0,
         usuarioId: 0,
