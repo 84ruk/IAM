@@ -225,6 +225,18 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
   const handleImportResponse = useCallback((resultado: ResultadoImportacion, archivo: File, tipo: TipoImportacion) => {
     console.log('🔍 Respuesta del backend:', resultado);
     console.log('🔍 Tipo de resultado en handleImportResponse:', typeof resultado);
+    
+    // Verificar que resultado existe antes de acceder a sus propiedades
+    if (!resultado) {
+      console.error('❌ Resultado es undefined o null');
+      setState(prev => ({
+        ...prev,
+        isImporting: false,
+        error: 'Error: Respuesta inesperada del servidor'
+      }));
+      return;
+    }
+    
     console.log('🔍 Resultado.success en handleImportResponse:', resultado.success);
     console.log('🔍 Resultado.erroresDetallados en handleImportResponse:', resultado.erroresDetallados);
     console.log('🔍 Resultado.erroresDetallados?.length en handleImportResponse:', resultado.erroresDetallados?.length);

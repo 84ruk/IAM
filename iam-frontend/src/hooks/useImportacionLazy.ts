@@ -208,6 +208,17 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
   const handleImportResponse = useCallback((resultado: ResultadoImportacion, archivo: File, tipo: TipoImportacion) => {
     console.log('🔍 Respuesta del backend:', resultado);
     
+    // Verificar que resultado existe antes de acceder a sus propiedades
+    if (!resultado) {
+      console.error('❌ Resultado es undefined o null');
+      setState(prev => ({
+        ...prev,
+        isImporting: false,
+        error: 'Error: Respuesta inesperada del servidor'
+      }));
+      return;
+    }
+    
     if (resultado.success) {
       const trabajo = {
         id: resultado.trabajoId,
@@ -250,7 +261,7 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
           valor: error.valor,
           mensaje: error.mensaje,
           tipo: error.tipo
-        }));
+        }))
         
         setState(prev => ({
           ...prev,
