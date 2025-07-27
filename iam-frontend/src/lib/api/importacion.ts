@@ -41,6 +41,63 @@ export interface ImportarMovimientosDto {
   }
 }
 
+// Nuevas interfaces para los endpoints unificados
+export interface ImportacionUnificadaDto {
+  tipo: 'productos' | 'proveedores' | 'movimientos'
+  sobrescribirExistentes: boolean
+  validarSolo: boolean
+  notificarEmail: boolean
+  emailNotificacion?: string
+  configuracionEspecifica?: any
+}
+
+export interface ImportacionAutoDto {
+  sobrescribirExistentes: boolean
+  validarSolo: boolean
+  notificarEmail: boolean
+  emailNotificacion?: string
+  configuracionEspecifica?: any
+}
+
+export interface ValidacionAutoDto {
+  configuracionEspecifica?: any
+}
+
+export interface ConfirmacionAutoDto {
+  tipoConfirmado: 'productos' | 'proveedores' | 'movimientos'
+  sobrescribirExistentes: boolean
+  validarSolo: boolean
+  notificarEmail: boolean
+  emailNotificacion?: string
+  configuracionEspecifica?: any
+}
+
+export interface TipoSoportado {
+  tipo: 'productos' | 'proveedores' | 'movimientos'
+  nombre: string
+  descripcion: string
+  camposRequeridos: string[]
+  camposOpcionales: string[]
+  formatosSoportados: string[]
+  maxFileSizeMB: number
+  icono: string
+  color: string
+}
+
+export interface TiposSoportadosResponse {
+  success: boolean
+  tipos: TipoSoportado[]
+}
+
+export interface DeteccionTipoResponse {
+  success: boolean
+  tipoDetectado?: 'productos' | 'proveedores' | 'movimientos'
+  confianza: number // 0-100
+  razones: string[]
+  necesitaConfirmacion: boolean
+  sugerencias?: string[]
+}
+
 export interface TrabajoImportacion {
   id: string
   tipo: 'productos' | 'proveedores' | 'movimientos'
@@ -75,6 +132,7 @@ export interface ResultadoImportacion {
   totalRegistros?: number
   errores?: number
   erroresDetallados?: ImportacionValidationError[]
+  deteccionTipo?: DeteccionTipoResponse
 }
 
 export interface ListaTrabajosResponse {
@@ -96,34 +154,17 @@ export interface PlantillasResponse {
 }
 
 class ImportacionAPI {
+  // Endpoints originales (mantener compatibilidad)
   async importarProductos(
     archivo: File,
     opciones: ImportarProductosDto
   ): Promise<ResultadoImportacion> {
     const formData = new FormData()
     formData.append('archivo', archivo)
-    formData.append('sobrescribirExistentes', opciones.sobrescribirExistentes.toString())
-    formData.append('validarSolo', opciones.validarSolo.toString())
-    formData.append('notificarEmail', opciones.notificarEmail.toString())
-    
-    if (opciones.emailNotificacion) {
-      formData.append('emailNotificacion', opciones.emailNotificacion)
-    }
-    
-    if (opciones.configuracionEspecifica) {
-      formData.append('configuracionEspecifica', JSON.stringify(opciones.configuracionEspecifica))
-    }
+    formData.append('opciones', JSON.stringify(opciones))
 
-    console.log('🚀 Enviando solicitud de importación de productos...');
     const response = await apiClient.post('/importacion/productos', formData)
-    console.log('📥 Respuesta recibida:', response);
-    console.log('📥 Tipo de respuesta:', typeof response);
-    
-    const resultado = response as ResultadoImportacion;
-    console.log('📥 resultado.success:', resultado.success);
-    console.log('📥 resultado.erroresDetallados:', resultado.erroresDetallados);
-
-    return resultado
+    return response.data
   }
 
   async importarProveedores(
@@ -132,21 +173,10 @@ class ImportacionAPI {
   ): Promise<ResultadoImportacion> {
     const formData = new FormData()
     formData.append('archivo', archivo)
-    formData.append('sobrescribirExistentes', opciones.sobrescribirExistentes.toString())
-    formData.append('validarSolo', opciones.validarSolo.toString())
-    formData.append('notificarEmail', opciones.notificarEmail.toString())
-    
-    if (opciones.emailNotificacion) {
-      formData.append('emailNotificacion', opciones.emailNotificacion)
-    }
-    
-    if (opciones.configuracionEspecifica) {
-      formData.append('configuracionEspecifica', JSON.stringify(opciones.configuracionEspecifica))
-    }
+    formData.append('opciones', JSON.stringify(opciones))
 
     const response = await apiClient.post('/importacion/proveedores', formData)
-
-    return response as ResultadoImportacion
+    return response.data
   }
 
   async importarMovimientos(
@@ -155,33 +185,80 @@ class ImportacionAPI {
   ): Promise<ResultadoImportacion> {
     const formData = new FormData()
     formData.append('archivo', archivo)
-    formData.append('sobrescribirExistentes', opciones.sobrescribirExistentes.toString())
-    formData.append('validarSolo', opciones.validarSolo.toString())
-    formData.append('notificarEmail', opciones.notificarEmail.toString())
-    
-    if (opciones.emailNotificacion) {
-      formData.append('emailNotificacion', opciones.emailNotificacion)
-    }
-    
-    if (opciones.configuracionEspecifica) {
-      formData.append('configuracionEspecifica', JSON.stringify(opciones.configuracionEspecifica))
-    }
+    formData.append('opciones', JSON.stringify(opciones))
 
     const response = await apiClient.post('/importacion/movimientos', formData)
-
-    return response as ResultadoImportacion
+    return response.data
   }
 
+  // Nuevos endpoints unificados
+  async importarUnificada(
+    archivo: File,
+    opciones: ImportacionUnificadaDto
+  ): Promise<ResultadoImportacion> {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+    formData.append('opciones', JSON.stringify(opciones))
+
+    const response = await apiClient.post('/importacion/unificada', formData)
+    return response.data
+  }
+
+  async importarAuto(
+    archivo: File,
+    opciones: ImportacionAutoDto
+  ): Promise<ResultadoImportacion> {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+    formData.append('opciones', JSON.stringify(opciones))
+
+    const response = await apiClient.post('/importacion/auto', formData)
+    return response.data
+  }
+
+  async validarAuto(
+    archivo: File,
+    opciones?: ValidacionAutoDto
+  ): Promise<DeteccionTipoResponse> {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+    if (opciones) {
+      formData.append('opciones', JSON.stringify(opciones))
+    }
+
+    const response = await apiClient.post('/importacion/auto/validar', formData)
+    return response.data
+  }
+
+  async confirmarAuto(
+    trabajoId: string,
+    opciones: ConfirmacionAutoDto
+  ): Promise<ResultadoImportacion> {
+    const response = await apiClient.post(`/importacion/auto/confirmar/${trabajoId}`, opciones)
+    return response.data
+  }
+
+  async obtenerTiposSoportados(): Promise<TiposSoportadosResponse> {
+    const response = await apiClient.get('/importacion/tipos-soportados')
+    return response.data
+  }
+
+  async descargarPlantillaMejorada(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<Blob> {
+    const response = await apiClient.get(`/importacion/plantillas-mejoradas/${tipo}`, {
+      responseType: 'blob',
+    })
+    return response.data
+  }
+
+  // Endpoints existentes (mantener compatibilidad)
   async obtenerEstadoTrabajo(trabajoId: string): Promise<EstadoTrabajoResponse> {
     const response = await apiClient.get(`/importacion/trabajos/${trabajoId}`)
-    return response as EstadoTrabajoResponse
+    return response.data
   }
 
   async listarTrabajos(limit = 50, offset = 0): Promise<ListaTrabajosResponse> {
-    const response = await apiClient.get('/importacion/trabajos', {
-      params: { limit, offset }
-    })
-    return response as ListaTrabajosResponse
+    const response = await apiClient.get(`/importacion/trabajos?limit=${limit}&offset=${offset}`)
+    return response.data
   }
 
   async cancelarTrabajo(trabajoId: string): Promise<void> {
@@ -189,22 +266,22 @@ class ImportacionAPI {
   }
 
   async descargarReporteErrores(trabajoId: string): Promise<Blob> {
-    const response = await apiClient.get(`/importacion/trabajos/${trabajoId}/errores`, {
-      responseType: 'blob'
+    const response = await apiClient.get(`/importacion/trabajos/${trabajoId}/reporte-errores`, {
+      responseType: 'blob',
     })
-    return response as Blob
+    return response.data
   }
 
   async descargarPlantilla(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<Blob> {
     const response = await apiClient.get(`/importacion/plantillas/${tipo}`, {
-      responseType: 'blob'
+      responseType: 'blob',
     })
-    return response as Blob
+    return response.data
   }
 
   async listarPlantillas(): Promise<PlantillasResponse> {
     const response = await apiClient.get('/importacion/plantillas')
-    return response as PlantillasResponse
+    return response.data
   }
 }
 

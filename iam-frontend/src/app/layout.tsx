@@ -2,6 +2,8 @@
 import './globals.css'
 import { montserrat } from './fonts'
 import { ReactNode } from 'react'
+import { ImportacionGlobalProvider } from '@/context/ImportacionGlobalContext'
+import { ImportacionErrorBoundary } from '@/components/importacion/ImportacionErrorBoundary'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -14,7 +16,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="apple-touch-icon" href="/favicon.ico" />
       </head>
       <body className={`${montserrat.className} bg-gray-50 antialiased text-gray-800`}>
-        {children}
+        <ImportacionErrorBoundary>
+          <ImportacionGlobalProvider>
+            {children}
+          </ImportacionGlobalProvider>
+        </ImportacionErrorBoundary>
       </body>
     </html>
   )

@@ -16,7 +16,7 @@ import {
   FileText,
   Trash2
 } from 'lucide-react'
-import { useImportacion } from '@/hooks/useImportacion'
+import { useImportacionSafe } from '@/hooks/useImportacionSafe'
 import { TrabajoImportacion } from '@/lib/api/importacion'
 
 interface TrabajosListProps {
@@ -44,7 +44,7 @@ const tipoConfig = {
 
 export default function TrabajosList({ trabajos, onClose }: TrabajosListProps) {
   const [trabajoSeleccionado, setTrabajoSeleccionado] = useState<TrabajoImportacion | null>(null)
-  const { cancelarTrabajo, descargarReporteErrores } = useImportacion()
+  const { cancelarTrabajo, descargarReporteErrores } = useImportacionSafe()
 
   const getEstadoIcon = (estado: string) => {
     switch (estado) {

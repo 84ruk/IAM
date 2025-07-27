@@ -32,13 +32,17 @@ import {
   Plus,
   ArrowRight
 } from 'lucide-react'
+import { DashboardImportButton } from '@/components/ui/ImportButton'
+
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import SafeImportacionStats from '@/components/importacion/SafeImportacionStats'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
 import { Loader2 } from 'lucide-react'
 import Select from '@/components/ui/Select'
 import KPICard from '@/components/dashboard/KPICard'
 import DailyMovementsChart from '@/components/dashboard/DailyMovementsChart'
 import { formatCurrency, formatPercentage, getValueColor } from '@/lib/kpi-utils'
-import ImportacionCard from '@/components/importacion/ImportacionCard'
+
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, { 
@@ -332,29 +336,7 @@ export default function DashboardClient() {
             </div>
             
             <div className="flex items-center gap-3">
-              <button
-              onClick={() => {
-                // Verificar si el elemento existe
-                const importacionSection = document.getElementById('importacion-section')
-
-                if (importacionSection) {
-                  importacionSection.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                  })
-                } else {
-                  // Scroll manual hacia abajo
-                  window.scrollTo({
-                    top: document.body.scrollHeight,
-                    behavior: 'smooth'
-                  })
-                }
-              }}
-                className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-[#8E94F2] to-[#7278e0] text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-medium text-base"
-              >
-                <Upload className="w-5 h-5" />
-                <span>Importar Datos</span>
-              </button>
+              <DashboardImportButton />
             </div>
           </div>
 
@@ -442,10 +424,7 @@ export default function DashboardClient() {
               </div>
             </div>
             
-            {/* Sección de Importación - también disponible en estado sin datos */}
-            <div id="importacion-section" className="mb-8 mt-12">
-              <ImportacionCard />
-            </div>
+
           </div>
         </div>
       </div>
@@ -464,29 +443,7 @@ export default function DashboardClient() {
           </div>
           
           <div className="flex items-center gap-3">
-                        <button
-              onClick={() => {
-                // Verificar si el elemento existe
-                const importacionSection = document.getElementById('importacion-section')
-
-                if (importacionSection) {
-                  importacionSection.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                  })
-                } else {
-                  // Scroll manual hacia abajo
-                  window.scrollTo({
-                    top: document.body.scrollHeight,
-                    behavior: 'smooth'
-                  })
-                }
-              }}
-              className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-[#8E94F2] to-[#7278e0] text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-medium text-base"
-            >
-              <Upload className="w-5 h-5" />
-              <span>Importar Datos</span>
-            </button>
+            <DashboardImportButton />
 
             <Select
               value={selectedMonth}
@@ -697,8 +654,20 @@ export default function DashboardClient() {
           </Card>
         </div>
 
+        {/* Sección de Importación Simplificada */}
         <div id="importacion-section" className="mb-8">
-          <ImportacionCard />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Importación de Datos</h2>
+                <p className="text-gray-600 mt-1">
+                  Importa productos, proveedores y movimientos desde archivos Excel
+                </p>
+              </div>
+            </div>
+            
+            <SafeImportacionStats />
+          </div>
         </div>
 
         <div className="mb-8">

@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   Loader2
 } from 'lucide-react'
-import { useImportacion } from '@/hooks/useImportacion'
+import { useImportacionSafe } from '@/hooks/useImportacionSafe'
 import { TipoImportacion } from '@/hooks/useImportacion'
 import ImportacionForm from './ImportacionForm'
 import TrabajosList from './TrabajosList'
@@ -67,7 +67,7 @@ export default function ImportacionCard({ className }: ImportacionCardProps) {
     clearError,
     clearSuccess,
     clearValidationErrors
-  } = useImportacion()
+  } = useImportacionSafe()
 
   const handleTipoSelect = (tipo: TipoImportacion) => {
     setSelectedTipo(tipo)

@@ -1,5 +1,15 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { importacionAPI, TrabajoImportacion, ResultadoImportacion, ImportacionValidationError } from '@/lib/api/importacion'
+import { 
+  importacionAPI, 
+  TrabajoImportacion, 
+  ResultadoImportacion, 
+  ImportacionValidationError,
+  ImportacionUnificadaDto,
+  ImportacionAutoDto,
+  DeteccionTipoResponse,
+  TiposSoportadosResponse,
+  TipoSoportado
+} from '@/lib/api/importacion'
 
 export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos'
 
@@ -11,11 +21,15 @@ interface UseImportacionOptions {
 
 interface ImportacionState {
   isImporting: boolean
+  isLoading: boolean
   currentTrabajo: TrabajoImportacion | null
   trabajos: TrabajoImportacion[]
   error: string | null
   success: string | null
   validationErrors: ImportacionValidationError[] | null
+  tiposSoportados: TipoSoportado[]
+  deteccionTipo: DeteccionTipoResponse | null
+  isLoadingTipos: boolean
 }
 
 // Configuración por defecto
@@ -49,6 +63,10 @@ const createClearHandlers = (setState: React.Dispatch<React.SetStateAction<Impor
   
   clearValidationErrors: useCallback(() => {
     setState(prev => ({ ...prev, validationErrors: null }))
+  }, []),
+
+  clearDeteccionTipo: useCallback(() => {
+    setState(prev => ({ ...prev, deteccionTipo: null }))
   }, [])
 })
 
@@ -57,18 +75,22 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
 
   const [state, setState] = useState<ImportacionState>({
     isImporting: false,
+    isLoading: true,
     currentTrabajo: null,
     trabajos: [],
     error: null,
     success: null,
-    validationErrors: null
+    validationErrors: null,
+    tiposSoportados: [],
+    deteccionTipo: null,
+    isLoadingTipos: false
   })
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(0)
 
   // Handlers de limpieza
-  const { clearError, clearSuccess, clearValidationErrors } = createClearHandlers(setState)
+  const { clearError, clearSuccess, clearValidationErrors, clearDeteccionTipo } = createClearHandlers(setState)
   
   // Handler de errores
   const handleError = useMemo(() => createErrorHandler(setState), [])
@@ -144,15 +166,43 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
   // Función para cargar trabajos
   const loadTrabajos = useCallback(async (limit = 50, offset = 0) => {
     try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }))
       const response = await importacionAPI.listarTrabajos(limit, offset)
       setState(prev => ({
         ...prev,
-        trabajos: response.trabajos
+        trabajos: response.trabajos || [],
+        isLoading: false
       }))
     } catch (error) {
-      handleError(error, 'cargar trabajos')
+      console.error('Error al cargar trabajos:', error)
+      setState(prev => ({
+        ...prev,
+        trabajos: [],
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Error al cargar trabajos'
+      }))
     }
-  }, [handleError])
+  }, [])
+
+  // Función para cargar tipos soportados
+  const loadTiposSoportados = useCallback(async () => {
+    try {
+      setState(prev => ({ ...prev, isLoadingTipos: true }))
+      const response = await importacionAPI.obtenerTiposSoportados()
+      setState(prev => ({
+        ...prev,
+        tiposSoportados: response.tipos || [],
+        isLoadingTipos: false
+      }))
+    } catch (error) {
+      console.error('Error al cargar tipos soportados:', error)
+      setState(prev => ({ 
+        ...prev, 
+        tiposSoportados: [],
+        isLoadingTipos: false 
+      }))
+    }
+  }, [])
 
   // Función para crear trabajo de importación
   const createTrabajoFromResult = useCallback((resultado: ResultadoImportacion, archivo: File, tipo: TipoImportacion) => ({
@@ -184,7 +234,8 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
       
       setState(prev => ({
         ...prev,
-        currentTrabajo: trabajo
+        currentTrabajo: trabajo,
+        deteccionTipo: resultado.deteccionTipo || null
       }))
 
       if (resultado.estado === 'pendiente' || resultado.estado === 'procesando') {
@@ -244,7 +295,7 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
     }
   }, [createTrabajoFromResult, startPolling])
 
-  // Función para importar productos
+  // Función para importar productos (mantener compatibilidad)
   const importarProductos = useCallback(async (archivo: File, opciones: any) => {
     try {
       setState(prev => ({
@@ -268,7 +319,7 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
     }
   }, [handleImportResponse, handleError])
 
-  // Función para importar proveedores
+  // Función para importar proveedores (mantener compatibilidad)
   const importarProveedores = useCallback(async (archivo: File, opciones: any) => {
     try {
       setState(prev => ({
@@ -286,7 +337,7 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
     }
   }, [handleImportResponse, handleError])
 
-  // Función para importar movimientos
+  // Función para importar movimientos (mantener compatibilidad)
   const importarMovimientos = useCallback(async (archivo: File, opciones: any) => {
     try {
       setState(prev => ({
@@ -301,6 +352,107 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
       handleImportResponse(resultado, archivo, 'movimientos')
     } catch (error) {
       handleError(error, 'importar movimientos')
+    }
+  }, [handleImportResponse, handleError])
+
+  // Función unificada para importar cualquier tipo
+  const importarUnified = useCallback(async (archivo: File, tipo: TipoImportacion, opciones: any) => {
+    setState(prev => ({
+      ...prev,
+      isImporting: true,
+      error: null,
+      success: null,
+      validationErrors: null
+    }))
+
+    try {
+      let resultado: ResultadoImportacion
+
+      switch (tipo) {
+        case 'productos':
+          resultado = await importacionAPI.importarProductos(archivo, opciones)
+          break
+        case 'proveedores':
+          resultado = await importacionAPI.importarProveedores(archivo, opciones)
+          break
+        case 'movimientos':
+          resultado = await importacionAPI.importarMovimientos(archivo, opciones)
+          break
+        default:
+          throw new Error(`Tipo de importación no soportado: ${tipo}`)
+      }
+
+      handleImportResponse(resultado, archivo, tipo)
+    } catch (error) {
+      handleError(error, `importar ${tipo}`)
+    }
+  }, [handleImportResponse, handleError])
+
+  // Nueva función para importación unificada usando el nuevo endpoint
+  const importarUnificada = useCallback(async (archivo: File, opciones: ImportacionUnificadaDto) => {
+    setState(prev => ({
+      ...prev,
+      isImporting: true,
+      error: null,
+      success: null,
+      validationErrors: null
+    }))
+
+    try {
+      const resultado = await importacionAPI.importarUnificada(archivo, opciones)
+      handleImportResponse(resultado, archivo, opciones.tipo)
+    } catch (error) {
+      handleError(error, 'importar unificada')
+    }
+  }, [handleImportResponse, handleError])
+
+  // Nueva función para importación automática
+  const importarAuto = useCallback(async (archivo: File, opciones: ImportacionAutoDto) => {
+    setState(prev => ({
+      ...prev,
+      isImporting: true,
+      error: null,
+      success: null,
+      validationErrors: null
+    }))
+
+    try {
+      const resultado = await importacionAPI.importarAuto(archivo, opciones)
+      handleImportResponse(resultado, archivo, 'auto')
+    } catch (error) {
+      handleError(error, 'importar auto')
+    }
+  }, [handleImportResponse, handleError])
+
+  // Nueva función para validar automáticamente
+  const validarAuto = useCallback(async (archivo: File, opciones?: any) => {
+    try {
+      setState(prev => ({
+        ...prev,
+        error: null,
+        success: null,
+        validationErrors: null
+      }))
+
+      const resultado = await importacionAPI.validarAuto(archivo, opciones)
+      setState(prev => ({
+        ...prev,
+        deteccionTipo: resultado
+      }))
+      return resultado
+    } catch (error) {
+      handleError(error, 'validar auto')
+      return null
+    }
+  }, [handleError])
+
+  // Nueva función para confirmar tipo automático
+  const confirmarAuto = useCallback(async (trabajoId: string, opciones: any) => {
+    try {
+      const resultado = await importacionAPI.confirmarAuto(trabajoId, opciones)
+      handleImportResponse(resultado, {} as File, opciones.tipoConfirmado)
+    } catch (error) {
+      handleError(error, 'confirmar auto')
     }
   }, [handleImportResponse, handleError])
 
@@ -358,10 +510,38 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
     }
   }, [handleError])
 
+  // Nueva función para descargar plantilla mejorada
+  const descargarPlantillaMejorada = useCallback(async (tipo: TipoImportacion) => {
+    try {
+      const blob = await importacionAPI.descargarPlantillaMejorada(tipo)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `plantilla-mejorada-${tipo}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      handleError(error, 'descargar plantilla mejorada')
+    }
+  }, [handleError])
+
   // Efectos
   useEffect(() => {
-    loadTrabajos()
-  }, [loadTrabajos])
+    const initializeData = async () => {
+      try {
+        await Promise.all([
+          loadTrabajos(),
+          loadTiposSoportados()
+        ])
+      } catch (error) {
+        console.error('Error al inicializar datos:', error)
+      }
+    }
+
+    initializeData()
+  }, [loadTrabajos, loadTiposSoportados])
 
   useEffect(() => {
     return () => {
@@ -371,20 +551,25 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
 
   // Memoizar trabajos recientes
   const trabajosRecientes = useMemo(() => 
-    state.trabajos.slice(0, 5), 
+    state.trabajos?.slice(0, 5) || [], 
     [state.trabajos]
   )
 
   // Log del estado completo para debug
   console.log('🔍 Estado completo del hook:', {
+    isLoading: state.isLoading,
     isImporting: state.isImporting,
     currentTrabajo: state.currentTrabajo,
+    trabajos: state.trabajos,
+    trabajosLength: state.trabajos?.length,
     error: state.error,
     success: state.success,
     validationErrors: state.validationErrors,
     validationErrorsLength: state.validationErrors?.length,
     validationErrorsType: typeof state.validationErrors,
-    validationErrorsIsArray: Array.isArray(state.validationErrors)
+    validationErrorsIsArray: Array.isArray(state.validationErrors),
+    tiposSoportados: state.tiposSoportados,
+    deteccionTipo: state.deteccionTipo
   });
 
   return {
@@ -393,13 +578,21 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
     importarProductos,
     importarProveedores,
     importarMovimientos,
+    importarUnified,
+    importarUnificada,
+    importarAuto,
+    validarAuto,
+    confirmarAuto,
     loadTrabajos,
+    loadTiposSoportados,
     cancelarTrabajo,
     descargarReporteErrores,
     descargarPlantilla,
+    descargarPlantillaMejorada,
     clearError,
     clearSuccess,
     clearValidationErrors,
+    clearDeteccionTipo,
     stopPolling
   }
 } 
