@@ -115,7 +115,7 @@ export class ImportacionMovimientosProcesador {
 
   private validarEstructuraArchivo(datos: any[]): ErrorImportacion[] {
     const errores: ErrorImportacion[] = [];
-    const columnasRequeridas = ['productoNombre', 'tipo', 'cantidad', 'fecha'];
+    const columnasRequeridas = ['productoId', 'tipo', 'cantidad', 'fecha'];
 
     if (datos.length === 0) {
       errores.push({
@@ -232,16 +232,23 @@ export class ImportacionMovimientosProcesador {
           continue;
         }
 
-        // Obtener producto
-        const producto = productosEmpresa.get(registro.productoNombre.toLowerCase().trim()) ||
-                        productosEmpresa.get(registro.productoNombre.trim()) ||
-                        productosEmpresa.get(registro.codigoBarras?.trim());
+        // Obtener producto por ID o código de barras
+        const productoId = parseInt(registro.productoId);
+        let producto: any = null;
+        
+        if (!isNaN(productoId)) {
+          producto = Array.from(productosEmpresa.values()).find((p: any) => p.id === productoId);
+        }
+        
+        if (!producto && registro.codigoBarras) {
+          producto = productosEmpresa.get(registro.codigoBarras.trim());
+        }
 
         if (!producto) {
           resultado.errores.push({
             fila: registro._filaOriginal,
-            columna: 'productoNombre',
-            valor: registro.productoNombre,
+            columna: 'productoId',
+            valor: registro.productoId,
             mensaje: 'Producto no encontrado en la empresa',
             tipo: 'referencia',
           });
@@ -282,13 +289,14 @@ export class ImportacionMovimientosProcesador {
   private validarRegistroMovimiento(registro: any, productosEmpresa: Map<string, any>): ErrorImportacion[] {
     const errores: ErrorImportacion[] = [];
 
-    // Validar nombre del producto
-    if (!registro.productoNombre || typeof registro.productoNombre !== 'string' || registro.productoNombre.trim().length === 0) {
+    // Validar ID del producto
+    const productoId = parseInt(registro.productoId);
+    if (isNaN(productoId) || productoId <= 0) {
       errores.push({
         fila: registro._filaOriginal,
-        columna: 'productoNombre',
-        valor: registro.productoNombre,
-        mensaje: 'El nombre del producto es requerido',
+        columna: 'productoId',
+        valor: registro.productoId,
+        mensaje: 'El ID del producto es requerido y debe ser un número válido',
         tipo: 'validacion',
       });
     }

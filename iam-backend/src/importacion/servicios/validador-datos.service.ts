@@ -239,17 +239,24 @@ export class ValidadorDatosService {
     const errores: ErrorImportacion[] = [];
 
     // Validar que el producto existe
-    const productoNombre = registro.productoNombre?.toString().toLowerCase().trim();
+    const productoId = parseInt(registro.productoId);
     const codigoBarras = registro.codigoBarras?.toString().trim();
     
-    const producto = productosEmpresa.get(productoNombre) ||
-                    productosEmpresa.get(codigoBarras);
+    // Buscar producto por ID o código de barras
+    let producto: any = null;
+    if (!isNaN(productoId)) {
+      producto = Array.from(productosEmpresa.values()).find((p: any) => p.id === productoId);
+    }
+    
+    if (!producto && codigoBarras) {
+      producto = productosEmpresa.get(codigoBarras);
+    }
 
     if (!producto) {
       errores.push({
         fila,
-        columna: 'productoNombre',
-        valor: registro.productoNombre || '',
+        columna: 'productoId',
+        valor: registro.productoId || '',
         mensaje: 'Producto no encontrado en la empresa',
         tipo: 'referencia',
       });
@@ -448,9 +455,9 @@ export class ValidadorDatosService {
   private obtenerReglasMovimientos(): ReglaValidacion[] {
     return [
       {
-        campo: 'productoNombre',
+        campo: 'productoId',
         tipo: 'requerido',
-        mensaje: 'El nombre del producto es requerido',
+        mensaje: 'El ID del producto es requerido',
       },
       {
         campo: 'tipo',

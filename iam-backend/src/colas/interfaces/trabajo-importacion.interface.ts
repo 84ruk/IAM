@@ -95,6 +95,7 @@ export interface ProveedorImportacion extends RegistroImportacion {
   nombre: string;
   email?: string;
   telefono?: string;
+  // Campos adicionales que pueden estar en el archivo pero no se guardan en BD
   direccion?: string;
   ciudad?: string;
   pais?: string;

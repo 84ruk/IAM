@@ -48,8 +48,6 @@ export abstract class BaseProcesadorService implements BaseProcesadorInterface {
     loteProcesador: LoteProcesador
   ): Promise<ResultadoImportacion> {
     const inicio = Date.now();
-    this.logger.log(`🚀 Procesando importación: ${trabajo.archivoOriginal}`);
-    this.logger.log(`📁 Ruta completa del archivo: ${trabajo.archivoOriginal}`);
 
     const resultado: ResultadoImportacion = {
       trabajoId: trabajo.id,
@@ -86,7 +84,6 @@ export abstract class BaseProcesadorService implements BaseProcesadorInterface {
         // Actualizar progreso usando el método nativo de BullMQ
         const progreso = Math.round(((i + this.config.loteSize) / datos.length) * 100);
         await job.updateProgress(Math.min(progreso, 100));
-        // NO actualizar job.data para evitar sobrescribir los datos del trabajo
       }
 
       // 4. Generar archivo de resultados si hay errores
@@ -97,12 +94,12 @@ export abstract class BaseProcesadorService implements BaseProcesadorInterface {
       resultado.estado = EstadoTrabajo.COMPLETADO;
       resultado.tiempoProcesamiento = Date.now() - inicio;
 
-      this.logger.log(`✅ Importación completada: ${resultado.estadisticas.exitosos}/${resultado.estadisticas.total} registros`);
+      this.logger.log(`Importación completada: ${resultado.estadisticas.exitosos}/${resultado.estadisticas.total} registros`);
 
       return resultado;
 
     } catch (error) {
-      this.logger.error(`❌ Error en importación:`, error);
+      this.logger.error(`Error en importación:`, error);
       resultado.estado = EstadoTrabajo.ERROR;
       resultado.errores.push({
         fila: 0,
@@ -117,8 +114,6 @@ export abstract class BaseProcesadorService implements BaseProcesadorInterface {
 
   protected async leerArchivoExcel(archivoPath: string): Promise<RegistroImportacion[]> {
     try {
-      this.logger.log(`📖 Leyendo archivo Excel: ${archivoPath}`);
-      
       const workbook = XLSX.readFile(archivoPath);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
@@ -128,12 +123,8 @@ export abstract class BaseProcesadorService implements BaseProcesadorInterface {
       const encabezados = datos[0] as string[];
       const registros = datos.slice(1);
 
-      this.logger.log(`📋 Encabezados encontrados:`, encabezados);
-      this.logger.log(`📊 Número de registros: ${registros.length}`);
-
       // Normalizar encabezados
       const encabezadosNormalizados = encabezados.map(encabezado => this.normalizarNombreColumna(encabezado));
-      this.logger.log(`📋 Encabezados normalizados:`, encabezadosNormalizados);
 
       // Convertir a objetos con nombres de columnas normalizados
       const resultado = registros.map((fila: unknown[], index: number) => {
@@ -142,17 +133,9 @@ export abstract class BaseProcesadorService implements BaseProcesadorInterface {
           const nombreNormalizado = this.normalizarNombreColumna(encabezado);
           objeto[nombreNormalizado] = fila[colIndex];
         });
-        const registro = { ...objeto, _filaOriginal: index + 2 } as RegistroImportacion;
-        
-        // Log del primer registro para debugging
-        if (index === 0) {
-          this.logger.log(`📋 Primer registro procesado:`, JSON.stringify(registro, null, 2));
-        }
-        
-        return registro;
+        return { ...objeto, _filaOriginal: index + 2 } as RegistroImportacion;
       });
 
-      this.logger.log(`✅ Archivo procesado exitosamente: ${resultado.length} registros`);
       return resultado;
     } catch (error) {
       this.logger.error(`Error leyendo archivo Excel: ${archivoPath}`, error);
@@ -321,7 +304,7 @@ export abstract class BaseProcesadorService implements BaseProcesadorInterface {
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Errores');
       XLSX.writeFile(workbook, rutaArchivo);
 
-      this.logger.log(`📄 Archivo de errores generado: ${rutaArchivo}`);
+      this.logger.log(`Archivo de errores generado: ${rutaArchivo}`);
       return rutaArchivo;
     } catch (error) {
       this.logger.error('Error generando archivo de errores:', error);

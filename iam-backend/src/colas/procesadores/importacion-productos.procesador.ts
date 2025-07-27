@@ -77,20 +77,15 @@ export class ImportacionProductosProcesador extends BaseProcesadorService {
     const maxRetries = 3;
     let retryCount = 0;
 
-    this.logger.log(`🔄 Procesando lote de ${lote.length} productos para empresa ${trabajo.empresaId}`);
-
     while (retryCount < maxRetries) {
       try {
         // Usar transacción para garantizar consistencia
         await this.prisma.$transaction(async (tx) => {
           for (const registro of lote) {
             try {
-              this.logger.log(`📋 Procesando producto: ${String(registro.nombre)} (fila ${registro._filaOriginal})`);
-              
               // Validar datos del registro
               const erroresValidacion = this.validarRegistroProducto(registro);
               if (erroresValidacion.length > 0) {
-                this.logger.warn(`⚠️ Errores de validación en producto ${String(registro.nombre)}:`, erroresValidacion);
                 resultado.errores.push(...erroresValidacion);
                 resultado.estadisticas.errores++;
                 continue;
@@ -171,7 +166,6 @@ export class ImportacionProductosProcesador extends BaseProcesadorService {
 
             // Crear o actualizar producto
             await this.guardarProducto(registro, trabajo, productoExistente);
-            this.logger.log(`✅ Producto guardado exitosamente: ${String(registro.nombre)}`);
             resultado.estadisticas.exitosos++;
 
           } catch (error) {
@@ -269,8 +263,6 @@ export class ImportacionProductosProcesador extends BaseProcesadorService {
   }
 
   private async guardarProducto(registro: ProductoImportacion, trabajo: TrabajoImportacion, productoExistente: unknown): Promise<void> {
-    this.logger.log(`💾 Guardando producto: ${String(registro.nombre)} para empresa ${trabajo.empresaId}`);
-    
     const datosProducto = {
       nombre: String(registro.nombre).trim(),
       descripcion: registro.descripcion ? String(registro.descripcion).trim() : null,
@@ -285,23 +277,17 @@ export class ImportacionProductosProcesador extends BaseProcesadorService {
       etiquetas: registro.etiquetas ? String(registro.etiquetas).split(',').map((tag: string) => tag.trim()) : [],
     };
 
-    this.logger.log(`📋 Datos del producto a guardar:`, JSON.stringify(datosProducto, null, 2));
-
     if (productoExistente && typeof productoExistente === 'object' && 'id' in productoExistente) {
       // Actualizar producto existente
-      this.logger.log(`🔄 Actualizando producto existente: ${String(registro.nombre)}`);
       await this.prisma.producto.update({
         where: { id: (productoExistente as { id: number }).id },
         data: datosProducto as any,
       });
-      this.logger.log(`✅ Producto actualizado: ${String(registro.nombre)}`);
     } else {
       // Crear nuevo producto
-      this.logger.log(`🆕 Creando nuevo producto: ${String(registro.nombre)}`);
       await this.prisma.producto.create({
         data: datosProducto as any,
       });
-      this.logger.log(`✅ Producto creado: ${String(registro.nombre)}`);
     }
   }
 

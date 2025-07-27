@@ -8,10 +8,16 @@ import { TrabajoSerializerService } from './services/trabajo-serializer.service'
 import { ImportacionProductosProcesador } from './procesadores/importacion-productos.procesador';
 import { ImportacionProveedoresProcesador } from './procesadores/importacion-proveedores.procesador';
 import { ImportacionMovimientosProcesador } from './procesadores/importacion-movimientos.procesador';
+import { ImportacionUnificadaProcesador } from './procesadores/importacion-unificada.procesador';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { CommonModule } from '../common/common.module';
 import { ImportacionCacheService } from '../importacion/servicios/importacion-cache.service';
+import { EstrategiaImportacionFactory } from '../importacion/factories/estrategia-importacion.factory';
+import { ProductosEstrategia } from '../importacion/dto/estrategias/productos-estrategia';
+import { ProveedoresEstrategia } from '../importacion/dto/estrategias/proveedores-estrategia';
+import { MovimientosEstrategia } from '../importacion/dto/estrategias/movimientos-estrategia';
+// import { ImportacionModule } from '../importacion/importacion.module';
 
 @Module({
   imports: [
@@ -19,6 +25,7 @@ import { ImportacionCacheService } from '../importacion/servicios/importacion-ca
     PrismaModule,
     AuthModule,
     CommonModule,
+    // ImportacionModule, // Comentado para evitar dependencia circular
   ],
   providers: [
     ColasService,
@@ -29,7 +36,12 @@ import { ImportacionCacheService } from '../importacion/servicios/importacion-ca
     ImportacionProductosProcesador,
     ImportacionProveedoresProcesador,
     ImportacionMovimientosProcesador,
+    ImportacionUnificadaProcesador,
     ImportacionCacheService,
+    EstrategiaImportacionFactory,
+    ProductosEstrategia,
+    ProveedoresEstrategia,
+    MovimientosEstrategia,
   ],
   exports: [
     ColasService,
@@ -40,7 +52,12 @@ import { ImportacionCacheService } from '../importacion/servicios/importacion-ca
     ImportacionProductosProcesador,
     ImportacionProveedoresProcesador,
     ImportacionMovimientosProcesador,
+    ImportacionUnificadaProcesador,
     ImportacionCacheService,
+    EstrategiaImportacionFactory,
+    ProductosEstrategia,
+    ProveedoresEstrategia,
+    MovimientosEstrategia,
   ],
 })
 export class ColasModule {} 

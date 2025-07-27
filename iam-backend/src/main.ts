@@ -1,3 +1,4 @@
+import { config } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
@@ -5,6 +6,9 @@ import { BadRequestException, ValidationPipe, Logger } from '@nestjs/common';
 import { globalFilters } from './config/filters.config';
 import helmet from 'helmet';
 import { securityConfig } from './config/security.config';
+
+// Cargar variables de entorno
+config();
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');

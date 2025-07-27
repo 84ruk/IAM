@@ -7,7 +7,7 @@ import {
   ValidateNested,
   IsObject,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Expose } from 'class-transformer';
 
 export enum TipoValidacionProveedor {
   ESTRICTA = 'estricta',
@@ -38,22 +38,31 @@ export class ConfiguracionEspecificaProveedores {
 }
 
 export class ImportarProveedoresDto {
+  @Expose()
   @IsBoolean()
   sobrescribirExistentes: boolean = false;
 
+  @Expose()
   @IsBoolean()
   validarSolo: boolean = false;
 
+  @Expose()
   @IsBoolean()
   notificarEmail: boolean = false;
 
+  @Expose()
   @IsOptional()
   @IsEmail()
   emailNotificacion?: string;
 
+  @Expose()
   @IsOptional()
   @ValidateNested()
   @Type(() => ConfiguracionEspecificaProveedores)
   @IsObject()
   configuracionEspecifica?: ConfiguracionEspecificaProveedores;
+
+  @IsOptional()
+  @IsObject()
+  opciones?: any; // Para capturar propiedades adicionales del frontend
 } 

@@ -14,6 +14,7 @@ export interface CacheConfig {
 export class KPICacheService {
   private readonly logger = new Logger(KPICacheService.name);
   private redis: RedisClientType;
+  private redisFallbackMode = false; // Flag para modo fallback sin Redis
   private readonly defaultTtl = 300; // 5 minutos por defecto
 
   constructor(private readonly redisConfigService: RedisConfigService) {
@@ -23,6 +24,7 @@ export class KPICacheService {
   private async initializeRedis() {
     if (!this.redisConfigService.isRedisConfigured()) {
       this.logger.warn('Redis no configurado, KPI cache deshabilitado');
+      this.redisFallbackMode = true;
       return;
     }
 
@@ -32,21 +34,40 @@ export class KPICacheService {
 
       this.redis.on('error', (err) => {
         this.logger.error('Redis Client Error:', err);
+        this.redisFallbackMode = true;
+        this.logger.warn('Activando modo fallback sin Redis para KPI cache');
       });
 
       this.redis.on('connect', () => {
         this.logger.log('Redis Client Connected for KPI Cache');
+        this.redisFallbackMode = false;
+      });
+
+      this.redis.on('end', () => {
+        this.logger.warn('Redis connection ended, activando modo fallback para KPI cache');
+        this.redisFallbackMode = true;
       });
 
       await this.redis.connect();
       this.logger.log('KPI Cache Redis connection established successfully');
     } catch (error) {
       this.logger.error('Failed to connect to Redis for KPI Cache:', error);
+      this.redisFallbackMode = true;
+      this.logger.warn('Activando modo fallback sin Redis para KPI cache');
+      
       // En desarrollo, continuar sin Redis
       if (process.env.NODE_ENV === 'production') {
-        throw error;
+        // En producción, no lanzar error, usar modo fallback
+        this.logger.warn('Continuando en modo fallback sin Redis para KPI cache');
       }
     }
+  }
+
+  /**
+   * Verificar si Redis está disponible
+   */
+  private isRedisAvailable(): boolean {
+    return !this.redisFallbackMode && this.redis?.isReady;
   }
 
   /**
@@ -57,7 +78,7 @@ export class KPICacheService {
     factory: () => Promise<T>,
     ttl: number = this.defaultTtl,
   ): Promise<T> {
-    if (!this.redis?.isReady) {
+    if (!this.isRedisAvailable()) {
       this.logger.warn('Redis not available, using direct factory');
       return await factory();
     }
@@ -90,7 +111,7 @@ export class KPICacheService {
    * Invalida un key específico
    */
   async invalidate(key: string): Promise<void> {
-    if (!this.redis?.isReady) {
+    if (!this.isRedisAvailable()) {
       this.logger.warn('Redis not available, cannot invalidate');
       return;
     }
@@ -108,7 +129,7 @@ export class KPICacheService {
    * Invalida múltiples keys que coincidan con un patrón
    */
   async invalidatePattern(pattern: string): Promise<void> {
-    if (!this.redis?.isReady) {
+    if (!this.isRedisAvailable()) {
       this.logger.warn('Redis not available, cannot invalidate pattern');
       return;
     }
@@ -161,7 +182,7 @@ export class KPICacheService {
     keysCount?: number;
     memoryUsage?: string;
   }> {
-    if (!this.redis?.isReady) {
+    if (!this.isRedisAvailable()) {
       return { isConnected: false };
     }
 
@@ -192,7 +213,7 @@ export class KPICacheService {
    * Limpia todo el cache
    */
   async clearAll(): Promise<void> {
-    if (!this.redis?.isReady) {
+    if (!this.isRedisAvailable()) {
       this.logger.warn('Redis not available, cannot clear cache');
       return;
     }

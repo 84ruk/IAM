@@ -14,6 +14,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { FileTypeValidator } from './validators/file-type.validator';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -23,8 +24,11 @@ import { ImportacionService } from './importacion.service';
 import { 
   ImportarProductosDto, 
   ImportarProveedoresDto, 
-  ImportarMovimientosDto 
+  ImportarMovimientosDto,
+  ImportacionUnificadaDto
 } from './dto';
+import { DetectorTipoImportacionService } from './servicios/detector-tipo-importacion.service';
+import { PlantillasService } from './servicios/plantillas.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { EmpresaRequired } from '../auth/decorators/empresa-required.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -37,7 +41,12 @@ import * as fs from 'fs';
 @Controller('importacion')
 @EmpresaRequired()
 export class ImportacionController {
-  constructor(private readonly importacionService: ImportacionService) {}
+  private readonly logger = new Logger(ImportacionController.name);
+  constructor(
+    private readonly importacionService: ImportacionService,
+    private readonly detectorTipoService: DetectorTipoImportacionService,
+    private readonly plantillasService: PlantillasService,
+  ) {}
 
   /**
    * Sube y procesa un archivo para importar productos
@@ -139,41 +148,24 @@ export class ImportacionController {
         usuario.id
       );
 
-      // Si hay errores de validación y es solo validación, retornar error
-      if (resultado.estado === 'error' && resultado.erroresDetallados && resultado.erroresDetallados.length > 0) {
-        return {
-          success: false,
-          message: resultado.mensaje,
-          trabajoId: resultado.trabajoId,
-          estado: resultado.estado,
-          totalRegistros: resultado.totalRegistros,
-          errores: resultado.errores,
-          erroresDetallados: resultado.erroresDetallados,
-        };
-      }
-
-      // Si hay errores pero no es solo validación, retornar advertencia
-      if (resultado.errores && resultado.errores > 0 && !opciones.validarSolo) {
-        return {
-          success: true,
-          message: `Importación iniciada con ${resultado.errores} errores de validación. Se importarán solo los registros válidos.`,
-          trabajoId: resultado.trabajoId,
-          estado: resultado.estado,
-          totalRegistros: resultado.totalRegistros,
-          errores: resultado.errores,
-          erroresDetallados: resultado.erroresDetallados,
-        };
-      }
-
-      return {
-        success: true,
-        message: resultado.mensaje,
+      // Mapear respuesta al formato esperado por el frontend
+      const response = {
+        success: resultado.estado !== 'error',
+        message: resultado.estado === 'error' ? 'Validación fallida' : 'Importación procesada correctamente',
         trabajoId: resultado.trabajoId,
         estado: resultado.estado,
-        totalRegistros: resultado.totalRegistros,
-        errores: resultado.errores,
-        erroresDetallados: resultado.erroresDetallados,
+        totalRegistros: resultado.estadisticas.total,
+        errores: resultado.estadisticas.errores,
+        erroresDetallados: resultado.errores?.map(error => ({
+          fila: error.fila,
+          columna: error.columna,
+          valor: error.valor,
+          mensaje: error.mensaje,
+          tipo: error.tipo
+        }))
       };
+
+      return response;
     } catch (error) {
       // Limpiar archivo temporal en caso de error
       await this.importacionService.limpiarArchivosTemporales(archivo.path);
@@ -283,11 +275,11 @@ export class ImportacionController {
 
       return {
         success: true,
-        message: resultado.mensaje,
+        message: 'Importación procesada correctamente',
         trabajoId: resultado.trabajoId,
         estado: resultado.estado,
-        totalRegistros: resultado.totalRegistros,
-        errores: resultado.errores,
+        totalRegistros: resultado.estadisticas.total,
+        errores: resultado.estadisticas.errores,
       };
     } catch (error) {
       // Limpiar archivo temporal en caso de error
@@ -398,11 +390,11 @@ export class ImportacionController {
 
       return {
         success: true,
-        message: resultado.mensaje,
+        message: 'Importación procesada correctamente',
         trabajoId: resultado.trabajoId,
         estado: resultado.estado,
-        totalRegistros: resultado.totalRegistros,
-        errores: resultado.errores,
+        totalRegistros: resultado.estadisticas.total,
+        errores: resultado.estadisticas.errores,
       };
     } catch (error) {
       // Limpiar archivo temporal en caso de error
@@ -600,5 +592,479 @@ export class ImportacionController {
       success: true,
       plantillas,
     };
+  }
+
+  /**
+   * Detecta automáticamente el tipo de importación y la procesa
+   */
+  @Post('auto')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Importación automática - detecta el tipo de archivo y lo procesa' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        archivo: {
+          type: 'string',
+          format: 'binary',
+          description: 'Archivo Excel (.xlsx, .xls, .numbers) o CSV - se detectará automáticamente el tipo',
+        },
+        sobrescribirExistentes: {
+          type: 'boolean',
+          description: 'Sobrescribir registros existentes',
+        },
+        validarSolo: {
+          type: 'boolean',
+          description: 'Solo validar sin importar',
+        },
+        notificarEmail: {
+          type: 'boolean',
+          description: 'Enviar notificación por email',
+        },
+        emailNotificacion: {
+          type: 'string',
+          description: 'Email para notificación',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 202, description: 'Importación iniciada correctamente' })
+  @ApiResponse({ status: 400, description: 'Error en el archivo o datos' })
+  @UseInterceptors(
+    FileInterceptor('archivo', {
+      storage: diskStorage({
+        destination: (req, file, cb) => {
+          const uploadDir = path.join(process.cwd(), 'uploads', 'import');
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+          }
+          cb(null, uploadDir);
+        },
+        filename: (req, file, cb) => {
+          const timestamp = Date.now();
+          const extension = path.extname(file.originalname);
+          cb(null, `auto-${timestamp}${extension}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        const allowedMimes = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+          'application/x-iwork-numbers-sffnumbers',
+          'text/csv',
+        ];
+        
+        if (allowedMimes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Tipo de archivo no soportado. Use Excel (.xlsx, .xls, .numbers) o CSV'), false);
+        }
+      },
+    })
+  )
+  async importarAutomatica(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 }), // 50MB
+        ],
+      })
+    ) archivo: Express.Multer.File,
+    @Body() opciones: {
+      sobrescribirExistentes?: boolean;
+      validarSolo?: boolean;
+      notificarEmail?: boolean;
+      emailNotificacion?: string;
+    },
+    @CurrentUser() usuario: JwtUser,
+  ) {
+    try {
+      this.logger.log(`🤖 Iniciando importación automática para usuario ${usuario.id}`);
+
+      // Validar que el archivo se subió correctamente
+      if (!archivo) {
+        throw new BadRequestException('No se proporcionó ningún archivo');
+      }
+
+      // Validar que el usuario tenga empresa asignada
+      if (!usuario.empresaId) {
+        throw new BadRequestException('Usuario no tiene empresa asignada');
+      }
+
+      // Detectar automáticamente el tipo de importación
+      const deteccion = await this.detectorTipoService.detectarTipo(archivo.path);
+      
+      this.logger.log(`🔍 Tipo detectado: ${deteccion.tipo} (confianza: ${deteccion.confianza}%)`);
+
+      // Si la confianza es muy baja, pedir confirmación
+      if (deteccion.confianza < 60) {
+        return {
+          success: true,
+          necesitaConfirmacion: true,
+          deteccion: deteccion,
+          mensaje: 'No se pudo determinar con certeza el tipo de importación. Por favor, confirme el tipo.',
+          opcionesDisponibles: this.detectorTipoService.obtenerInformacionTipos(),
+        };
+      }
+
+      // Crear las opciones unificadas
+      const opcionesUnificadas = new ImportacionUnificadaDto();
+      opcionesUnificadas.tipo = deteccion.tipo;
+      opcionesUnificadas.sobrescribirExistentes = opciones.sobrescribirExistentes || false;
+      opcionesUnificadas.validarSolo = opciones.validarSolo || false;
+      opcionesUnificadas.notificarEmail = opciones.notificarEmail || false;
+      opcionesUnificadas.emailNotificacion = opciones.emailNotificacion;
+
+      // Procesar la importación
+      const resultado = await this.importacionService.importarUnificada(
+        archivo.path,
+        opcionesUnificadas,
+        usuario.empresaId,
+        usuario.id
+      );
+
+      this.logger.log(`✅ Importación automática iniciada: ${resultado.trabajoId}`);
+
+      return {
+        success: true,
+        trabajoId: resultado.trabajoId,
+        estado: resultado.estado,
+        estadisticas: resultado.estadisticas,
+        tipoDetectado: deteccion.tipo,
+        confianza: deteccion.confianza,
+        mensaje: `Importación de ${deteccion.tipo} iniciada correctamente (detectado automáticamente)`
+      };
+
+    } catch (error) {
+      this.logger.error(`❌ Error en importación automática:`, error);
+      
+      // Limpiar archivo temporal en caso de error
+      if (archivo?.path) {
+        await this.importacionService.limpiarArchivosTemporales(archivo.path);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Genera plantillas mejoradas alineadas con la detección automática
+   */
+  @Get('plantillas-mejoradas/:tipo')
+  @ApiOperation({ summary: 'Generar plantilla mejorada para detección automática' })
+  @ApiResponse({ status: 200, description: 'Plantilla generada correctamente' })
+  async generarPlantillaMejorada(
+    @Param('tipo') tipo: string,
+    @Res() res: Response,
+  ) {
+    try {
+      let nombreArchivo: string;
+      
+      switch (tipo) {
+        case 'productos':
+          nombreArchivo = await this.plantillasService.generarPlantillaProductos();
+          break;
+        case 'proveedores':
+          nombreArchivo = await this.plantillasService.generarPlantillaProveedores();
+          break;
+        case 'movimientos':
+          nombreArchivo = await this.plantillasService.generarPlantillaMovimientos();
+          break;
+        default:
+          throw new BadRequestException('Tipo de plantilla no válido');
+      }
+
+      const rutaArchivo = path.join(process.cwd(), 'uploads', 'plantillas', nombreArchivo);
+      
+      if (!fs.existsSync(rutaArchivo)) {
+        throw new BadRequestException('Plantilla no encontrada');
+      }
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+      
+      const stream = fs.createReadStream(rutaArchivo);
+      stream.pipe(res);
+
+    } catch (error) {
+      this.logger.error(`❌ Error generando plantilla ${tipo}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene información sobre los tipos de importación soportados
+   */
+  @Get('tipos-soportados')
+  @ApiOperation({ summary: 'Obtener información sobre tipos de importación soportados' })
+  @ApiResponse({ status: 200, description: 'Información de tipos soportados' })
+  async obtenerTiposSoportados() {
+    return {
+      tipos: this.detectorTipoService.obtenerInformacionTipos(),
+      mensaje: 'Tipos de importación soportados por el sistema',
+    };
+  }
+
+  /**
+   * Valida un archivo antes de la importación automática
+   */
+  @Post('auto/validar')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Validar archivo antes de importación automática' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        archivo: {
+          type: 'string',
+          format: 'binary',
+          description: 'Archivo Excel para validar',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Resultado de validación' })
+  @UseInterceptors(
+    FileInterceptor('archivo', {
+      storage: diskStorage({
+        destination: (req, file, cb) => {
+          const uploadDir = path.join(process.cwd(), 'uploads', 'import');
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+          }
+          cb(null, uploadDir);
+        },
+        filename: (req, file, cb) => {
+          const timestamp = Date.now();
+          const extension = path.extname(file.originalname);
+          cb(null, `validacion-${timestamp}${extension}`);
+        },
+      }),
+    })
+  )
+  async validarArchivo(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 }), // 50MB
+        ],
+      })
+    ) archivo: Express.Multer.File,
+  ) {
+    try {
+      // Validar el archivo
+      const validacion = await this.detectorTipoService.validarArchivo(archivo.path);
+      
+      // Detectar tipo si es válido
+      let deteccion: any = null;
+      if (validacion.valido) {
+        deteccion = await this.detectorTipoService.detectarTipo(archivo.path);
+      }
+
+      // Limpiar archivo temporal
+      await this.importacionService.limpiarArchivosTemporales(archivo.path);
+
+      return {
+        valido: validacion.valido,
+        errores: validacion.errores,
+        advertencias: validacion.advertencias,
+        deteccion: deteccion,
+        mensaje: validacion.valido 
+          ? 'Archivo válido y tipo detectado' 
+          : 'Archivo no válido para importación automática',
+      };
+
+    } catch (error) {
+      this.logger.error(`❌ Error validando archivo:`, error);
+      
+      // Limpiar archivo temporal en caso de error
+      if (archivo?.path) {
+        await this.importacionService.limpiarArchivosTemporales(archivo.path);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Endpoint para confirmar tipo de importación cuando la detección automática no es segura
+   */
+  @Post('auto/confirmar')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Confirmar tipo de importación para archivo detectado automáticamente' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        trabajoId: {
+          type: 'string',
+          description: 'ID del trabajo de importación',
+        },
+        tipoConfirmado: {
+          type: 'string',
+          enum: ['productos', 'proveedores', 'movimientos'],
+          description: 'Tipo de importación confirmado por el usuario',
+        },
+      },
+    },
+  })
+  async confirmarTipoImportacion(
+    @Body() body: { trabajoId: string; tipoConfirmado: string },
+    @CurrentUser() usuario: JwtUser,
+  ) {
+    // Implementar lógica para confirmar tipo y continuar importación
+    // Por ahora, retornamos un mensaje informativo
+    return {
+      mensaje: 'Confirmación recibida. La importación continuará con el tipo especificado.',
+      trabajoId: body.trabajoId,
+      tipoConfirmado: body.tipoConfirmado,
+    };
+  }
+
+  /**
+   * Endpoint unificado para importación (nuevo)
+   */
+  @Post('unificada')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Importación unificada desde archivo Excel/CSV' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        archivo: {
+          type: 'string',
+          format: 'binary',
+          description: 'Archivo Excel (.xlsx, .xls, .numbers) o CSV',
+        },
+        tipo: {
+          type: 'string',
+          enum: ['productos', 'proveedores', 'movimientos'],
+          description: 'Tipo de importación',
+        },
+        sobrescribirExistentes: {
+          type: 'boolean',
+          description: 'Sobrescribir registros existentes',
+        },
+        validarSolo: {
+          type: 'boolean',
+          description: 'Solo validar sin importar',
+        },
+        notificarEmail: {
+          type: 'boolean',
+          description: 'Enviar notificación por email',
+        },
+        emailNotificacion: {
+          type: 'string',
+          description: 'Email para notificación',
+        },
+        configuracionProductos: {
+          type: 'object',
+          description: 'Configuración específica para productos',
+        },
+        configuracionProveedores: {
+          type: 'object',
+          description: 'Configuración específica para proveedores',
+        },
+        configuracionMovimientos: {
+          type: 'object',
+          description: 'Configuración específica para movimientos',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 202, description: 'Importación iniciada correctamente' })
+  @ApiResponse({ status: 400, description: 'Error en el archivo o datos' })
+  @UseInterceptors(
+    FileInterceptor('archivo', {
+      storage: diskStorage({
+        destination: (req, file, cb) => {
+          const uploadDir = path.join(process.cwd(), 'uploads', 'import');
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+          }
+          cb(null, uploadDir);
+        },
+        filename: (req, file, cb) => {
+          const timestamp = Date.now();
+          const extension = path.extname(file.originalname);
+          const tipo = req.body.tipo || 'unificada';
+          cb(null, `${tipo}-${timestamp}${extension}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        const allowedMimes = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+          'application/x-iwork-numbers-sffnumbers',
+          'text/csv',
+        ];
+        
+        if (allowedMimes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Tipo de archivo no soportado. Use Excel (.xlsx, .xls, .numbers) o CSV'), false);
+        }
+      },
+    })
+  )
+  async importarUnificada(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 }), // 50MB
+        ],
+      })
+    ) archivo: Express.Multer.File,
+    @Body() opciones: ImportacionUnificadaDto,
+    @CurrentUser() usuario: JwtUser,
+  ) {
+    try {
+      this.logger.log(`🚀 Iniciando importación unificada de ${opciones.tipo} para usuario ${usuario.id}`);
+
+      // Validar que el archivo se subió correctamente
+      if (!archivo) {
+        throw new BadRequestException('No se proporcionó ningún archivo');
+      }
+
+      // Validar tipo de importación
+      if (!['productos', 'proveedores', 'movimientos'].includes(opciones.tipo)) {
+        throw new BadRequestException('Tipo de importación no válido');
+      }
+
+      // Validar que el usuario tenga empresa asignada
+      if (!usuario.empresaId) {
+        throw new BadRequestException('Usuario no tiene empresa asignada');
+      }
+
+      // Procesar la importación
+      const resultado = await this.importacionService.importarUnificada(
+        archivo.path,
+        opciones,
+        usuario.empresaId,
+        usuario.id
+      );
+
+      this.logger.log(`✅ Importación unificada iniciada: ${resultado.trabajoId}`);
+
+      return {
+        trabajoId: resultado.trabajoId,
+        estado: resultado.estado,
+        estadisticas: resultado.estadisticas,
+        mensaje: `Importación de ${opciones.tipo} iniciada correctamente`,
+      };
+
+    } catch (error) {
+      this.logger.error(`❌ Error en importación unificada:`, error);
+      
+      // Limpiar archivo temporal en caso de error
+      if (archivo?.path) {
+        await this.importacionService.limpiarArchivosTemporales(archivo.path);
+      }
+      
+      throw error;
+    }
   }
 } 

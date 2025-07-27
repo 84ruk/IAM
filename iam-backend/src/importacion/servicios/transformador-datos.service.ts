@@ -174,9 +174,9 @@ export class TransformadorDatosService {
     const configuracion: ConfiguracionTransformacion = {
       mapeos: [
         {
-          columnaExcel: 'productoNombre',
-          campoModelo: 'productoNombre',
-          transformador: (valor) => valor?.toString().trim(),
+          columnaExcel: 'productoId',
+          campoModelo: 'productoId',
+          transformador: (valor) => parseInt(valor) || null,
         },
         {
           columnaExcel: 'codigoBarras',
@@ -223,8 +223,8 @@ export class TransformadorDatosService {
       ],
       transformacionesGlobales: (registro) => {
         // Validar campos requeridos
-        if (!registro.productoNombre) {
-          throw new Error('El nombre del producto es requerido');
+        if (!registro.productoId) {
+          throw new Error('El ID del producto es requerido');
         }
 
         if (!registro.cantidad || registro.cantidad <= 0) {

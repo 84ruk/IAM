@@ -6,6 +6,7 @@ import { TrabajoImportacion, EstadoTrabajo, ResultadoImportacion } from './inter
 import { ImportacionProductosProcesador } from './procesadores/importacion-productos.procesador';
 import { ImportacionProveedoresProcesador } from './procesadores/importacion-proveedores.procesador';
 import { ImportacionMovimientosProcesador } from './procesadores/importacion-movimientos.procesador';
+import { ImportacionUnificadaProcesador } from './procesadores/importacion-unificada.procesador';
 import { RedisConfigService } from '../common/services/redis-config.service';
 import { ColasConfigService } from './services/colas-config.service';
 import { TrabajoSerializerService } from './services/trabajo-serializer.service';
@@ -26,18 +27,19 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
     private importacionProductosProcesador: ImportacionProductosProcesador,
     private importacionProveedoresProcesador: ImportacionProveedoresProcesador,
     private importacionMovimientosProcesador: ImportacionMovimientosProcesador,
+    private importacionUnificadaProcesador: ImportacionUnificadaProcesador,
   ) {}
 
   async onModuleInit() {
     await this.inicializarRedis();
     await this.inicializarColas();
     await this.inicializarWorkers();
-    this.logger.log('✅ Servicio de colas inicializado correctamente');
+    this.logger.log('Servicio de colas inicializado correctamente');
   }
 
   async onModuleDestroy() {
     await this.cerrarConexiones();
-    this.logger.log('🔌 Conexiones de colas cerradas');
+    this.logger.log('Conexiones de colas cerradas');
   }
 
   private async inicializarRedis() {
@@ -52,29 +54,29 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
       this.redis = new Redis(redisConfig, redisOptions);
 
       this.redis.on('error', (error) => {
-        this.logger.error('❌ Error de conexión Redis:', error);
+        this.logger.error('Error de conexión Redis:', error);
       });
 
       this.redis.on('connect', () => {
-        this.logger.log('🔗 Conectado a Redis para BullMQ');
+        this.logger.log('Conectado a Redis para BullMQ');
       });
 
       this.redis.on('ready', () => {
-        this.logger.log('✅ Redis listo para BullMQ');
+        this.logger.log('Redis listo para BullMQ');
       });
 
       this.redis.on('close', () => {
-        this.logger.warn('🔌 Conexión Redis cerrada');
+        this.logger.warn('Conexión Redis cerrada');
       });
 
       this.redis.on('reconnecting', () => {
-        this.logger.log('🔄 Reconectando a Redis...');
+        this.logger.log('Reconectando a Redis...');
       });
 
       // Conectar explícitamente
       await this.redis.connect();
     } catch (error) {
-      this.logger.error('❌ Error inicializando Redis para BullMQ:', error);
+      this.logger.error('Error inicializando Redis para BullMQ:', error);
       throw new Error(`Redis initialization failed: ${error.message}`);
     }
   }
@@ -95,7 +97,7 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    this.logger.log('📋 Cola de importación inicializada');
+    this.logger.log('Cola de importación inicializada');
   }
 
   private async inicializarWorkers() {
@@ -104,7 +106,6 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
     this.importacionWorker = new Worker(
       'importacion',
       async (job: Job) => {
-        this.logger.log(`👷 Worker iniciando procesamiento del trabajo ${job.id}...`);
         return await this.procesarTrabajoImportacion(job);
       },
       {
@@ -116,64 +117,62 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
 
     // Eventos del worker
     this.importacionWorker.on('completed', (job: Job, result: ResultadoImportacion) => {
-      this.logger.log(`✅ Trabajo ${job.id} completado: ${result.estadisticas.exitosos}/${result.estadisticas.total} registros`);
+      this.logger.log(`Trabajo ${job.id} completado: ${result.estadisticas.exitosos}/${result.estadisticas.total} registros`);
     });
 
     this.importacionWorker.on('failed', (job: Job, err: Error) => {
-      this.logger.error(`❌ Trabajo ${job.id} fallido:`, err.message);
-      this.logger.error(`📋 Datos del trabajo fallido:`, job.data);
-      this.logger.error(`🔄 Intentos realizados: ${job.attemptsMade}/${job.opts.attempts}`);
+      this.logger.error(`Trabajo ${job.id} fallido:`, err.message);
     });
 
     this.importacionWorker.on('active', (job: Job) => {
-      this.logger.log(`🔄 Trabajo ${job.id} activo - procesando...`);
+      this.logger.log(`Trabajo ${job.id} activo - procesando...`);
     });
-
-
 
     this.importacionWorker.on('progress', (job: Job, progress: number) => {
-      this.logger.log(`📊 Progreso trabajo ${job.id}: ${progress}%`);
+      this.logger.log(`Progreso trabajo ${job.id}: ${progress}%`);
     });
 
-    this.logger.log('👷 Worker de importación inicializado');
+    this.logger.log('Worker de importación inicializado');
   }
 
   private async procesarTrabajoImportacion(job: Job): Promise<ResultadoImportacion> {
     const trabajo: TrabajoImportacion = job.data;
     const inicio = Date.now();
 
-    this.logger.log(`🚀 Iniciando procesamiento de ${trabajo.tipo} para empresa ${trabajo.empresaId}`);
-
     try {
       let resultado: ResultadoImportacion;
 
-      switch (trabajo.tipo) {
-        case 'productos':
-          resultado = await this.importacionProductosProcesador.procesar(trabajo, job);
-          break;
-        case 'proveedores':
-          resultado = await this.importacionProveedoresProcesador.procesar(trabajo, job);
-          break;
-        case 'movimientos':
-          resultado = await this.importacionMovimientosProcesador.procesar(trabajo, job);
-          break;
-        default:
-          throw new Error(`Tipo de importación no soportado: ${trabajo.tipo}`);
+      // Usar el procesador unificado para todos los tipos
+      if (this.importacionUnificadaProcesador.esTipoSoportado(trabajo.tipo)) {
+        resultado = await this.importacionUnificadaProcesador.procesar(trabajo, job);
+      } else {
+        // Fallback a procesadores específicos si es necesario
+        switch (trabajo.tipo) {
+          case 'productos':
+            resultado = await this.importacionProductosProcesador.procesar(trabajo, job);
+            break;
+          case 'proveedores':
+            resultado = await this.importacionProveedoresProcesador.procesar(trabajo, job);
+            break;
+          case 'movimientos':
+            resultado = await this.importacionMovimientosProcesador.procesar(trabajo, job);
+            break;
+          default:
+            throw new Error(`Tipo de importación no soportado: ${trabajo.tipo}`);
+        }
       }
 
       resultado.tiempoProcesamiento = Date.now() - inicio;
       return resultado;
 
     } catch (error) {
-      this.logger.error(`❌ Error procesando trabajo ${job.id}:`, error);
+      this.logger.error(`Error procesando trabajo ${job.id}:`, error);
       throw error;
     }
   }
 
   // Métodos públicos para el controlador
   async crearTrabajoImportacion(trabajo: Omit<TrabajoImportacion, 'id' | 'estado' | 'progreso' | 'fechaCreacion'>): Promise<string> {
-    this.logger.log(`🚀 Iniciando creación de trabajo para ${trabajo.tipo}...`);
-    
     const trabajoCompleto: TrabajoImportacion = {
       ...trabajo,
       id: this.generarIdTrabajo(),
@@ -189,9 +188,6 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
 
     // Serializar el trabajo para almacenamiento
     const trabajoSerializado = this.trabajoSerializerService.serializeTrabajo(trabajoCompleto);
-
-    this.logger.log(`📋 Agregando trabajo ${trabajoCompleto.id} a la cola...`);
-    this.logger.log(`📋 Datos del trabajo serializado:`, JSON.stringify(trabajoSerializado, null, 2));
     
     const job = await this.importacionQueue.add(
       `importacion-${trabajo.tipo}`,
@@ -203,33 +199,20 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
       }
     );
 
-    this.logger.log(`📝 Trabajo creado: ${job.id} (${trabajo.tipo})`);
-    this.logger.log(`✅ Trabajo ${trabajoCompleto.id} agregado exitosamente a la cola`);
+    this.logger.log(`Trabajo ${trabajoCompleto.id} agregado a la cola`);
     
     return trabajoCompleto.id;
   }
 
   async obtenerTrabajoImportacion(trabajoId: string): Promise<TrabajoImportacion | null> {
-    this.logger.log(`🔍 Buscando trabajo: ${trabajoId}`);
-    
     const job = await this.importacionQueue.getJob(trabajoId);
     if (!job) {
-      this.logger.warn(`⚠️ Trabajo no encontrado: ${trabajoId}`);
-      
-      // Verificar si el trabajo existe en otras colas
-      const allJobs = await this.importacionQueue.getJobs(['completed', 'failed', 'waiting', 'active', 'delayed', 'paused']);
-      const jobIds = allJobs.map(j => j.id);
-      this.logger.log(`📋 Trabajos disponibles en cola: ${jobIds.join(', ')}`);
-      
       return null;
     }
 
     try {
       const estado = await job.getState();
       const progreso = job.progress || 0;
-      
-      this.logger.log(`✅ Trabajo encontrado: ${trabajoId}, estado: ${estado}, progreso: ${progreso}`);
-      this.logger.log(`📋 Datos crudos del trabajo:`, JSON.stringify(job.data, null, 2));
 
       // Deserializar el trabajo usando el servicio
       const trabajoDeserializado = this.trabajoSerializerService.deserializeTrabajo(job.data);
@@ -241,11 +224,9 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
         progreso: typeof progreso === 'number' ? progreso : 0,
       };
 
-      this.logger.log(`📋 Trabajo deserializado:`, JSON.stringify(trabajoCompleto, null, 2));
-
       // Validar integridad del trabajo deserializado
       if (!this.trabajoSerializerService.validarIntegridadTrabajo(trabajoCompleto)) {
-        this.logger.error(`⚠️ Trabajo ${trabajoId} no pasa validación de integridad`);
+        this.logger.error(`Trabajo ${trabajoId} no pasa validación de integridad`);
         return null;
       }
 
@@ -265,7 +246,7 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
     if (!job) return false;
 
     await job.moveToFailed(new Error('Trabajo cancelado por el usuario'), '0');
-    this.logger.log(`🚫 Trabajo ${trabajoId} cancelado`);
+    this.logger.log(`Trabajo ${trabajoId} cancelado`);
     return true;
   }
 

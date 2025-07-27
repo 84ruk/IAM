@@ -8,7 +8,7 @@ import {
   IsObject,
   IsDateString,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Expose } from 'class-transformer';
 
 export enum TipoValidacionMovimiento {
   ESTRICTA = 'estricta',
@@ -55,22 +55,31 @@ export class ConfiguracionEspecificaMovimientos {
 }
 
 export class ImportarMovimientosDto {
+  @Expose()
   @IsBoolean()
   sobrescribirExistentes: boolean = false;
 
+  @Expose()
   @IsBoolean()
   validarSolo: boolean = false;
 
+  @Expose()
   @IsBoolean()
   notificarEmail: boolean = false;
 
+  @Expose()
   @IsOptional()
   @IsEmail()
   emailNotificacion?: string;
 
+  @Expose()
   @IsOptional()
   @ValidateNested()
   @Type(() => ConfiguracionEspecificaMovimientos)
   @IsObject()
   configuracionEspecifica?: ConfiguracionEspecificaMovimientos;
+
+  @IsOptional()
+  @IsObject()
+  opciones?: any; // Para capturar propiedades adicionales del frontend
 } 

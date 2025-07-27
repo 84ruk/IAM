@@ -488,7 +488,6 @@ export class ProcesadorArchivosService {
       
       // Stock
       'stock': 'stock',
-      'cantidad': 'stock',
       'quantity': 'stock',
       'qty': 'stock',
       'inventario': 'stock',
@@ -573,7 +572,6 @@ export class ProcesadorArchivosService {
       'tipoproducto': 'tipoProducto',
       'tipo_producto': 'tipoProducto',
       'tipo producto': 'tipoProducto',
-      'tipo': 'tipoProducto',
       'categoria': 'tipoProducto',
       'categoria_producto': 'tipoProducto',
       'producto_tipo': 'tipoProducto',
@@ -582,7 +580,6 @@ export class ProcesadorArchivosService {
       'clasificacion_producto': 'tipoProducto',
       'product_type': 'tipoProducto',
       'producttype': 'tipoProducto',
-      'type': 'tipoProducto',
       'category': 'tipoProducto',
       
       // Unidad
@@ -699,6 +696,65 @@ export class ProcesadorArchivosService {
       'humedad_requerida': 'humedad',
       'hum': 'humedad',
       'humidity': 'humedad',
+      
+      // MOVIMIENTOS - Producto ID
+      'productoid': 'productoId',
+      'producto_id': 'productoId',
+      'producto id': 'productoId',
+      'id_producto': 'productoId',
+      'idproducto': 'productoId',
+      'product_id': 'productoId',
+      'productid': 'productoId',
+      
+      // MOVIMIENTOS - Cantidad (ya existe 'cantidad' para stock, pero agregamos variaciones específicas)
+      'cantidad_movimiento': 'cantidad',
+      'cantidad_mov': 'cantidad',
+      'cantidad_entrada': 'cantidad',
+      'cantidad_salida': 'cantidad',
+      
+      // MOVIMIENTOS - Tipo
+      'tipo_movimiento': 'tipo',
+      'tipo_mov': 'tipo',
+      'movimiento_tipo': 'tipo',
+      'tipo_entrada_salida': 'tipo',
+      'entrada_salida': 'tipo',
+      'movement_type': 'tipo',
+      
+      // MOVIMIENTOS - Motivo
+      'motivo': 'motivo',
+      'motivo_movimiento': 'motivo',
+      'motivo_mov': 'motivo',
+      'razon': 'motivo',
+      'razon_movimiento': 'motivo',
+      'causa': 'motivo',
+      'causa_movimiento': 'motivo',
+      'reason': 'motivo',
+      'cause': 'motivo',
+      
+      // MOVIMIENTOS - Descripción (ya existe 'descripcion', pero agregamos variaciones específicas)
+      'descripcion_movimiento': 'descripcion',
+      'descripcion_mov': 'descripcion',
+      'detalle_movimiento': 'descripcion',
+      'detalle_mov': 'descripcion',
+      
+      // MOVIMIENTOS - Fecha
+      'fecha': 'fecha',
+      'fecha_movimiento': 'fecha',
+      'fecha_mov': 'fecha',
+      'fecha_entrada': 'fecha',
+      'fecha_salida': 'fecha',
+      'date': 'fecha',
+      'movement_date': 'fecha',
+      'transaction_date': 'fecha',
+      
+      // MOVIMIENTOS - Estado (ya existe 'estado', pero agregamos variaciones específicas)
+      'estado_movimiento': 'estado',
+      'estado_mov': 'estado',
+      'movement_status': 'estado',
+      
+      // MOVIMIENTOS - Columnas específicas con prioridad alta (deben ir al final)
+      'cantidad': 'cantidad',
+      'tipo': 'tipo',
     };
 
     // Buscar coincidencia exacta

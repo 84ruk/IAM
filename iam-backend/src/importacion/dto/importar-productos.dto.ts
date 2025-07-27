@@ -7,6 +7,7 @@ import {
   ValidateNested,
   IsObject,
 } from 'class-validator';
+import { Expose, Exclude } from 'class-transformer';
 import { Type } from 'class-transformer';
 
 export enum TipoValidacionProducto {
@@ -42,22 +43,58 @@ export class ConfiguracionEspecificaProductos {
 }
 
 export class ImportarProductosDto {
+  @Expose()
   @IsBoolean()
   sobrescribirExistentes: boolean = false;
 
+  @Expose()
   @IsBoolean()
   validarSolo: boolean = false;
 
+  @Expose()
   @IsBoolean()
   notificarEmail: boolean = false;
 
+  @Expose()
   @IsOptional()
   @IsEmail()
   emailNotificacion?: string;
 
+  @Expose()
   @IsOptional()
-  @ValidateNested()
-  @Type(() => ConfiguracionEspecificaProductos)
+  @IsString()
+  configuracionEspecifica?: string;
+
+  @IsOptional()
   @IsObject()
-  configuracionEspecifica?: ConfiguracionEspecificaProductos;
+  opciones?: any; // Para capturar propiedades adicionales del frontend
+
+  // Método para parsear la configuración específica
+  getConfiguracionEspecifica(): ConfiguracionEspecificaProductos | undefined {
+    if (!this.configuracionEspecifica) {
+      return undefined;
+    }
+
+    try {
+      const parsed = JSON.parse(this.configuracionEspecifica);
+      return {
+        tipoValidacion: parsed.tipoValidacion || TipoValidacionProducto.ESTRICTA,
+        validarPrecios: parsed.validarPrecios ?? true,
+        validarStock: parsed.validarStock ?? true,
+        generarSKUAutomatico: parsed.generarSKUAutomatico ?? false,
+        prefijoSKU: parsed.prefijoSKU || 'PROD',
+        crearProveedorSiNoExiste: parsed.crearProveedorSiNoExiste ?? false,
+      };
+    } catch (error) {
+      // Si hay error en el parsing, usar valores por defecto
+      return {
+        tipoValidacion: TipoValidacionProducto.ESTRICTA,
+        validarPrecios: true,
+        validarStock: true,
+        generarSKUAutomatico: false,
+        prefijoSKU: 'PROD',
+        crearProveedorSiNoExiste: false,
+      };
+    }
+  }
 } 
