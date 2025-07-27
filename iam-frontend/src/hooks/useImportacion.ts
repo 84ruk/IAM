@@ -120,24 +120,37 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
           isImporting: trabajo.estado === 'pendiente' || trabajo.estado === 'procesando'
         }))
 
-        // Detener polling si el trabajo está completo o hay error
-        if (trabajo.estado === 'completado' || trabajo.estado === 'error' || trabajo.estado === 'cancelado') {
+        // Verificar si el trabajo está realmente completado
+        const isCompleted = trabajo.estado === 'completado' && trabajo.progreso >= 100
+        const hasError = trabajo.estado === 'error'
+        const isCancelled = trabajo.estado === 'cancelado'
+        
+        // Solo detener polling si está realmente completado, tiene error o fue cancelado
+        if (isCompleted || hasError || isCancelled) {
           stopPolling()
           
           setState(prev => ({
             ...prev,
             isImporting: false,
-            success: trabajo.estado === 'completado' 
+            success: isCompleted 
               ? `Importación completada: ${trabajo.registrosExitosos} registros procesados exitosamente`
               : null,
-            error: trabajo.estado === 'error' 
+            error: hasError 
               ? `Error en la importación: ${trabajo.mensaje || 'Error desconocido'}`
+              : isCancelled
+              ? 'Importación cancelada'
               : null
           }))
           
           // Actualizar la lista de trabajos
           await loadTrabajos()
           return
+        }
+
+        // Si el trabajo está en estado 'completado' pero el progreso no es 100%, 
+        // continuar polling hasta que realmente termine
+        if (trabajo.estado === 'completado' && trabajo.progreso < 100) {
+          console.log(`⚠️ Trabajo marcado como completado pero progreso es ${trabajo.progreso}%. Continuando polling...`)
         }
 
         // Verificar tiempo máximo de polling
@@ -161,7 +174,7 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
     }
 
     poll()
-  }, [config.autoPolling, config.pollingInterval, config.maxPollingTime, stopPolling, handleError])
+  }, [config.autoPolling, config.pollingInterval, config.maxPollingTime, stopPolling, handleError, loadTrabajos])
 
   // Función para cargar trabajos
   const loadTrabajos = useCallback(async (limit = 50, offset = 0) => {

@@ -382,29 +382,50 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
         const trabajo = response.trabajo
 
         dispatch({ type: 'SET_CURRENT_TRABAJO', payload: trabajo })
-        dispatch({ type: 'SET_IMPORTING', payload: trabajo.estado === 'pendiente' || trabajo.estado === 'procesando' })
+        
+        // Solo mostrar como importando si está pendiente o procesando
+        const isStillImporting = trabajo.estado === 'pendiente' || trabajo.estado === 'procesando'
+        dispatch({ type: 'SET_IMPORTING', payload: isStillImporting })
 
-        // Detener polling si el trabajo está completo
-        if (trabajo.estado === 'completado' || trabajo.estado === 'error' || trabajo.estado === 'cancelado') {
+        // Verificar si el trabajo está realmente completado
+        const isCompleted = trabajo.estado === 'completado' && trabajo.progreso >= 100
+        const hasError = trabajo.estado === 'error'
+        const isCancelled = trabajo.estado === 'cancelado'
+        
+        // Solo detener polling y mostrar resultado si está realmente completado, tiene error o fue cancelado
+        if (isCompleted || hasError || isCancelled) {
           dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
-          
           dispatch({ type: 'SET_IMPORTING', payload: false })
-          dispatch({ 
-            type: 'SET_SUCCESS', 
-            payload: trabajo.estado === 'completado' 
-              ? `Importación completada: ${trabajo.registrosExitosos} registros procesados exitosamente`
-              : null 
-          })
-          dispatch({ 
-            type: 'SET_ERROR', 
-            payload: trabajo.estado === 'error' 
-              ? `Error en la importación: ${trabajo.mensaje || 'Error desconocido'}`
-              : null 
-          })
+          
+          if (isCompleted) {
+            dispatch({ 
+              type: 'SET_SUCCESS', 
+              payload: `Importación completada: ${trabajo.registrosExitosos} registros procesados exitosamente`
+            })
+            dispatch({ type: 'SET_ERROR', payload: null })
+          } else if (hasError) {
+            dispatch({ 
+              type: 'SET_ERROR', 
+              payload: `Error en la importación: ${trabajo.mensaje || 'Error desconocido'}`
+            })
+            dispatch({ type: 'SET_SUCCESS', payload: null })
+          } else if (isCancelled) {
+            dispatch({ 
+              type: 'SET_ERROR', 
+              payload: 'Importación cancelada'
+            })
+            dispatch({ type: 'SET_SUCCESS', payload: null })
+          }
           
           // Actualizar lista de trabajos
           await loadTrabajos(true)
           return
+        }
+
+        // Si el trabajo está en estado 'completado' pero el progreso no es 100%, 
+        // continuar polling hasta que realmente termine
+        if (trabajo.estado === 'completado' && trabajo.progreso < 100) {
+          console.log(`⚠️ Trabajo marcado como completado pero progreso es ${trabajo.progreso}%. Continuando polling...`)
         }
 
         // Continuar polling
@@ -413,6 +434,11 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
       } catch (error) {
         console.error('Error en polling:', error)
         dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
+        dispatch({ type: 'SET_IMPORTING', payload: false })
+        dispatch({ 
+          type: 'SET_ERROR', 
+          payload: 'Error al verificar el estado de la importación'
+        })
       }
     }
 
