@@ -92,22 +92,36 @@ export class PlantillasAutoService implements OnModuleInit {
       .filter(archivo => !archivo.startsWith('.')) // Excluir archivos ocultos
       .sort();
 
+    this.logger.log(`📁 Archivos detectados en ${this.directorioPlantillas}:`);
+    archivos.forEach(archivo => this.logger.log(`   - ${archivo}`));
+
     for (const archivo of archivos) {
       const rutaCompleta = path.join(this.directorioPlantillas, archivo);
       const stats = fs.statSync(rutaCompleta);
       
+      const tipo = this.determinarTipoPlantilla(archivo);
+      const descripcion = this.obtenerDescripcionPlantilla(archivo);
+      
+      this.logger.log(`🔍 Procesando: ${archivo} -> tipo: ${tipo}, descripción: ${descripcion}`);
+      
       const plantillaInfo: PlantillaInfo = {
         nombre: archivo,
-        tipo: this.determinarTipoPlantilla(archivo),
+        tipo: tipo,
         ruta: rutaCompleta,
         tamaño: stats.size,
         fechaModificacion: stats.mtime,
-        descripcion: this.obtenerDescripcionPlantilla(archivo)
+        descripcion: descripcion
       };
 
       // Clasificar plantilla
       this.clasificarPlantilla(plantillaInfo, plantillas);
     }
+
+    this.logger.log(`📊 Plantillas clasificadas:`);
+    this.logger.log(`   Productos: ${plantillas.productos.length}`);
+    this.logger.log(`   Proveedores: ${plantillas.proveedores.length}`);
+    this.logger.log(`   Movimientos: ${plantillas.movimientos.length}`);
+    this.logger.log(`   Otros: ${plantillas.otros.length}`);
 
     return plantillas;
   }
@@ -131,6 +145,9 @@ export class PlantillasAutoService implements OnModuleInit {
   private obtenerDescripcionPlantilla(nombreArchivo: string): string {
     const nombre = nombreArchivo.toLowerCase();
     
+    if (nombre.includes('-auto')) {
+      return 'Plantilla optimizada para detección automática de tipo de importación';
+    }
     if (nombre.includes('electronica') || nombre.includes('software')) {
       return 'Plantilla para productos electrónicos y software';
     }
@@ -192,7 +209,14 @@ export class PlantillasAutoService implements OnModuleInit {
       return null;
     }
 
-    // Priorizar plantillas avanzadas
+    // Priorizar plantillas automáticas (para detección automática)
+    const plantillaAuto = plantillas.find(p => p.nombre.includes('-auto'));
+    if (plantillaAuto) {
+      this.logger.log(`✅ Usando plantilla automática para ${tipo}: ${plantillaAuto.nombre}`);
+      return plantillaAuto;
+    }
+
+    // Luego plantillas avanzadas
     const plantillaAvanzada = plantillas.find(p => p.nombre.includes('avanzada'));
     if (plantillaAvanzada) {
       this.logger.log(`✅ Usando plantilla avanzada para ${tipo}: ${plantillaAvanzada.nombre}`);

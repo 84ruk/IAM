@@ -54,6 +54,106 @@ export class PlantillasAutoController {
   }
 
   /**
+   * Obtiene estadísticas de plantillas
+   */
+  @Get('estadisticas')
+  @ApiOperation({ summary: 'Obtener estadísticas de plantillas' })
+  @ApiResponse({ status: 200, description: 'Estadísticas obtenidas correctamente' })
+  async obtenerEstadisticas() {
+    try {
+      const plantillas = await this.plantillasAutoService.obtenerTodasLasPlantillas();
+      
+      const estadisticas = {
+        total: this.contarTotalPlantillas(plantillas),
+        porTipo: {
+          productos: plantillas.productos.length,
+          proveedores: plantillas.proveedores.length,
+          movimientos: plantillas.movimientos.length,
+          otros: plantillas.otros.length
+        },
+        porCategoria: {
+          avanzadas: this.contarPlantillasPorCategoria(plantillas, 'avanzada'),
+          mejoradas: this.contarPlantillasPorCategoria(plantillas, 'mejorada'),
+          estandar: this.contarPlantillasPorCategoria(plantillas, 'estandar')
+        },
+        tamañoTotal: this.calcularTamañoTotal(plantillas),
+        ultimaActualizacion: new Date().toISOString()
+      };
+
+      return {
+        success: true,
+        message: 'Estadísticas obtenidas correctamente',
+        data: estadisticas
+      };
+    } catch (error) {
+      this.logger.error('Error obteniendo estadísticas:', error);
+      throw new BadRequestException('Error obteniendo estadísticas');
+    }
+  }
+
+  /**
+   * Busca plantillas por criterios
+   */
+  @Get('buscar')
+  @ApiOperation({ summary: 'Buscar plantillas por criterios específicos' })
+  @ApiResponse({ status: 200, description: 'Plantillas encontradas correctamente' })
+  @ApiQuery({ name: 'tipo', required: false, description: 'Tipo de plantilla' })
+  @ApiQuery({ name: 'nombre', required: false, description: 'Nombre de la plantilla' })
+  @ApiQuery({ name: 'incluirAvanzadas', required: false, description: 'Incluir plantillas avanzadas' })
+  @ApiQuery({ name: 'incluirMejoradas', required: false, description: 'Incluir plantillas mejoradas' })
+  async buscarPlantillas(
+    @Query('tipo') tipo?: string,
+    @Query('nombre') nombre?: string,
+    @Query('incluirAvanzadas') incluirAvanzadas?: string,
+    @Query('incluirMejoradas') incluirMejoradas?: string
+  ) {
+    try {
+      const criterios = {
+        tipo,
+        nombre,
+        incluirAvanzadas: incluirAvanzadas === 'true',
+        incluirMejoradas: incluirMejoradas === 'true'
+      };
+
+      const plantillas = await this.plantillasAutoService.buscarPlantillas(criterios);
+      
+      return {
+        success: true,
+        message: 'Búsqueda completada correctamente',
+        data: {
+          criterios,
+          cantidad: plantillas.length,
+          plantillas: plantillas.map(p => this.sanitizarPlantillaInfo(p))
+        }
+      };
+    } catch (error) {
+      this.logger.error('Error buscando plantillas:', error);
+      throw new BadRequestException('Error buscando plantillas');
+    }
+  }
+
+  /**
+   * Actualiza la información de plantillas
+   */
+  @Get('actualizar')
+  @ApiOperation({ summary: 'Actualizar información de plantillas' })
+  @ApiResponse({ status: 200, description: 'Plantillas actualizadas correctamente' })
+  async actualizarPlantillas() {
+    try {
+      await this.plantillasAutoService.actualizarPlantillas();
+      
+      return {
+        success: true,
+        message: 'Información de plantillas actualizada correctamente',
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      this.logger.error('Error actualizando plantillas:', error);
+      throw new BadRequestException('Error actualizando plantillas');
+    }
+  }
+
+  /**
    * Obtiene las plantillas disponibles para un tipo específico
    */
   @Get(':tipo')
@@ -166,47 +266,6 @@ export class PlantillasAutoController {
   }
 
   /**
-   * Busca plantillas por criterios
-   */
-  @Get('buscar')
-  @ApiOperation({ summary: 'Buscar plantillas por criterios específicos' })
-  @ApiResponse({ status: 200, description: 'Plantillas encontradas correctamente' })
-  @ApiQuery({ name: 'tipo', required: false, description: 'Tipo de plantilla' })
-  @ApiQuery({ name: 'nombre', required: false, description: 'Nombre de la plantilla' })
-  @ApiQuery({ name: 'incluirAvanzadas', required: false, description: 'Incluir plantillas avanzadas' })
-  @ApiQuery({ name: 'incluirMejoradas', required: false, description: 'Incluir plantillas mejoradas' })
-  async buscarPlantillas(
-    @Query('tipo') tipo?: string,
-    @Query('nombre') nombre?: string,
-    @Query('incluirAvanzadas') incluirAvanzadas?: string,
-    @Query('incluirMejoradas') incluirMejoradas?: string
-  ) {
-    try {
-      const criterios = {
-        tipo,
-        nombre,
-        incluirAvanzadas: incluirAvanzadas === 'true',
-        incluirMejoradas: incluirMejoradas === 'true'
-      };
-
-      const plantillas = await this.plantillasAutoService.buscarPlantillas(criterios);
-      
-      return {
-        success: true,
-        message: 'Búsqueda completada correctamente',
-        data: {
-          criterios,
-          cantidad: plantillas.length,
-          plantillas: plantillas.map(p => this.sanitizarPlantillaInfo(p))
-        }
-      };
-    } catch (error) {
-      this.logger.error('Error buscando plantillas:', error);
-      throw new BadRequestException('Error buscando plantillas');
-    }
-  }
-
-  /**
    * Obtiene información detallada de una plantilla específica
    */
   @Get('info/:nombre')
@@ -232,65 +291,6 @@ export class PlantillasAutoController {
     } catch (error) {
       this.logger.error(`Error obteniendo información de plantilla ${nombre}:`, error);
       throw new BadRequestException(`Error obteniendo información de plantilla`);
-    }
-  }
-
-  /**
-   * Actualiza la información de plantillas
-   */
-  @Get('actualizar')
-  @ApiOperation({ summary: 'Actualizar información de plantillas' })
-  @ApiResponse({ status: 200, description: 'Plantillas actualizadas correctamente' })
-  async actualizarPlantillas() {
-    try {
-      await this.plantillasAutoService.actualizarPlantillas();
-      
-      return {
-        success: true,
-        message: 'Información de plantillas actualizada correctamente',
-        timestamp: new Date().toISOString()
-      };
-    } catch (error) {
-      this.logger.error('Error actualizando plantillas:', error);
-      throw new BadRequestException('Error actualizando plantillas');
-    }
-  }
-
-  /**
-   * Obtiene estadísticas de plantillas
-   */
-  @Get('estadisticas')
-  @ApiOperation({ summary: 'Obtener estadísticas de plantillas' })
-  @ApiResponse({ status: 200, description: 'Estadísticas obtenidas correctamente' })
-  async obtenerEstadisticas() {
-    try {
-      const plantillas = await this.plantillasAutoService.obtenerTodasLasPlantillas();
-      
-      const estadisticas = {
-        total: this.contarTotalPlantillas(plantillas),
-        porTipo: {
-          productos: plantillas.productos.length,
-          proveedores: plantillas.proveedores.length,
-          movimientos: plantillas.movimientos.length,
-          otros: plantillas.otros.length
-        },
-        porCategoria: {
-          avanzadas: this.contarPlantillasPorCategoria(plantillas, 'avanzada'),
-          mejoradas: this.contarPlantillasPorCategoria(plantillas, 'mejorada'),
-          estandar: this.contarPlantillasPorCategoria(plantillas, 'estandar')
-        },
-        tamañoTotal: this.calcularTamañoTotal(plantillas),
-        ultimaActualizacion: new Date().toISOString()
-      };
-
-      return {
-        success: true,
-        message: 'Estadísticas obtenidas correctamente',
-        data: estadisticas
-      };
-    } catch (error) {
-      this.logger.error('Error obteniendo estadísticas:', error);
-      throw new BadRequestException('Error obteniendo estadísticas');
     }
   }
 
