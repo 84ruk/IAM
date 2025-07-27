@@ -46,7 +46,6 @@ export const useImportacionSafe = () => {
         importarProveedores: () => Promise.resolve(),
         importarMovimientos: () => Promise.resolve(),
         importarUnified: () => Promise.resolve(),
-        importarUnificada: () => Promise.resolve(),
         importarAuto: () => Promise.resolve(),
         validarAuto: () => Promise.resolve(),
         confirmarAuto: () => Promise.resolve(),
@@ -76,7 +75,7 @@ export const useImportacionSafe = () => {
       isLoadingTrabajos: importacionData.isLoadingTrabajos || false,
       isLoadingTipos: importacionData.isLoadingTipos || false,
       isImporting: importacionData.isImporting || false,
-      isValidating: importacionData.isValidating || false,
+      isValidating: false, // Por defecto false ya que no se usa en el contexto actual
       
       // Estados de respuesta
       success: importacionData.success || null,
@@ -103,7 +102,6 @@ export const useImportacionSafe = () => {
       importarProveedores: importacionData.importarProveedores || (() => Promise.resolve()),
       importarMovimientos: importacionData.importarMovimientos || (() => Promise.resolve()),
       importarUnified: importacionData.importarUnified || (() => Promise.resolve()),
-      importarUnificada: importacionData.importarUnificada || (() => Promise.resolve()),
       importarAuto: importacionData.importarAuto || (() => Promise.resolve()),
       validarAuto: importacionData.validarAuto || (() => Promise.resolve()),
       confirmarAuto: importacionData.confirmarAuto || (() => Promise.resolve()),

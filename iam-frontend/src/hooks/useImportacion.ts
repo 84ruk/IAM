@@ -10,6 +10,7 @@ import {
   TiposSoportadosResponse,
   TipoSoportado
 } from '@/lib/api/importacion'
+import { useServerUser } from '@/context/ServerUserContext'
 
 export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos' | 'auto'
 
@@ -72,6 +73,8 @@ const createClearHandlers = (setState: React.Dispatch<React.SetStateAction<Impor
 
 export const useImportacion = (options: UseImportacionOptions = {}) => {
   const config = useMemo(() => ({ ...DEFAULT_OPTIONS, ...options }), [options])
+  const user = useServerUser()
+  const isAuthenticated = !!user
 
   const [state, setState] = useState<ImportacionState>({
     isImporting: false,
@@ -559,6 +562,7 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
   // Efectos
   useEffect(() => {
     const initializeData = async () => {
+      if (!isAuthenticated) return
       try {
         await Promise.all([
           loadTrabajos(),
@@ -570,7 +574,7 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
     }
 
     initializeData()
-  }, [loadTrabajos, loadTiposSoportados])
+  }, [loadTrabajos, loadTiposSoportados, isAuthenticated])
 
   useEffect(() => {
     return () => {

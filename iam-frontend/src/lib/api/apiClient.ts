@@ -26,7 +26,7 @@ class ApiClient {
     this.instance.interceptors.request.use(
       (config) => {
         // Agregar timestamp para rate limiting
-        config.metadata = { startTime: Date.now() }
+        ;(config as any).metadata = { startTime: Date.now() }
         return config
       },
       (error) => {
@@ -56,7 +56,7 @@ class ApiClient {
           return this.handleRateLimitError(error)
         }
         
-        if (error.response?.status >= 500) {
+        if (error.response?.status && error.response.status >= 500) {
           // Server error - implementar retry
           console.warn('Server error, retrying...')
           return this.handleServerError(error)
@@ -65,9 +65,9 @@ class ApiClient {
         // Transformar el error en un formato más útil
         const userFriendlyError = ErrorHandlerService.parseBackendError({
           statusCode: error.response?.status || 0,
-          message: error.response?.data?.message || error.message,
-          error: error.response?.data?.error,
-          details: error.response?.data?.details || error.response?.data
+          message: (error.response?.data as any)?.message || error.message,
+          error: (error.response?.data as any)?.error,
+          details: (error.response?.data as any)?.details || error.response?.data
         })
 
         // Agregar el error transformado al objeto de error original

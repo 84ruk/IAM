@@ -163,8 +163,8 @@ class ImportacionAPI {
     formData.append('archivo', archivo)
     formData.append('opciones', JSON.stringify(opciones))
 
-    const response = await apiClient.post('/importacion/productos', formData)
-    return response.data
+    const response = await apiClient.post<ResultadoImportacion>('/importacion/productos', formData)
+    return response
   }
 
   async importarProveedores(
@@ -175,8 +175,8 @@ class ImportacionAPI {
     formData.append('archivo', archivo)
     formData.append('opciones', JSON.stringify(opciones))
 
-    const response = await apiClient.post('/importacion/proveedores', formData)
-    return response.data
+    const response = await apiClient.post<ResultadoImportacion>('/importacion/proveedores', formData)
+    return response
   }
 
   async importarMovimientos(
@@ -187,8 +187,8 @@ class ImportacionAPI {
     formData.append('archivo', archivo)
     formData.append('opciones', JSON.stringify(opciones))
 
-    const response = await apiClient.post('/importacion/movimientos', formData)
-    return response.data
+    const response = await apiClient.post<ResultadoImportacion>('/importacion/movimientos', formData)
+    return response
   }
 
   // Nuevos endpoints unificados
@@ -200,8 +200,8 @@ class ImportacionAPI {
     formData.append('archivo', archivo)
     formData.append('opciones', JSON.stringify(opciones))
 
-    const response = await apiClient.post('/importacion/unificada', formData)
-    return response.data
+    const response = await apiClient.post<ResultadoImportacion>('/importacion/unificada', formData)
+    return response
   }
 
   async importarAuto(
@@ -212,8 +212,8 @@ class ImportacionAPI {
     formData.append('archivo', archivo)
     formData.append('opciones', JSON.stringify(opciones))
 
-    const response = await apiClient.post('/importacion/auto', formData)
-    return response.data
+    const response = await apiClient.post<ResultadoImportacion>('/importacion/auto', formData)
+    return response
   }
 
   async validarAuto(
@@ -226,39 +226,39 @@ class ImportacionAPI {
       formData.append('opciones', JSON.stringify(opciones))
     }
 
-    const response = await apiClient.post('/importacion/auto/validar', formData)
-    return response.data
+    const response = await apiClient.post<DeteccionTipoResponse>('/importacion/auto/validar', formData)
+    return response
   }
 
   async confirmarAuto(
     trabajoId: string,
     opciones: ConfirmacionAutoDto
   ): Promise<ResultadoImportacion> {
-    const response = await apiClient.post(`/importacion/auto/confirmar/${trabajoId}`, opciones)
-    return response.data
+    const response = await apiClient.post<ResultadoImportacion>(`/importacion/auto/confirmar/${trabajoId}`, opciones)
+    return response
   }
 
   async obtenerTiposSoportados(): Promise<TiposSoportadosResponse> {
-    const response = await apiClient.get('/importacion/tipos-soportados')
-    return response.data
+    const response = await apiClient.get<TiposSoportadosResponse>('/importacion/tipos-soportados')
+    return response
   }
 
   async descargarPlantillaMejorada(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<Blob> {
-    const response = await apiClient.get(`/importacion/plantillas-mejoradas/${tipo}`, {
+    const response = await apiClient.get<Blob>(`/importacion/plantillas-mejoradas/${tipo}`, {
       responseType: 'blob',
     })
-    return response.data
+    return response
   }
 
   // Endpoints existentes (mantener compatibilidad)
   async obtenerEstadoTrabajo(trabajoId: string): Promise<EstadoTrabajoResponse> {
-    const response = await apiClient.get(`/importacion/trabajos/${trabajoId}`)
-    return response.data
+    const response = await apiClient.get<EstadoTrabajoResponse>(`/importacion/trabajos/${trabajoId}`)
+    return response
   }
 
   async listarTrabajos(limit = 50, offset = 0): Promise<ListaTrabajosResponse> {
-    const response = await apiClient.get(`/importacion/trabajos?limit=${limit}&offset=${offset}`)
-    return response.data
+    const response = await apiClient.get<ListaTrabajosResponse>(`/importacion/trabajos?limit=${limit}&offset=${offset}`)
+    return response
   }
 
   async cancelarTrabajo(trabajoId: string): Promise<void> {
@@ -266,22 +266,22 @@ class ImportacionAPI {
   }
 
   async descargarReporteErrores(trabajoId: string): Promise<Blob> {
-    const response = await apiClient.get(`/importacion/trabajos/${trabajoId}/reporte-errores`, {
+    const response = await apiClient.get<Blob>(`/importacion/trabajos/${trabajoId}/reporte-errores`, {
       responseType: 'blob',
     })
-    return response.data
+    return response
   }
 
   async descargarPlantilla(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<Blob> {
-    const response = await apiClient.get(`/importacion/plantillas/${tipo}`, {
+    const response = await apiClient.get<Blob>(`/importacion/plantillas/${tipo}`, {
       responseType: 'blob',
     })
-    return response.data
+    return response
   }
 
   async listarPlantillas(): Promise<PlantillasResponse> {
-    const response = await apiClient.get('/importacion/plantillas')
-    return response.data
+    const response = await apiClient.get<PlantillasResponse>('/importacion/plantillas')
+    return response
   }
 }
 

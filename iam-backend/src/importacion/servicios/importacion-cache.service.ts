@@ -38,7 +38,6 @@ export interface ImportacionCacheConfig {
 export class ImportacionCacheService {
   private readonly logger = new Logger(ImportacionCacheService.name);
   private redis: RedisClientType;
-  private redisFallbackMode = false; // Flag para modo fallback sin Redis
   private readonly config: ImportacionCacheConfig = {
     plantillas: {
       ttl: 3600, // 1 hora
@@ -69,7 +68,6 @@ export class ImportacionCacheService {
   private async initializeRedis() {
     if (!this.redisConfigService.isRedisConfigured()) {
       this.logger.warn('Redis no configurado, cache de importación deshabilitado');
-      this.redisFallbackMode = true;
       return;
     }
 
@@ -79,46 +77,27 @@ export class ImportacionCacheService {
 
       this.redis.on('error', (err) => {
         this.logger.error('Redis Client Error:', err);
-        this.redisFallbackMode = true;
-        this.logger.warn('Activando modo fallback sin Redis para importación');
       });
 
       this.redis.on('connect', () => {
         this.logger.log('Redis Client Connected for Importacion Cache');
-        this.redisFallbackMode = false;
-      });
-
-      this.redis.on('end', () => {
-        this.logger.warn('Redis connection ended, activando modo fallback');
-        this.redisFallbackMode = true;
       });
 
       await this.redis.connect();
       this.logger.log('Importacion Cache Redis connection established');
     } catch (error) {
       this.logger.error('Failed to connect to Redis for Importacion Cache:', error);
-      this.redisFallbackMode = true;
-      this.logger.warn('Activando modo fallback sin Redis para importación');
-      
       if (process.env.NODE_ENV === 'production') {
-        // En producción, no lanzar error, usar modo fallback
-        this.logger.warn('Continuando en modo fallback sin Redis');
+        throw error;
       }
     }
-  }
-
-  /**
-   * Verificar si Redis está disponible
-   */
-  private isRedisAvailable(): boolean {
-    return !this.redisFallbackMode && this.redis?.isReady;
   }
 
   /**
    * Cache de plantillas de importación
    */
   async getPlantillaCache<T>(tipo: string): Promise<T | null> {
-    if (!this.isRedisAvailable()) return null;
+    if (!this.redis?.isReady) return null;
 
     try {
       const key = `${this.config.plantillas.prefix}:${tipo}`;
@@ -131,7 +110,7 @@ export class ImportacionCacheService {
   }
 
   async setPlantillaCache<T>(tipo: string, data: T): Promise<void> {
-    if (!this.isRedisAvailable()) return;
+    if (!this.redis?.isReady) return;
 
     try {
       const key = `${this.config.plantillas.prefix}:${tipo}`;
@@ -141,11 +120,23 @@ export class ImportacionCacheService {
     }
   }
 
+  async clearPlantillaCache(tipo: string): Promise<void> {
+    if (!this.redis?.isReady) return;
+
+    try {
+      const key = `${this.config.plantillas.prefix}:${tipo}`;
+      await this.redis.del(key);
+      this.logger.log(`Cache de plantilla ${tipo} limpiado`);
+    } catch (error) {
+      this.logger.error(`Error clearing plantilla cache for ${tipo}:`, error);
+    }
+  }
+
   /**
    * Cache de productos por empresa (para validación rápida)
    */
   async getProductosEmpresaCache(empresaId: number): Promise<Map<string, any> | null> {
-    if (!this.isRedisAvailable()) return null;
+    if (!this.redis?.isReady) return null;
 
     try {
       const key = `${this.config.productosEmpresa.prefix}:${empresaId}`;
@@ -163,7 +154,7 @@ export class ImportacionCacheService {
   }
 
   async setProductosEmpresaCache(empresaId: number, productos: Map<string, any>): Promise<void> {
-    if (!this.isRedisAvailable()) return;
+    if (!this.redis?.isReady) return;
 
     try {
       const key = `${this.config.productosEmpresa.prefix}:${empresaId}`;
@@ -178,7 +169,7 @@ export class ImportacionCacheService {
    * Cache de trabajos de importación
    */
   async getTrabajoCache(trabajoId: string): Promise<any | null> {
-    if (!this.isRedisAvailable()) return null;
+    if (!this.redis?.isReady) return null;
 
     try {
       const key = `${this.config.trabajos.prefix}:${trabajoId}`;
@@ -191,7 +182,7 @@ export class ImportacionCacheService {
   }
 
   async setTrabajoCache(trabajoId: string, trabajo: any): Promise<void> {
-    if (!this.isRedisAvailable()) return;
+    if (!this.redis?.isReady) return;
 
     try {
       const key = `${this.config.trabajos.prefix}:${trabajoId}`;
@@ -205,7 +196,7 @@ export class ImportacionCacheService {
    * Cache de resultados de validación
    */
   async getValidacionCache<T>(hash: string): Promise<T | null> {
-    if (!this.isRedisAvailable()) return null;
+    if (!this.redis?.isReady) return null;
 
     try {
       const key = `${this.config.validacion.prefix}:${hash}`;
@@ -218,7 +209,7 @@ export class ImportacionCacheService {
   }
 
   async setValidacionCache<T>(hash: string, resultado: T): Promise<void> {
-    if (!this.isRedisAvailable()) return;
+    if (!this.redis?.isReady) return;
 
     try {
       const key = `${this.config.validacion.prefix}:${hash}`;
@@ -232,7 +223,7 @@ export class ImportacionCacheService {
    * Cache de estadísticas de importación
    */
   async getEstadisticasCache(empresaId: number): Promise<any | null> {
-    if (!this.isRedisAvailable()) return null;
+    if (!this.redis?.isReady) return null;
 
     try {
       const key = `${this.config.estadisticas.prefix}:${empresaId}`;
@@ -245,7 +236,7 @@ export class ImportacionCacheService {
   }
 
   async setEstadisticasCache(empresaId: number, estadisticas: any): Promise<void> {
-    if (!this.isRedisAvailable()) return;
+    if (!this.redis?.isReady) return;
 
     try {
       const key = `${this.config.estadisticas.prefix}:${empresaId}`;
@@ -259,7 +250,7 @@ export class ImportacionCacheService {
    * Invalidación de cache
    */
   async invalidatePlantillas(): Promise<void> {
-    if (!this.isRedisAvailable()) return;
+    if (!this.redis?.isReady) return;
 
     try {
       const pattern = `${this.config.plantillas.prefix}:*`;
@@ -274,7 +265,7 @@ export class ImportacionCacheService {
   }
 
   async invalidateProductosEmpresa(empresaId: number): Promise<void> {
-    if (!this.isRedisAvailable()) return;
+    if (!this.redis?.isReady) return;
 
     try {
       const key = `${this.config.productosEmpresa.prefix}:${empresaId}`;
@@ -285,7 +276,7 @@ export class ImportacionCacheService {
   }
 
   async invalidateTrabajo(trabajoId: string): Promise<void> {
-    if (!this.isRedisAvailable()) return;
+    if (!this.redis?.isReady) return;
 
     try {
       const key = `${this.config.trabajos.prefix}:${trabajoId}`;
@@ -296,7 +287,7 @@ export class ImportacionCacheService {
   }
 
   async invalidateEstadisticas(empresaId: number): Promise<void> {
-    if (!this.isRedisAvailable()) return;
+    if (!this.redis?.isReady) return;
 
     try {
       const key = `${this.config.estadisticas.prefix}:${empresaId}`;
@@ -310,7 +301,7 @@ export class ImportacionCacheService {
    * Limpiar todo el cache de importación
    */
   async clearAll(): Promise<void> {
-    if (!this.isRedisAvailable()) return;
+    if (!this.redis?.isReady) return;
 
     try {
       const patterns = [
@@ -342,7 +333,7 @@ export class ImportacionCacheService {
     keysCount: number;
     memoryUsage?: string;
   }> {
-    if (!this.isRedisAvailable()) {
+    if (!this.redis?.isReady) {
       return {
         isConnected: false,
         keysCount: 0,

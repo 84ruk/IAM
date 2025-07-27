@@ -74,7 +74,7 @@ export class RedisConfigService {
       };
     }
 
-    // Configuración optimizada para evitar timeouts
+    // Configuración optimizada para evitar timeouts y advertencias
     const optimizedConfig = {
       ...baseConfig,
       connectTimeout: 30000,
@@ -86,6 +86,11 @@ export class RedisConfigService {
       lazyConnect: true,
       keepAlive: 30000,
       family: 4,
+      // Configuración para evitar advertencias de evicción
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      // Configuración de memoria para evitar evicción
+      maxMemoryPolicy: 'noeviction',
     };
 
     return optimizedConfig;

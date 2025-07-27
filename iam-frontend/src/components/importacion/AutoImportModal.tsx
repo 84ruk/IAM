@@ -159,7 +159,7 @@ export default function AutoImportModal({ isOpen, onClose }: AutoImportModalProp
     try {
       // Por ahora, siempre usar importación automática
       // TODO: Implementar confirmación cuando sea necesario
-      await importarAuto(archivo, opciones)
+        await importarAuto(archivo, opciones)
     } catch (error) {
       console.error('Error en importación:', error)
     }

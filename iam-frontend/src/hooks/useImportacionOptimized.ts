@@ -117,7 +117,6 @@ export const useImportacionOptimized = () => {
     handleImportError,
     
     // Funciones adicionales con fallbacks
-    descargarPlantilla: descargarPlantilla || ((tipo?: any) => Promise.resolve()),
     cancelarTrabajo: (() => Promise.resolve()),
     descargarReporteErrores: (() => Promise.resolve()),
     importarProductos: (() => Promise.resolve()),

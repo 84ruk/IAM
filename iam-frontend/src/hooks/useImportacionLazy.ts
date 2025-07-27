@@ -10,8 +10,9 @@ import {
   TiposSoportadosResponse,
   TipoSoportado
 } from '@/lib/api/importacion'
+import { useServerUser } from '@/context/ServerUserContext'
 
-export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos'
+export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos' | 'auto'
 
 interface UseImportacionOptions {
   autoPolling?: boolean
@@ -44,10 +45,12 @@ const DEFAULT_OPTIONS: Required<UseImportacionOptions> = {
 
 export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
   const config = useMemo(() => ({ ...DEFAULT_OPTIONS, ...options }), [options])
+  const user = useServerUser()
+  const isAuthenticated = !!user
 
   const [state, setState] = useState<ImportacionState>({
     isImporting: false,
-    isLoading: false,
+    isLoading: false, // Lazy loading, no carga automáticamente
     isInitialized: false,
     currentTrabajo: null,
     trabajos: [],

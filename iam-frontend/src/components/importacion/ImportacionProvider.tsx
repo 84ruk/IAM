@@ -43,7 +43,6 @@ interface ImportacionContextType {
   importarProveedores: (archivo: File, opciones: any) => Promise<void>
   importarMovimientos: (archivo: File, opciones: any) => Promise<void>
   importarUnified: (archivo: File, tipo: any, opciones: any) => Promise<void>
-  importarUnificada: (archivo: File, opciones: any) => Promise<void>
   importarAuto: (archivo: File, opciones: any) => Promise<void>
   validarAuto: (archivo: File, opciones?: any) => Promise<any>
   confirmarAuto: (trabajoId: string, opciones: any) => Promise<void>

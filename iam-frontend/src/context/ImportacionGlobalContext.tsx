@@ -1,16 +1,9 @@
 'use client'
 
 import React, { createContext, useContext, useReducer, useCallback, useEffect, ReactNode } from 'react'
-import { 
-  importacionAPI, 
-  TrabajoImportacion, 
-  ResultadoImportacion, 
-  ImportacionValidationError,
-  ImportacionAutoDto,
-  DeteccionTipoResponse,
-  TiposSoportadosResponse,
-  TipoSoportado
-} from '@/lib/api/importacion'
+import { importacionAPI } from '@/lib/api/importacion'
+import { TrabajoImportacion, TipoSoportado, ImportacionValidationError, DeteccionTipoResponse, ResultadoImportacion, ImportacionAutoDto } from '@/lib/api/importacion'
+import { useServerUser } from '@/context/ServerUserContext'
 
 export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos' | 'auto'
 
@@ -159,6 +152,10 @@ interface ImportacionGlobalProviderProps {
 
 export function ImportacionGlobalProvider({ children }: ImportacionGlobalProviderProps) {
   const [state, dispatch] = useReducer(importacionReducer, initialState)
+  const user = useServerUser()
+  
+  // Verificar si el usuario está autenticado
+  const isAuthenticated = !!user
 
   // Función para cargar trabajos con cache
   const loadTrabajos = useCallback(async (force = false) => {
@@ -233,88 +230,10 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
     }
   }, [state.isInitialized, loadTrabajos, loadTiposSoportados])
 
-  // Funciones de polling
-  const startPolling = useCallback((trabajoId: string) => {
-    // Detener polling anterior si existe
-    if (state.pollingInterval) {
-      clearTimeout(state.pollingInterval)
-    }
-
-    const poll = async () => {
-      try {
-        const response = await importacionAPI.obtenerEstadoTrabajo(trabajoId)
-        const trabajo = response.trabajo
-
-        dispatch({ type: 'SET_CURRENT_TRABAJO', payload: trabajo })
-        
-        console.log('🔍 [DEBUG] startPolling - Trabajo actualizado:', trabajo)
-        console.log('🔍 [DEBUG] startPolling - Estado:', trabajo.estado)
-        console.log('🔍 [DEBUG] startPolling - Progreso:', trabajo.progreso)
-
-        // Solo mostrar mensaje final cuando el trabajo esté realmente completado y progreso sea 100%
-        if (trabajo.estado === 'completado' && trabajo.progreso >= 100) {
-          console.log('🔍 [DEBUG] startPolling - Trabajo completado exitosamente')
-          dispatch({ type: 'SET_IMPORTING', payload: false })
-          dispatch({ 
-            type: 'SET_SUCCESS', 
-            payload: `¡Importación completada! ${trabajo.registrosExitosos} registros procesados exitosamente.` 
-          })
-          dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
-          return
-        }
-
-        // Si hay error o está cancelado, detener polling
-        if (trabajo.estado === 'error' || trabajo.estado === 'cancelado') {
-          console.log('🔍 [DEBUG] startPolling - Trabajo con error o cancelado:', trabajo.estado)
-          dispatch({ type: 'SET_IMPORTING', payload: false })
-          dispatch({ type: 'SET_ERROR', payload: trabajo.mensaje || 'Error en la importación' })
-          dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
-          return
-        }
-
-        // Si está completado pero progreso no es 100%, continuar polling
-        if (trabajo.estado === 'completado' && trabajo.progreso < 100) {
-          console.log('🔍 [DEBUG] startPolling - Trabajo marcado como completado pero progreso < 100%, continuando polling')
-        }
-
-        // Continuar polling
-        const interval = setTimeout(poll, 2000)
-        dispatch({ type: 'SET_POLLING_INTERVAL', payload: interval })
-      } catch (error) {
-        console.error('Error en polling:', error)
-        dispatch({ type: 'SET_IMPORTING', payload: false })
-        dispatch({ type: 'SET_ERROR', payload: 'Error al verificar estado de importación' })
-        dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
-      }
-    }
-
-    poll()
-  }, [state.pollingInterval, dispatch])
-
-  const stopPolling = useCallback(() => {
-    if (state.pollingInterval) {
-      clearTimeout(state.pollingInterval)
-      dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
-    }
-  }, [state.pollingInterval, dispatch])
-
   // Función para manejar respuesta de importación
-  const handleImportResponse = useCallback(async (response: any, tipo: TipoImportacion) => {
-    console.log('🔍 [DEBUG] handleImportResponse - Respuesta completa:', response);
-    console.log('🔍 [DEBUG] handleImportResponse - Tipo:', tipo);
+  const handleImportResponse = useCallback((resultado: any, archivo: File, tipo: TipoImportacion) => {
+    console.log('🔍 Respuesta del backend:', resultado)
     
-    if (!response || !response.resultado) {
-      console.error('❌ [DEBUG] handleImportResponse - Respuesta inválida:', response);
-      dispatch({ type: 'SET_ERROR', payload: 'Respuesta inválida del servidor' });
-      return;
-    }
-
-    const resultado = response.resultado;
-    console.log('🔍 [DEBUG] handleImportResponse - Resultado:', resultado);
-    console.log('🔍 [DEBUG] handleImportResponse - Success:', resultado.success);
-    console.log('🔍 [DEBUG] handleImportResponse - Error:', resultado.error);
-    console.log('🔍 [DEBUG] handleImportResponse - TrabajoId:', resultado.trabajoId);
-
     // Manejar diferentes estructuras de respuesta del backend
     const isSuccess = resultado.success !== false && (resultado.trabajoId || resultado.success)
     const trabajoId = resultado.trabajoId
@@ -330,7 +249,7 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
         estado: estado as any,
         empresaId: 0,
         usuarioId: 0,
-        archivoOriginal: 'N/A', // No disponible en la respuesta
+        archivoOriginal: archivo.name,
         totalRegistros: totalRegistros,
         registrosProcesados: 0,
         registrosExitosos: 0,
@@ -344,7 +263,6 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
       dispatch({ type: 'SET_DETECCION_TIPO', payload: resultado.deteccionTipo || null })
 
       if (estado === 'pendiente' || estado === 'procesando') {
-        dispatch({ type: 'SET_IMPORTING', payload: true }) // Ensure importing is true
         startPolling(trabajoId)
       } else {
         dispatch({ type: 'SET_IMPORTING', payload: false })
@@ -374,7 +292,7 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
         dispatch({ type: 'SET_VALIDATION_ERRORS', payload: null })
       }
     }
-  }, [startPolling])
+  }, [])
 
   // Funciones de importación
   const importarUnified = useCallback(async (archivo: File, tipo: TipoImportacion, opciones: any) => {
@@ -404,7 +322,7 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
           throw new Error(`Tipo de importación no soportado: ${tipo}`)
       }
 
-      handleImportResponse(resultado, tipo)
+      handleImportResponse(resultado, archivo, tipo)
     } catch (error) {
       console.error('Error en importación:', error)
       dispatch({ type: 'SET_IMPORTING', payload: false })
@@ -424,7 +342,7 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
 
     try {
       const resultado = await importacionAPI.importarAuto(archivo, opciones)
-      handleImportResponse(resultado, 'productos')
+      handleImportResponse(resultado, archivo, 'productos')
     } catch (error) {
       console.error('Error en importación automática:', error)
       dispatch({ type: 'SET_IMPORTING', payload: false })
@@ -448,7 +366,88 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
     }
   }, [])
 
+  // Funciones de polling
+  const startPolling = useCallback((trabajoId: string) => {
+    // Detener polling anterior si existe
+    if (state.pollingInterval) {
+      clearTimeout(state.pollingInterval)
+    }
 
+    const poll = async () => {
+      try {
+        const response = await importacionAPI.obtenerEstadoTrabajo(trabajoId)
+        const trabajo = response.trabajo
+
+        dispatch({ type: 'SET_CURRENT_TRABAJO', payload: trabajo })
+        
+        // Solo mostrar como importando si está pendiente o procesando
+        const isStillImporting = trabajo.estado === 'pendiente' || trabajo.estado === 'procesando'
+        dispatch({ type: 'SET_IMPORTING', payload: isStillImporting })
+
+        // Verificar si el trabajo está realmente completado
+        const isCompleted = trabajo.estado === 'completado' && trabajo.progreso >= 100
+        const hasError = trabajo.estado === 'error'
+        const isCancelled = trabajo.estado === 'cancelado'
+        
+        // Solo detener polling y mostrar resultado si está realmente completado, tiene error o fue cancelado
+        if (isCompleted || hasError || isCancelled) {
+          dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
+          dispatch({ type: 'SET_IMPORTING', payload: false })
+          
+          if (isCompleted) {
+          dispatch({ 
+            type: 'SET_SUCCESS', 
+              payload: `Importación completada: ${trabajo.registrosExitosos} registros procesados exitosamente`
+            })
+            dispatch({ type: 'SET_ERROR', payload: null })
+          } else if (hasError) {
+            dispatch({ 
+              type: 'SET_ERROR', 
+              payload: `Error en la importación: ${trabajo.mensaje || 'Error desconocido'}`
+            })
+            dispatch({ type: 'SET_SUCCESS', payload: null })
+          } else if (isCancelled) {
+          dispatch({ 
+            type: 'SET_ERROR', 
+              payload: 'Importación cancelada'
+          })
+            dispatch({ type: 'SET_SUCCESS', payload: null })
+          }
+          
+          // Actualizar lista de trabajos
+          await loadTrabajos(true)
+          return
+        }
+
+        // Si el trabajo está en estado 'completado' pero el progreso no es 100%, 
+        // continuar polling hasta que realmente termine
+        if (trabajo.estado === 'completado' && trabajo.progreso < 100) {
+          console.log(`⚠️ Trabajo marcado como completado pero progreso es ${trabajo.progreso}%. Continuando polling...`)
+        }
+
+        // Continuar polling
+        const interval = setTimeout(poll, 2000)
+        dispatch({ type: 'SET_POLLING_INTERVAL', payload: interval })
+      } catch (error) {
+        console.error('Error en polling:', error)
+        dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
+        dispatch({ type: 'SET_IMPORTING', payload: false })
+        dispatch({ 
+          type: 'SET_ERROR', 
+          payload: 'Error al verificar el estado de la importación'
+        })
+      }
+    }
+
+    poll()
+  }, [state.pollingInterval, loadTrabajos])
+
+  const stopPolling = useCallback(() => {
+    if (state.pollingInterval) {
+      clearTimeout(state.pollingInterval)
+      dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
+    }
+  }, [state.pollingInterval])
 
   // Funciones de limpieza
   const clearError = useCallback(() => {
@@ -489,16 +488,19 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
 
   // Inicializar datos al montar el provider
   useEffect(() => {
-    // Solo inicializar si no está ya inicializado
-    if (!state.isInitialized) {
+    // Solo inicializar si el usuario está autenticado y no está ya inicializado
+    if (isAuthenticated && !state.isInitialized) {
+      console.log('🔄 Usuario autenticado, inicializando datos de importación...')
       initializeData()
+    } else if (!isAuthenticated) {
+      console.log('⏸️ Usuario no autenticado, saltando inicialización de importación')
     }
     
     // Cleanup al desmontar
     return () => {
       stopPolling()
     }
-  }, [state.isInitialized, initializeData, stopPolling])
+  }, [isAuthenticated, state.isInitialized, initializeData, stopPolling])
 
   const contextValue: ImportacionGlobalContextType = {
     state,

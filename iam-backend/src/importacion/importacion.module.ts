@@ -5,6 +5,8 @@ import { ProcesadorArchivosService } from './servicios/procesador-archivos.servi
 import { ValidadorDatosService } from './servicios/validador-datos.service';
 import { TransformadorDatosService } from './servicios/transformador-datos.service';
 import { PlantillasService } from './servicios/plantillas.service';
+import { PlantillasAutoService } from './servicios/plantillas-auto.service';
+import { PlantillasAutoController } from './plantillas-auto.controller';
 import { BatchProcessorService } from './services/batch-processor.service';
 import { ValidationCacheService } from './services/validation-cache.service';
 import { ErrorHandlerService } from './services/error-handler.service';
@@ -25,13 +27,14 @@ import { CommonModule } from '../common/common.module';
     AuthModule,     // Para autenticación y autorización
     CommonModule,   // Para configuración Redis unificada
   ],
-  controllers: [ImportacionController],
+  controllers: [ImportacionController, PlantillasAutoController],
   providers: [
     ImportacionService,
     ProcesadorArchivosService,
     ValidadorDatosService,
     TransformadorDatosService,
     PlantillasService,
+    PlantillasAutoService,
     BatchProcessorService,
     ValidationCacheService,
     ErrorHandlerService,
@@ -47,6 +50,7 @@ import { CommonModule } from '../common/common.module';
     ValidadorDatosService,
     TransformadorDatosService,
     PlantillasService,
+    PlantillasAutoService,
     BatchProcessorService,
     ValidationCacheService,
     ErrorHandlerService,

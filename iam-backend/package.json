@@ -39,7 +39,11 @@
     "db:seed": "node scripts/seed-database.js",
     "health:check": "node scripts/health-check.js",
     "mqtt:check": "node scripts/check-mqtt-status.js",
-    "test:sessions": "node scripts/test-session-management.js"
+    "test:sessions": "node scripts/test-session-management.js",
+    "redis:test": "node scripts/test-redis-connection.js",
+    "redis:example": "node scripts/redis-usage-example.js",
+    "plantillas:test": "node scripts/test-plantillas-auto.js",
+    "plantillas:generate": "node scripts/generate-plantillas-auto.js"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^2.0.2",
