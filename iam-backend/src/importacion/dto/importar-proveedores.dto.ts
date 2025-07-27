@@ -7,7 +7,7 @@ import {
   ValidateNested,
   IsObject,
 } from 'class-validator';
-import { Type, Expose } from 'class-transformer';
+import { Type, Expose, Transform } from 'class-transformer';
 
 export enum TipoValidacionProveedor {
   ESTRICTA = 'estricta',
@@ -39,14 +39,32 @@ export class ConfiguracionEspecificaProveedores {
 
 export class ImportarProveedoresDto {
   @Expose()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value === 'true' || value === '1' || value === 'on';
+    }
+    return Boolean(value);
+  })
   @IsBoolean()
   sobrescribirExistentes: boolean = false;
 
   @Expose()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value === 'true' || value === '1' || value === 'on';
+    }
+    return Boolean(value);
+  })
   @IsBoolean()
   validarSolo: boolean = false;
 
   @Expose()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value === 'true' || value === '1' || value === 'on';
+    }
+    return Boolean(value);
+  })
   @IsBoolean()
   notificarEmail: boolean = false;
 
