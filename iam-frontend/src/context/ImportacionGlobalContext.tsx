@@ -471,11 +471,20 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
     try {
       // Si el tipo es 'auto', usar 'productos' como fallback
       const tipoPlantilla = tipo === 'auto' ? 'productos' : tipo
-      const blob = await importacionAPI.descargarPlantilla(tipoPlantilla)
-      const url = window.URL.createObjectURL(blob)
+      
+      // Usar las nuevas rutas de plantillas automáticas
+      const blob = await importacionAPI.obtenerMejorPlantilla(tipoPlantilla)
+      
+      if (!blob.success || !blob.data) {
+        throw new Error('No se pudo obtener la plantilla')
+      }
+      
+      // Descargar la mejor plantilla disponible
+      const plantillaBlob = await importacionAPI.descargarPlantillaAuto(tipoPlantilla, blob.data.nombre)
+      const url = window.URL.createObjectURL(plantillaBlob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `plantilla-${tipoPlantilla}.xlsx`
+      a.download = blob.data.nombre
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)

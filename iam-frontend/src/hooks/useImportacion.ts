@@ -521,43 +521,69 @@ export const useImportacion = (options: UseImportacionOptions = {}) => {
     }
   }, [handleError])
 
-  // Función para descargar plantilla
+  // Función para descargar plantillas
   const descargarPlantilla = useCallback(async (tipo: TipoImportacion) => {
     try {
       // Si el tipo es 'auto', usar 'productos' como fallback
       const tipoPlantilla = tipo === 'auto' ? 'productos' : tipo
-      const blob = await importacionAPI.descargarPlantilla(tipoPlantilla)
-      const url = window.URL.createObjectURL(blob)
+      
+      // Usar las nuevas rutas de plantillas automáticas
+      const blob = await importacionAPI.obtenerMejorPlantilla(tipoPlantilla)
+      
+      if (!blob.success || !blob.data) {
+        throw new Error('No se pudo obtener la plantilla')
+      }
+      
+      // Descargar la mejor plantilla disponible
+      const plantillaBlob = await importacionAPI.descargarPlantillaAuto(tipoPlantilla, blob.data.nombre)
+      const url = window.URL.createObjectURL(plantillaBlob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `plantilla-${tipoPlantilla}.xlsx`
+      a.download = blob.data.nombre
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
     } catch (error) {
-      handleError(error, 'descargar plantilla')
+      console.error('Error al descargar plantilla:', error)
+      setState(prev => ({ ...prev, error: 'Error al descargar la plantilla' }))
     }
-  }, [handleError])
+  }, [])
 
   // Nueva función para descargar plantilla mejorada
   const descargarPlantillaMejorada = useCallback(async (tipo: TipoImportacion) => {
     try {
       // Si el tipo es 'auto', usar 'productos' como fallback
       const tipoPlantilla = tipo === 'auto' ? 'productos' : tipo
-      const blob = await importacionAPI.descargarPlantillaMejorada(tipoPlantilla)
-      const url = window.URL.createObjectURL(blob)
+      
+      // Buscar plantillas mejoradas del tipo específico
+      const plantillas = await importacionAPI.buscarPlantillas({
+        tipo: tipoPlantilla,
+        incluirMejoradas: true
+      })
+      
+      if (!plantillas.success || !plantillas.data.plantillas.length) {
+        throw new Error('No se encontraron plantillas mejoradas')
+      }
+      
+      // Obtener la primera plantilla mejorada
+      const plantillaMejorada = plantillas.data.plantillas[0]
+      
+      // Descargar la plantilla mejorada
+      const plantillaBlob = await importacionAPI.descargarPlantillaAuto(tipoPlantilla, plantillaMejorada.nombre)
+      const url = window.URL.createObjectURL(plantillaBlob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `plantilla-mejorada-${tipoPlantilla}.xlsx`
+      a.download = plantillaMejorada.nombre
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
     } catch (error) {
-      handleError(error, 'descargar plantilla mejorada')
+      console.error('Error al descargar plantilla mejorada:', error)
+      setState(prev => ({ ...prev, error: 'Error al descargar la plantilla mejorada' }))
     }
-  }, [handleError])
+  }, [])
 
   // Efectos
   useEffect(() => {

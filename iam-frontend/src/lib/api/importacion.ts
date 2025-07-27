@@ -283,6 +283,60 @@ class ImportacionAPI {
     const response = await apiClient.get<PlantillasResponse>('/importacion/plantillas')
     return response
   }
+
+  // Nuevos métodos para plantillas automáticas
+  async obtenerTodasLasPlantillas(): Promise<any> {
+    const response = await apiClient.get<any>('/plantillas-auto')
+    return response
+  }
+
+  async obtenerPlantillasPorTipo(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<any> {
+    const response = await apiClient.get<any>(`/plantillas-auto/${tipo}`)
+    return response
+  }
+
+  async obtenerMejorPlantilla(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<any> {
+    const response = await apiClient.get<any>(`/plantillas-auto/${tipo}/mejor`)
+    return response
+  }
+
+  async descargarPlantillaAuto(tipo: 'productos' | 'proveedores' | 'movimientos', nombre: string): Promise<Blob> {
+    const response = await apiClient.get<Blob>(`/plantillas-auto/${tipo}/descargar/${nombre}`, {
+      responseType: 'blob',
+    })
+    return response
+  }
+
+  async obtenerEstadisticasPlantillas(): Promise<any> {
+    const response = await apiClient.get<any>('/plantillas-auto/estadisticas')
+    return response
+  }
+
+  async buscarPlantillas(criterios: {
+    tipo?: string;
+    nombre?: string;
+    incluirAvanzadas?: boolean;
+    incluirMejoradas?: boolean;
+  }): Promise<any> {
+    const params = new URLSearchParams()
+    if (criterios.tipo) params.append('tipo', criterios.tipo)
+    if (criterios.nombre) params.append('nombre', criterios.nombre)
+    if (criterios.incluirAvanzadas !== undefined) params.append('incluirAvanzadas', criterios.incluirAvanzadas.toString())
+    if (criterios.incluirMejoradas !== undefined) params.append('incluirMejoradas', criterios.incluirMejoradas.toString())
+    
+    const response = await apiClient.get<any>(`/plantillas-auto/buscar?${params.toString()}`)
+    return response
+  }
+
+  async obtenerInfoPlantilla(nombre: string): Promise<any> {
+    const response = await apiClient.get<any>(`/plantillas-auto/info/${nombre}`)
+    return response
+  }
+
+  async actualizarPlantillas(): Promise<any> {
+    const response = await apiClient.get<any>('/plantillas-auto/actualizar')
+    return response
+  }
 }
 
 export const importacionAPI = new ImportacionAPI() 

@@ -265,7 +265,7 @@ async function generarPlantilla(tipo) {
     const cell = worksheet.getCell(`A${row}`);
     cell.value = validacion;
     cell.style = {
-      font: { color: { argb: 'FF6C757D' } },
+      font: { color: { argb: 'FF6C757D' }, name: 'Calibri' },
       fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } }
     };
   });

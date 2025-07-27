@@ -391,6 +391,35 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
     }
   }, [])
 
+  // Función para descargar plantillas
+  const descargarPlantilla = useCallback(async (tipo: TipoImportacion) => {
+    try {
+      // Si el tipo es 'auto', usar 'productos' como fallback
+      const tipoPlantilla = tipo === 'auto' ? 'productos' : tipo
+      
+      // Usar las nuevas rutas de plantillas automáticas
+      const blob = await importacionAPI.obtenerMejorPlantilla(tipoPlantilla)
+      
+      if (!blob.success || !blob.data) {
+        throw new Error('No se pudo obtener la plantilla')
+      }
+      
+      // Descargar la mejor plantilla disponible
+      const plantillaBlob = await importacionAPI.descargarPlantillaAuto(tipoPlantilla, blob.data.nombre)
+      const url = window.URL.createObjectURL(plantillaBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = blob.data.nombre
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Error al descargar plantilla:', error)
+      setState(prev => ({ ...prev, error: 'Error al descargar la plantilla' }))
+    }
+  }, [])
+
   // Funciones de limpieza
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }))
@@ -442,6 +471,7 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
     clearSuccess,
     clearValidationErrors,
     clearDeteccionTipo,
-    stopPolling
+    stopPolling,
+    descargarPlantilla
   }
 } 
