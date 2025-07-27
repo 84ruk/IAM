@@ -202,11 +202,24 @@ export class PlantillasAutoService implements OnModuleInit {
   async obtenerMejorPlantilla(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<PlantillaInfo | null> {
     await this.asegurarPlantillasActualizadas();
     
-    const plantillas = this.plantillasCache![tipo];
+    let plantillas = this.plantillasCache![tipo];
     
     if (plantillas.length === 0) {
       this.logger.warn(`⚠️ No se encontraron plantillas para ${tipo}`);
-      return null;
+      
+      // Intentar generar plantillas automáticamente si no existen
+      await this.intentarGenerarPlantillasAutomaticamente();
+      
+      // Re-detectarlas después de la generación
+      await this.actualizarPlantillas();
+      
+      plantillas = this.plantillasCache![tipo];
+      if (plantillas.length === 0) {
+        this.logger.error(`❌ No se pudieron generar plantillas para ${tipo}`);
+        return null;
+      }
+      
+      this.logger.log(`✅ Plantillas generadas automáticamente para ${tipo}`);
     }
 
     // Priorizar plantillas automáticas (para detección automática)
@@ -342,6 +355,63 @@ export class PlantillasAutoService implements OnModuleInit {
     ];
 
     return todasLasPlantillas.find(p => p.nombre === nombreArchivo) || null;
+  }
+
+  /**
+   * Intenta generar plantillas automáticamente si no existen
+   */
+  private async intentarGenerarPlantillasAutomaticamente(): Promise<void> {
+    try {
+      this.logger.log('🔄 Intentando generar plantillas automáticamente...');
+      
+      // Verificar si el script de generación está disponible
+      const { spawn } = require('child_process');
+      const path = require('path');
+      
+      const scriptPath = path.join(process.cwd(), 'scripts', 'generate-plantillas-auto.js');
+      
+      if (!require('fs').existsSync(scriptPath)) {
+        this.logger.warn('⚠️ Script de generación de plantillas no encontrado');
+        return;
+      }
+
+      // Ejecutar el script de generación
+      return new Promise((resolve, reject) => {
+        const child = spawn('node', [scriptPath], {
+          stdio: 'pipe',
+          cwd: process.cwd()
+        });
+
+        let output = '';
+        let errorOutput = '';
+
+        child.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        child.stderr.on('data', (data) => {
+          errorOutput += data.toString();
+        });
+
+        child.on('close', (code) => {
+          if (code === 0) {
+            this.logger.log('✅ Plantillas generadas automáticamente');
+            resolve();
+          } else {
+            this.logger.error(`❌ Error generando plantillas: ${errorOutput}`);
+            reject(new Error(`Script failed with code ${code}`));
+          }
+        });
+
+        child.on('error', (error) => {
+          this.logger.error(`❌ Error ejecutando script: ${error.message}`);
+          reject(error);
+        });
+      });
+
+    } catch (error) {
+      this.logger.error('❌ Error en generación automática de plantillas:', error);
+    }
   }
 
   /**

@@ -78,10 +78,10 @@ export class PlantillasService {
     
     if (fs.existsSync(rutaPlantillaMejorada)) {
       this.logger.log('✅ Usando plantilla mejorada de proveedores');
-      
+
       // Guardar en cache
       await this.cacheService.setPlantillaCache('proveedores', 'plantilla-proveedores-mejorada.xlsx');
-      
+    
       return 'plantilla-proveedores-mejorada.xlsx';
     }
 
@@ -116,10 +116,10 @@ export class PlantillasService {
     
     if (fs.existsSync(rutaPlantillaMejorada)) {
       this.logger.log('✅ Usando plantilla mejorada de movimientos');
-      
+
       // Guardar en cache
       await this.cacheService.setPlantillaCache('movimientos', 'plantilla-movimientos-mejorada.xlsx');
-      
+    
       return 'plantilla-movimientos-mejorada.xlsx';
     }
 

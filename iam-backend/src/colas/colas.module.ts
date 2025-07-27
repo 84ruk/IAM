@@ -13,6 +13,9 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { CommonModule } from '../common/common.module';
 import { ImportacionCacheService } from '../importacion/servicios/importacion-cache.service';
+import { AdvancedLoggingService } from '../importacion/services/advanced-logging.service';
+import { SmartErrorResolverService } from '../importacion/services/smart-error-resolver.service';
+import { ImportacionProgressTrackerService } from '../importacion/services/importacion-progress-tracker.service';
 import { EstrategiaImportacionFactory } from '../importacion/factories/estrategia-importacion.factory';
 import { ProductosEstrategia } from '../importacion/dto/estrategias/productos-estrategia';
 import { ProveedoresEstrategia } from '../importacion/dto/estrategias/proveedores-estrategia';
@@ -38,6 +41,9 @@ import { MovimientosEstrategia } from '../importacion/dto/estrategias/movimiento
     ImportacionMovimientosProcesador,
     ImportacionUnificadaProcesador,
     ImportacionCacheService,
+    AdvancedLoggingService,
+    SmartErrorResolverService,
+    ImportacionProgressTrackerService,
     EstrategiaImportacionFactory,
     ProductosEstrategia,
     ProveedoresEstrategia,
@@ -54,6 +60,9 @@ import { MovimientosEstrategia } from '../importacion/dto/estrategias/movimiento
     ImportacionMovimientosProcesador,
     ImportacionUnificadaProcesador,
     ImportacionCacheService,
+    AdvancedLoggingService,
+    SmartErrorResolverService,
+    ImportacionProgressTrackerService,
     EstrategiaImportacionFactory,
     ProductosEstrategia,
     ProveedoresEstrategia,

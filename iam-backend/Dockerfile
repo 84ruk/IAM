@@ -19,6 +19,12 @@ RUN npx prisma generate
 # Copia el resto del código del backend
 COPY . .
 
+# Verifica que los scripts existen antes de ejecutarlos
+RUN ls -la scripts/
+
+# Genera las plantillas automáticamente durante el build (usando script simple)
+RUN node scripts/simple-init-plantillas.js
+
 # Compila el código TypeScript
 RUN npm run build
 
@@ -35,6 +41,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/uploads ./uploads
 
 # Crea un usuario no-root para seguridad
 RUN addgroup -g 1001 -S nodejs

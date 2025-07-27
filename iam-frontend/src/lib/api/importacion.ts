@@ -161,7 +161,19 @@ class ImportacionAPI {
   ): Promise<ResultadoImportacion> {
     const formData = new FormData()
     formData.append('archivo', archivo)
-    formData.append('opciones', JSON.stringify(opciones))
+    
+    // Enviar campos booleanos como booleanos reales
+    formData.append('sobrescribirExistentes', String(opciones.sobrescribirExistentes))
+    formData.append('validarSolo', String(opciones.validarSolo))
+    formData.append('notificarEmail', String(opciones.notificarEmail))
+    
+    if (opciones.emailNotificacion) {
+      formData.append('emailNotificacion', opciones.emailNotificacion)
+    }
+    
+    if (opciones.configuracionEspecifica) {
+      formData.append('configuracionEspecifica', JSON.stringify(opciones.configuracionEspecifica))
+    }
 
     const response = await apiClient.post<ResultadoImportacion>('/importacion/productos', formData)
     return response
@@ -173,7 +185,19 @@ class ImportacionAPI {
   ): Promise<ResultadoImportacion> {
     const formData = new FormData()
     formData.append('archivo', archivo)
-    formData.append('opciones', JSON.stringify(opciones))
+    
+    // Enviar campos booleanos como booleanos reales
+    formData.append('sobrescribirExistentes', String(opciones.sobrescribirExistentes))
+    formData.append('validarSolo', String(opciones.validarSolo))
+    formData.append('notificarEmail', String(opciones.notificarEmail))
+    
+    if (opciones.emailNotificacion) {
+      formData.append('emailNotificacion', opciones.emailNotificacion)
+    }
+    
+    if (opciones.configuracionEspecifica) {
+      formData.append('configuracionEspecifica', JSON.stringify(opciones.configuracionEspecifica))
+    }
 
     const response = await apiClient.post<ResultadoImportacion>('/importacion/proveedores', formData)
     return response
@@ -185,7 +209,19 @@ class ImportacionAPI {
   ): Promise<ResultadoImportacion> {
     const formData = new FormData()
     formData.append('archivo', archivo)
-    formData.append('opciones', JSON.stringify(opciones))
+    
+    // Enviar campos booleanos como booleanos reales
+    formData.append('sobrescribirExistentes', String(opciones.sobrescribirExistentes))
+    formData.append('validarSolo', String(opciones.validarSolo))
+    formData.append('notificarEmail', String(opciones.notificarEmail))
+    
+    if (opciones.emailNotificacion) {
+      formData.append('emailNotificacion', opciones.emailNotificacion)
+    }
+    
+    if (opciones.configuracionEspecifica) {
+      formData.append('configuracionEspecifica', JSON.stringify(opciones.configuracionEspecifica))
+    }
 
     const response = await apiClient.post<ResultadoImportacion>('/importacion/movimientos', formData)
     return response

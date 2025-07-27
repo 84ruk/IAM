@@ -2,7 +2,6 @@
 import './globals.css'
 import { montserrat } from './fonts'
 import { ReactNode } from 'react'
-import { ImportacionGlobalProvider } from '@/context/ImportacionGlobalContext'
 import { ImportacionErrorBoundary } from '@/components/importacion/ImportacionErrorBoundary'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -17,9 +16,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className={`${montserrat.className} bg-gray-50 antialiased text-gray-800`}>
         <ImportacionErrorBoundary>
-          <ImportacionGlobalProvider>
-            {children}
-          </ImportacionGlobalProvider>
+          {children}
         </ImportacionErrorBoundary>
       </body>
     </html>

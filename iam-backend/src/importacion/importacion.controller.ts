@@ -19,7 +19,7 @@ import {
 import { FileTypeValidator } from './validators/file-type.validator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ImportacionService } from './importacion.service';
 import { 
   ImportarProductosDto, 
@@ -1064,6 +1064,124 @@ export class ImportacionController {
         await this.importacionService.limpiarArchivosTemporales(archivo.path);
       }
       
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene el progreso detallado de un trabajo de importación
+   */
+  @Get('trabajos/:trabajoId/progreso-detallado')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Obtener progreso detallado de un trabajo de importación' })
+  @ApiParam({ name: 'trabajoId', description: 'ID del trabajo de importación' })
+  @ApiResponse({ status: 200, description: 'Progreso detallado obtenido correctamente' })
+  @ApiResponse({ status: 404, description: 'Trabajo no encontrado' })
+  async obtenerProgresoDetallado(
+    @Param('trabajoId') trabajoId: string,
+    @CurrentUser() usuario: JwtUser,
+  ) {
+    try {
+      if (!usuario.empresaId) {
+        throw new BadRequestException('Usuario no tiene empresa asignada');
+      }
+
+      const progresoDetallado = await this.importacionService.obtenerProgresoDetallado(
+        trabajoId,
+        usuario.empresaId
+      );
+
+      return {
+        success: true,
+        ...progresoDetallado,
+      };
+    } catch (error) {
+      this.logger.error(`Error obteniendo progreso detallado del trabajo ${trabajoId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resuelve errores de forma inteligente
+   */
+  @Post('trabajos/:trabajoId/resolver-errores')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resolver errores de forma inteligente' })
+  @ApiParam({ name: 'trabajoId', description: 'ID del trabajo de importación' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        autoCorregir: { type: 'boolean', description: 'Aplicar correcciones automáticamente' },
+        usarValoresPorDefecto: { type: 'boolean', description: 'Usar valores por defecto' },
+        nivelConfianzaMinimo: { type: 'number', description: 'Nivel de confianza mínimo para correcciones' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Errores resueltos correctamente' })
+  @ApiResponse({ status: 404, description: 'Trabajo no encontrado' })
+  async resolverErroresInteligentemente(
+    @Param('trabajoId') trabajoId: string,
+    @Body() opciones: {
+      autoCorregir: boolean;
+      usarValoresPorDefecto: boolean;
+      nivelConfianzaMinimo: number;
+    },
+    @CurrentUser() usuario: JwtUser,
+  ) {
+    try {
+      if (!usuario.empresaId) {
+        throw new BadRequestException('Usuario no tiene empresa asignada');
+      }
+
+      const resultado = await this.importacionService.resolverErroresInteligentemente(
+        trabajoId,
+        usuario.empresaId,
+        opciones
+      );
+
+      return {
+        success: true,
+        ...resultado,
+      };
+    } catch (error) {
+      this.logger.error(`Error resolviendo errores del trabajo ${trabajoId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene logs detallados de un trabajo
+   */
+  @Get('trabajos/:trabajoId/logs')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Obtener logs detallados de un trabajo de importación' })
+  @ApiParam({ name: 'trabajoId', description: 'ID del trabajo de importación' })
+  @ApiQuery({ name: 'nivel', required: false, enum: ['debug', 'info', 'warn', 'error'] })
+  @ApiResponse({ status: 200, description: 'Logs obtenidos correctamente' })
+  @ApiResponse({ status: 404, description: 'Trabajo no encontrado' })
+  async obtenerLogsDetallados(
+    @Param('trabajoId') trabajoId: string,
+    @Query('nivel') nivel?: 'debug' | 'info' | 'warn' | 'error',
+    @CurrentUser() usuario?: JwtUser,
+  ) {
+    try {
+      if (!usuario?.empresaId) {
+        throw new BadRequestException('Usuario no tiene empresa asignada');
+      }
+
+      const logs = await this.importacionService.obtenerLogsDetallados(
+        trabajoId,
+        usuario.empresaId,
+        nivel
+      );
+
+      return {
+        success: true,
+        ...logs,
+      };
+    } catch (error) {
+      this.logger.error(`Error obteniendo logs del trabajo ${trabajoId}:`, error);
       throw error;
     }
   }

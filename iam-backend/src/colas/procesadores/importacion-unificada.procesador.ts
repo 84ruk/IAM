@@ -82,9 +82,23 @@ export class ImportacionUnificadaProcesador extends BaseProcesadorService {
         const lote = datosTransformados.slice(i, i + configEstrategia.loteSize);
         await estrategia.procesarLote(lote, trabajo, resultado, job, contexto);
         
-        // Actualizar progreso
-        const progreso = Math.round(((i + configEstrategia.loteSize) / datosTransformados.length) * 100);
+        // Actualizar progreso y contadores
+        const registrosProcesados = Math.min(i + configEstrategia.loteSize, datosTransformados.length);
+        const progreso = Math.round((registrosProcesados / datosTransformados.length) * 100);
+        
+        // Actualizar el trabajo con los contadores reales
+        trabajo.registrosProcesados = registrosProcesados;
+        trabajo.registrosExitosos = resultado.estadisticas.exitosos;
+        trabajo.registrosConError = resultado.estadisticas.errores;
+        trabajo.progreso = progreso;
+        
+        // Guardar las actualizaciones en el cache para que el frontend las vea
+        await this.cacheService.setTrabajoCache(trabajo.id, trabajo);
+        
+        // Actualizar el job con el progreso
         await job.updateProgress(Math.min(progreso, 100));
+        
+        this.logger.log(`📊 Progreso: ${progreso}% - Procesados: ${registrosProcesados}/${datosTransformados.length} - Exitosos: ${resultado.estadisticas.exitosos} - Errores: ${resultado.estadisticas.errores}`);
       }
 
       // 6. Generar archivo de resultados si hay errores
@@ -92,10 +106,37 @@ export class ImportacionUnificadaProcesador extends BaseProcesadorService {
         resultado.archivoResultado = await this.generarArchivoErrores(trabajo, resultado.errores);
       }
 
-      resultado.estado = EstadoTrabajo.COMPLETADO;
+      // Actualizar el trabajo con los contadores finales
+      trabajo.registrosProcesados = datosTransformados.length;
+      trabajo.registrosExitosos = resultado.estadisticas.exitosos;
+      trabajo.registrosConError = resultado.estadisticas.errores;
+      trabajo.progreso = 100;
+      
+      // Guardar el estado final en el cache
+      await this.cacheService.setTrabajoCache(trabajo.id, trabajo);
+      
       resultado.tiempoProcesamiento = Date.now() - inicio;
 
-      this.logger.log(`✅ Importación unificada completada: ${resultado.estadisticas.exitosos}/${resultado.estadisticas.total} registros`);
+      // Determinar el estado final basado en los resultados
+      if (resultado.estadisticas.exitosos === 0 && resultado.estadisticas.errores > 0) {
+        // Si no se procesó ningún registro exitosamente, marcar como error
+        resultado.estado = EstadoTrabajo.ERROR;
+        trabajo.estado = EstadoTrabajo.ERROR;
+        this.logger.warn(`⚠️ Importación unificada con errores: ${resultado.estadisticas.errores}/${resultado.estadisticas.total} registros con errores`);
+      } else if (resultado.estadisticas.errores > 0) {
+        // Si hay algunos errores pero también éxitos, marcar como completado con advertencia
+        resultado.estado = EstadoTrabajo.COMPLETADO;
+        trabajo.estado = EstadoTrabajo.COMPLETADO;
+        this.logger.log(`✅ Importación unificada completada con advertencias: ${resultado.estadisticas.exitosos} exitosos, ${resultado.estadisticas.errores} con errores`);
+      } else {
+        // Si todo fue exitoso
+        resultado.estado = EstadoTrabajo.COMPLETADO;
+        trabajo.estado = EstadoTrabajo.COMPLETADO;
+        this.logger.log(`✅ Importación unificada completada exitosamente: ${resultado.estadisticas.exitosos}/${resultado.estadisticas.total} registros`);
+      }
+      
+      // Guardar el estado final actualizado en el cache
+      await this.cacheService.setTrabajoCache(trabajo.id, trabajo);
 
       return resultado;
 

@@ -2,26 +2,40 @@ import { Injectable } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ImportacionCacheService } from '../../importacion/servicios/importacion-cache.service';
+import { AdvancedLoggingService } from '../../importacion/services/advanced-logging.service';
+import { SmartErrorResolverService } from '../../importacion/services/smart-error-resolver.service';
+import { ImportacionProgressTrackerService } from '../../importacion/services/importacion-progress-tracker.service';
 import { TrabajoImportacion, ResultadoImportacion, ErrorImportacion, EstadoTrabajo, ProductoImportacion } from '../interfaces/trabajo-importacion.interface';
-import { BaseProcesadorService } from '../services/base-procesador.service';
+import { EnhancedBaseProcesadorService } from '../services/enhanced-base-procesador.service';
 import { LoteProcesador } from '../interfaces/base-procesador.interface';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
-export class ImportacionProductosProcesador extends BaseProcesadorService {
+export class ImportacionProductosProcesador extends EnhancedBaseProcesadorService {
   constructor(
     prisma: PrismaService,
-    cacheService: ImportacionCacheService
+    cacheService: ImportacionCacheService,
+    advancedLogging: AdvancedLoggingService,
+    smartErrorResolver: SmartErrorResolverService,
+    progressTracker: ImportacionProgressTrackerService
   ) {
-    super(prisma, cacheService, 'ImportacionProductosProcesador', {
-      loteSize: 100,
-      maxRetries: 3,
-      timeout: 30000,
-      enableCache: true,
-      cacheTTL: 1800,
-    });
+    super(
+      prisma, 
+      cacheService, 
+      advancedLogging,
+      smartErrorResolver,
+      progressTracker,
+      'ImportacionProductosProcesador', 
+      {
+        loteSize: 100,
+        maxRetries: 3,
+        timeout: 30000,
+        enableCache: true,
+        cacheTTL: 1800,
+      }
+    );
   }
 
   async procesar(trabajo: TrabajoImportacion, job: Job): Promise<ResultadoImportacion> {
@@ -291,5 +305,8 @@ export class ImportacionProductosProcesador extends BaseProcesadorService {
     }
   }
 
+  protected obtenerCamposRequeridos(): string[] {
+    return ['nombre', 'descripcion', 'stock', 'precioCompra', 'precioVenta', 'stockMinimo'];
+  }
 
 } 

@@ -7,7 +7,7 @@ import {
   ValidateNested,
   IsObject,
 } from 'class-validator';
-import { Type, Expose, Transform } from 'class-transformer';
+import { Type, Expose } from 'class-transformer';
 
 export enum TipoValidacionProveedor {
   ESTRICTA = 'estricta',
@@ -39,32 +39,14 @@ export class ConfiguracionEspecificaProveedores {
 
 export class ImportarProveedoresDto {
   @Expose()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value === 'true' || value === '1' || value === 'on';
-    }
-    return Boolean(value);
-  })
   @IsBoolean()
   sobrescribirExistentes: boolean = false;
 
   @Expose()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value === 'true' || value === '1' || value === 'on';
-    }
-    return Boolean(value);
-  })
   @IsBoolean()
   validarSolo: boolean = false;
 
   @Expose()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value === 'true' || value === '1' || value === 'on';
-    }
-    return Boolean(value);
-  })
   @IsBoolean()
   notificarEmail: boolean = false;
 
@@ -81,16 +63,20 @@ export class ImportarProveedoresDto {
   configuracionEspecifica?: ConfiguracionEspecificaProveedores;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      try {
-        return JSON.parse(value);
-      } catch (error) {
-        return {};
-      }
-    }
-    return value || {};
-  })
   @IsObject()
   opciones?: any; // Para capturar propiedades adicionales del frontend
+
+  // Transformar strings a booleanos si es necesario
+  constructor() {
+    // Asegurar que los campos booleanos sean booleanos reales
+    if (typeof this.sobrescribirExistentes === 'string') {
+      this.sobrescribirExistentes = this.sobrescribirExistentes === 'true';
+    }
+    if (typeof this.validarSolo === 'string') {
+      this.validarSolo = this.validarSolo === 'true';
+    }
+    if (typeof this.notificarEmail === 'string') {
+      this.notificarEmail = this.notificarEmail === 'true';
+    }
+  }
 } 

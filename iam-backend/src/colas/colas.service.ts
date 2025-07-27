@@ -147,18 +147,18 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
         resultado = await this.importacionUnificadaProcesador.procesar(trabajo, job);
       } else {
         // Fallback a procesadores específicos si es necesario
-        switch (trabajo.tipo) {
-          case 'productos':
-            resultado = await this.importacionProductosProcesador.procesar(trabajo, job);
-            break;
-          case 'proveedores':
-            resultado = await this.importacionProveedoresProcesador.procesar(trabajo, job);
-            break;
-          case 'movimientos':
-            resultado = await this.importacionMovimientosProcesador.procesar(trabajo, job);
-            break;
-          default:
-            throw new Error(`Tipo de importación no soportado: ${trabajo.tipo}`);
+      switch (trabajo.tipo) {
+        case 'productos':
+          resultado = await this.importacionProductosProcesador.procesar(trabajo, job);
+          break;
+        case 'proveedores':
+          resultado = await this.importacionProveedoresProcesador.procesar(trabajo, job);
+          break;
+        case 'movimientos':
+          resultado = await this.importacionMovimientosProcesador.procesar(trabajo, job);
+          break;
+        default:
+          throw new Error(`Tipo de importación no soportado: ${trabajo.tipo}`);
         }
       }
 

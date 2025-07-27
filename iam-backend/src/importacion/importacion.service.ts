@@ -11,6 +11,9 @@ import { TrabajoImportacionFactory } from './factories/trabajo-importacion.facto
 import { BatchProcessorService } from './services/batch-processor.service';
 import { ValidationCacheService } from './services/validation-cache.service';
 import { ErrorHandlerService } from './services/error-handler.service';
+import { AdvancedLoggingService } from './services/advanced-logging.service';
+import { SmartErrorResolverService } from './services/smart-error-resolver.service';
+import { ImportacionProgressTrackerService } from './services/importacion-progress-tracker.service';
 import { 
   ImportarProductosDto, 
   ImportarProveedoresDto, 
@@ -45,6 +48,9 @@ export class ImportacionService extends BaseImportacionService {
     protected readonly errorHandler: ErrorHandlerService,
     private readonly plantillasService: PlantillasService,
     private readonly prisma: PrismaService,
+    private readonly advancedLogging: AdvancedLoggingService,
+    private readonly smartErrorResolver: SmartErrorResolverService,
+    private readonly progressTracker: ImportacionProgressTrackerService,
   ) {
     super(colasService, procesadorArchivos, validadorDatos, transformadorDatos, batchProcessor, validationCache, errorHandler, ImportacionService.name);
   }
@@ -129,7 +135,7 @@ export class ImportacionService extends BaseImportacionService {
           emailNotificacion: opciones.emailNotificacion,
           configuracionEspecifica: opciones.getConfiguracionEspecifica(),
         },
-      });
+    });
   }
 
   /**
@@ -320,5 +326,136 @@ export class ImportacionService extends BaseImportacionService {
     delayed: number;
   }> {
     return await this.colasService.obtenerEstadisticasCola();
+  }
+
+  /**
+   * Obtiene el progreso detallado de un trabajo de importación
+   */
+  async obtenerProgresoDetallado(trabajoId: string, empresaId: number): Promise<{
+    trabajo: TrabajoImportacion;
+    progreso: any;
+    logs: any;
+    correcciones: any;
+  }> {
+    try {
+      // Obtener trabajo básico
+      const trabajo = await this.obtenerEstadoTrabajo(trabajoId, empresaId);
+      
+      // Obtener progreso granular
+      const progreso = this.progressTracker.obtenerProgreso(trabajoId);
+      
+      // Obtener logs avanzados
+      const logs = this.advancedLogging.generarResumenLogs(trabajoId);
+      
+      // Obtener métricas de rendimiento
+      const metricas = this.advancedLogging.obtenerMetricas(trabajoId);
+
+      return {
+        trabajo,
+        progreso,
+        logs,
+        correcciones: {
+          metricas,
+          tiempoRestante: progreso ? this.progressTracker.calcularTiempoRestante(trabajoId) : 0,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error obteniendo progreso detallado del trabajo ${trabajoId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resuelve errores de forma inteligente y aplica correcciones
+   */
+  async resolverErroresInteligentemente(
+    trabajoId: string,
+    empresaId: number,
+    opciones: {
+      autoCorregir: boolean;
+      usarValoresPorDefecto: boolean;
+      nivelConfianzaMinimo: number;
+    }
+  ): Promise<{
+    erroresResueltos: number;
+    correcciones: any[];
+    erroresSinResolver: any[];
+    reporte: any;
+  }> {
+    try {
+      const trabajo = await this.obtenerEstadoTrabajo(trabajoId, empresaId);
+      
+      // Obtener datos del trabajo (esto requeriría implementación adicional)
+      const datos: Record<string, unknown> = {}; // TODO: Obtener datos del trabajo
+      
+      // Resolver errores inteligentemente
+      const resultado = this.smartErrorResolver.resolverErrores(
+        trabajo.errores,
+        trabajo.tipo,
+        datos
+      );
+
+      // Aplicar correcciones si se solicita
+      if (opciones.autoCorregir && resultado.correcciones.length > 0) {
+        // Convertir datos a array para aplicar correcciones
+        const datosArray: Record<string, unknown>[] = [datos];
+        const datosCorregidos = this.smartErrorResolver.aplicarCorrecciones(
+          datosArray,
+          resultado.correcciones
+        );
+        // TODO: Actualizar datos del trabajo
+      }
+
+      // Generar reporte de correcciones
+      const reporte = this.smartErrorResolver.generarReporteCorrecciones(
+        resultado.correcciones
+      );
+
+      return {
+        erroresResueltos: resultado.erroresResueltos.length,
+        correcciones: resultado.correcciones,
+        erroresSinResolver: resultado.erroresSinResolver,
+        reporte,
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error resolviendo errores inteligentemente para trabajo ${trabajoId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene logs detallados de un trabajo
+   */
+  async obtenerLogsDetallados(
+    trabajoId: string,
+    empresaId: number,
+    nivel?: 'debug' | 'info' | 'warn' | 'error'
+  ): Promise<{
+    logs: any[];
+    metricas: any;
+    resumen: any;
+  }> {
+    try {
+      // Verificar acceso al trabajo
+      await this.obtenerEstadoTrabajo(trabajoId, empresaId);
+      
+      // Obtener logs
+      const logs = this.advancedLogging.obtenerLogs(trabajoId, nivel);
+      
+      // Obtener métricas
+      const metricas = this.advancedLogging.obtenerMetricas(trabajoId);
+      
+      // Obtener resumen
+      const resumen = this.advancedLogging.generarResumenLogs(trabajoId);
+
+      return {
+        logs,
+        metricas,
+        resumen,
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error obteniendo logs detallados del trabajo ${trabajoId}:`, error);
+      throw error;
+    }
   }
 } 

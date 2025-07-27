@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useImportacionSafe } from '@/hooks/useImportacionSafe'
 import { TipoImportacion } from '@/hooks/useImportacion'
-import { ImportacionStatus } from './ImportacionStatus'
+import ImportacionStatus from './ImportacionStatus'
 import { ImportacionNotifications } from './ImportacionNotifications'
 import { ImportacionLoading } from './ImportacionLoading'
 import { ValidationErrors } from './ValidationErrors'
@@ -119,7 +119,6 @@ export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps)
       <div className="space-y-4">
         <ImportacionStatus
           trabajo={currentTrabajo}
-          isImporting={isImporting}
           onCancel={() => {}} // TODO: Implementar cancelación
           onRefresh={() => {}} // TODO: Implementar refresh
         />

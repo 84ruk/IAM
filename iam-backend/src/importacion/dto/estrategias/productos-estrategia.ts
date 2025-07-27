@@ -308,17 +308,69 @@ export class ProductosEstrategia implements EstrategiaImportacion {
           this.logger.warn(`Error procesando producto (intento ${retryCount}/${maxRetries}):`, error);
           
           if (retryCount >= maxRetries) {
+            // Manejar errores específicos de Prisma
+            let mensajeError = `Error del sistema: ${error.message}`;
+            let columnaError = 'sistema';
+            let tipoError = 'sistema';
+
+            // Detectar errores de restricción única
+            if (error.code === 'P2002') {
+              const campos = error.meta?.target || [];
+              if (campos.includes('codigoBarras')) {
+                mensajeError = 'El código de barras ya existe en la base de datos';
+                columnaError = 'codigoBarras';
+                tipoError = 'duplicado';
+              } else if (campos.includes('sku')) {
+                mensajeError = 'El SKU ya existe en la base de datos';
+                columnaError = 'sku';
+                tipoError = 'duplicado';
+              } else if (campos.includes('nombre')) {
+                mensajeError = 'El nombre del producto ya existe en la base de datos';
+                columnaError = 'nombre';
+                tipoError = 'duplicado';
+              } else {
+                mensajeError = `El producto ya existe (campos únicos: ${campos.join(', ')})`;
+                columnaError = campos[0] || 'sistema';
+                tipoError = 'duplicado';
+              }
+            }
+            // Detectar errores de validación de Prisma
+            else if (error.code === 'P2003') {
+              mensajeError = 'Error de referencia: verificar datos relacionados';
+              tipoError = 'referencia';
+            }
+            // Detectar errores de datos requeridos
+            else if (error.code === 'P2011') {
+              mensajeError = 'Campo requerido está vacío';
+              tipoError = 'validacion';
+            }
+
             resultado.errores.push({
               fila: registro._filaOriginal,
-              columna: 'sistema',
-              valor: '',
-              mensaje: `Error del sistema: ${error.message}`,
-              tipo: 'sistema',
+              columna: columnaError,
+              valor: String((registro as ProductoImportacion)[columnaError] || ''),
+              mensaje: mensajeError,
+              tipo: tipoError as 'validacion' | 'duplicado' | 'referencia' | 'sistema',
             });
             resultado.estadisticas.errores++;
           }
         }
       }
     }
+  }
+
+  private obtenerSugerenciaError(error: any, registro: RegistroImportacion): string {
+    if (error.code === 'P2002') {
+      const campos = error.meta?.target || [];
+      if (campos.includes('codigoBarras')) {
+        return 'Sugerencia: Cambiar el código de barras o habilitar "Sobrescribir existentes"';
+      } else if (campos.includes('sku')) {
+        return 'Sugerencia: Cambiar el SKU o habilitar "Sobrescribir existentes"';
+      } else if (campos.includes('nombre')) {
+        return 'Sugerencia: Cambiar el nombre del producto o habilitar "Sobrescribir existentes"';
+      }
+      return 'Sugerencia: Verificar campos únicos o habilitar "Sobrescribir existentes"';
+    }
+    return 'Sugerencia: Verificar los datos del registro';
   }
 } 
