@@ -22,7 +22,8 @@ export default function CamposIndustria({
   handleBlur,
   errors
 }: CamposIndustriaProps) {
-  const { mostrarTemperaturaHumedad, tipoIndustria } = useIndustriaConfig()
+  const { config: industriaConfig, tipoIndustria } = useIndustriaConfig()
+  const mostrarTemperaturaHumedad = industriaConfig.mostrarTemperaturaHumedad || false
 
   const renderCampo = (campo: string, label: string, type: string = 'text', icon?: React.ReactNode, optional = true) => {
     if (!camposRelevantes.includes(campo)) return null

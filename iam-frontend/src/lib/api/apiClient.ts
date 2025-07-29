@@ -22,57 +22,47 @@ class ApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor
-    this.instance.interceptors.request.use(
-      (config) => {
-        // Agregar timestamp para rate limiting
-        ;(config as any).metadata = { startTime: Date.now() }
-        return config
-      },
+    // Interceptor de respuesta para manejar errores
+    this.instance.interceptors.response.use(
+      (response) => response,
       (error) => {
+        // Manejar errores de conexión específicamente
+        if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED')) {
+          const customError = new Error('Servidor no disponible') as Error & { code?: string }
+          customError.name = 'BackendUnavailable'
+          customError.code = 'ECONNREFUSED'
+          return Promise.reject(customError)
+        }
+
+        if (error.code === 'ENOTFOUND' || error.message?.includes('ENOTFOUND')) {
+          const customError = new Error('No se puede conectar al servidor') as Error & { code?: string }
+          customError.name = 'HostNotFound'
+          customError.code = 'ENOTFOUND'
+          return Promise.reject(customError)
+        }
+
+        if (error.message?.includes('fetch failed')) {
+          const customError = new Error('Error de red al conectar con el servidor') as Error & { code?: string }
+          customError.name = 'NetworkError'
+          customError.code = 'NETWORK_ERROR'
+          return Promise.reject(customError)
+        }
+
+        // Para otros errores, mantener el comportamiento original
         return Promise.reject(error)
       }
     )
 
-    // Response interceptor
-    this.instance.interceptors.response.use(
-      (response) => {
-        return response
+    // Interceptor de request para agregar timeout
+    this.instance.interceptors.request.use(
+      (config) => {
+        // Agregar timeout de 10 segundos por defecto
+        if (!config.timeout) {
+          config.timeout = 10000
+        }
+        return config
       },
-      async (error: AxiosError) => {
-        // Log del error para debugging
-        console.error('🔍 API Error:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          url: error.config?.url,
-          method: error.config?.method,
-          message: error.message,
-          data: error.response?.data
-        })
-
-        if (error.response?.status === 429) {
-          // Rate limit exceeded - implementar retry con backoff
-          console.warn('Rate limit exceeded, retrying with backoff...')
-          return this.handleRateLimitError(error)
-        }
-        
-        if (error.response?.status && error.response.status >= 500) {
-          // Server error - implementar retry
-          console.warn('Server error, retrying...')
-          return this.handleServerError(error)
-        }
-
-        // Transformar el error en un formato más útil
-        const userFriendlyError = ErrorHandlerService.parseBackendError({
-          statusCode: error.response?.status || 0,
-          message: (error.response?.data as any)?.message || error.message,
-          error: (error.response?.data as any)?.error,
-          details: (error.response?.data as any)?.details || error.response?.data
-        })
-
-        // Agregar el error transformado al objeto de error original
-        ;(error as any).userFriendlyError = userFriendlyError
-
+      (error) => {
         return Promise.reject(error)
       }
     )
@@ -82,7 +72,6 @@ class ApiClient {
     const retryAfter = error.response?.headers['retry-after'] || 5
     const delay = parseInt(retryAfter) * 1000
 
-    console.log(`Waiting ${delay}ms before retry...`)
     await this.delay(delay)
 
     // Reintentar la request original
@@ -99,7 +88,6 @@ class ApiClient {
       ;(config as any).retryCount = retryCount + 1
       const delay = Math.pow(2, retryCount) * 1000 // Exponential backoff
       
-      console.log(`Retrying request (${retryCount + 1}/${maxRetries}) after ${delay}ms...`)
       await this.delay(delay)
       
       return this.instance.request(config)

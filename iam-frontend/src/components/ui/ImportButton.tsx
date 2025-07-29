@@ -178,15 +178,20 @@ export default function ImportButton({
         </div>
       )}
 
-      <UnifiedImportModal 
-        isOpen={isUnifiedModalOpen} 
-        onClose={handleCloseUnifiedModal} 
-      />
+      {/* Asegurar que los modales estén dentro del contexto de importación */}
+      {isUnifiedModalOpen && (
+        <UnifiedImportModal 
+          isOpen={isUnifiedModalOpen} 
+          onClose={handleCloseUnifiedModal} 
+        />
+      )}
 
-      <SafeAutoImportModal 
-        isOpen={isAutoModalOpen} 
-        onClose={handleCloseAutoModal} 
-      />
+      {isAutoModalOpen && (
+        <SafeAutoImportModal 
+          isOpen={isAutoModalOpen} 
+          onClose={handleCloseAutoModal} 
+        />
+      )}
     </>
   )
 }

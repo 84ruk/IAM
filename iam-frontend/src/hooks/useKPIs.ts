@@ -97,6 +97,37 @@ export function useAllKPIs(period: string = 'mes', industryType: string = 'gener
   }
 }
 
+// Hook optimizado que usa el endpoint unificado (NUEVO)
+export function useOptimizedKPIs(period: string = 'mes', industryType: string = 'general', days: number = 30) {
+  const { data, isLoading, error, mutate } = useSWR(
+    `/dashboard-cqrs/all-kpis?period=${period}&industry=${industryType}&days=${days}`,
+    fetcher,
+    {
+      refreshInterval: 300000, // 5 minutos
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false, // Cambiado a false para evitar requests innecesarios
+      dedupingInterval: 300000, // Aumentado a 5 minutos
+      errorRetryCount: 2, // Reducido
+      errorRetryInterval: 10000, // Aumentado
+      onError: (err) => {
+        console.error('Error en useOptimizedKPIs:', err)
+      }
+    }
+  )
+
+  return {
+    kpis: data?.data?.kpis || null,
+    financial: data?.data?.financialKpis || null,
+    industry: data?.data?.industryKpis || null,
+    predictive: data?.data?.predictiveKpis || null,
+    isLoading,
+    error,
+    mutate,
+    cacheInfo: data?.cacheInfo || null,
+    timestamp: data?.timestamp || null
+  }
+}
+
 // Hook específico para datos de inventario (sin valores hardcodeados)
 export function useInventoryKPIs(month: string = 'Marzo 2025') {
   const { data: kpis, isLoading, error, mutate } = useKPIs('mes')

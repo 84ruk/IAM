@@ -9,12 +9,13 @@ import { User } from '@/types/user'
 import { useSetupCheck } from '@/hooks/useSetupCheck'
 import SetupRequired from '@/components/setup/SetupRequired'
 import { useSetup } from '@/context/SetupContext'
-import { ImportacionGlobalProvider } from '@/context/ImportacionGlobalContext'
+import { usePathname } from 'next/navigation'
 
 export default function DashboardShell({ children, user }: { children: React.ReactNode, user: User }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
   const { needsSetup, isLoading, error } = useSetupCheck()
   const { redirectToSetup } = useSetup()
 
@@ -135,27 +136,28 @@ export default function DashboardShell({ children, user }: { children: React.Rea
   }
 
   // Renderizado normal cuando todo está configurado
-  return (
-    <ImportacionGlobalProvider>
-      <div className="flex h-screen bg-[#F9FAFB] text-gray-800 font-sans">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="md:hidden flex items-center px-3 py-2 bg-white border-b border-gray-100 shadow-sm">
-            <button
-              className="mr-2 text-gray-700 hover:text-[#8E94F2] focus:outline-none"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Abrir menú"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-            <span className="text-base font-semibold text-[#8E94F2]">IAM</span>
-          </div>
-          <Navbar user={user} logout={logout} />
-          <main className="flex-1 overflow-y-auto shadow-sm bg-[#F8F9FB]">
-            {children}
-          </main>
+  const content = (
+    <div className="flex h-screen bg-[#F9FAFB] text-gray-800 font-sans">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="md:hidden flex items-center px-3 py-2 bg-white border-b border-gray-100 shadow-sm">
+          <button
+            className="mr-2 text-gray-700 hover:text-[#8E94F2] focus:outline-none"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Abrir menú"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <span className="text-base font-semibold text-[#8E94F2]">IAM</span>
         </div>
+        <Navbar user={user} logout={logout} />
+        <main className="flex-1 overflow-y-auto shadow-sm bg-[#F8F9FB]">
+          {children}
+        </main>
       </div>
-    </ImportacionGlobalProvider>
+    </div>
   )
+
+  // El ImportacionGlobalProvider ahora está en el layout principal
+  return content
 } 

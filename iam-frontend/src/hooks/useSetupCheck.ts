@@ -55,6 +55,16 @@ export function useSetupCheck(): UseSetupCheckReturn {
       
       const response = await apiClient.get<SetupCheckResponse>('/auth/needs-setup')
       
+      // Validar que la respuesta sea válida
+      if (!response || typeof response !== 'object') {
+        throw new Error('Respuesta inválida del servidor')
+      }
+      
+      // Validar que tenga la propiedad needsSetup
+      if (typeof response.needsSetup !== 'boolean') {
+        throw new Error('Formato de respuesta inválido')
+      }
+      
       // Actualizar cache global
       globalSetupCache = {
         needsSetup: response.needsSetup,
@@ -66,7 +76,17 @@ export function useSetupCheck(): UseSetupCheckReturn {
       hasCheckedRef.current = true
     } catch (err) {
       console.error('Error verificando setup:', err)
-      setError(err instanceof Error ? err.message : 'Error al verificar configuración')
+      
+      // Manejar diferentes tipos de errores
+      let errorMessage = 'Error al verificar configuración'
+      if (err instanceof Error) {
+        errorMessage = err.message
+      } else if (typeof err === 'string') {
+        errorMessage = err
+      }
+      
+      setError(errorMessage)
+      
       // Por defecto, asumir que necesita setup si hay error
       globalSetupCache = {
         needsSetup: true,

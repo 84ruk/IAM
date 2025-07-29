@@ -299,9 +299,10 @@ export async function validateApiResponse(response: Response): Promise<any> {
       const data = await response.json()
       const error = parseApiError(response, data)
       throw error
-    } catch {
+    } catch (parseError) {
+      // Si no se puede parsear la respuesta JSON, crear un error básico
       const error = parseApiError(response)
-    throw error
+      throw error
     }
   }
 

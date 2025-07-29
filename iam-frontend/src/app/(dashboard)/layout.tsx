@@ -1,22 +1,35 @@
 // src/app/(dashboard)/layout.tsx
 import { redirect } from 'next/navigation'
-import DashboardShell from '@/components/layout/DashboardShell'
-import { requireAuth } from '@/lib/ssrAuth'
+import { requireAuth, mapUserFromBackend } from '@/lib/ssrAuth'
 import { UserContextProvider } from '@/context/ServerUserContext'
 import { SetupProvider } from '@/context/SetupContext'
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireAuth();
+import { ImportacionGlobalProvider } from '@/context/ImportacionGlobalContext'
+import { WebSocketProvider } from '@/context/WebSocketContext'
+import { ToastProvider } from '@/components/ui/Toast'
+import DashboardShell from '@/components/layout/DashboardShell'
 
-  if (!user) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const userFromBackend = await requireAuth();
+
+  if (!userFromBackend) {
     redirect('/login');
   }
+
+  // Mapear el usuario del backend al formato del frontend
+  const user = mapUserFromBackend(userFromBackend);
 
   return (
     <UserContextProvider user={user}>
       <SetupProvider>
-        <DashboardShell user={user}>
-          {children}
-        </DashboardShell>
+        <ImportacionGlobalProvider>
+          <WebSocketProvider>
+            <ToastProvider>
+              <DashboardShell user={user}>
+                {children}
+              </DashboardShell>
+            </ToastProvider>
+          </WebSocketProvider>
+        </ImportacionGlobalProvider>
       </SetupProvider>
     </UserContextProvider>
   );

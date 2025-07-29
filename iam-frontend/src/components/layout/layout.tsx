@@ -1,6 +1,6 @@
 'use client'
 
-import { BarChart2, Home, Package, Truck, X, TrendingUp, Shield, Activity } from 'lucide-react'
+import { BarChart2, Home, Package, Truck, X, TrendingUp, Shield, Activity, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -15,6 +15,7 @@ const getNavItems = (user: User | null) => {
     { href: '/dashboard/daily-movements', label: 'Movimientos Diarios', icon: <Activity size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
     { href: '/dashboard/proveedores', label: 'Proveedores', icon: <Truck size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
     { href: '/dashboard/kpis', label: 'KPIs', icon: <TrendingUp size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
+    { href: '/dashboard/importacion-avanzada', label: 'Importación de Datos', icon: <Upload size={18} />, roles: ['SUPERADMIN', 'ADMIN'] },
   ]
 
   // Agregar enlaces de admin solo para usuarios autorizados

@@ -71,7 +71,12 @@ export default function UnifiedImportModal({ isOpen, onClose }: UnifiedImportMod
   const [selectedTipo, setSelectedTipo] = useState<TipoImportacion | null>(null)
   const [archivo, setArchivo] = useState<File | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
-  const [opciones, setOpciones] = useState(DEFAULT_IMPORTACION_OPTIONS)
+  const [opciones, setOpciones] = useState({
+    sobrescribirExistentes: false,
+    validarSolo: false,
+    notificarEmail: false,
+    emailNotificacion: ''
+  })
   const [showOptions, setShowOptions] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -158,7 +163,12 @@ export default function UnifiedImportModal({ isOpen, onClose }: UnifiedImportMod
   const handleClose = () => {
     setSelectedTipo(null)
     setArchivo(null)
-    setOpciones(DEFAULT_IMPORTACION_OPTIONS)
+    setOpciones({
+      sobrescribirExistentes: false,
+      validarSolo: false,
+      notificarEmail: false,
+      emailNotificacion: ''
+    })
     setShowOptions(false)
     clearError()
     clearSuccess()
@@ -286,7 +296,7 @@ export default function UnifiedImportModal({ isOpen, onClose }: UnifiedImportMod
                         </p>
                         {isNumbersFile(archivo) && (
                           <p className="text-sm text-blue-600 mt-1">
-                            {IMPORTACION_MESSAGES.NUMBERS_FILE_DETECTED}
+                            Archivo Numbers detectado
                           </p>
                         )}
                       </div>
@@ -358,7 +368,10 @@ export default function UnifiedImportModal({ isOpen, onClose }: UnifiedImportMod
 
               {/* Barra de Progreso */}
               {isImporting && currentTrabajo && (
-                <ProgressBar trabajo={currentTrabajo} />
+                <ProgressBar 
+                  progreso={currentTrabajo?.progreso || 0}
+                  estado={currentTrabajo?.estado || 'PENDIENTE'}
+                />
               )}
 
               {/* Mensajes de Error/Success */}

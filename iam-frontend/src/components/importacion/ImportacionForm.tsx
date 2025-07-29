@@ -1,28 +1,27 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { useState, useCallback, useEffect } from 'react'
 import Button from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Label } from '@/components/ui/Label'
-import { Checkbox } from '@/components/ui/Checkbox'
 import { Badge } from '@/components/ui/Badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Checkbox } from '@/components/ui/Checkbox'
+import { Label } from '@/components/ui/Label'
+import { Input } from '@/components/ui/Input'
 import { 
   Download,
   Info,
   X,
   Upload
 } from 'lucide-react'
-import { useImportacionSafe } from '@/hooks/useImportacionSafe'
-import { TipoImportacion } from '@/hooks/useImportacion'
+import { useImportacionUnified } from '@/hooks/useImportacionUnified'
+import { useFileDrop } from '@/hooks/useFileDrop'
+import { TipoImportacion } from '@/context/ImportacionGlobalContext'
 import ImportacionStatus from './ImportacionStatus'
-import { ImportacionNotifications } from './ImportacionNotifications'
 import { ImportacionLoading } from './ImportacionLoading'
 import { ValidationErrors } from './ValidationErrors'
 import FileTypeInfo from './FileTypeInfo'
 import NumbersFileNotification from './NumbersFileNotification'
-import FileUploadArea from './FileUploadArea'
-import { useFileValidation } from '@/hooks/useFileValidation'
+import FileUploadArea from './base/FileUploadArea'
 import { getImportacionConfig, DEFAULT_IMPORTACION_OPTIONS, IMPORTACION_MESSAGES } from '@/config/importacion.config'
 
 interface ImportacionFormProps {
@@ -32,77 +31,75 @@ interface ImportacionFormProps {
 
 // Configuración centralizada de importación
 
+const OPCIONES_INICIALES = {
+  sobrescribirExistentes: false,
+  validarSolo: false,
+  notificarEmail: false,
+  emailNotificacion: '',
+  configuracionEspecifica: {}
+};
+
 export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps) {
   const [archivo, setArchivo] = useState<File | null>(null)
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [opciones, setOpciones] = useState(DEFAULT_IMPORTACION_OPTIONS)
+  const [opciones, setOpciones] = useState(OPCIONES_INICIALES)
 
-  const { validateFile, isNumbersFile, getFileSizeMB } = useFileValidation()
-  
+  // Hook unificado de importación
   const {
     isImporting,
     currentTrabajo,
     error,
     success,
     validationErrors,
-    importarUnified,
+    isConnected,
+    importarNormal,
     descargarPlantilla,
     cancelarTrabajo,
     clearError,
     clearSuccess,
-    clearValidationErrors
-  } = useImportacionSafe()
+    clearValidationErrors,
+    subscribeToTrabajo
+  } = useImportacionUnified()
 
   const config = getImportacionConfig(tipo)
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(true)
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-  }, [])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    
-    const files = Array.from(e.dataTransfer.files)
-    if (files.length > 0) {
-      const file = files[0]
-      if (validarArchivo(file)) {
-        setArchivo(file)
-      }
-    }
-  }, [])
-
+  // Definir handleFileSelect ANTES de usarlo en useFileDrop
   const handleFileSelect = useCallback((file: File) => {
-    if (validarArchivo(file)) {
-      setArchivo(file)
-    }
+    setArchivo(file)
   }, [])
+  
+  // Hook de drag & drop (ahora handleFileSelect ya está definido)
+  const {
+    isDragOver,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop
+  } = useFileDrop({
+    onFileSelect: handleFileSelect,
+    accept: '.xlsx,.xls,.numbers,.csv',
+    maxSize: 10
+  })
+
+  // Suscribirse al trabajo actual cuando esté disponible
+  useEffect(() => {
+    if (currentTrabajo?.id) {
+      subscribeToTrabajo(currentTrabajo.id)
+    }
+  }, [currentTrabajo?.id, subscribeToTrabajo])
 
   const handleFileRemove = useCallback(() => {
     setArchivo(null)
   }, [])
 
-  const validarArchivo = (file: File): boolean => {
-    const result = validateFile(file)
-    return result.isValid
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!archivo) {
-      alert(IMPORTACION_MESSAGES.NO_FILE_SELECTED)
+      alert(IMPORTACION_MESSAGES.ERROR.NO_FILE_SELECTED)
       return
     }
 
     try {
-      await importarUnified(archivo, tipo, opciones)
+      await importarNormal(archivo, tipo, opciones)
       onClose()
     } catch (error) {
       console.error('Error al importar:', error)
@@ -112,6 +109,15 @@ export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps)
   const handleDescargarPlantilla = async () => {
     await descargarPlantilla(tipo)
   }
+
+  const handleClose = useCallback(() => {
+    setArchivo(null)
+    setOpciones(OPCIONES_INICIALES)
+    clearError()
+    clearSuccess()
+    clearValidationErrors()
+    onClose()
+  }, [onClose, clearError, clearSuccess, clearValidationErrors])
 
   // Mostrar estado de carga si está importando
   if (isImporting && currentTrabajo) {
@@ -136,14 +142,6 @@ export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps)
   if (validationErrors && validationErrors.length > 0) {
     return (
       <div className="space-y-4">
-        <ImportacionNotifications
-          success={success}
-          error={error}
-          validationErrors={validationErrors}
-          onClearSuccess={clearSuccess}
-          onClearError={clearError}
-          onClearValidationErrors={clearValidationErrors}
-        />
         <ValidationErrors
           errors={validationErrors}
           totalRegistros={currentTrabajo?.totalRegistros || 0}
@@ -176,30 +174,14 @@ export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps)
 
       <CardContent>
         {/* Notificaciones */}
-        <ImportacionNotifications
-          success={success}
-          error={error}
-          validationErrors={validationErrors}
-          onClearSuccess={clearSuccess}
-          onClearError={clearError}
-          onClearValidationErrors={clearValidationErrors}
-          className="mb-6"
-        />
+        
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Selección de archivo */}
           <div>
-            <Label htmlFor="archivo" className="block mb-2">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Seleccionar archivo
-            </Label>
-            
-            {/* Notificación para archivos .numbers */}
-            {archivo && isNumbersFile(archivo) && (
-              <NumbersFileNotification 
-                fileName={archivo.name} 
-                className="mb-4"
-              />
-            )}
+            </h3>
             
             <FileUploadArea
               file={archivo}
@@ -209,6 +191,9 @@ export default function ImportacionForm({ tipo, onClose }: ImportacionFormProps)
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
+              accept=".xlsx,.xls,.numbers,.csv"
+              maxSize={10}
+              showFileInfo={true}
             />
           </div>
 

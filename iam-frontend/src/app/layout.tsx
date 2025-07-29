@@ -3,6 +3,8 @@ import './globals.css'
 import { montserrat } from './fonts'
 import { ReactNode } from 'react'
 import { ImportacionErrorBoundary } from '@/components/importacion/ImportacionErrorBoundary'
+import { BackendStatus } from '@/components/ui/BackendStatus'
+import { Toaster } from 'sonner'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -16,8 +18,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className={`${montserrat.className} bg-gray-50 antialiased text-gray-800`}>
         <ImportacionErrorBoundary>
-          {children}
+          <BackendStatus>
+            {children}
+          </BackendStatus>
         </ImportacionErrorBoundary>
+        <Toaster 
+          position="top-right"
+          richColors
+          closeButton
+          duration={4000}
+        />
       </body>
     </html>
   )

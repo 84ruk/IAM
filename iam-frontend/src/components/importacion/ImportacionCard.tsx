@@ -1,283 +1,257 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { 
-  Upload, 
-  Download, 
-  FileText, 
-  Package, 
-  ShoppingCart, 
+  Upload,
+  FileText,
+  Package,
+  ShoppingCart,
   Activity,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertTriangle,
-  Loader2
+  Plus,
+  Wifi,
+  WifiOff
 } from 'lucide-react'
-import { useImportacionSafe } from '@/hooks/useImportacionSafe'
-import { TipoImportacion } from '@/hooks/useImportacion'
-import ImportacionForm from './ImportacionForm'
+import { useImportacionGlobal } from '@/context/ImportacionGlobalContext'
+import { useImportacionWebSocket } from '@/hooks/useImportacionWebSocket'
+import { useImportacionNotifications } from '@/hooks/useImportacionNotifications'
+import WebSocketStatus from './WebSocketStatus'
+import UnifiedImportModal from './UnifiedImportModal'
 import TrabajosList from './TrabajosList'
-import ImportacionResponse from './ImportacionResponse'
-
-interface ImportacionCardProps {
-  className?: string
-}
+import ImportacionStats from './ImportacionStats'
+import ImportacionNotifications from './ImportacionNotifications'
+import { TipoImportacion } from '@/context/ImportacionGlobalContext'
 
 const tipoConfig = {
   productos: {
     title: 'Productos',
-    description: 'Importa tu catálogo de productos desde Excel, Numbers o CSV',
+    description: 'Importa tu catálogo de productos',
     icon: Package,
     color: 'bg-blue-500',
     badgeColor: 'bg-blue-100 text-blue-800'
   },
   proveedores: {
     title: 'Proveedores',
-    description: 'Importa tu lista de proveedores desde Excel, Numbers o CSV',
+    description: 'Importa tu lista de proveedores',
     icon: ShoppingCart,
     color: 'bg-orange-500',
     badgeColor: 'bg-orange-100 text-orange-800'
   },
   movimientos: {
     title: 'Movimientos',
-    description: 'Importa movimientos de inventario desde Excel, Numbers o CSV',
+    description: 'Importa movimientos de inventario',
     icon: Activity,
     color: 'bg-purple-500',
     badgeColor: 'bg-purple-100 text-purple-800'
   },
   auto: {
     title: 'Importación Automática',
-    description: 'Detecta automáticamente el tipo de datos desde Excel, Numbers o CSV',
+    description: 'Detecta automáticamente el tipo de datos',
     icon: FileText,
     color: 'bg-green-500',
     badgeColor: 'bg-green-100 text-green-800'
   }
 }
 
-export default function ImportacionCard({ className }: ImportacionCardProps) {
+export default function ImportacionCard() {
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedTipo, setSelectedTipo] = useState<TipoImportacion | null>(null)
-  const [showForm, setShowForm] = useState(false)
-  const [showTrabajos, setShowTrabajos] = useState(false)
   
-  const {
-    isImporting,
-    currentTrabajo,
-    trabajos,
-    error,
-    success,
-    validationErrors,
-    descargarPlantilla,
+  const { 
+    state: { trabajos, isLoadingTrabajos, isImporting },
+    loadTrabajos,
     clearError,
-    clearSuccess,
-    clearValidationErrors
-  } = useImportacionSafe()
+    clearSuccess
+  } = useImportacionGlobal()
 
-  const handleTipoSelect = (tipo: TipoImportacion) => {
+  // Sistema de notificaciones
+  const {
+    notifications,
+    addSuccess,
+    addError,
+    addWarning,
+    addInfo,
+    removeNotification
+  } = useImportacionNotifications()
+
+  // WebSocket para actualizaciones en tiempo real
+  const { isConnected } = useImportacionWebSocket({
+    onTrabajoCreado: (trabajoId) => {
+      addInfo(
+        'Trabajo Creado',
+        'Se ha iniciado un nuevo trabajo de importación',
+        { duration: 3000 }
+      )
+      loadTrabajos(true)
+    },
+    onProgresoActualizado: (trabajoId, progreso, estadisticas) => {
+      // Los trabajos se actualizan automáticamente a través del contexto
+      if (progreso === 100) {
+        addSuccess(
+          'Progreso Completado',
+          'El trabajo de importación ha finalizado',
+          { duration: 5000 }
+        )
+      }
+    },
+    onTrabajoCompletado: (trabajoId, resultado) => {
+      addSuccess(
+        'Importación Completada',
+        'El trabajo de importación se ha completado exitosamente',
+        { duration: 8000 }
+      )
+      loadTrabajos(true)
+      clearSuccess()
+    },
+    onError: (trabajoId, error) => {
+      addError(
+        'Error en Importación',
+        `Se ha producido un error en el trabajo: ${error}`,
+        { duration: 10000 }
+      )
+    }
+  })
+
+  const handleOpenModal = useCallback((tipo?: TipoImportacion) => {
+    setSelectedTipo(tipo || null)
+    setIsModalOpen(true)
+    clearError()
+    clearSuccess()
+  }, [clearError, clearSuccess])
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false)
+    setSelectedTipo(null)
+  }, [])
+
+  const handleTipoSelect = useCallback((tipo: TipoImportacion) => {
     setSelectedTipo(tipo)
-    setShowForm(true)
-    setShowTrabajos(false)
-  }
+  }, [])
 
-  const handleDescargarPlantilla = async (tipo: TipoImportacion) => {
-    await descargarPlantilla(tipo)
-  }
+  const trabajosActivos = trabajos.filter(t => 
+    t.estado === 'procesando' || t.estado === 'pendiente'
+  )
 
-  const getEstadoIcon = (estado: string) => {
-    switch (estado) {
-      case 'completado':
-        return <CheckCircle className="w-4 h-4 text-green-600" />
-      case 'error':
-        return <XCircle className="w-4 h-4 text-red-600" />
-      case 'procesando':
-        return <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-      case 'pendiente':
-        return <Clock className="w-4 h-4 text-yellow-600" />
-      default:
-        return <AlertTriangle className="w-4 h-4 text-gray-600" />
-    }
-  }
-
-  const getEstadoColor = (estado: string) => {
-    switch (estado) {
-      case 'completado':
-        return 'bg-green-100 text-green-800'
-      case 'error':
-        return 'bg-red-100 text-red-800'
-      case 'procesando':
-        return 'bg-blue-100 text-blue-800'
-      case 'pendiente':
-        return 'bg-yellow-100 text-yellow-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const trabajosRecientes = trabajos.slice(0, 3)
-  const trabajosActivos = trabajos.filter(t => t.estado === 'pendiente' || t.estado === 'procesando')
+  const trabajosCompletados = trabajos.filter(t => 
+    t.estado === 'completado' || t.estado === 'error'
+  )
 
   return (
-    <div className={className}>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Importación de Datos
-              </CardTitle>
-              <p className="text-sm text-gray-600 mt-1">
-                Importa productos, proveedores y movimientos desde archivos Excel, Numbers o CSV
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowTrabajos(!showTrabajos)}
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                Trabajos ({trabajos.length})
-              </Button>
-            </div>
+    <>
+      <div className="space-y-6">
+        {/* Header con estado WebSocket */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-gray-900">Importación</h2>
+            <WebSocketStatus showDetails={true} />
           </div>
-        </CardHeader>
+          
+          <Button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nueva Importación
+          </Button>
+        </div>
 
-        <CardContent>
-          {/* ImportacionResponse Component */}
-          <ImportacionResponse
-            isImporting={isImporting}
-            currentTrabajo={currentTrabajo}
-            error={error}
-            success={success}
-            validationErrors={validationErrors}
-            onClearError={clearError}
-            onClearSuccess={clearSuccess}
-            onClearValidationErrors={clearValidationErrors}
-            onRefresh={() => {
-              // Refresh logic can be added here
-            }}
-          />
+        {/* Estadísticas */}
+        <ImportacionStats 
+          trabajos={trabajos}
+          isLoading={isLoadingTrabajos}
+          isConnected={isConnected}
+        />
 
-          {showTrabajos ? (
-            <TrabajosList 
-              trabajos={trabajos}
-              onClose={() => setShowTrabajos(false)}
-            />
-          ) : showForm && selectedTipo ? (
-            <ImportacionForm
-              tipo={selectedTipo}
-              onClose={() => {
-                setShowForm(false)
-                setSelectedTipo(null)
-              }}
-            />
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {(Object.keys(tipoConfig) as TipoImportacion[]).map((tipo) => {
-                  const config = tipoConfig[tipo]
-                  const Icon = config.icon
-                  
-                  return (
-                    <div
-                      key={tipo}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors cursor-pointer"
-                      onClick={() => handleTipoSelect(tipo)}
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`p-2 rounded-lg ${config.color} text-white`}>
-                          <Icon className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-gray-900">{config.title}</h3>
-                          <p className="text-sm text-gray-600">{config.description}</p>
-                        </div>
+        {/* Tipos de importación */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5" />
+              Tipos de Importación
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Object.entries(tipoConfig).map(([tipo, config]) => {
+                const IconComponent = config.icon
+                return (
+                  <div
+                    key={tipo}
+                    className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => handleOpenModal(tipo as TipoImportacion)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${config.color}`}>
+                        <IconComponent className="w-5 h-5 text-white" />
                       </div>
-                      
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          className="flex-1"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleTipoSelect(tipo)
-                          }}
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Importar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDescargarPlantilla(tipo)
-                          }}
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
+                      <div>
+                        <h3 className="font-medium text-gray-900">{config.title}</h3>
+                        <p className="text-sm text-gray-600">{config.description}</p>
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-
-              {trabajosRecientes.length > 0 && (
-                <div className="mt-6">
-                  <h4 className="font-medium text-gray-900 mb-3">Trabajos Recientes</h4>
-                  <div className="space-y-2">
-                    {trabajosRecientes.map((trabajo) => (
-                      <div
-                        key={trabajo.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          {getEstadoIcon(trabajo.estado)}
-                          <div>
-                            <p className="font-medium text-sm">
-                              {tipoConfig[trabajo.tipo].title}
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {trabajo.archivoOriginal}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getEstadoColor(trabajo.estado)}>
-                            {trabajo.estado}
-                          </Badge>
-                          <span className="text-xs text-gray-500">
-                            {new Date(trabajo.fechaCreacion).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
                   </div>
-                </div>
-              )}
-
-              {trabajosActivos.length > 0 && (
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Clock className="w-4 h-4 text-yellow-600" />
-                    <span className="font-medium text-yellow-900">
-                      {trabajosActivos.length} trabajo(s) en proceso
-                    </span>
-                  </div>
-                  <p className="text-sm text-yellow-800">
-                    Tienes importaciones ejecutándose en segundo plano. 
-                    Puedes ver el progreso en la sección de trabajos.
-                  </p>
-                </div>
-              )}
+                )
+              })}
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+
+        {/* Trabajos activos */}
+        {trabajosActivos.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="w-5 h-5" />
+                Trabajos Activos
+                <Badge variant="secondary">{trabajosActivos.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TrabajosList 
+                trabajos={trabajosActivos}
+                showProgress={true}
+                showActions={true}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Trabajos completados */}
+        {trabajosCompletados.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Trabajos Completados
+                <Badge variant="secondary">{trabajosCompletados.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TrabajosList 
+                trabajos={trabajosCompletados}
+                showProgress={false}
+                showActions={false}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Modal de importación */}
+        <UnifiedImportModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+        />
+      </div>
+
+      {/* Notificaciones */}
+      <ImportacionNotifications
+        notifications={notifications}
+        onClose={removeNotification}
+        maxNotifications={5}
+        position="top-right"
+      />
+    </>
   )
 } 

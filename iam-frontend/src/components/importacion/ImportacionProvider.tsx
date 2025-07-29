@@ -5,28 +5,22 @@ import { useImportacionSafe } from '@/hooks/useImportacionSafe'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 interface ImportacionContextType {
-  // Arrays
-  trabajos: any[]
-  tiposSoportados: any[]
-  trabajosRecientes: any[]
-  trabajosEnProgreso: any[]
-  validationErrors: any[] | null
-  
-  // Estados de carga
-  isLoadingTrabajos: boolean
-  isLoadingTipos: boolean
+  // Estado base
   isImporting: boolean
-  isValidating: boolean
-  
-  // Estados de respuesta
-  success: string | null
+  currentTrabajo: any
   error: string | null
+  success: string | null
+  validationErrors: any[] | null
   deteccionTipo: any
   
-  // Trabajo actual
-  currentTrabajo: any
+  // Estado de WebSocket
+  isConnected: boolean
+  subscribedTrabajos: Set<string>
   
-  // Estadísticas
+  // Trabajos y estadísticas
+  trabajos: any[]
+  trabajosRecientes: any[]
+  trabajosEnProgreso: any[]
   estadisticas: {
     total: number
     completados: number
@@ -35,18 +29,16 @@ interface ImportacionContextType {
     porcentajeExito: number
   }
   
-  // Funciones
-  descargarPlantilla: (tipo?: any) => Promise<void>
+  // Funciones de importación
+  importarNormal: (archivo: File, tipo: any, opciones: any) => Promise<void>
+  importarAutomatica: (archivo: File, opciones: any) => Promise<void>
+  validarAutomatica: (archivo: File, opciones?: any) => Promise<any>
+  confirmarAutomatica: (trabajoId: string, opciones: any) => Promise<void>
+  
+  // Funciones de utilidad
+  descargarPlantilla: (tipo: any) => Promise<void>
   cancelarTrabajo: () => Promise<void>
   descargarReporteErrores: () => Promise<void>
-  importarProductos: (archivo: File, opciones: any) => Promise<void>
-  importarProveedores: (archivo: File, opciones: any) => Promise<void>
-  importarMovimientos: (archivo: File, opciones: any) => Promise<void>
-  importarUnified: (archivo: File, tipo: any, opciones: any) => Promise<void>
-  importarAuto: (archivo: File, opciones: any) => Promise<void>
-  validarAuto: (archivo: File, opciones?: any) => Promise<any>
-  confirmarAuto: (trabajoId: string, opciones: any) => Promise<void>
-  descargarPlantillaMejorada: (tipo: any) => Promise<void>
   
   // Funciones de limpieza
   clearError: () => void
@@ -54,8 +46,17 @@ interface ImportacionContextType {
   clearValidationErrors: () => void
   clearDeteccionTipo: () => void
   
-  // Manejo de errores
-  handleImportError: (error: any, tipo?: any) => { title: string; message: string; type: string }
+  // Funciones de WebSocket
+  subscribeToTrabajo: (trabajoId: string) => void
+  unsubscribeFromTrabajo: (trabajoId: string) => void
+  
+  // Utilidades
+  isReady: boolean
+  hasData: boolean
+  hasActiveImport: boolean
+  
+  // Análisis de archivos
+  analyzeFile: (file: File, tipo: any) => { needsWebSocket: boolean; reason: string }
 }
 
 const ImportacionContext = createContext<ImportacionContextType | undefined>(undefined)
@@ -68,7 +69,7 @@ export function ImportacionProvider({ children }: ImportacionProviderProps) {
   const importacionData = useImportacionSafe()
 
   // Si está cargando inicialmente, mostrar spinner
-  if (importacionData.isLoadingTrabajos || importacionData.isLoadingTipos) {
+  if (importacionData.isImporting) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

@@ -5,4 +5,5 @@ export interface User {
   rol: 'SUPERADMIN' | 'ADMIN' | 'EMPLEADO' | 'PROVEEDOR';
   empresaId: number;
   tipoIndustria: string;
+  setupCompletado?: boolean;
 }

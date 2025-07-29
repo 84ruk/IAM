@@ -20,7 +20,8 @@ interface FiltrosIndustriaProps {
 }
 
 export default function FiltrosIndustria({ filtros, onFiltroChange }: FiltrosIndustriaProps) {
-  const { config, mostrarTemperaturaHumedad, tipoIndustria } = useIndustriaConfig()
+  const { config, tipoIndustria } = useIndustriaConfig()
+  const mostrarTemperaturaHumedad = config.mostrarTemperaturaHumedad || false
 
   const renderFiltrosTemperaturaHumedad = () => {
     if (!mostrarTemperaturaHumedad) return null

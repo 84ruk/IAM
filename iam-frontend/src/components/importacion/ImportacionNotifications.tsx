@@ -1,130 +1,165 @@
 'use client'
 
 import React from 'react'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import Button from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
 import { 
-  CheckCircle, 
-  XCircle, 
+  CheckCircle,
+  XCircle,
   AlertTriangle,
+  Info,
   X,
-  Download,
-  RefreshCw
+  Bell
 } from 'lucide-react'
-import { ImportacionValidationError } from '@/lib/api/importacion'
 
-interface ImportacionNotificationsProps {
-  success: string | null
-  error: string | null
-  validationErrors: ImportacionValidationError[] | null
-  onClearSuccess: () => void
-  onClearError: () => void
-  onClearValidationErrors: () => void
-  onDownloadErrors?: () => void
-  onRetry?: () => void
-  className?: string
+interface Notification {
+  id: string
+  type: 'success' | 'error' | 'warning' | 'info'
+  title: string
+  message: string
+  timestamp: Date
+  autoClose?: boolean
+  duration?: number
 }
 
-export const ImportacionNotifications: React.FC<ImportacionNotificationsProps> = React.memo(({
-  success,
-  error,
-  validationErrors,
-  onClearSuccess,
-  onClearError,
-  onClearValidationErrors,
-  onDownloadErrors,
-  onRetry,
-  className = ''
-}) => {
-  if (!success && !error && !validationErrors) return null
+interface ImportacionNotificationsProps {
+  notifications: Notification[]
+  onClose: (id: string) => void
+  maxNotifications?: number
+  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'
+}
+
+const notificationConfig = {
+  success: {
+    icon: CheckCircle,
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200',
+    iconBgColor: 'bg-green-100'
+  },
+  error: {
+    icon: XCircle,
+    color: 'text-red-600',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-200',
+    iconBgColor: 'bg-red-100'
+  },
+  warning: {
+    icon: AlertTriangle,
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-200',
+    iconBgColor: 'bg-yellow-100'
+  },
+  info: {
+    icon: Info,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    iconBgColor: 'bg-blue-100'
+  }
+}
+
+export default function ImportacionNotifications({ 
+  notifications, 
+  onClose, 
+  maxNotifications = 5,
+  position = 'top-right'
+}: ImportacionNotificationsProps) {
+  const getPositionClasses = () => {
+    switch (position) {
+      case 'top-left':
+        return 'top-4 left-4'
+      case 'bottom-right':
+        return 'bottom-4 right-4'
+      case 'bottom-left':
+        return 'bottom-4 left-4'
+      default:
+        return 'top-4 right-4'
+    }
+  }
+
+  const formatTime = (timestamp: Date) => {
+    const now = new Date()
+    const diff = now.getTime() - timestamp.getTime()
+    const seconds = Math.floor(diff / 1000)
+    const minutes = Math.floor(seconds / 60)
+    
+    if (seconds < 60) return 'Ahora'
+    if (minutes < 60) return `${minutes}m`
+    const hours = Math.floor(minutes / 60)
+    return `${hours}h`
+  }
+
+  const visibleNotifications = notifications.slice(0, maxNotifications)
+
+  if (visibleNotifications.length === 0) {
+    return null
+  }
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* Notificación de éxito */}
-      {success && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-800">¡Importación exitosa!</AlertTitle>
-          <AlertDescription className="text-green-700">
-            {success}
-          </AlertDescription>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClearSuccess}
-            className="absolute top-2 right-2 h-6 w-6 p-0 text-green-600 hover:text-green-800"
+    <div className={`fixed z-50 ${getPositionClasses()} space-y-2`}>
+      {visibleNotifications.map((notification) => {
+        const config = notificationConfig[notification.type]
+        const IconComponent = config.icon
+
+        return (
+          <div
+            key={notification.id}
+            className={`
+              max-w-sm w-full p-4 rounded-lg border shadow-lg
+              ${config.bgColor} ${config.borderColor}
+              transform transition-all duration-300 ease-in-out
+              hover:scale-105
+            `}
           >
-            <X className="h-4 w-4" />
-          </Button>
-        </Alert>
-      )}
+            <div className="flex items-start gap-3">
+              {/* Icono */}
+              <div className={`p-2 rounded-full ${config.iconBgColor}`}>
+                <IconComponent className={`w-4 h-4 ${config.color}`} />
+              </div>
 
-      {/* Notificación de error */}
-      {error && (
-        <Alert className="border-red-200 bg-red-50">
-          <XCircle className="h-4 w-4 text-red-600" />
-          <AlertTitle className="text-red-800">Error en la importación</AlertTitle>
-          <AlertDescription className="text-red-700">
-            {error}
-          </AlertDescription>
-          <div className="flex items-center gap-2 mt-2">
-            {onRetry && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRetry}
-                className="text-red-600 border-red-300 hover:bg-red-100"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reintentar
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClearError}
-              className="text-red-600 hover:text-red-800"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </Alert>
-      )}
+              {/* Contenido */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900 text-sm">
+                      {notification.title}
+                    </h4>
+                    <p className="text-gray-600 text-sm mt-1">
+                      {notification.message}
+                    </p>
+                  </div>
+                  
+                  {/* Botón cerrar */}
+                  <button
+                    onClick={() => onClose(notification.id)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
 
-      {/* Notificación de errores de validación */}
-      {validationErrors && validationErrors.length > 0 && (
-        <Alert className="border-orange-200 bg-orange-50">
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-          <AlertTitle className="text-orange-800">Errores de validación</AlertTitle>
-          <AlertDescription className="text-orange-700">
-            Se encontraron {validationErrors.length} errores de validación en tu archivo. 
-            Corrige los errores y vuelve a intentar la importación.
-          </AlertDescription>
-          <div className="flex items-center gap-2 mt-2">
-            {onDownloadErrors && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onDownloadErrors}
-                className="text-orange-600 border-orange-300 hover:bg-orange-100"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Descargar errores
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClearValidationErrors}
-              className="text-orange-600 hover:text-orange-800"
-            >
-              <X className="w-4 h-4" />
-            </Button>
+                {/* Timestamp */}
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="outline" className="text-xs">
+                    {formatTime(notification.timestamp)}
+                  </Badge>
+                </div>
+              </div>
+            </div>
           </div>
-        </Alert>
+        )
+      })}
+
+      {/* Indicador de más notificaciones */}
+      {notifications.length > maxNotifications && (
+        <div className="text-center">
+          <Badge variant="secondary" className="text-xs">
+            <Bell className="w-3 h-3 mr-1" />
+            +{notifications.length - maxNotifications} más
+          </Badge>
+        </div>
       )}
     </div>
   )
-})
-
-ImportacionNotifications.displayName = 'ImportacionNotifications' 
+} 

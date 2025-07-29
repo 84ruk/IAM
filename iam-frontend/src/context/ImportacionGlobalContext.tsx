@@ -17,6 +17,7 @@ interface ImportacionGlobalState {
   isLoadingTrabajos: boolean
   isLoadingTipos: boolean
   isInitialized: boolean
+  isInitializing: boolean // Nuevo: para evitar inicializaciones múltiples
   
   // Estado actual de importación
   isImporting: boolean
@@ -39,6 +40,7 @@ const initialState: ImportacionGlobalState = {
   isLoadingTrabajos: false,
   isLoadingTipos: false,
   isInitialized: false,
+  isInitializing: false,
   isImporting: false,
   currentTrabajo: null,
   error: null,
@@ -56,6 +58,7 @@ type ImportacionAction =
   | { type: 'SET_TRABAJOS'; payload: TrabajoImportacion[] }
   | { type: 'SET_TIPOS_SOPORTADOS'; payload: TipoSoportado[] }
   | { type: 'SET_INITIALIZED'; payload: boolean }
+  | { type: 'SET_INITIALIZING'; payload: boolean }
   | { type: 'SET_IMPORTING'; payload: boolean }
   | { type: 'SET_CURRENT_TRABAJO'; payload: TrabajoImportacion | null }
   | { type: 'SET_ERROR'; payload: string | null }
@@ -64,6 +67,11 @@ type ImportacionAction =
   | { type: 'SET_DETECCION_TIPO'; payload: DeteccionTipoResponse | null }
   | { type: 'SET_LAST_FETCH_TIME'; payload: number }
   | { type: 'SET_POLLING_INTERVAL'; payload: NodeJS.Timeout | null }
+  | { type: 'ADD_TRABAJO'; payload: any }
+  | { type: 'UPDATE_TRABAJO'; payload: any }
+  | { type: 'UPDATE_TRABAJO_PROGRESO'; payload: { trabajoId: string; progreso: any } }
+  | { type: 'ADD_VALIDATION_ERROR'; payload: { trabajoId: string; error: any } }
+  | { type: 'UPDATE_ESTADISTICAS'; payload: any }
   | { type: 'CLEAR_ERROR' }
   | { type: 'CLEAR_SUCCESS' }
   | { type: 'CLEAR_VALIDATION_ERRORS' }
@@ -81,8 +89,10 @@ function importacionReducer(state: ImportacionGlobalState, action: ImportacionAc
       return { ...state, trabajos: action.payload }
     case 'SET_TIPOS_SOPORTADOS':
       return { ...state, tiposSoportados: action.payload }
-    case 'SET_INITIALIZED':
-      return { ...state, isInitialized: action.payload }
+          case 'SET_INITIALIZED':
+        return { ...state, isInitialized: action.payload }
+      case 'SET_INITIALIZING':
+        return { ...state, isInitializing: action.payload }
     case 'SET_IMPORTING':
       return { ...state, isImporting: action.payload }
     case 'SET_CURRENT_TRABAJO':
@@ -99,6 +109,40 @@ function importacionReducer(state: ImportacionGlobalState, action: ImportacionAc
       return { ...state, lastFetchTime: action.payload }
     case 'SET_POLLING_INTERVAL':
       return { ...state, pollingInterval: action.payload }
+    case 'ADD_TRABAJO':
+      return { 
+        ...state, 
+        trabajos: [action.payload, ...state.trabajos]
+      }
+    case 'UPDATE_TRABAJO':
+      return {
+        ...state,
+        trabajos: state.trabajos.map(trabajo => 
+          trabajo.id === action.payload.id ? action.payload : trabajo
+        ),
+        currentTrabajo: state.currentTrabajo?.id === action.payload.id 
+          ? action.payload 
+          : state.currentTrabajo
+      }
+    case 'UPDATE_TRABAJO_PROGRESO':
+      return {
+        ...state,
+        trabajos: state.trabajos.map(trabajo => 
+          trabajo.id === action.payload.trabajoId 
+            ? { ...trabajo, ...action.payload.progreso }
+            : trabajo
+        )
+      }
+    case 'ADD_VALIDATION_ERROR':
+      return {
+        ...state,
+        validationErrors: state.validationErrors 
+          ? [...state.validationErrors, action.payload.error]
+          : [action.payload.error]
+      }
+    case 'UPDATE_ESTADISTICAS':
+      // Las estadísticas se calculan dinámicamente, no se almacenan
+      return state
     case 'CLEAR_ERROR':
       return { ...state, error: null }
     case 'CLEAR_SUCCESS':
@@ -156,21 +200,11 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
   
   // Verificar si el usuario está autenticado usando el contexto directamente
   const isAuthenticated = !!user
-  
-  // Log de verificación para confirmar que el contexto funciona
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔍 ImportacionGlobalProvider - Verificación de contexto:', {
-      userExists: !!user,
-      userEmail: user?.email,
-      isAuthenticated,
-      contextWorking: true
-    })
-  }
 
-  // Función para cargar trabajos con cache
+  // Función para cargar trabajos con cache optimizado
   const loadTrabajos = useCallback(async (force = false) => {
     const now = Date.now()
-    const cacheTime = 30000 // 30 segundos de cache
+    const cacheTime = 30000 // 30 segundos de cache (reducido para datos que cambian más)
     
     // Evitar peticiones duplicadas y respetar cache
     if (!force && 
@@ -188,7 +222,7 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
       dispatch({ type: 'SET_TRABAJOS', payload: trabajos })
       dispatch({ type: 'SET_LAST_FETCH_TIME', payload: now })
     } catch (error) {
-      console.error('Error al cargar trabajos:', error)
+      console.error('❌ Error al cargar trabajos:', error)
       dispatch({ type: 'SET_TRABAJOS', payload: [] })
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Error al cargar trabajos' })
     } finally {
@@ -196,11 +230,11 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
     }
   }, [state.isLoadingTrabajos, state.lastFetchTime, state.trabajos])
 
-  // Función para cargar tipos soportados con cache
+  // Función para cargar tipos soportados con cache extendido
   const loadTiposSoportados = useCallback(async (force = false) => {
-    // Cache más largo para tipos soportados (5 minutos)
+    // Cache extendido para tipos soportados (30 minutos - datos que cambian muy raramente)
     const now = Date.now()
-    const cacheTime = 300000 // 5 minutos
+    const cacheTime = 1800000 // 30 minutos
     
     if (!force && 
         state.isLoadingTipos || 
@@ -222,28 +256,41 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
     }
   }, [state.isLoadingTipos, state.lastFetchTime, state.tiposSoportados])
 
-  // Función para inicializar datos
+  // Función para inicializar datos optimizada
   const initializeData = useCallback(async () => {
-    if (state.isInitialized) return
+    if (state.isInitialized || state.isInitializing) {
+      return
+    }
 
     try {
-      console.log('🔄 Inicializando datos de importación...')
-      await Promise.all([
+      dispatch({ type: 'SET_INITIALIZING', payload: true })
+      
+      // Cargar en paralelo para mejor rendimiento
+      const [trabajosPromise, tiposPromise] = await Promise.allSettled([
         loadTrabajos(true),
         loadTiposSoportados(true)
       ])
+      
+      // Manejar errores individuales sin fallar toda la inicialización
+      if (trabajosPromise.status === 'rejected') {
+        console.warn('⚠️ Error al cargar trabajos:', trabajosPromise.reason)
+      }
+      
+      if (tiposPromise.status === 'rejected') {
+        console.warn('⚠️ Error al cargar tipos:', tiposPromise.reason)
+      }
+      
       dispatch({ type: 'SET_INITIALIZED', payload: true })
-      console.log('✅ Datos de importación inicializados correctamente')
+      dispatch({ type: 'SET_INITIALIZING', payload: false })
     } catch (error) {
       console.error('❌ Error al inicializar datos:', error)
       dispatch({ type: 'SET_INITIALIZED', payload: true })
+      dispatch({ type: 'SET_INITIALIZING', payload: false })
     }
-  }, [state.isInitialized, loadTrabajos, loadTiposSoportados])
+  }, [state.isInitialized, state.isInitializing, loadTrabajos, loadTiposSoportados])
 
   // Función para manejar respuesta de importación
   const handleImportResponse = useCallback((resultado: any, archivo: File, tipo: TipoImportacion) => {
-    console.log('🔍 Respuesta del backend:', resultado)
-    
     // Manejar diferentes estructuras de respuesta del backend
     const isSuccess = resultado.success !== false && (resultado.trabajoId || resultado.success)
     const trabajoId = resultado.trabajoId
@@ -282,8 +329,6 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
         })
       }
     } else {
-      console.log('❌ Respuesta con error:', resultado)
-      
       if (resultado.erroresDetallados && resultado.erroresDetallados.length > 0) {
         const erroresCopiados = resultado.erroresDetallados.map((error: any) => ({
           fila: error.fila,
@@ -376,8 +421,35 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
     }
   }, [])
 
-  // Funciones de polling
+  // Función para generar mensajes de error detallados
+  const generateDetailedErrorMessage = useCallback((trabajo: any) => {
+    if (trabajo.registrosConError > 0 && trabajo.registrosExitosos === 0) {
+      // Todos los registros fallaron
+      if (trabajo.registrosConError === trabajo.totalRegistros) {
+        return `Todos los productos ya existen en la base de datos. Para sobrescribirlos, activa la opción "Sobrescribir existentes" en las opciones avanzadas.`
+      }
+      return `No se pudo importar ningún producto. ${trabajo.registrosConError} de ${trabajo.totalRegistros} registros tienen errores.`
+    } else if (trabajo.registrosConError > 0) {
+      // Algunos registros fallaron
+      return `Importación completada parcialmente: ${trabajo.registrosExitosos} productos importados exitosamente, ${trabajo.registrosConError} con errores.`
+    } else {
+      // Error general
+      return trabajo.mensaje || `Error en la importación: ${trabajo.registrosConError} errores encontrados`
+    }
+  }, [])
+
+  // Funciones de polling optimizadas - SOLO cuando WebSocket no está disponible
   const startPolling = useCallback((trabajoId: string) => {
+    // Verificar si WebSocket está disponible
+    const isWebSocketAvailable = typeof window !== 'undefined' && 
+      window.WebSocket && 
+      navigator.onLine &&
+      !window.location.hostname.includes('localhost') // En desarrollo, usar polling como fallback
+
+    if (isWebSocketAvailable) {
+      return
+    }
+
     // Detener polling anterior si existe
     if (state.pollingInterval) {
       clearTimeout(state.pollingInterval)
@@ -385,7 +457,6 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
 
     // Timeout de seguridad para evitar polling infinito (5 minutos)
     const safetyTimeout = setTimeout(() => {
-      console.log('⚠️ Polling - Timeout de seguridad alcanzado, deteniendo polling')
       dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
       dispatch({ type: 'SET_IMPORTING', payload: false })
       dispatch({ 
@@ -394,29 +465,30 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
       })
     }, 5 * 60 * 1000) // 5 minutos
 
+    // Función para determinar intervalo de polling basado en el estado
+    const getPollingInterval = (estado: string, progreso: number): number => {
+      if (estado === 'completado' || estado === 'error' || estado === 'cancelado') {
+        return 0 // Detener polling
+      }
+      
+      if (estado === 'pendiente') {
+        return 5000 // 5s para trabajos pendientes
+      }
+      
+      if (estado === 'procesando') {
+        // Polling más frecuente al inicio, menos frecuente al final
+        if (progreso < 25) return 2000 // 2s al inicio
+        if (progreso < 75) return 3000 // 3s en medio
+        return 4000 // 4s al final
+      }
+      
+      return 3000 // Default
+    }
+
     const poll = async () => {
       try {
         const response = await importacionAPI.obtenerEstadoTrabajo(trabajoId)
         const trabajo = response.trabajo
-
-        // Solo loggear cambios significativos para reducir logs
-        const currentTrabajo = state.currentTrabajo
-        const hasSignificantChange = !currentTrabajo || 
-          currentTrabajo.estado !== trabajo.estado ||
-          currentTrabajo.progreso !== trabajo.progreso ||
-          currentTrabajo.registrosExitosos !== trabajo.registrosExitosos ||
-          currentTrabajo.registrosConError !== trabajo.registrosConError
-
-        if (hasSignificantChange && process.env.NODE_ENV === 'development') {
-          console.log('🔄 Polling - Estado del trabajo:', {
-            id: trabajo.id,
-            estado: trabajo.estado,
-            progreso: trabajo.progreso,
-            registrosExitosos: trabajo.registrosExitosos,
-            registrosConError: trabajo.registrosConError,
-            totalRegistros: trabajo.totalRegistros
-          })
-        }
 
         dispatch({ type: 'SET_CURRENT_TRABAJO', payload: trabajo })
         
@@ -430,21 +502,8 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
         const isCancelled = trabajo.estado === 'cancelado'
         const hasErrors = trabajo.registrosConError > 0
         
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🔍 Polling - Análisis de estado:', {
-            isCompleted,
-            hasError,
-            isCancelled,
-            hasErrors,
-            shouldStop: isCompleted || hasError || isCancelled
-          })
-        }
-        
         // Detener polling si el trabajo está completado, tiene error, fue cancelado, o tiene errores
         if (isCompleted || hasError || isCancelled) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('✅ Polling - Deteniendo polling, trabajo finalizado')
-          }
           clearTimeout(safetyTimeout) // Limpiar timeout de seguridad
           dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
           dispatch({ type: 'SET_IMPORTING', payload: false })
@@ -452,9 +511,10 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
           if (isCompleted) {
             if (hasErrors) {
               // Si está completado pero tiene errores, mostrar mensaje de advertencia
+              const errorMessage = generateDetailedErrorMessage(trabajo)
               dispatch({ 
                 type: 'SET_ERROR', 
-                payload: `Importación completada con errores: ${trabajo.registrosConError} registros con errores, ${trabajo.registrosExitosos} exitosos`
+                payload: errorMessage
               })
               dispatch({ type: 'SET_SUCCESS', payload: null })
               
@@ -478,50 +538,62 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
                 dispatch({ type: 'SET_VALIDATION_ERRORS', payload: erroresDetallados })
               }
             } else {
-              // Si está completado sin errores, mostrar éxito
+              // Completado sin errores
               dispatch({ 
                 type: 'SET_SUCCESS', 
-                payload: `Importación completada exitosamente: ${trabajo.registrosExitosos} registros procesados`
+                payload: `¡Importación completada exitosamente! ${trabajo.registrosExitosos} registros procesados.` 
               })
               dispatch({ type: 'SET_ERROR', payload: null })
             }
           } else if (hasError) {
-            console.log('❌ Polling - Trabajo con error:', trabajo.mensaje)
+            // Error en el trabajo
+            const errorMessage = generateDetailedErrorMessage(trabajo)
             dispatch({ 
               type: 'SET_ERROR', 
-              payload: `Error en la importación: ${trabajo.mensaje || 'Error desconocido'}`
+              payload: errorMessage
             })
             dispatch({ type: 'SET_SUCCESS', payload: null })
           } else if (isCancelled) {
+            // Trabajo cancelado
             dispatch({ 
               type: 'SET_ERROR', 
-              payload: 'Importación cancelada'
+              payload: 'Importación cancelada por el usuario'
             })
             dispatch({ type: 'SET_SUCCESS', payload: null })
           }
           
-          // Actualizar lista de trabajos
-          await loadTrabajos(true)
+          // Recargar trabajos para obtener datos actualizados
+          setTimeout(() => {
+            loadTrabajos(true)
+          }, 1000)
+          
           return
         }
 
-        // Continuar polling
-        const interval = setTimeout(poll, 2000)
-        dispatch({ type: 'SET_POLLING_INTERVAL', payload: interval })
+        // Continuar polling con intervalo dinámico
+        const nextInterval = getPollingInterval(trabajo.estado, trabajo.progreso)
+        if (nextInterval > 0) {
+          const timeoutId = setTimeout(poll, nextInterval)
+          dispatch({ type: 'SET_POLLING_INTERVAL', payload: timeoutId })
+        } else {
+          dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
+        }
+
       } catch (error) {
-        console.error('Error en polling:', error)
-        clearTimeout(safetyTimeout) // Limpiar timeout de seguridad
-        dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
-        dispatch({ type: 'SET_IMPORTING', payload: false })
-        dispatch({ 
-          type: 'SET_ERROR', 
-          payload: 'Error al verificar el estado de la importación'
-        })
+        console.error('❌ Error en polling HTTP:', error)
+        
+        // En caso de error, intentar una vez más después de 10 segundos
+        const retryTimeout = setTimeout(() => {
+          poll()
+        }, 10000)
+        
+        dispatch({ type: 'SET_POLLING_INTERVAL', payload: retryTimeout })
       }
     }
 
+    // Iniciar polling
     poll()
-  }, [state.pollingInterval, loadTrabajos])
+  }, [state.currentTrabajo, state.pollingInterval, dispatch, loadTrabajos])
 
   const stopPolling = useCallback(() => {
     if (state.pollingInterval) {
@@ -587,7 +659,6 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
   // Memoizar las funciones de inicialización para evitar re-creaciones
   const memoizedInitializeData = useCallback(async () => {
     if (!state.isInitialized) {
-      console.log('🔄 Usuario autenticado, inicializando datos de importación...')
       await initializeData()
     }
   }, [state.isInitialized, initializeData])
@@ -596,28 +667,33 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
     stopPolling()
   }, [stopPolling])
 
-  // Inicializar datos al montar el provider - OPTIMIZADO
+  // Inicializar datos al montar el provider - OPTIMIZADO CON DEBOUNCE Y RUTA
   useEffect(() => {
-    // Solo loggear en desarrollo y cuando hay cambios reales
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 ImportacionGlobalProvider - Estado de autenticación:', authState)
-    }
+    // Solo inicializar si el usuario está autenticado, no está ya inicializado, y está en una página de importación
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+    const isImportPage = currentPath.includes('/importacion') || currentPath.includes('/dashboard/importacion')
     
-    // Solo inicializar si el usuario está autenticado y no está ya inicializado
-    if (isAuthenticated && !state.isInitialized) {
-      memoizedInitializeData()
-    } else if (!isAuthenticated && process.env.NODE_ENV === 'development') {
-      console.log('⏸️ Usuario no autenticado, saltando inicialización de importación')
-    } else if (state.isInitialized && process.env.NODE_ENV === 'development') {
-      console.log('✅ Datos de importación ya inicializados')
+    if (isAuthenticated && !state.isInitialized && isImportPage) {
+      // Usar setTimeout para evitar múltiples inicializaciones simultáneas
+      const timeoutId = setTimeout(() => {
+        // Verificar que no se haya inicializado mientras esperaba
+        if (!state.isInitialized) {
+          memoizedInitializeData()
+        }
+      }, 200) // Aumentado a 200ms para evitar conflictos
+      
+      return () => {
+        clearTimeout(timeoutId)
+        memoizedStopPolling()
+      }
     }
     
     // Cleanup al desmontar
     return memoizedStopPolling
-  }, [authState, memoizedInitializeData, memoizedStopPolling])
+  }, [authState, memoizedInitializeData, memoizedStopPolling, state.isInitialized])
 
-  // Memoizar el context value para evitar re-renders innecesarios
-  const contextValue: ImportacionGlobalContextType = useMemo(() => ({
+  // Context value sin memoización para evitar problemas de referencia
+  const contextValue: ImportacionGlobalContextType = {
     state,
     dispatch,
     loadTrabajos,
@@ -633,23 +709,7 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
     clearDeteccionTipo,
     startPolling,
     stopPolling
-  }), [
-    state,
-    dispatch,
-    loadTrabajos,
-    loadTiposSoportados,
-    initializeData,
-    importarUnified,
-    importarAuto,
-    validarAuto,
-    descargarPlantilla,
-    clearError,
-    clearSuccess,
-    clearValidationErrors,
-    clearDeteccionTipo,
-    startPolling,
-    stopPolling
-  ])
+  }
 
   return (
     <ImportacionGlobalContext.Provider value={contextValue}>
@@ -662,7 +722,47 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
 export function useImportacionGlobal() {
   const context = useContext(ImportacionGlobalContext)
   if (context === undefined) {
-    throw new Error('useImportacionGlobal debe ser usado dentro de ImportacionGlobalProvider')
+    // En lugar de lanzar un error, devolver un contexto por defecto
+    console.warn('⚠️ useImportacionGlobal llamado fuera de ImportacionGlobalProvider, usando contexto por defecto')
+    
+    const defaultState: ImportacionGlobalState = {
+      trabajos: [],
+      tiposSoportados: [],
+      isLoadingTrabajos: false,
+      isLoadingTipos: false,
+      isInitialized: false,
+      isInitializing: false,
+      isImporting: false,
+      currentTrabajo: null,
+      error: null,
+      success: null,
+      validationErrors: null,
+      deteccionTipo: null,
+      lastFetchTime: 0,
+      pollingInterval: null
+    };
+
+    const noop = () => {
+      console.warn('⚠️ Función de importación llamada sin contexto disponible');
+    };
+
+    return {
+      state: defaultState,
+      dispatch: noop,
+      loadTrabajos: noop,
+      loadTiposSoportados: noop,
+      initializeData: noop,
+      importarUnified: noop,
+      importarAuto: noop,
+      validarAuto: noop,
+      descargarPlantilla: noop,
+      clearError: noop,
+      clearSuccess: noop,
+      clearValidationErrors: noop,
+      clearDeteccionTipo: noop,
+      startPolling: noop,
+      stopPolling: noop
+    };
   }
   return context
 } 

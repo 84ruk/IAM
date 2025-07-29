@@ -1,11 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
+import React from 'react'
 import { Badge } from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
 import { 
-  ArrowLeft,
   Download,
   X,
   CheckCircle,
@@ -14,38 +12,44 @@ import {
   AlertTriangle,
   Loader2,
   FileText,
-  Trash2
+  Trash2,
+  Package,
+  ShoppingCart,
+  Activity
 } from 'lucide-react'
-import { useImportacionSafe } from '@/hooks/useImportacionSafe'
 import { TrabajoImportacion } from '@/lib/api/importacion'
+import ProgressBar from './ProgressBar'
 
 interface TrabajosListProps {
   trabajos: TrabajoImportacion[]
-  onClose: () => void
+  showProgress?: boolean
+  showActions?: boolean
 }
 
 const tipoConfig = {
   productos: {
     title: 'Productos',
-    icon: '📦',
+    icon: Package,
     color: 'bg-blue-500'
   },
   proveedores: {
     title: 'Proveedores',
-    icon: '🏢',
+    icon: ShoppingCart,
     color: 'bg-orange-500'
   },
   movimientos: {
     title: 'Movimientos',
-    icon: '📊',
+    icon: Activity,
     color: 'bg-purple-500'
+  },
+  auto: {
+    title: 'Automático',
+    icon: FileText,
+    color: 'bg-green-500'
   }
 }
 
-export default function TrabajosList({ trabajos, onClose }: TrabajosListProps) {
-  const [trabajoSeleccionado, setTrabajoSeleccionado] = useState<TrabajoImportacion | null>(null)
-  const { cancelarTrabajo, descargarReporteErrores } = useImportacionSafe()
-
+export default function TrabajosList({ trabajos, showProgress = false, showActions = true }: TrabajosListProps) {
   const getEstadoIcon = (estado: string) => {
     switch (estado) {
       case 'completado':
@@ -87,7 +91,7 @@ export default function TrabajosList({ trabajos, onClose }: TrabajosListProps) {
       case 'error':
         return 'Error'
       case 'procesando':
-        return 'Procesando'
+        return 'En Proceso'
       case 'pendiente':
         return 'Pendiente'
       case 'cancelado':
@@ -98,8 +102,7 @@ export default function TrabajosList({ trabajos, onClose }: TrabajosListProps) {
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleString('es-ES', {
+    return new Date(dateString).toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -109,227 +112,113 @@ export default function TrabajosList({ trabajos, onClose }: TrabajosListProps) {
   }
 
   const handleCancelarTrabajo = async (trabajoId: string) => {
-    if (confirm('¿Estás seguro de que quieres cancelar este trabajo?')) {
-      await cancelarTrabajo()
-    }
+    // Implementar cancelación de trabajo
+    console.log('Cancelar trabajo:', trabajoId)
   }
 
   const handleDescargarErrores = async (trabajoId: string) => {
-    await descargarReporteErrores()
+    // Implementar descarga de errores
+    console.log('Descargar errores:', trabajoId)
   }
 
-  if (trabajoSeleccionado) {
-    const config = tipoConfig[trabajoSeleccionado.tipo]
-    
+  if (trabajos.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setTrabajoSeleccionado(null)}
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{config.icon}</span>
-                <div>
-                  <CardTitle className="text-lg">Detalles del trabajo</CardTitle>
-                  <p className="text-sm text-gray-600">{config.title}</p>
-                </div>
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-700">Archivo</p>
-                <p className="text-sm text-gray-900">{trabajoSeleccionado.archivoOriginal}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-700">Estado</p>
-                <div className="flex items-center gap-2">
-                  {getEstadoIcon(trabajoSeleccionado.estado)}
-                  <Badge className={getEstadoColor(trabajoSeleccionado.estado)}>
-                    {getEstadoText(trabajoSeleccionado.estado)}
-                  </Badge>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-700">Fecha de creación</p>
-                <p className="text-sm text-gray-900">{formatDate(trabajoSeleccionado.fechaCreacion)}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-700">Última actualización</p>
-                <p className="text-sm text-gray-900">{formatDate(trabajoSeleccionado.fechaActualizacion)}</p>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="font-medium text-gray-900 mb-3">Progreso</h4>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span>Progreso general:</span>
-                  <span>{trabajoSeleccionado.progreso}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${trabajoSeleccionado.progreso}%` }}
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-600">Total registros</p>
-                    <p className="font-medium">{trabajoSeleccionado.totalRegistros}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Procesados</p>
-                    <p className="font-medium">{trabajoSeleccionado.registrosProcesados}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Exitosos</p>
-                    <p className="font-medium text-green-600">{trabajoSeleccionado.registrosExitosos}</p>
-                  </div>
-                </div>
-                {trabajoSeleccionado.registrosConError > 0 && (
-                  <div>
-                    <p className="text-gray-600 text-sm">Con errores</p>
-                    <p className="font-medium text-red-600">{trabajoSeleccionado.registrosConError}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {trabajoSeleccionado.mensaje && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800">{trabajoSeleccionado.mensaje}</p>
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-4 border-t">
-              {(trabajoSeleccionado.estado === 'pendiente' || trabajoSeleccionado.estado === 'procesando') && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleCancelarTrabajo(trabajoSeleccionado.id)}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Cancelar trabajo
-                </Button>
-              )}
-              
-              {trabajoSeleccionado.estado === 'error' && trabajoSeleccionado.registrosConError > 0 && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleDescargarErrores(trabajoSeleccionado.id)}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Descargar errores
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-center py-8 text-gray-500">
+        <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+        <p>No hay trabajos para mostrar</p>
+      </div>
     )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Trabajos de importación
-              </CardTitle>
-              <p className="text-sm text-gray-600">
-                {trabajos.length} trabajo(s) encontrado(s)
-              </p>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
+    <div className="space-y-3">
+      {trabajos.map((trabajo) => {
+        const tipo = tipoConfig[trabajo.tipo as keyof typeof tipoConfig] || tipoConfig.auto
+        const IconComponent = tipo.icon
 
-      <CardContent>
-        {trabajos.length === 0 ? (
-          <div className="text-center py-8">
-            <FileText className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-600">No hay trabajos de importación</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {trabajos.map((trabajo) => {
-              const config = tipoConfig[trabajo.tipo]
-              
-              return (
-                <div
-                  key={trabajo.id}
-                  className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors cursor-pointer"
-                  onClick={() => setTrabajoSeleccionado(trabajo)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${config.color} text-white`}>
-                        <span className="text-lg">{config.icon}</span>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-gray-900">{config.title}</p>
-                          {getEstadoIcon(trabajo.estado)}
-                          <Badge className={getEstadoColor(trabajo.estado)}>
-                            {getEstadoText(trabajo.estado)}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600">{trabajo.archivoOriginal}</p>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(trabajo.fechaCreacion)}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {trabajo.registrosExitosos}/{trabajo.totalRegistros}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {trabajo.progreso}% completado
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {(trabajo.estado === 'pendiente' || trabajo.estado === 'procesando') && (
-                    <div className="mt-3">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${trabajo.progreso}%` }}
-                        />
-                      </div>
-                    </div>
+        return (
+          <div
+            key={trabajo.id}
+            className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3 flex-1">
+              {/* Icono del tipo */}
+              <div className={`p-2 rounded-lg ${tipo.color}`}>
+                <IconComponent className="w-4 h-4 text-white" />
+              </div>
+
+              {/* Información del trabajo */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="font-medium text-gray-900 truncate">
+                    {trabajo.archivoOriginal}
+                  </h4>
+                  <Badge className={getEstadoColor(trabajo.estado)}>
+                    {getEstadoIcon(trabajo.estado)}
+                    <span className="ml-1">{getEstadoText(trabajo.estado)}</span>
+                  </Badge>
+                </div>
+
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span>{tipo.title}</span>
+                  <span>•</span>
+                  <span>{formatDate(trabajo.fechaCreacion)}</span>
+                  {trabajo.fechaActualizacion && trabajo.fechaActualizacion !== trabajo.fechaCreacion && (
+                    <>
+                      <span>•</span>
+                      <span>Actualizado: {formatDate(trabajo.fechaActualizacion)}</span>
+                    </>
                   )}
                 </div>
-              )
-            })}
+
+                {/* Progreso */}
+                {showProgress && (trabajo.estado === 'procesando' || trabajo.estado === 'pendiente') && (
+                  <div className="mt-2">
+                    <ProgressBar 
+                      progreso={trabajo.progreso || 0}
+                      estado={trabajo.estado}
+                    />
+                  </div>
+                )}
+
+                {/* Estadísticas */}
+                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                  <span>Total: {trabajo.totalRegistros}</span>
+                  <span>Procesados: {trabajo.registrosProcesados}</span>
+                  <span>Exitosos: {trabajo.registrosExitosos}</span>
+                  {trabajo.registrosConError > 0 && (
+                    <span>Errores: {trabajo.registrosConError}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Acciones */}
+            {showActions && (
+              <div className="flex items-center gap-2">
+                {trabajo.estado === 'procesando' || trabajo.estado === 'pendiente' ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCancelarTrabajo(trabajo.id)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                ) : trabajo.estado === 'error' && trabajo.registrosConError ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDescargarErrores(trabajo.id)}
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                ) : null}
+              </div>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        )
+      })}
+    </div>
   )
 } 

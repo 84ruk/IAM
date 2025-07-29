@@ -7,7 +7,9 @@ import { useMemo, useState, useCallback, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { CardSkeleton } from '@/components/ui/CardSkeleton'
 import { useAutoRefresh } from '@/lib/useAutoRefresh'
-import { useAllKPIs } from '@/hooks/useKPIs'
+import { useOptimizedKPIs } from '@/hooks/useKPIs'
+import DashboardRequestOptimizer from '@/components/dashboard/DashboardRequestOptimizer'
+import RequestBlocker from '@/components/dashboard/RequestBlocker'
 import { 
   TrendingUp, 
   Package, 
@@ -30,12 +32,12 @@ import {
   TrendingDown,
   Upload,
   Plus,
-  ArrowRight
+  ArrowRight,
+  Database
 } from 'lucide-react'
-import { DashboardImportButton } from '@/components/ui/ImportButton'
+import { DashboardConditionalImportButton } from '@/components/ui/ConditionalImportButton'
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import SafeImportacionStats from '@/components/importacion/SafeImportacionStats'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
 import { Loader2 } from 'lucide-react'
 import Select from '@/components/ui/Select'
@@ -112,12 +114,12 @@ type MovimientoKPI = {
 
 export default function DashboardClient() {
   const { data, isLoading, error, mutate } = useSWR('/dashboard/data', fetcher, {
-    refreshInterval: 120000,
+    refreshInterval: 300000, // Aumentado a 5 minutos
     revalidateOnFocus: false,
-    revalidateOnReconnect: true,
-    dedupingInterval: 60000,
-    errorRetryCount: 3,
-    errorRetryInterval: 5000,
+    revalidateOnReconnect: false, // Cambiado a false
+    dedupingInterval: 300000, // Aumentado a 5 minutos
+    errorRetryCount: 2, // Reducido
+    errorRetryInterval: 10000, // Aumentado
   })
   
   const {
@@ -125,7 +127,7 @@ export default function DashboardClient() {
     financial: financialKpis,
     isLoading: kpisLoading,
     error: kpisError
-  } = useAllKPIs('mes', 'general', 30)
+  } = useOptimizedKPIs('mes', 'general', 30)
   
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [monthLoading, setMonthLoading] = useState(false)
@@ -336,7 +338,7 @@ export default function DashboardClient() {
             </div>
             
             <div className="flex items-center gap-3">
-              <DashboardImportButton />
+              <DashboardConditionalImportButton />
             </div>
           </div>
 
@@ -443,7 +445,7 @@ export default function DashboardClient() {
           </div>
           
           <div className="flex items-center gap-3">
-            <DashboardImportButton />
+            <DashboardConditionalImportButton />
 
             <Select
               value={selectedMonth}
@@ -463,6 +465,20 @@ export default function DashboardClient() {
             <span className="text-green-800">Datos actualizados automáticamente</span>
           </div>
         )}
+
+        {/* Optimizador de Requests (solo en desarrollo) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="col-span-full mb-6">
+            <DashboardRequestOptimizer 
+              onOptimize={() => {
+                console.log('Optimización del dashboard aplicada')
+              }}
+            />
+          </div>
+        )}
+
+        {/* Request Blocker (solo en desarrollo) */}
+        <RequestBlocker enabled={process.env.NODE_ENV === 'development'} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <KPICard
@@ -666,7 +682,10 @@ export default function DashboardClient() {
               </div>
             </div>
             
-            <SafeImportacionStats />
+            <div className="text-center text-gray-500">
+              <Database className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+              <p className="text-sm">Estadísticas de importación disponibles en la sección de importación</p>
+            </div>
           </div>
         </div>
 

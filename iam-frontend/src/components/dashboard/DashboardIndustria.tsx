@@ -16,7 +16,7 @@ interface DashboardIndustriaProps {
 }
 
 export default function DashboardIndustria({ estadisticas }: DashboardIndustriaProps) {
-  const { config, tieneSensores, mostrarTemperaturaHumedad, tipoIndustria } = useIndustriaConfig()
+  const { config, tipoIndustria } = useIndustriaConfig()
 
   const renderMetricaIndustria = () => {
     switch (tipoIndustria) {

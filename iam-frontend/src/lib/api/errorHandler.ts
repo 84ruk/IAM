@@ -18,11 +18,12 @@ export interface ValidationError {
 }
 
 export interface UserFriendlyError {
-  title: string;
+  title?: string;
   message: string;
   details?: string[];
   suggestions?: string[];
   type: 'validation' | 'file' | 'system' | 'network' | 'auth';
+  code?: string;
 }
 
 export class ErrorHandlerService {
@@ -30,88 +31,46 @@ export class ErrorHandlerService {
    * Convierte errores del backend en mensajes amigables para el usuario
    */
   static parseBackendError(error: any): UserFriendlyError {
-    console.log('🔍 Parsing backend error:', error);
-
-    // Error de validación (400)
-    if (error.statusCode === 400) {
-      return this.parseValidationError(error);
-    }
-
-    // Error de archivo (413)
-    if (error.statusCode === 413) {
+    if (!error) {
       return {
-        title: 'Archivo demasiado grande',
-        message: 'El archivo que intentas subir excede el tamaño máximo permitido.',
-        details: ['Tamaño máximo: 50MB', 'Comprime el archivo o divide los datos en archivos más pequeños'],
-        suggestions: [
-          'Reduce el tamaño del archivo eliminando datos innecesarios',
-          'Divide el archivo en partes más pequeñas',
-          'Comprime el archivo antes de subirlo'
-        ],
-        type: 'file'
-      };
+        message: 'Error desconocido',
+        type: 'system',
+        code: 'UNKNOWN_ERROR'
+      }
     }
 
-    // Error de autenticación (401)
-    if (error.statusCode === 401) {
+    // Si ya es un UserFriendlyError, devolverlo
+    if (error.userFriendlyError) {
+      return error.userFriendlyError
+    }
+
+    // Parsear errores de respuesta HTTP
+    if (error.response?.data) {
+      const backendError = error.response.data
+      
       return {
-        title: 'Sesión expirada',
-        message: 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
-        suggestions: ['Recarga la página e inicia sesión'],
-        type: 'auth'
-      };
+        message: backendError.message || 'Error del servidor',
+        type: 'system',
+        code: backendError.code || 'BACKEND_ERROR',
+        details: backendError.details || null
+      }
     }
 
-    // Error de permisos (403)
-    if (error.statusCode === 403) {
-      return {
-        title: 'Sin permisos',
-        message: 'No tienes permisos para realizar esta acción.',
-        suggestions: ['Contacta al administrador de tu empresa'],
-        type: 'auth'
-      };
-    }
-
-    // Error de servidor (500+)
-    if (error.statusCode >= 500) {
-      return {
-        title: 'Error del servidor',
-        message: 'Ocurrió un error interno en el servidor. Por favor, intenta más tarde.',
-        details: ['El equipo técnico ha sido notificado'],
-        suggestions: [
-          'Intenta nuevamente en unos minutos',
-          'Verifica tu conexión a internet',
-          'Si el problema persiste, contacta soporte'
-        ],
-        type: 'system'
-      };
-    }
-
-    // Error de red
+    // Parsear errores de red
     if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
       return {
-        title: 'Error de conexión',
-        message: 'No se pudo conectar con el servidor. Verifica tu conexión a internet.',
-        suggestions: [
-          'Verifica tu conexión a internet',
-          'Intenta nuevamente en unos minutos',
-          'Si el problema persiste, contacta soporte'
-        ],
-        type: 'network'
-      };
+        message: 'Error de conexión. Verifica tu conexión a internet.',
+        type: 'network',
+        code: 'NETWORK_ERROR'
+      }
     }
 
-    // Error genérico
+    // Error por defecto
     return {
-      title: 'Error inesperado',
-      message: error.message || 'Ocurrió un error inesperado. Por favor, intenta nuevamente.',
-      suggestions: [
-        'Recarga la página e intenta nuevamente',
-        'Verifica que todos los datos sean correctos',
-        'Si el problema persiste, contacta soporte'
-      ],
-      type: 'system'
-    };
+      message: error.message || 'Error desconocido',
+      type: 'system',
+      code: 'UNKNOWN_ERROR'
+    }
   }
 
   /**

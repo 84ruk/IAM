@@ -35,10 +35,10 @@ interface ImportacionState {
   isLoadingTipos: boolean
 }
 
-// Configuración por defecto
+// Configuración por defecto optimizada
 const DEFAULT_OPTIONS: Required<UseImportacionOptions> = {
   autoPolling: true,
-  pollingInterval: 2000,
+  pollingInterval: 3000, // Aumentado a 3 segundos
   maxPollingTime: 300000, // 5 minutos
   lazyLoad: true // Por defecto, cargar de forma lazy
 }
@@ -147,6 +147,23 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
     await initializeData()
   }, [initializeData])
 
+  // Función para generar mensajes de error detallados
+  const generateDetailedErrorMessage = useCallback((trabajo: any) => {
+    if (trabajo.registrosConError > 0 && trabajo.registrosExitosos === 0) {
+      // Todos los registros fallaron
+      if (trabajo.registrosConError === trabajo.totalRegistros) {
+        return `Todos los productos ya existen en la base de datos. Para sobrescribirlos, activa la opción "Sobrescribir existentes" en las opciones avanzadas.`
+      }
+      return `No se pudo importar ningún producto. ${trabajo.registrosConError} de ${trabajo.totalRegistros} registros tienen errores.`
+    } else if (trabajo.registrosConError > 0) {
+      // Algunos registros fallaron
+      return `Importación completada parcialmente: ${trabajo.registrosExitosos} productos importados exitosamente, ${trabajo.registrosConError} con errores.`
+    } else {
+      // Error general
+      return trabajo.mensaje || `Error en la importación: ${trabajo.registrosConError} errores encontrados`
+    }
+  }, [])
+
   // Función para iniciar polling
   const startPolling = useCallback((trabajoId: string) => {
     if (!config.autoPolling) return
@@ -164,12 +181,12 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
           isImporting: trabajo.estado === 'pendiente' || trabajo.estado === 'procesando'
         }))
 
-        // Verificar si el trabajo está realmente completado
+        // Verificar si el trabajo está realmente completado o tiene errores
         const isCompleted = trabajo.estado === 'completado' && trabajo.progreso >= 100
-        const hasError = trabajo.estado === 'error'
+        const hasError = trabajo.estado === 'error' || (trabajo.registrosConError > 0 && trabajo.registrosProcesados === trabajo.totalRegistros)
         const isCancelled = trabajo.estado === 'cancelado'
         
-        // Solo detener polling si está realmente completado, tiene error o fue cancelado
+        // Detener polling si está completado, tiene error o fue cancelado
         if (isCompleted || hasError || isCancelled) {
           stopPolling()
           
@@ -180,7 +197,7 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
               ? `Importación completada: ${trabajo.registrosExitosos} registros procesados exitosamente`
               : null,
             error: hasError 
-              ? `Error en la importación: ${trabajo.mensaje || 'Error desconocido'}`
+              ? generateDetailedErrorMessage(trabajo)
               : isCancelled
               ? 'Importación cancelada'
               : null
@@ -197,6 +214,25 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
           console.log(`⚠️ Trabajo marcado como completado pero progreso es ${trabajo.progreso}%. Continuando polling...`)
         }
 
+        // Si todos los registros han sido procesados pero hay errores, considerar como completado con errores
+        if (trabajo.registrosProcesados === trabajo.totalRegistros && trabajo.registrosProcesados > 0) {
+          console.log(`⚠️ Todos los registros procesados (${trabajo.registrosProcesados}/${trabajo.totalRegistros}) pero con ${trabajo.registrosConError} errores`)
+          
+          // Si hay errores, detener el polling y mostrar el error
+          if (trabajo.registrosConError > 0) {
+            stopPolling()
+            
+            setState(prev => ({
+              ...prev,
+              isImporting: false,
+              error: `Importación completada con errores: ${trabajo.registrosConError} de ${trabajo.totalRegistros} registros tienen errores`
+            }))
+            
+            await loadTrabajos()
+            return
+          }
+        }
+
         // Verificar tiempo máximo de polling
         if (Date.now() - startTimeRef.current > config.maxPollingTime) {
           stopPolling()
@@ -209,8 +245,13 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
           return
         }
 
-        // Continuar polling
-        pollingRef.current = setTimeout(poll, config.pollingInterval)
+        // Continuar polling solo si el trabajo está activo
+        if (trabajo.estado === 'pendiente' || trabajo.estado === 'procesando') {
+          pollingRef.current = setTimeout(poll, config.pollingInterval)
+        } else {
+          // Si el trabajo no está activo, detener polling
+          stopPolling()
+        }
       } catch (error) {
         console.error('Error en polling:', error)
         stopPolling()
@@ -222,31 +263,26 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
 
   // Función para manejar respuesta de importación
   const handleImportResponse = useCallback((resultado: ResultadoImportacion, archivo: File, tipo: TipoImportacion) => {
-    console.log('🔍 Respuesta del backend:', resultado);
+    // Manejar diferentes estructuras de respuesta del backend
+    const isSuccess = resultado.success !== false && (resultado.trabajoId || resultado.success)
+    const trabajoId = resultado.trabajoId
+    const estado = resultado.estado
+    const mensaje = resultado.message
+    const totalRegistros = resultado.totalRegistros || 0
+    const errores = resultado.errores || 0
     
-    // Verificar que resultado existe antes de acceder a sus propiedades
-    if (!resultado) {
-      console.error('❌ Resultado es undefined o null');
-      setState(prev => ({
-        ...prev,
-        isImporting: false,
-        error: 'Error: Respuesta inesperada del servidor'
-      }));
-      return;
-    }
-    
-    if (resultado.success) {
+    if (isSuccess) {
       const trabajo = {
-        id: resultado.trabajoId,
+        id: trabajoId,
         tipo: tipo === 'auto' ? 'productos' : tipo,
-        estado: resultado.estado as any,
+        estado: estado as any,
         empresaId: 0,
         usuarioId: 0,
         archivoOriginal: archivo.name,
-        totalRegistros: resultado.totalRegistros || 0,
+        totalRegistros: totalRegistros,
         registrosProcesados: 0,
         registrosExitosos: 0,
-        registrosConError: resultado.errores || 0,
+        registrosConError: errores,
         fechaCreacion: new Date().toISOString(),
         fechaActualizacion: new Date().toISOString(),
         progreso: 0
@@ -258,20 +294,18 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
         deteccionTipo: resultado.deteccionTipo || null
       }))
 
-      if (resultado.estado === 'pendiente' || resultado.estado === 'procesando') {
-        startPolling(resultado.trabajoId)
+      if (estado === 'pendiente' || estado === 'procesando') {
+        startPolling(trabajoId)
       } else {
         setState(prev => ({
           ...prev,
           isImporting: false,
-          success: `¡Importación de ${tipo} completada! ${resultado.totalRegistros || 0} registros procesados exitosamente.`
+          success: mensaje || `¡Importación de ${tipo} completada! ${totalRegistros} registros procesados exitosamente.`
         }))
       }
     } else {
-      console.log('❌ Respuesta con error:', resultado);
-      
       if (resultado.erroresDetallados && resultado.erroresDetallados.length > 0) {
-        const erroresCopiados = resultado.erroresDetallados.map(error => ({
+        const erroresCopiados = resultado.erroresDetallados.map((error: any) => ({
           fila: error.fila,
           columna: error.columna,
           valor: error.valor,
@@ -289,7 +323,7 @@ export const useImportacionLazy = (options: UseImportacionOptions = {}) => {
         setState(prev => ({
           ...prev,
           isImporting: false,
-          error: resultado.message,
+          error: mensaje || 'Error en la importación',
           validationErrors: null
         }))
       }

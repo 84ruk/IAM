@@ -1,25 +1,27 @@
 import { useMemo } from 'react'
-import { useImportacionGlobal } from '@/context/ImportacionGlobalContext'
-import { TipoImportacion } from '@/context/ImportacionGlobalContext'
+import { useImportacionGlobal, TipoImportacion } from '@/context/ImportacionGlobalContext'
 import { ErrorHandlerService, UserFriendlyError } from '@/lib/api/errorHandler'
 
 export const useImportacionOptimized = () => {
+  const context = useImportacionGlobal()
+  
+  // Asegurar que todas las funciones estén disponibles
   const {
     state,
-    loadTrabajos,
-    loadTiposSoportados,
-    initializeData,
-    importarUnified,
-    importarAuto,
-    validarAuto,
-    descargarPlantilla,
-    clearError,
-    clearSuccess,
-    clearValidationErrors,
-    clearDeteccionTipo,
-    startPolling,
-    stopPolling
-  } = useImportacionGlobal()
+    loadTrabajos = (() => Promise.resolve()),
+    loadTiposSoportados = (() => Promise.resolve()),
+    initializeData = (() => Promise.resolve()),
+    importarUnified = (() => Promise.resolve()),
+    importarAuto = (() => Promise.resolve()),
+    validarAuto = (() => Promise.resolve(null)),
+    descargarPlantilla = (() => Promise.resolve()),
+    clearError = (() => {}),
+    clearSuccess = (() => {}),
+    clearValidationErrors = (() => {}),
+    clearDeteccionTipo = (() => {}),
+    startPolling = (() => {}),
+    stopPolling = (() => {})
+  } = context || {}
 
   // Asegurar que el estado tenga valores por defecto
   const safeState = useMemo(() => ({
@@ -51,12 +53,27 @@ export const useImportacionOptimized = () => {
     [safeState.trabajos]
   )
 
-  // Memoizar estadísticas
+  // Memoizar estadísticas con optimización de rendimiento
   const estadisticas = useMemo(() => {
-    const total = safeState.trabajos.length
-    const completados = safeState.trabajos.filter(t => t.estado === 'completado').length
-    const conError = safeState.trabajos.filter(t => t.estado === 'error').length
-    const enProgreso = trabajosEnProgreso.length
+    const trabajos = safeState.trabajos || []
+    const total = trabajos.length
+    
+    // Usar reduce para calcular todo en una sola pasada
+    const { completados, conError, enProgreso } = trabajos.reduce((acc, trabajo) => {
+      switch (trabajo.estado) {
+        case 'completado':
+          acc.completados++
+          break
+        case 'error':
+          acc.conError++
+          break
+        case 'pendiente':
+        case 'procesando':
+          acc.enProgreso++
+          break
+      }
+      return acc
+    }, { completados: 0, conError: 0, enProgreso: 0 })
 
     return {
       total,
@@ -65,12 +82,10 @@ export const useImportacionOptimized = () => {
       enProgreso,
       porcentajeExito: total > 0 ? Math.round((completados / total) * 100) : 0
     }
-  }, [safeState.trabajos, trabajosEnProgreso])
+  }, [safeState.trabajos])
 
   // Función para manejar errores de importación
   const handleImportError = (error: any, tipo?: TipoImportacion): UserFriendlyError => {
-    console.log('🔍 Handling import error:', error)
-    
     // Si el error ya tiene un userFriendlyError (del interceptor), usarlo
     if ((error as any).userFriendlyError) {
       const baseError = (error as any).userFriendlyError as UserFriendlyError

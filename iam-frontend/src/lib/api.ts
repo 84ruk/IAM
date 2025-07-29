@@ -481,26 +481,59 @@ export const api = {
   },
 }
 
-// Hook personalizado para usar la API con manejo de errores
-export function useApi() {
+import { useAuth } from '@/hooks/useAuth'
+import axios, { AxiosError, AxiosInstance } from 'axios'
+
+// Hook personalizado para usar la API con manejo de errores y autenticación
+export function useApi(client: ApiClient = apiClient) {
+  const { getAuthHeaders, validateAuth, validateAuthAsync } = useAuth()
+
   const handleApiCall = async <T>(
     apiCall: () => Promise<T>,
     options?: {
       onSuccess?: (data: T) => void
       onError?: (error: AppError) => void
       showError?: boolean
+      requireAuth?: boolean | 'async'
     }
   ): Promise<T | null> => {
     try {
+      // Verificar autenticación si es requerida
+      if (options?.requireAuth !== false) {
+        const isValid = options?.requireAuth === 'async' 
+          ? await validateAuthAsync() 
+          : validateAuth()
+        
+        if (!isValid) {
+          const authError = new AppError('Usuario no autenticado', 401)
+          options?.onError?.(authError)
+          return null
+        }
+      }
+
       const result = await apiCall()
       options?.onSuccess?.(result)
       return result
     } catch (error) {
-      const appError = error instanceof AppError ? error : new AppError('Error desconocido')
+      let appError: AppError
+      
+      // Manejar diferentes tipos de errores
+      if (error instanceof AppError) {
+        appError = error
+      } else if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError
+        const status = axiosError.response?.status || 500
+        const message = (axiosError.response?.data as any)?.message || axiosError.message || 'Error en la solicitud'
+        appError = new AppError(message, status)
+      } else if (error instanceof Error) {
+        appError = new AppError(error.message, 500)
+      } else {
+        appError = new AppError('Error desconocido', 500)
+      }
+      
       options?.onError?.(appError)
       
       if (options?.showError !== false) {
-        // Aquí se podría mostrar una notificación de error
         console.error('API Error:', appError.message)
       }
       
@@ -508,9 +541,49 @@ export function useApi() {
     }
   }
 
+  // API con autenticación automática usando cookies
+  const authenticatedApi = {
+    get: async <T>(url: string, config?: any): Promise<T> => {
+      const headers = getAuthHeaders()
+      return client.get<T>(url, { 
+        ...config, 
+        headers: { ...config?.headers, ...headers },
+        withCredentials: true // Enviar cookies automáticamente
+      })
+    },
+    post: async <T>(url: string, data?: any, config?: any): Promise<T> => {
+      const headers = getAuthHeaders()
+      return client.post<T>(url, data, { 
+        ...config, 
+        headers: { ...config?.headers, ...headers },
+        withCredentials: true // Enviar cookies automáticamente
+      })
+    },
+    put: async <T>(url: string, data?: any, config?: any): Promise<T> => {
+      const headers = getAuthHeaders()
+      return client.put<T>(url, data, { 
+        ...config, 
+        headers: { ...config?.headers, ...headers },
+        withCredentials: true // Enviar cookies automáticamente
+      })
+    },
+    delete: async <T>(url: string, config?: any): Promise<T> => {
+      const headers = getAuthHeaders()
+      return client.delete<T>(url, { 
+        ...config, 
+        headers: { ...config?.headers, ...headers },
+        withCredentials: true // Enviar cookies automáticamente
+      })
+    }
+  }
+
   return {
     handleApiCall,
     api,
-    apiClient
+    apiClient,
+    authenticatedApi,
+    getAuthHeaders,
+    validateAuth,
+    validateAuthAsync
   }
 } 

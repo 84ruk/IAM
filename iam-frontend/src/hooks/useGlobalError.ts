@@ -31,11 +31,17 @@ export function useGlobalError(): UseGlobalErrorReturn {
     // Convertir diferentes tipos de error a AppError
     if (error instanceof AppError) {
       appError = error;
-    } else if (error?.response?.data) {
-      // Error de axios/fetch
+    } else if (error && typeof error === 'object' && error.response?.data) {
+      // Error de axios/fetch con respuesta
       appError = new AppError(
         error.response.data.message || 'Error de servidor',
         error.response.status || 500
+      );
+    } else if (error && typeof error === 'object' && error.response?.status) {
+      // Error de axios/fetch sin datos pero con status
+      appError = new AppError(
+        'Error de servidor',
+        error.response.status
       );
     } else if (error?.message) {
       // Error genérico
@@ -50,12 +56,10 @@ export function useGlobalError(): UseGlobalErrorReturn {
     // Manejar redirecciones automáticas
     if (isEmpresaRequiredError && typeof window !== 'undefined') {
       if (!window.location.pathname.includes('/setup-empresa')) {
-        console.log('🔄 Redirigiendo automáticamente a setup de empresa');
         router.push('/setup-empresa');
       }
     } else if (isAuthError && typeof window !== 'undefined') {
       if (!window.location.pathname.includes('/login')) {
-        console.log('🔄 Redirigiendo automáticamente a login');
         router.push('/login');
       }
     }
@@ -64,6 +68,16 @@ export function useGlobalError(): UseGlobalErrorReturn {
   const clearError = useCallback(() => {
     setError(null);
   }, []);
+
+  const handleSetupRequired = useCallback(() => {
+    // Redirigir a setup de empresa
+    router.push('/setup-empresa')
+  }, [router])
+
+  const handleAuthRequired = useCallback(() => {
+    // Redirigir a login
+    router.push('/login')
+  }, [router])
 
   return {
     error,

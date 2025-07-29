@@ -38,6 +38,21 @@ export interface ImportarMovimientosDto {
     validarStock?: boolean
     validarProductos?: boolean
     crearProductosSiNoExisten?: boolean
+    crearProveedorSiNoExiste?: boolean
+    generarSKUAutomatico?: boolean
+    prefijoSKU?: string
+    usarPreciosDelMovimiento?: boolean
+    crearCategoriaSiNoExiste?: boolean
+    descripcionPorDefecto?: string
+    stockMinimoPorDefecto?: number
+    validarProveedorExistente?: boolean
+    permitirMovimientosSinProducto?: boolean
+    permitirStockNegativo?: boolean
+    validarFechas?: boolean
+    fechaMinima?: string
+    fechaMaxima?: string
+    motivoPorDefecto?: string
+    actualizarStockEnTiempoReal?: boolean
   }
 }
 
