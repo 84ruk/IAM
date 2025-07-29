@@ -296,7 +296,7 @@ export const useImportacionUnified = (): UseImportacionUnifiedReturn => {
     // Utilidades
     isReady: combinedState.isReady,
     hasData: combinedState.hasData,
-    hasActiveImport: combinedState.hasActiveImport,
+    hasActiveImport: combinedState.hasActiveImport || false,
     
     // Análisis de archivos
     analyzeFile,

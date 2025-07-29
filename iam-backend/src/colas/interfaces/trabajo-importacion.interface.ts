@@ -23,6 +23,9 @@ export interface TrabajoImportacion {
   estado: EstadoTrabajo;
   mensaje?: string; // <-- Agregado para compatibilidad
   fechaActualizacion?: Date; // <-- Agregado para compatibilidad
+  // Nuevos campos opcionales para compatibilidad
+  mensajesUsuario?: MensajeUsuario[];
+  resumenProcesamiento?: ResumenProcesamiento;
 }
 
 export interface OpcionesImportacion {
@@ -57,10 +60,33 @@ export interface ResultadoImportacion {
     exitosos: number;
     errores: number;
     duplicados: number;
+    validados?: number;
+    omitidos?: number;
   };
   errores: ErrorImportacion[];
   tiempoProcesamiento: number;
   archivoResultado?: string;
+  // Nuevos campos opcionales para compatibilidad
+  mensajesUsuario?: MensajeUsuario[];
+  resumenProcesamiento?: ResumenProcesamiento;
+}
+
+// Nuevo: Interfaz para mensajes de usuario
+export interface MensajeUsuario {
+  tipo: 'success' | 'warning' | 'error' | 'info';
+  titulo: string;
+  mensaje: string;
+  detalles?: string[];
+  timestamp?: string;
+}
+
+// Nuevo: Interfaz para resumen de procesamiento
+export interface ResumenProcesamiento {
+  duplicadosEncontrados: number;
+  erroresValidacion: number;
+  erroresSistema: number;
+  registrosOmitidos: number;
+  recomendaciones: string[];
 }
 
 // Interfaces para datos de importación

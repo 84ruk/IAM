@@ -17,8 +17,11 @@ import {
   AlertCircle,
   Users,
   Package,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from 'lucide-react'
+
+import ImportacionMessages from './ImportacionMessages'
 
 interface TrabajoImportacion {
   id: string
@@ -68,41 +71,37 @@ export default function ImportacionStatus({
     return null
   }
 
+  // Extraer mensajes de usuario y resumen del trabajo de forma segura
+  const mensajesUsuario = (trabajo as any).mensajesUsuario || []
+  const resumenProcesamiento = (trabajo as any).resumenProcesamiento
+
   const getStatusIcon = (estado: string) => {
     switch (estado) {
       case 'completado':
-        // Si está completado pero tiene errores, mostrar icono de advertencia
-        if (trabajo.registrosConError > 0 && trabajo.registrosExitosos === 0) {
-          return <XCircle className="w-5 h-5 text-red-500" />
-        } else if (trabajo.registrosConError > 0) {
-          return <AlertTriangle className="w-5 h-5 text-yellow-500" />
-        }
         return <CheckCircle className="w-5 h-5 text-green-500" />
       case 'error':
         return <XCircle className="w-5 h-5 text-red-500" />
       case 'procesando':
-        return <Clock className="w-5 h-5 text-blue-500 animate-spin" />
+        return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+      case 'pendiente':
+        return <Clock className="w-5 h-5 text-yellow-500" />
       default:
-        return <AlertTriangle className="w-5 h-5 text-yellow-500" />
+        return <AlertTriangle className="w-5 h-5 text-gray-500" />
     }
   }
 
   const getStatusColor = (estado: string) => {
     switch (estado) {
       case 'completado':
-        // Si está completado pero tiene errores, mostrar color de advertencia
-        if (trabajo.registrosConError > 0 && trabajo.registrosExitosos === 0) {
-          return 'bg-red-100 text-red-800 border-red-200'
-        } else if (trabajo.registrosConError > 0) {
-          return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-        }
         return 'bg-green-100 text-green-800 border-green-200'
       case 'error':
         return 'bg-red-100 text-red-800 border-red-200'
       case 'procesando':
         return 'bg-blue-100 text-blue-800 border-blue-200'
-      default:
+      case 'pendiente':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
 
@@ -170,17 +169,17 @@ export default function ImportacionStatus({
 
   const getResumenMensaje = () => {
     if (trabajo.estado === 'completado') {
-      if (trabajo.registrosExitosos === trabajo.totalRegistros) {
-        return `✅ Importación completada exitosamente: ${trabajo.registrosExitosos} registros procesados`
-      } else if (trabajo.registrosExitosos > 0) {
-        return `⚠️ Importación completada parcialmente: ${trabajo.registrosExitosos} exitosos, ${trabajo.registrosConError} con errores`
+      if (trabajo.registrosExitosos > 0) {
+        return `Importación completada: ${trabajo.registrosExitosos} registros procesados exitosamente`
       } else {
-        return `❌ Importación completada sin éxito: ${trabajo.registrosConError} errores encontrados`
+        return 'Importación completada sin registros procesados'
       }
+    } else if (trabajo.estado === 'error') {
+      return `Error en la importación: ${trabajo.registrosConError} errores encontrados`
     } else if (trabajo.estado === 'procesando') {
-      return `🔄 Procesando: ${trabajo.registrosProcesados}/${trabajo.totalRegistros} registros`
+      return `Procesando: ${trabajo.registrosProcesados} de ${trabajo.totalRegistros} registros`
     } else {
-      return `⏸️ Estado: ${trabajo.estado}`
+      return 'Importación pendiente'
     }
   }
 
@@ -239,7 +238,7 @@ export default function ImportacionStatus({
               <div className="text-2xl font-bold text-red-600">
                 {trabajo.registrosConError}
               </div>
-              <div className="text-xs text-gray-600">Con Error</div>
+              <div className="text-xs text-gray-600">Errores</div>
             </div>
             <div className="text-center p-3 bg-yellow-50 rounded-lg">
               <div className="text-2xl font-bold text-yellow-600">
@@ -249,110 +248,125 @@ export default function ImportacionStatus({
             </div>
           </div>
 
-          {/* Desglose de Errores por Tipo */}
-          {erroresNormalizados.length > 0 && (
+          {/* Mensajes de Usuario - Solo mostrar si existen */}
+          {mensajesUsuario && mensajesUsuario.length > 0 && (
+            <div className="mb-4">
+              <ImportacionMessages
+                mensajes={mensajesUsuario}
+                resumen={resumenProcesamiento}
+                onDownloadErrors={onDownloadErrors}
+                onRetry={onRefresh}
+              />
+            </div>
+          )}
+
+          {/* Información del Archivo */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Archivo</span>
+            </div>
+            <p className="text-sm text-gray-600 break-all">
+              {trabajo.archivoOriginal}
+            </p>
+          </div>
+
+          {/* Errores Detallados - Solo mostrar si existen */}
+          {trabajo.errores && trabajo.errores.length > 0 && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-sm">Desglose de Errores</h4>
-                <Button 
-                  onClick={() => setShowDetails(!showDetails)} 
-                  variant="outline" 
-                  size="sm"
+                <h4 className="text-sm font-medium text-gray-900">Errores Detallados</h4>
+                <button
+                  onClick={() => setShowErrors(!showErrors)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
                 >
-                  <Info className="w-4 h-4 mr-2" />
-                  {showDetails ? 'Ocultar' : 'Mostrar'} Detalles
-                </Button>
+                  {showErrors ? 'Ocultar' : 'Mostrar'} ({trabajo.errores.length})
+                </button>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                {Object.entries(erroresPorTipo).map(([tipo, cantidad]) => (
-                  <div key={tipo} className={`p-2 rounded-lg border ${getErrorTypeColor(tipo)}`}>
-                    <div className="flex items-center space-x-2">
-                      {getErrorTypeIcon(tipo)}
-                      <span className="text-sm font-medium">{getErrorTypeLabel(tipo)}</span>
-                      <Badge variant="secondary" className="ml-auto">
-                        {cantidad}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Errores Detallados */}
-          {showDetails && erroresNormalizados.length > 0 && (
-            <div className="mb-4">
-              <h4 className="font-medium mb-3">Errores Detallados</h4>
-                             <div className="max-h-64 overflow-y-auto space-y-2">
-                 {erroresNormalizados.map((error, index) => (
-                  <div key={index} className={`p-3 rounded-lg border ${getErrorTypeColor(error.tipo)}`}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-2 mb-1">
-                        {getErrorTypeIcon(error.tipo)}
-                        <Badge variant="outline" className="text-xs">
-                          Fila {error.fila}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {error.columna}
-                        </Badge>
-                      </div>
-                      <Badge variant="secondary" className="text-xs">
-                        {getErrorTypeLabel(error.tipo)}
-                      </Badge>
-                    </div>
-                    <p className="text-sm font-medium mb-1">{error.mensaje}</p>
-                    {error.valor && (
-                      <p className="text-xs text-gray-600">
-                        Valor: <code className="bg-gray-100 px-1 rounded">{error.valor}</code>
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Sugerencias */}
-          {erroresNormalizados.length > 0 && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-start space-x-2">
-                <Info className="w-5 h-5 text-blue-500 mt-0.5" />
-                <div>
-                  <h5 className="font-medium text-blue-800 mb-1">Sugerencias para resolver errores:</h5>
-                  <ul className="text-sm text-blue-700 space-y-1">
-                    {erroresDuplicados.length > 0 && (
-                      <li>• <strong>Duplicados ({erroresDuplicados.length})</strong>: Habilitar "Sobrescribir existentes" o cambiar códigos únicos</li>
-                    )}
-                    {erroresValidacion.length > 0 && (
-                      <li>• <strong>Validación ({erroresValidacion.length})</strong>: Verificar formato y datos requeridos</li>
-                    )}
-                    {erroresSistema.length > 0 && (
-                      <li>• <strong>Sistema ({erroresSistema.length})</strong>: Contactar soporte técnico</li>
-                    )}
-                  </ul>
+              {showErrors && (
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {trabajo.errores.map((error, index) => {
+                    // Verificar si el error es un string o un objeto ErrorImportacion
+                    if (typeof error === 'string') {
+                      return (
+                        <div key={index} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-red-800">
+                                Error del sistema
+                              </p>
+                              <p className="text-sm text-red-600">{error}</p>
+                            </div>
+                            <Badge className="bg-red-100 text-red-800 text-xs">
+                              sistema
+                            </Badge>
+                          </div>
+                        </div>
+                      )
+                    } else {
+                      // Es un objeto ErrorImportacion
+                      return (
+                        <div key={index} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-red-800">
+                                Fila {error.fila} - {error.columna}
+                              </p>
+                              <p className="text-sm text-red-600">{error.mensaje}</p>
+                              {error.valor && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Valor: {error.valor}
+                                </p>
+                              )}
+                            </div>
+                            <Badge className="bg-red-100 text-red-800 text-xs">
+                              {error.tipo}
+                            </Badge>
+                          </div>
+                        </div>
+                      )
+                    }
+                  })}
                 </div>
-              </div>
+              )}
             </div>
           )}
 
           {/* Acciones */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
             {onRefresh && (
-              <Button onClick={onRefresh} variant="outline" size="sm">
-                <RefreshCw className="w-4 h-4 mr-2" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRefresh}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
                 Actualizar
               </Button>
             )}
+            
             {onCancel && trabajo.estado === 'procesando' && (
-              <Button onClick={onCancel} variant="outline" size="sm">
-                <XCircle className="w-4 h-4 mr-2" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onCancel}
+                className="flex items-center gap-2 text-red-600 hover:text-red-800"
+              >
+                <XCircle className="w-4 h-4" />
                 Cancelar
               </Button>
             )}
-                         {onDownloadErrors && erroresNormalizados.length > 0 && (
-              <Button onClick={onDownloadErrors} variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
+            
+            {onDownloadErrors && trabajo.registrosConError > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onDownloadErrors}
+                className="flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
                 Descargar Errores
               </Button>
             )}

@@ -268,6 +268,7 @@ export class ProductosEstrategia implements EstrategiaImportacion {
     contexto?: ContextoValidacion
   ): Promise<void> {
     const maxRetries = this.obtenerConfiguracionProcesamiento().maxRetries;
+    this.logger.log(`🔧 Procesando lote de ${lote.length} productos...`);
 
     for (const registro of lote) {
       let retryCount = 0;
@@ -278,6 +279,7 @@ export class ProductosEstrategia implements EstrategiaImportacion {
           // Validar registro
           const erroresValidacion = this.validarRegistro(registro, contexto);
           if (erroresValidacion.length > 0) {
+            this.logger.warn(`⚠️ Errores de validación en producto ${(registro as ProductoImportacion).nombre}: ${erroresValidacion.length} errores`);
             resultado.errores.push(...erroresValidacion);
             resultado.estadisticas.errores++;
             break;
@@ -286,6 +288,7 @@ export class ProductosEstrategia implements EstrategiaImportacion {
           // Verificar existencia
           const existente = await this.verificarExistencia(registro, trabajo.empresaId);
           if (existente && !trabajo.opciones.sobrescribirExistentes) {
+            this.logger.warn(`⚠️ Producto duplicado: ${(registro as ProductoImportacion).nombre}`);
             resultado.errores.push({
               fila: registro._filaOriginal,
               columna: 'nombre',
@@ -298,10 +301,12 @@ export class ProductosEstrategia implements EstrategiaImportacion {
           }
 
           // Guardar registro
+          this.logger.log(`💾 Guardando producto: ${(registro as ProductoImportacion).nombre}`);
           await this.guardarRegistro(registro, trabajo, existente);
           
           resultado.estadisticas.exitosos++;
           success = true;
+          this.logger.log(`✅ Producto guardado exitosamente: ${(registro as ProductoImportacion).nombre}`);
 
         } catch (error) {
           retryCount++;

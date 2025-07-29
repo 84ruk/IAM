@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import { useImportacionGlobal, TipoImportacion } from '@/context/ImportacionGlobalContext'
 import { ErrorHandlerService, UserFriendlyError } from '@/lib/api/errorHandler'
 
@@ -23,23 +23,18 @@ export const useImportacionOptimized = () => {
     stopPolling = (() => {})
   } = context || {}
 
-  // Asegurar que el estado tenga valores por defecto
-  const safeState = useMemo(() => ({
-    ...state,
-    isLoadingTrabajos: state?.isLoadingTrabajos || false,
-    isLoadingTipos: state?.isLoadingTipos || false,
-    lastFetchTime: state?.lastFetchTime || 0,
-    trabajos: state?.trabajos || [],
-    tiposSoportados: state?.tiposSoportados || [],
-    isInitialized: state?.isInitialized || false,
-    isImporting: state?.isImporting || false,
-    currentTrabajo: state?.currentTrabajo || null,
-    error: state?.error || null,
-    success: state?.success || null,
-    validationErrors: state?.validationErrors || null,
-    deteccionTipo: state?.deteccionTipo || null,
-    pollingInterval: state?.pollingInterval || null
-  }), [state])
+  // Estado seguro
+  const safeState = state || {
+    trabajos: [],
+    isLoadingTrabajos: false,
+    isImporting: false,
+    currentTrabajo: null,
+    error: null,
+    success: null,
+    validationErrors: null,
+    deteccionTipo: null,
+    isInitialized: false
+  }
 
   // Memoizar trabajos recientes para evitar recálculos innecesarios
   const trabajosRecientes = useMemo(() => 
@@ -84,6 +79,89 @@ export const useImportacionOptimized = () => {
     }
   }, [safeState.trabajos])
 
+  // Función mejorada para importación con feedback inmediato
+  const importarUnifiedOptimized = useCallback(async (
+    archivo: File, 
+    tipo: TipoImportacion, 
+    opciones: any
+  ) => {
+    try {
+      // Proporcionar feedback inmediato
+      if (context?.dispatch) {
+        context.dispatch({ type: 'SET_IMPORTING', payload: true })
+        context.dispatch({ type: 'SET_ERROR', payload: null })
+        context.dispatch({ type: 'SET_SUCCESS', payload: null })
+        
+        // Crear un trabajo temporal para feedback inmediato
+        const trabajoTemporal: any = {
+          id: `temp-${Date.now()}`,
+          tipo: tipo === 'auto' ? 'productos' : tipo,
+          estado: 'pendiente',
+          empresaId: 0,
+          usuarioId: 0,
+          archivoOriginal: archivo.name,
+          totalRegistros: 0,
+          registrosProcesados: 0,
+          registrosExitosos: 0,
+          registrosConError: 0,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+          progreso: 0,
+          mensaje: 'Preparando archivo para importación...'
+        }
+        
+        context.dispatch({ type: 'SET_CURRENT_TRABAJO', payload: trabajoTemporal })
+      }
+
+      // Ejecutar la importación real
+      await importarUnified(archivo, tipo, opciones)
+    } catch (error) {
+      console.error('Error en importación optimizada:', error)
+      throw error
+    }
+  }, [importarUnified, context])
+
+  // Función mejorada para importación automática
+  const importarAutoOptimized = useCallback(async (
+    archivo: File, 
+    opciones: any
+  ) => {
+    try {
+      // Proporcionar feedback inmediato
+      if (context?.dispatch) {
+        context.dispatch({ type: 'SET_IMPORTING', payload: true })
+        context.dispatch({ type: 'SET_ERROR', payload: null })
+        context.dispatch({ type: 'SET_SUCCESS', payload: null })
+        
+        // Crear un trabajo temporal para feedback inmediato
+        const trabajoTemporal: any = {
+          id: `temp-auto-${Date.now()}`,
+          tipo: 'productos',
+          estado: 'pendiente',
+          empresaId: 0,
+          usuarioId: 0,
+          archivoOriginal: archivo.name,
+          totalRegistros: 0,
+          registrosProcesados: 0,
+          registrosExitosos: 0,
+          registrosConError: 0,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+          progreso: 0,
+          mensaje: 'Detectando tipo de datos...'
+        }
+        
+        context.dispatch({ type: 'SET_CURRENT_TRABAJO', payload: trabajoTemporal })
+      }
+
+      // Ejecutar la importación automática real
+      await importarAuto(archivo, opciones)
+    } catch (error) {
+      console.error('Error en importación automática optimizada:', error)
+      throw error
+    }
+  }, [importarAuto, context])
+
   // Función para manejar errores de importación
   const handleImportError = (error: any, tipo?: TipoImportacion): UserFriendlyError => {
     // Si el error ya tiene un userFriendlyError (del interceptor), usarlo
@@ -117,8 +195,8 @@ export const useImportacionOptimized = () => {
     loadTrabajos,
     loadTiposSoportados,
     initializeData,
-    importarUnified,
-    importarAuto,
+    importarUnified: importarUnifiedOptimized,
+    importarAuto: importarAutoOptimized,
     validarAuto,
     descargarPlantilla,
     clearError,
@@ -141,8 +219,9 @@ export const useImportacionOptimized = () => {
     descargarPlantillaMejorada: (() => Promise.resolve()),
     
     // Utilidades
-    isReady: safeState.isInitialized && !safeState.isLoadingTrabajos && !safeState.isLoadingTipos,
-    hasData: safeState.trabajos.length > 0 || safeState.tiposSoportados.length > 0,
-    hasActiveImport: safeState.isImporting || trabajosEnProgreso.length > 0
+    isReady: safeState.isInitialized,
+    hasData: safeState.trabajos && safeState.trabajos.length > 0,
+    hasActiveImport: safeState.isImporting || (safeState.currentTrabajo && 
+      (safeState.currentTrabajo.estado === 'pendiente' || safeState.currentTrabajo.estado === 'procesando'))
   }
 } 

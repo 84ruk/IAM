@@ -186,6 +186,17 @@ export class ImportacionWebSocketService {
    * Mapear TrabajoImportacion a formato de evento
    */
   private mapTrabajoToEvent(trabajo: TrabajoImportacion) {
+    // Manejar fechas que pueden ser strings o Date objects
+    const fechaCreacion = typeof trabajo.fechaCreacion === 'string' 
+      ? trabajo.fechaCreacion 
+      : trabajo.fechaCreacion.toISOString();
+    
+    const fechaActualizacion = trabajo.fechaActualizacion 
+      ? (typeof trabajo.fechaActualizacion === 'string' 
+          ? trabajo.fechaActualizacion 
+          : trabajo.fechaActualizacion.toISOString())
+      : new Date().toISOString();
+
     return {
       id: trabajo.id,
       tipo: trabajo.tipo,
@@ -196,8 +207,8 @@ export class ImportacionWebSocketService {
       registrosExitosos: trabajo.registrosExitosos,
       registrosConError: trabajo.registrosConError,
       archivoOriginal: trabajo.archivoOriginal,
-      fechaCreacion: trabajo.fechaCreacion.toISOString(),
-      fechaActualizacion: trabajo.fechaActualizacion ? trabajo.fechaActualizacion.toISOString() : new Date().toISOString(),
+      fechaCreacion,
+      fechaActualizacion,
       mensaje: trabajo.mensaje,
       empresaId: trabajo.empresaId,
       usuarioId: trabajo.usuarioId,

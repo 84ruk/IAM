@@ -67,16 +67,47 @@ type ImportacionAction =
   | { type: 'SET_DETECCION_TIPO'; payload: DeteccionTipoResponse | null }
   | { type: 'SET_LAST_FETCH_TIME'; payload: number }
   | { type: 'SET_POLLING_INTERVAL'; payload: NodeJS.Timeout | null }
-  | { type: 'ADD_TRABAJO'; payload: any }
-  | { type: 'UPDATE_TRABAJO'; payload: any }
-  | { type: 'UPDATE_TRABAJO_PROGRESO'; payload: { trabajoId: string; progreso: any } }
-  | { type: 'ADD_VALIDATION_ERROR'; payload: { trabajoId: string; error: any } }
-  | { type: 'UPDATE_ESTADISTICAS'; payload: any }
+  | { type: 'ADD_TRABAJO'; payload: TrabajoImportacion }
+  | { type: 'UPDATE_TRABAJO'; payload: TrabajoImportacion }
+  | { type: 'UPDATE_TRABAJO_PROGRESO'; payload: { trabajoId: string; progreso: ProgresoTrabajo } }
+  | { type: 'ADD_VALIDATION_ERROR'; payload: { trabajoId: string; error: ImportacionValidationError } }
+  | { type: 'UPDATE_ESTADISTICAS'; payload: EstadisticasTrabajo }
   | { type: 'CLEAR_ERROR' }
   | { type: 'CLEAR_SUCCESS' }
   | { type: 'CLEAR_VALIDATION_ERRORS' }
   | { type: 'CLEAR_DETECCION_TIPO' }
   | { type: 'RESET_STATE' }
+
+// Interfaces específicas para tipos de datos
+interface ProgresoTrabajo {
+  registrosProcesados: number
+  registrosExitosos: number
+  registrosConError: number
+  progreso: number
+  mensaje?: string
+}
+
+interface EstadisticasTrabajo {
+  total: number
+  exitosos: number
+  errores: number
+  duplicados: number
+  validados?: number
+  omitidos?: number
+}
+
+// Interfaces para opciones de importación
+interface OpcionesImportacionUnificada {
+  sobrescribirExistentes: boolean
+  validarSolo: boolean
+  notificarEmail: boolean
+  emailNotificacion?: string
+  configuracionEspecifica?: Record<string, unknown>
+}
+
+interface OpcionesValidacionAuto {
+  configuracionEspecifica?: Record<string, unknown>
+}
 
 // Reducer
 function importacionReducer(state: ImportacionGlobalState, action: ImportacionAction): ImportacionGlobalState {
@@ -89,10 +120,10 @@ function importacionReducer(state: ImportacionGlobalState, action: ImportacionAc
       return { ...state, trabajos: action.payload }
     case 'SET_TIPOS_SOPORTADOS':
       return { ...state, tiposSoportados: action.payload }
-          case 'SET_INITIALIZED':
-        return { ...state, isInitialized: action.payload }
-      case 'SET_INITIALIZING':
-        return { ...state, isInitializing: action.payload }
+    case 'SET_INITIALIZED':
+      return { ...state, isInitialized: action.payload }
+    case 'SET_INITIALIZING':
+      return { ...state, isInitializing: action.payload }
     case 'SET_IMPORTING':
       return { ...state, isImporting: action.payload }
     case 'SET_CURRENT_TRABAJO':
@@ -169,9 +200,9 @@ interface ImportacionGlobalContextType {
   initializeData: () => Promise<void>
   
   // Importación
-  importarUnified: (archivo: File, tipo: TipoImportacion, opciones: any) => Promise<void>
+  importarUnified: (archivo: File, tipo: TipoImportacion, opciones: OpcionesImportacionUnificada) => Promise<void>
   importarAuto: (archivo: File, opciones: ImportacionAutoDto) => Promise<void>
-  validarAuto: (archivo: File, opciones?: any) => Promise<DeteccionTipoResponse | null>
+  validarAuto: (archivo: File, opciones?: OpcionesValidacionAuto) => Promise<DeteccionTipoResponse | null>
   
   // Plantillas
   descargarPlantilla: (tipo: TipoImportacion) => Promise<void>
@@ -289,68 +320,10 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
     }
   }, [state.isInitialized, state.isInitializing, loadTrabajos, loadTiposSoportados])
 
-  // Función para manejar respuesta de importación
-  const handleImportResponse = useCallback((resultado: any, archivo: File, tipo: TipoImportacion) => {
-    // Manejar diferentes estructuras de respuesta del backend
-    const isSuccess = resultado.success !== false && (resultado.trabajoId || resultado.success)
-    const trabajoId = resultado.trabajoId
-    const estado = resultado.estado
-    const mensaje = resultado.mensaje || resultado.message
-    const totalRegistros = resultado.totalRegistros || resultado.estadisticas?.total || 0
-    const errores = resultado.errores || resultado.estadisticas?.errores || 0
-    
-    if (isSuccess) {
-      const trabajo = {
-        id: trabajoId,
-        tipo: tipo === 'auto' ? 'productos' : tipo,
-        estado: estado as any,
-        empresaId: 0,
-        usuarioId: 0,
-        archivoOriginal: archivo.name,
-        totalRegistros: totalRegistros,
-        registrosProcesados: 0,
-        registrosExitosos: 0,
-        registrosConError: errores,
-        fechaCreacion: new Date().toISOString(),
-        fechaActualizacion: new Date().toISOString(),
-        progreso: 0
-      }
-      
-      dispatch({ type: 'SET_CURRENT_TRABAJO', payload: trabajo })
-      dispatch({ type: 'SET_DETECCION_TIPO', payload: resultado.deteccionTipo || null })
 
-      if (estado === 'pendiente' || estado === 'procesando') {
-        startPolling(trabajoId)
-      } else {
-        dispatch({ type: 'SET_IMPORTING', payload: false })
-        dispatch({ 
-          type: 'SET_SUCCESS', 
-          payload: mensaje || `¡Importación de ${tipo} completada! ${totalRegistros} registros procesados exitosamente.` 
-        })
-      }
-    } else {
-      if (resultado.erroresDetallados && resultado.erroresDetallados.length > 0) {
-        const erroresCopiados = resultado.erroresDetallados.map((error: any) => ({
-          fila: error.fila,
-          columna: error.columna,
-          valor: error.valor,
-          mensaje: error.mensaje,
-          tipo: error.tipo
-        }))
-        
-        dispatch({ type: 'SET_IMPORTING', payload: false })
-        dispatch({ type: 'SET_VALIDATION_ERRORS', payload: erroresCopiados })
-        dispatch({ type: 'SET_ERROR', payload: null })
-      } else {
-        dispatch({ type: 'SET_IMPORTING', payload: false })
-        dispatch({ type: 'SET_ERROR', payload: mensaje || 'Error en la importación' })
-        dispatch({ type: 'SET_VALIDATION_ERRORS', payload: null })
-      }
-    }
-  }, [])
 
   // Funciones de importación
-  const importarUnified = useCallback(async (archivo: File, tipo: TipoImportacion, opciones: any) => {
+  const importarUnified = useCallback(async (archivo: File, tipo: TipoImportacion, opciones: OpcionesImportacionUnificada) => {
     if (!state.isInitialized) {
       await initializeData()
     }
@@ -377,13 +350,79 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
           throw new Error(`Tipo de importación no soportado: ${tipo}`)
       }
 
-      handleImportResponse(resultado, archivo, tipo)
+      // Manejar respuesta de importación
+      const isSuccess = resultado.success !== false && (resultado.trabajoId || resultado.success)
+      const trabajoId = resultado.trabajoId
+      const estado = resultado.estado
+      const mensaje = (resultado as any).mensaje || (resultado as any).message
+      const totalRegistros = resultado.totalRegistros || (resultado as any).estadisticas?.total || 0
+      const errores = resultado.errores || (resultado as any).estadisticas?.errores || 0
+      
+      if (isSuccess) {
+        // Crear un trabajo temporal con información básica
+        // Función helper para mapear tipo
+        const mapearTipo = (t: TipoImportacion): 'productos' | 'proveedores' | 'movimientos' => {
+          if (t === 'auto') return 'productos'
+          return t as 'productos' | 'proveedores' | 'movimientos'
+        }
+
+        const trabajo: TrabajoImportacion = {
+          id: trabajoId,
+          tipo: mapearTipo(tipo),
+          estado: estado as any,
+          empresaId: 0,
+          usuarioId: 0,
+          archivoOriginal: archivo.name,
+          totalRegistros: totalRegistros,
+          registrosProcesados: 0,
+          registrosExitosos: 0,
+          registrosConError: errores,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+          progreso: 0,
+          mensaje: 'Iniciando procesamiento...'
+        }
+        
+        dispatch({ type: 'SET_CURRENT_TRABAJO', payload: trabajo })
+        dispatch({ type: 'SET_DETECCION_TIPO', payload: resultado.deteccionTipo || null })
+
+        if (estado === 'pendiente' || estado === 'procesando') {
+          // Iniciar polling inmediatamente para obtener actualizaciones
+          startPolling(trabajoId)
+        } else {
+          // Si ya está completado, mostrar resultado final
+          dispatch({ type: 'SET_IMPORTING', payload: false })
+          dispatch({ 
+            type: 'SET_SUCCESS', 
+            payload: mensaje || `¡Importación de ${tipo} completada! ${totalRegistros} registros procesados exitosamente.` 
+          })
+        }
+      } else {
+        // Manejar errores de validación o del sistema
+        if (resultado.erroresDetallados && resultado.erroresDetallados.length > 0) {
+          const erroresCopiados = resultado.erroresDetallados.map((error: any) => ({
+            fila: error.fila,
+            columna: error.columna,
+            valor: error.valor,
+            mensaje: error.mensaje,
+            tipo: error.tipo
+          }))
+          
+          dispatch({ type: 'SET_IMPORTING', payload: false })
+          dispatch({ type: 'SET_VALIDATION_ERRORS', payload: erroresCopiados })
+          dispatch({ type: 'SET_ERROR', payload: null })
+        } else {
+          dispatch({ type: 'SET_IMPORTING', payload: false })
+          dispatch({ type: 'SET_ERROR', payload: mensaje || 'Error en la importación' })
+          dispatch({ type: 'SET_VALIDATION_ERRORS', payload: null })
+        }
+      }
     } catch (error) {
       console.error('Error en importación:', error)
       dispatch({ type: 'SET_IMPORTING', payload: false })
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Error en importación' })
     }
-  }, [state.isInitialized, initializeData, handleImportResponse])
+  }, [state.isInitialized, initializeData])
 
   const importarAuto = useCallback(async (archivo: File, opciones: ImportacionAutoDto) => {
     if (!state.isInitialized) {
@@ -397,15 +436,76 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
 
     try {
       const resultado = await importacionAPI.importarAuto(archivo, opciones)
-      handleImportResponse(resultado, archivo, 'productos')
+      
+      // Manejar respuesta de importación automática
+      const isSuccess = resultado.success !== false && (resultado.trabajoId || resultado.success)
+      const trabajoId = resultado.trabajoId
+      const estado = resultado.estado
+      const mensaje = (resultado as any).mensaje || (resultado as any).message
+      const totalRegistros = resultado.totalRegistros || (resultado as any).estadisticas?.total || 0
+      const errores = resultado.errores || (resultado as any).estadisticas?.errores || 0
+      
+      if (isSuccess) {
+        // Crear un trabajo temporal con información básica
+        const trabajo: TrabajoImportacion = {
+          id: trabajoId,
+          tipo: 'productos',
+          estado: estado as any,
+          empresaId: 0,
+          usuarioId: 0,
+          archivoOriginal: archivo.name,
+          totalRegistros: totalRegistros,
+          registrosProcesados: 0,
+          registrosExitosos: 0,
+          registrosConError: errores,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+          progreso: 0,
+          mensaje: 'Iniciando procesamiento...'
+        }
+        
+        dispatch({ type: 'SET_CURRENT_TRABAJO', payload: trabajo })
+        dispatch({ type: 'SET_DETECCION_TIPO', payload: resultado.deteccionTipo || null })
+
+        if (estado === 'pendiente' || estado === 'procesando') {
+          // Iniciar polling inmediatamente para obtener actualizaciones
+          startPolling(trabajoId)
+        } else {
+          // Si ya está completado, mostrar resultado final
+          dispatch({ type: 'SET_IMPORTING', payload: false })
+          dispatch({ 
+            type: 'SET_SUCCESS', 
+            payload: mensaje || `¡Importación automática completada! ${totalRegistros} registros procesados exitosamente.` 
+          })
+        }
+      } else {
+        // Manejar errores de validación o del sistema
+        if (resultado.erroresDetallados && resultado.erroresDetallados.length > 0) {
+          const erroresCopiados = resultado.erroresDetallados.map((error: any) => ({
+            fila: error.fila,
+            columna: error.columna,
+            valor: error.valor,
+            mensaje: error.mensaje,
+            tipo: error.tipo
+          }))
+          
+          dispatch({ type: 'SET_IMPORTING', payload: false })
+          dispatch({ type: 'SET_VALIDATION_ERRORS', payload: erroresCopiados })
+          dispatch({ type: 'SET_ERROR', payload: null })
+        } else {
+          dispatch({ type: 'SET_IMPORTING', payload: false })
+          dispatch({ type: 'SET_ERROR', payload: mensaje || 'Error en la importación automática' })
+          dispatch({ type: 'SET_VALIDATION_ERRORS', payload: null })
+        }
+      }
     } catch (error) {
       console.error('Error en importación automática:', error)
       dispatch({ type: 'SET_IMPORTING', payload: false })
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Error en importación automática' })
     }
-  }, [state.isInitialized, initializeData, handleImportResponse])
+  }, [state.isInitialized, initializeData])
 
-  const validarAuto = useCallback(async (archivo: File, opciones?: any) => {
+  const validarAuto = useCallback(async (archivo: File, opciones?: OpcionesValidacionAuto) => {
     try {
       dispatch({ type: 'SET_ERROR', payload: null })
       dispatch({ type: 'SET_SUCCESS', payload: null })
@@ -450,39 +550,26 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
       return
     }
 
-    // Detener polling anterior si existe
+    // Limpiar polling anterior si existe
     if (state.pollingInterval) {
       clearTimeout(state.pollingInterval)
     }
 
-    // Timeout de seguridad para evitar polling infinito (5 minutos)
-    const safetyTimeout = setTimeout(() => {
-      dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
-      dispatch({ type: 'SET_IMPORTING', payload: false })
-      dispatch({ 
-        type: 'SET_ERROR', 
-        payload: 'Timeout: La importación tardó demasiado en completarse'
-      })
-    }, 5 * 60 * 1000) // 5 minutos
-
-    // Función para determinar intervalo de polling basado en el estado
+    // Función para determinar el intervalo de polling basado en el estado y progreso
     const getPollingInterval = (estado: string, progreso: number): number => {
-      if (estado === 'completado' || estado === 'error' || estado === 'cancelado') {
-        return 0 // Detener polling
-      }
-      
+      // Polling más agresivo al inicio para dar feedback inmediato
       if (estado === 'pendiente') {
-        return 5000 // 5s para trabajos pendientes
+        return 1000 // 1s para estado pendiente
       }
       
       if (estado === 'procesando') {
         // Polling más frecuente al inicio, menos frecuente al final
-        if (progreso < 25) return 2000 // 2s al inicio
-        if (progreso < 75) return 3000 // 3s en medio
-        return 4000 // 4s al final
+        if (progreso < 25) return 1500 // 1.5s al inicio
+        if (progreso < 75) return 2000 // 2s en medio
+        return 3000 // 3s al final
       }
       
-      return 3000 // Default
+      return 2000 // Default
     }
 
     const poll = async () => {
@@ -507,93 +594,48 @@ export function ImportacionGlobalProvider({ children }: ImportacionGlobalProvide
           clearTimeout(safetyTimeout) // Limpiar timeout de seguridad
           dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
           dispatch({ type: 'SET_IMPORTING', payload: false })
-          
+
+          // Mostrar mensaje de éxito o error
           if (isCompleted) {
-            if (hasErrors) {
-              // Si está completado pero tiene errores, mostrar mensaje de advertencia
-              const errorMessage = generateDetailedErrorMessage(trabajo)
-              dispatch({ 
-                type: 'SET_ERROR', 
-                payload: errorMessage
-              })
-              dispatch({ type: 'SET_SUCCESS', payload: null })
-              
-              // Si hay errores detallados, mostrarlos
-              if (trabajo.errores && trabajo.errores.length > 0) {
-                const erroresDetallados = Array.isArray(trabajo.errores) 
-                  ? trabajo.errores.map((error, index) => {
-                      if (typeof error === 'string') {
-                        return {
-                          fila: index + 1,
-                          columna: 'general',
-                          valor: '',
-                          mensaje: error,
-                          tipo: 'sistema'
-                        }
-                      }
-                      return error
-                    })
-                  : []
-                
-                dispatch({ type: 'SET_VALIDATION_ERRORS', payload: erroresDetallados })
-              }
-            } else {
-              // Completado sin errores
-              dispatch({ 
-                type: 'SET_SUCCESS', 
-                payload: `¡Importación completada exitosamente! ${trabajo.registrosExitosos} registros procesados.` 
-              })
-              dispatch({ type: 'SET_ERROR', payload: null })
-            }
+            const mensaje = hasErrors 
+              ? `Importación completada con advertencias: ${trabajo.registrosExitosos} exitosos, ${trabajo.registrosConError} con errores`
+              : `Importación completada exitosamente: ${trabajo.registrosExitosos} registros procesados`
+            dispatch({ type: 'SET_SUCCESS', payload: mensaje })
           } else if (hasError) {
-            // Error en el trabajo
-            const errorMessage = generateDetailedErrorMessage(trabajo)
-            dispatch({ 
-              type: 'SET_ERROR', 
-              payload: errorMessage
-            })
-            dispatch({ type: 'SET_SUCCESS', payload: null })
+            dispatch({ type: 'SET_ERROR', payload: trabajo.mensaje || 'Error en la importación' })
           } else if (isCancelled) {
-            // Trabajo cancelado
-            dispatch({ 
-              type: 'SET_ERROR', 
-              payload: 'Importación cancelada por el usuario'
-            })
-            dispatch({ type: 'SET_SUCCESS', payload: null })
+            dispatch({ type: 'SET_ERROR', payload: 'Importación cancelada' })
           }
-          
-          // Recargar trabajos para obtener datos actualizados
-          setTimeout(() => {
-            loadTrabajos(true)
-          }, 1000)
-          
+
+          // Actualizar la lista de trabajos
+          await loadTrabajos(true)
           return
         }
 
         // Continuar polling con intervalo dinámico
         const nextInterval = getPollingInterval(trabajo.estado, trabajo.progreso)
-        if (nextInterval > 0) {
-          const timeoutId = setTimeout(poll, nextInterval)
-          dispatch({ type: 'SET_POLLING_INTERVAL', payload: timeoutId })
-        } else {
-          dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
-        }
+        const timeoutId = setTimeout(poll, nextInterval)
+        dispatch({ type: 'SET_POLLING_INTERVAL', payload: timeoutId })
 
       } catch (error) {
-        console.error('❌ Error en polling HTTP:', error)
-        
-        // En caso de error, intentar una vez más después de 10 segundos
-        const retryTimeout = setTimeout(() => {
-          poll()
-        }, 10000)
-        
-        dispatch({ type: 'SET_POLLING_INTERVAL', payload: retryTimeout })
+        console.error('Error en polling:', error)
+        // En caso de error, intentar de nuevo en 5 segundos
+        const timeoutId = setTimeout(poll, 5000)
+        dispatch({ type: 'SET_POLLING_INTERVAL', payload: timeoutId })
       }
     }
 
-    // Iniciar polling
+    // Timeout de seguridad para evitar polling infinito (10 minutos)
+    const safetyTimeout = setTimeout(() => {
+      console.warn('Timeout de seguridad alcanzado para polling del trabajo:', trabajoId)
+      dispatch({ type: 'SET_POLLING_INTERVAL', payload: null })
+      dispatch({ type: 'SET_IMPORTING', payload: false })
+      dispatch({ type: 'SET_ERROR', payload: 'Timeout: La importación está tardando más de lo esperado' })
+    }, 10 * 60 * 1000) // 10 minutos
+
+    // Iniciar polling inmediatamente
     poll()
-  }, [state.currentTrabajo, state.pollingInterval, dispatch, loadTrabajos])
+  }, [state.pollingInterval, loadTrabajos])
 
   const stopPolling = useCallback(() => {
     if (state.pollingInterval) {

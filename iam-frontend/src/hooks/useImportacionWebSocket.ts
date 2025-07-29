@@ -11,11 +11,61 @@ interface ImportacionWebSocketEvent {
 
 interface UseImportacionWebSocketOptions {
   onTrabajoCreado?: (trabajoId: string) => void
-  onProgresoActualizado?: (trabajoId: string, progreso: number, estadisticas: any) => void
-  onTrabajoCompletado?: (trabajoId: string, resultado: any) => void
+  onProgresoActualizado?: (trabajoId: string, progreso: number, estadisticas: EstadisticasProgreso) => void
+  onTrabajoCompletado?: (trabajoId: string, resultado: ResultadoImportacion) => void
   onError?: (trabajoId: string, error: string) => void
-  onValidacionError?: (trabajoId: string, errores: any[]) => void
-  onEstadisticasActualizadas?: (estadisticas: any) => void
+  onValidacionError?: (trabajoId: string, errores: ErrorValidacion[]) => void
+  onEstadisticasActualizadas?: (estadisticas: EstadisticasProgreso) => void
+  // Nuevos eventos opcionales para compatibilidad
+  onMensajeUsuario?: (trabajoId: string, mensaje: MensajeUsuario) => void
+  onResumenProcesamiento?: (trabajoId: string, resumen: ResumenProcesamiento) => void
+  onDuplicadosEncontrados?: (trabajoId: string, duplicados: number, total: number) => void
+  onRecomendaciones?: (trabajoId: string, recomendaciones: string[]) => void
+}
+
+// Interfaces específicas para tipos de datos
+interface EstadisticasProgreso {
+  total: number
+  procesados: number
+  exitosos: number
+  errores: number
+  duplicados: number
+  progreso: number
+}
+
+interface ErrorValidacion {
+  fila: number
+  columna: string
+  valor: string
+  mensaje: string
+  tipo: 'validacion' | 'duplicado' | 'referencia' | 'sistema'
+}
+
+interface MensajeUsuario {
+  tipo: 'success' | 'warning' | 'error' | 'info'
+  titulo: string
+  mensaje: string
+  detalles?: string[]
+  timestamp?: string
+}
+
+interface ResumenProcesamiento {
+  duplicadosEncontrados: number
+  erroresValidacion: number
+  erroresSistema: number
+  registrosOmitidos: number
+  recomendaciones: string[]
+}
+
+interface ResultadoImportacion {
+  trabajoId: string
+  estado: string
+  estadisticas: EstadisticasProgreso
+  errores: ErrorValidacion[]
+  tiempoProcesamiento: number
+  archivoResultado?: string
+  mensajesUsuario?: MensajeUsuario[]
+  resumenProcesamiento?: ResumenProcesamiento
 }
 
 export function useImportacionWebSocket(options: UseImportacionWebSocketOptions = {}) {
@@ -112,6 +162,32 @@ export function useImportacionWebSocket(options: UseImportacionWebSocketOptions 
           options.onEstadisticasActualizadas(event.data.estadisticas)
         }
         break
+
+      // Nuevos eventos opcionales para compatibilidad
+      case 'MENSAJE_USUARIO':
+        if (event.trabajoId && event.data && options.onMensajeUsuario) {
+          options.onMensajeUsuario(event.trabajoId, event.data)
+        }
+        break
+
+      case 'RESUMEN_PROCESAMIENTO':
+        if (event.trabajoId && event.data && options.onResumenProcesamiento) {
+          options.onResumenProcesamiento(event.trabajoId, event.data)
+        }
+        break
+
+      case 'DUPLICADOS_ENCONTRADOS':
+        if (event.trabajoId && event.data && options.onDuplicadosEncontrados) {
+          const { duplicados, total } = event.data
+          options.onDuplicadosEncontrados(event.trabajoId, duplicados, total)
+        }
+        break
+
+      case 'RECOMENDACIONES':
+        if (event.trabajoId && event.data && options.onRecomendaciones) {
+          options.onRecomendaciones(event.trabajoId, event.data.recomendaciones || [])
+        }
+        break
     }
   }, [options])
 
@@ -119,7 +195,7 @@ export function useImportacionWebSocket(options: UseImportacionWebSocketOptions 
   useEffect(() => {
     if (!socket) return
 
-    // Eventos de importación
+    // Eventos de importación existentes
     socket.on('trabajo:creado', (data) => {
       handleImportacionEvent({
         event: 'trabajo:creado',
@@ -170,6 +246,39 @@ export function useImportacionWebSocket(options: UseImportacionWebSocketOptions 
       })
     })
 
+    // Nuevos eventos opcionales para compatibilidad
+    socket.on('MENSAJE_USUARIO', (data) => {
+      handleImportacionEvent({
+        event: 'MENSAJE_USUARIO',
+        trabajoId: data.trabajoId,
+        data: data.data
+      })
+    })
+
+    socket.on('RESUMEN_PROCESAMIENTO', (data) => {
+      handleImportacionEvent({
+        event: 'RESUMEN_PROCESAMIENTO',
+        trabajoId: data.trabajoId,
+        data: data.data
+      })
+    })
+
+    socket.on('DUPLICADOS_ENCONTRADOS', (data) => {
+      handleImportacionEvent({
+        event: 'DUPLICADOS_ENCONTRADOS',
+        trabajoId: data.trabajoId,
+        data: data.data
+      })
+    })
+
+    socket.on('RECOMENDACIONES', (data) => {
+      handleImportacionEvent({
+        event: 'RECOMENDACIONES',
+        trabajoId: data.trabajoId,
+        data: data.data
+      })
+    })
+
     // Limpiar listeners al desmontar
     return () => {
       socket.off('trabajo:creado')
@@ -178,6 +287,11 @@ export function useImportacionWebSocket(options: UseImportacionWebSocketOptions 
       socket.off('trabajo:error')
       socket.off('error:validacion')
       socket.off('estadisticas:actualizadas')
+      // Limpiar nuevos eventos
+      socket.off('MENSAJE_USUARIO')
+      socket.off('RESUMEN_PROCESAMIENTO')
+      socket.off('DUPLICADOS_ENCONTRADOS')
+      socket.off('RECOMENDACIONES')
     }
   }, [socket, handleImportacionEvent])
 

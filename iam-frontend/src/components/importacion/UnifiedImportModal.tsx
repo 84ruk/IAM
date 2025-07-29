@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -23,6 +23,7 @@ import {
   ChevronDown
 } from 'lucide-react'
 import { useImportacionOptimized } from '@/hooks/useImportacionOptimized'
+import { useImportacionWebSocket } from '@/hooks/useImportacionWebSocket'
 import { TipoImportacion } from '@/context/ImportacionGlobalContext'
 import { useFileValidation } from '@/hooks/useFileValidation'
 import { getImportacionConfig, DEFAULT_IMPORTACION_OPTIONS, IMPORTACION_MESSAGES } from '@/config/importacion.config'
@@ -94,6 +95,27 @@ export default function UnifiedImportModal({ isOpen, onClose }: UnifiedImportMod
     clearSuccess,
     clearValidationErrors
   } = useImportacionOptimized()
+
+  // WebSocket para actualizaciones en tiempo real
+  const { subscribeToTrabajo, isConnected } = useImportacionWebSocket({
+    onProgresoActualizado: (trabajoId, progreso, estadisticas) => {
+      console.log('WebSocket: Progreso actualizado:', { trabajoId, progreso, estadisticas })
+    },
+    onTrabajoCompletado: (trabajoId, resultado) => {
+      console.log('WebSocket: Trabajo completado:', { trabajoId, resultado })
+    },
+    onError: (trabajoId, error) => {
+      console.log('WebSocket: Error en trabajo:', { trabajoId, error })
+    }
+  })
+
+  // Suscribirse al trabajo actual cuando esté disponible
+  useEffect(() => {
+    if (currentTrabajo?.id && isConnected) {
+      console.log('Suscribiéndose al trabajo:', currentTrabajo.id)
+      subscribeToTrabajo(currentTrabajo.id)
+    }
+  }, [currentTrabajo?.id, isConnected, subscribeToTrabajo])
 
   const handleTipoSelect = (tipo: TipoImportacion) => {
     setSelectedTipo(tipo)
@@ -368,10 +390,46 @@ export default function UnifiedImportModal({ isOpen, onClose }: UnifiedImportMod
 
               {/* Barra de Progreso */}
               {isImporting && currentTrabajo && (
-                <ProgressBar 
-                  progreso={currentTrabajo?.progreso || 0}
-                  estado={currentTrabajo?.estado || 'PENDIENTE'}
-                />
+                <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-blue-900">Procesando importación...</h4>
+                    <Badge className="bg-blue-100 text-blue-800">
+                      {currentTrabajo.estado}
+                    </Badge>
+                  </div>
+                  
+                  <ProgressBar 
+                    progreso={currentTrabajo?.progreso || 0}
+                    estado={currentTrabajo?.estado || 'pendiente'}
+                  />
+                  
+                  <div className="text-sm text-blue-700">
+                    <p>Archivo: {currentTrabajo.archivoOriginal}</p>
+                    <p>Registros: {currentTrabajo.registrosProcesados} de {currentTrabajo.totalRegistros}</p>
+                    {currentTrabajo.mensaje && (
+                      <p className="mt-1 font-medium">{currentTrabajo.mensaje}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Feedback inmediato al hacer clic */}
+              {isImporting && !currentTrabajo && (
+                <div className="space-y-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-yellow-600" />
+                    <h4 className="font-medium text-yellow-900">Iniciando importación...</h4>
+                  </div>
+                  <p className="text-sm text-yellow-700">
+                    Preparando el archivo para procesamiento. Esto puede tomar unos segundos.
+                  </p>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <span className={isConnected ? 'text-green-700' : 'text-red-700'}>
+                      WebSocket: {isConnected ? 'Conectado' : 'Desconectado'}
+                    </span>
+                  </div>
+                </div>
               )}
 
               {/* Mensajes de Error/Success */}
@@ -402,12 +460,12 @@ export default function UnifiedImportModal({ isOpen, onClose }: UnifiedImportMod
                 <Button
                   type="submit"
                   disabled={!archivo || isImporting}
-                  className="bg-gradient-to-r from-[#8E94F2] to-[#7278e0] hover:from-[#7278e0] hover:to-[#8E94F2]"
+                  className="bg-gradient-to-r from-[#8E94F2] to-[#7278e0] hover:from-[#7278e0] hover:to-[#8E94F2] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isImporting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Importando...
+                      {currentTrabajo ? 'Importando...' : 'Iniciando...'}
                     </>
                   ) : (
                     <>
