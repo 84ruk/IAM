@@ -26,6 +26,7 @@ import { MqttSensorModule } from './microservices/mqtt-sensor/mqtt-sensor.module
 import { ColasModule } from './colas/colas.module';
 import { ImportacionModule } from './importacion/importacion.module';
 import { CommonModule } from './common/common.module';
+import { WebSocketsModule } from './websockets/websockets.module';
 import mqttConfig from './config/mqtt.config';
 
 @Module({
@@ -60,6 +61,7 @@ import mqttConfig from './config/mqtt.config';
     MqttSensorModule,
     ColasModule, // 🆕 NUEVO - Módulo de colas para procesamiento asíncrono
     ImportacionModule, // 🆕 NUEVO - Módulo de importación de datos
+    WebSocketsModule, // 🆕 NUEVO - Módulo de WebSockets para tiempo real
   ],
   controllers: [AppController],
   providers: [

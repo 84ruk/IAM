@@ -1,121 +1,63 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
-import { TrabajoImportacion, ResultadoImportacion, ErrorImportacion, EstadoTrabajo } from '../interfaces/trabajo-importacion.interface';
 import { ImportacionCacheService } from '../../importacion/servicios/importacion-cache.service';
+import { AdvancedLoggingService } from '../../importacion/services/advanced-logging.service';
+import { SmartErrorResolverService } from '../../importacion/services/smart-error-resolver.service';
+import { ImportacionProgressTrackerService } from '../../importacion/services/importacion-progress-tracker.service';
+import { ImportacionWebSocketService } from '../../importacion/servicios/importacion-websocket.service';
+import { TrabajoImportacion, ResultadoImportacion, ErrorImportacion, EstadoTrabajo, MovimientoImportacion } from '../interfaces/trabajo-importacion.interface';
+import { EnhancedBaseProcesadorService } from '../services/enhanced-base-procesador.service';
+import { LoteProcesador } from '../interfaces/base-procesador.interface';
 import * as XLSX from 'xlsx';
+import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
-export class ImportacionMovimientosProcesador {
-  private readonly logger = new Logger(ImportacionMovimientosProcesador.name);
-
+export class ImportacionMovimientosProcesador extends EnhancedBaseProcesadorService {
   constructor(
-    private prisma: PrismaService,
-    private cacheService: ImportacionCacheService
-  ) {}
+    prisma: PrismaService,
+    cacheService: ImportacionCacheService,
+    advancedLogging: AdvancedLoggingService,
+    smartErrorResolver: SmartErrorResolverService,
+    progressTracker: ImportacionProgressTrackerService,
+    websocketService: ImportacionWebSocketService
+  ) {
+    super(
+      prisma, 
+      cacheService, 
+      advancedLogging,
+      smartErrorResolver,
+      progressTracker,
+      websocketService,
+      'ImportacionMovimientosProcesador', 
+      {
+        loteSize: 100,
+        maxRetries: 3,
+        timeout: 30000,
+        enableCache: true,
+        cacheTTL: 1800,
+      }
+    );
+  }
 
   async procesar(trabajo: TrabajoImportacion, job: Job): Promise<ResultadoImportacion> {
-    const inicio = Date.now();
-    this.logger.log(`🚀 Procesando importación de movimientos: ${trabajo.archivoOriginal}`);
-
-    const resultado: ResultadoImportacion = {
-      trabajoId: trabajo.id,
-      estado: EstadoTrabajo.PROCESANDO,
-      estadisticas: {
-        total: 0,
-        exitosos: 0,
-        errores: 0,
-        duplicados: 0,
-      },
-      errores: [],
-      tiempoProcesamiento: 0,
+    const loteProcesador: LoteProcesador = {
+      procesarLote: this.procesarLoteMovimientos.bind(this),
+      validarRegistro: this.validarRegistroMovimiento.bind(this),
+      guardarRegistro: this.guardarMovimiento.bind(this),
     };
 
-    try {
-      // 1. Leer archivo Excel
-      const datos = await this.leerArchivoExcel(trabajo.archivoOriginal);
-      resultado.estadisticas.total = datos.length;
-
-      // 2. Validar estructura del archivo
-      const erroresValidacion = this.validarEstructuraArchivo(datos);
-      if (erroresValidacion.length > 0) {
-        resultado.errores.push(...erroresValidacion);
-        resultado.estadisticas.errores = erroresValidacion.length;
-        resultado.estado = EstadoTrabajo.ERROR;
-        return resultado;
-      }
-
-      // 3. Cargar productos de la empresa para validación (con cache)
-      const productosEmpresa = await this.cargarProductosEmpresaConCache(trabajo.empresaId);
-
-      // 4. Procesar registros en lotes
-      const loteSize = 50; // Lotes más pequeños para movimientos
-      for (let i = 0; i < datos.length; i += loteSize) {
-        const lote = datos.slice(i, i + loteSize);
-        await this.procesarLoteMovimientos(lote, trabajo, resultado, job, productosEmpresa);
-        
-        // Actualizar progreso usando el método nativo de BullMQ
-        const progreso = Math.round(((i + loteSize) / datos.length) * 100);
-        await job.updateProgress(Math.min(progreso, 100));
-        // También actualizar en los datos para compatibilidad
-        // NO actualizar job.data para evitar sobrescribir los datos del trabajo
-      }
-
-      // 5. Generar archivo de resultados si hay errores
-      if (resultado.errores.length > 0) {
-        resultado.archivoResultado = await this.generarArchivoErrores(trabajo, resultado.errores);
-      }
-
-      resultado.estado = EstadoTrabajo.COMPLETADO;
-      resultado.tiempoProcesamiento = Date.now() - inicio;
-
-      this.logger.log(`✅ Importación completada: ${resultado.estadisticas.exitosos}/${resultado.estadisticas.total} movimientos`);
-
-      return resultado;
-
-    } catch (error) {
-      this.logger.error(`❌ Error en importación de movimientos:`, error);
-      resultado.estado = EstadoTrabajo.ERROR;
-      resultado.errores.push({
-        fila: 0,
-        columna: 'sistema',
-        valor: '',
-        mensaje: `Error del sistema: ${error.message}`,
-        tipo: 'sistema',
-      });
-      return resultado;
-    }
+    return this.procesarArchivoBase(trabajo, job, loteProcesador);
   }
 
-  private async leerArchivoExcel(archivoPath: string): Promise<any[]> {
-    try {
-      const workbook = XLSX.readFile(archivoPath);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const datos = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-      // Remover fila de encabezados
-      const encabezados = datos[0];
-      const registros = datos.slice(1);
-
-      // Convertir a objetos con nombres de columnas
-      return registros.map((fila, index) => {
-        const objeto: any = {};
-        (encabezados as string[]).forEach((encabezado: string, colIndex: number) => {
-          objeto[encabezado] = (fila as any[])[colIndex];
-        });
-        return { ...objeto, _filaOriginal: index + 2 };
-      });
-
-    } catch (error) {
-      throw new Error(`Error leyendo archivo Excel: ${error.message}`);
-    }
+  protected obtenerCamposRequeridos(): string[] {
+    return ['productoId', 'tipo', 'cantidad', 'fecha'];
   }
 
-  private validarEstructuraArchivo(datos: any[]): ErrorImportacion[] {
+  private validarEstructuraArchivo(datos: MovimientoImportacion[]): ErrorImportacion[] {
     const errores: ErrorImportacion[] = [];
-    const columnasRequeridas = ['productoId', 'tipo', 'cantidad', 'fecha'];
+    const columnasRequeridas = this.obtenerCamposRequeridos();
 
     if (datos.length === 0) {
       errores.push({
@@ -216,7 +158,7 @@ export class ImportacionMovimientosProcesador {
   }
 
   private async procesarLoteMovimientos(
-    lote: any[], 
+    lote: MovimientoImportacion[], 
     trabajo: TrabajoImportacion, 
     resultado: ResultadoImportacion, 
     job: Job,
@@ -224,7 +166,7 @@ export class ImportacionMovimientosProcesador {
   ): Promise<void> {
     for (const registro of lote) {
       try {
-        // Validar datos del registro
+        // Validar registro
         const erroresValidacion = this.validarRegistroMovimiento(registro, productosEmpresa);
         if (erroresValidacion.length > 0) {
           resultado.errores.push(...erroresValidacion);
@@ -232,36 +174,30 @@ export class ImportacionMovimientosProcesador {
           continue;
         }
 
-        // Obtener producto por ID o código de barras
-        const productoId = parseInt(registro.productoId);
-        let producto: any = null;
-        
-        if (!isNaN(productoId)) {
-          producto = Array.from(productosEmpresa.values()).find((p: any) => p.id === productoId);
-        }
-        
+        // Buscar producto
+        let producto = productosEmpresa.get(String(registro.productoId));
         if (!producto && registro.codigoBarras) {
-          producto = productosEmpresa.get(registro.codigoBarras.trim());
+          producto = productosEmpresa.get(String(registro.codigoBarras).trim());
         }
 
         if (!producto) {
           resultado.errores.push({
             fila: registro._filaOriginal,
             columna: 'productoId',
-            valor: registro.productoId,
-            mensaje: 'Producto no encontrado en la empresa',
-            tipo: 'referencia',
+            valor: String(registro.productoId),
+            mensaje: `Producto no encontrado: ${registro.productoId}`,
+            tipo: 'validacion',
           });
           resultado.estadisticas.errores++;
           continue;
         }
 
-        // Validar stock disponible para salidas
-        if (registro.tipo === 'SALIDA' && producto.stock < parseInt(registro.cantidad)) {
+        // Validar stock para salidas
+        if (registro.tipo.toUpperCase() === 'SALIDA' && producto.stock < parseInt(String(registro.cantidad))) {
           resultado.errores.push({
             fila: registro._filaOriginal,
             columna: 'cantidad',
-            valor: registro.cantidad,
+            valor: String(registro.cantidad),
             mensaje: `Stock insuficiente. Disponible: ${producto.stock}, Solicitado: ${registro.cantidad}`,
             tipo: 'validacion',
           });
@@ -270,15 +206,16 @@ export class ImportacionMovimientosProcesador {
         }
 
         // Crear movimiento
-        await this.crearMovimiento(registro, trabajo, producto);
+        await this.guardarMovimiento(registro, trabajo, producto);
         resultado.estadisticas.exitosos++;
 
       } catch (error) {
+        this.logger.error(`Error procesando movimiento en fila ${registro._filaOriginal}:`, error);
         resultado.errores.push({
           fila: registro._filaOriginal,
           columna: 'sistema',
           valor: '',
-          mensaje: `Error procesando registro: ${error.message}`,
+          mensaje: `Error del sistema: ${error.message}`,
           tipo: 'sistema',
         });
         resultado.estadisticas.errores++;
@@ -286,119 +223,75 @@ export class ImportacionMovimientosProcesador {
     }
   }
 
-  private validarRegistroMovimiento(registro: any, productosEmpresa: Map<string, any>): ErrorImportacion[] {
+  private validarRegistroMovimiento(registro: MovimientoImportacion, productosEmpresa: Map<string, any>): ErrorImportacion[] {
     const errores: ErrorImportacion[] = [];
 
-    // Validar ID del producto
-    const productoId = parseInt(registro.productoId);
-    if (isNaN(productoId) || productoId <= 0) {
+    // Validar productoId
+    if (!registro.productoId) {
       errores.push({
         fila: registro._filaOriginal,
         columna: 'productoId',
-        valor: registro.productoId,
-        mensaje: 'El ID del producto es requerido y debe ser un número válido',
+        valor: String(registro.productoId),
+        mensaje: 'ID de producto es requerido',
         tipo: 'validacion',
       });
     }
 
-    // Validar tipo de movimiento
-    const tipo = registro.tipo?.toUpperCase();
-    if (!tipo || !['ENTRADA', 'SALIDA'].includes(tipo)) {
+    // Validar tipo
+    const tipo = String(registro.tipo).toUpperCase();
+    if (!['ENTRADA', 'SALIDA'].includes(tipo)) {
       errores.push({
         fila: registro._filaOriginal,
         columna: 'tipo',
-        valor: registro.tipo,
-        mensaje: 'El tipo debe ser ENTRADA o SALIDA',
+        valor: String(registro.tipo),
+        mensaje: 'Tipo debe ser: ENTRADA o SALIDA',
         tipo: 'validacion',
       });
     }
 
     // Validar cantidad
-    const cantidad = parseInt(registro.cantidad);
+    const cantidad = parseInt(String(registro.cantidad));
     if (isNaN(cantidad) || cantidad <= 0) {
       errores.push({
         fila: registro._filaOriginal,
         columna: 'cantidad',
-        valor: registro.cantidad,
-        mensaje: 'La cantidad debe ser un número entero mayor a 0',
+        valor: String(registro.cantidad),
+        mensaje: 'Cantidad debe ser un número positivo',
         tipo: 'validacion',
       });
-    }
-
-    // Validar fecha
-    const fecha = new Date(registro.fecha);
-    if (isNaN(fecha.getTime())) {
-      errores.push({
-        fila: registro._filaOriginal,
-        columna: 'fecha',
-        valor: registro.fecha,
-        mensaje: 'La fecha debe tener un formato válido (YYYY-MM-DD)',
-        tipo: 'validacion',
-      });
-    } else {
-      // Evitar fechas futuras (más de 1 día en el futuro)
-      const hoy = new Date();
-      const mañana = new Date(hoy);
-      mañana.setDate(hoy.getDate() + 1);
-      
-      if (fecha > mañana) {
-        errores.push({
-          fila: registro._filaOriginal,
-          columna: 'fecha',
-          valor: registro.fecha,
-          mensaje: 'La fecha no puede ser futura (más de 1 día en el futuro)',
-          tipo: 'validacion',
-        });
-      }
     }
 
     return errores;
   }
 
-  private async crearMovimiento(registro: any, trabajo: TrabajoImportacion, producto: any): Promise<void> {
-    const cantidad = parseInt(registro.cantidad);
-    const tipo = registro.tipo.toUpperCase();
-    const fecha = new Date(registro.fecha);
+  private async guardarMovimiento(registro: MovimientoImportacion, trabajo: TrabajoImportacion, producto: any): Promise<void> {
+    const cantidad = parseInt(String(registro.cantidad));
+    const tipo = String(registro.tipo).toUpperCase() as 'ENTRADA' | 'SALIDA';
 
-    // Crear el movimiento
+    // Crear movimiento
     await this.prisma.movimientoInventario.create({
       data: {
-        cantidad,
         productoId: producto.id,
-        fecha,
         tipo,
-        motivo: registro.motivo?.trim() || null,
-        descripcion: registro.descripcion?.trim() || null,
+        cantidad,
+        descripcion: registro.descripcion ? String(registro.descripcion).trim() : null,
+        fecha: new Date(registro.fecha || new Date()),
         empresaId: trabajo.empresaId,
         estado: 'ACTIVO',
       },
     });
 
     // Actualizar stock del producto
-    const nuevoStock = tipo === 'ENTRADA' ? producto.stock + cantidad : producto.stock - cantidad;
+    let nuevoStock = producto.stock;
+    if (tipo === 'ENTRADA') {
+      nuevoStock += cantidad;
+    } else if (tipo === 'SALIDA') {
+      nuevoStock -= cantidad;
+    }
+
     await this.prisma.producto.update({
       where: { id: producto.id },
       data: { stock: nuevoStock },
     });
-  }
-
-  private async generarArchivoErrores(trabajo: TrabajoImportacion, errores: ErrorImportacion[]): Promise<string> {
-    const nombreArchivo = `errores-importacion-movimientos-${trabajo.id}-${Date.now()}.xlsx`;
-    const rutaArchivo = path.join(process.cwd(), 'uploads', 'import', nombreArchivo);
-
-    // Crear workbook con errores
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(errores.map(error => ({
-      'Fila': error.fila,
-      'Columna': error.columna,
-      'Valor': error.valor,
-      'Mensaje': error.mensaje,
-      'Tipo': error.tipo,
-    })));
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Errores');
-    XLSX.writeFile(workbook, rutaArchivo);
-
-    return nombreArchivo;
   }
 } 

@@ -241,23 +241,48 @@ export class ValidadorDatosService {
     // Validar que el producto existe
     const productoId = parseInt(registro.productoId);
     const codigoBarras = registro.codigoBarras?.toString().trim();
+    const nombreProducto = registro.nombreProducto?.toString().trim();
     
-    // Buscar producto por ID o código de barras
+    // Buscar producto por múltiples criterios
     let producto: any = null;
+    let criterioUsado = '';
+    
+    // 1. Buscar por ID
     if (!isNaN(productoId)) {
       producto = Array.from(productosEmpresa.values()).find((p: any) => p.id === productoId);
+      if (producto) criterioUsado = 'ID';
     }
     
+    // 2. Buscar por código de barras
     if (!producto && codigoBarras) {
       producto = productosEmpresa.get(codigoBarras);
+      if (producto) criterioUsado = 'código de barras';
+    }
+    
+    // 3. Buscar por nombre (búsqueda flexible)
+    if (!producto && nombreProducto) {
+      const productosArray = Array.from(productosEmpresa.values());
+      producto = productosArray.find((p: any) => 
+        p.nombre.toLowerCase().includes(nombreProducto.toLowerCase()) ||
+        nombreProducto.toLowerCase().includes(p.nombre.toLowerCase())
+      );
+      if (producto) criterioUsado = 'nombre';
     }
 
     if (!producto) {
+      // Generar sugerencias de productos similares
+      const sugerencias = this.generarSugerenciasProducto(
+        productoId, 
+        codigoBarras, 
+        nombreProducto, 
+        productosEmpresa
+      );
+      
       errores.push({
         fila,
         columna: 'productoId',
-        valor: registro.productoId || '',
-        mensaje: 'Producto no encontrado en la empresa',
+        valor: registro.productoId || codigoBarras || nombreProducto || '',
+        mensaje: `Producto no encontrado en la empresa. ${sugerencias}`,
         tipo: 'referencia',
       });
     } else {
@@ -277,6 +302,53 @@ export class ValidadorDatosService {
     }
 
     return errores;
+  }
+
+  /**
+   * Genera sugerencias cuando no se encuentra un producto
+   */
+  private generarSugerenciasProducto(
+    productoId: number,
+    codigoBarras: string,
+    nombreProducto: string,
+    productosEmpresa: Map<string, any>
+  ): string {
+    const productosArray = Array.from(productosEmpresa.values());
+    const sugerencias: string[] = [];
+    
+    // Si hay un ID, sugerir verificar que existe
+    if (!isNaN(productoId)) {
+      sugerencias.push(`Verifica que el producto con ID ${productoId} existe en tu inventario`);
+    }
+    
+    // Si hay código de barras, sugerir verificar formato
+    if (codigoBarras) {
+      sugerencias.push(`Verifica el código de barras "${codigoBarras}"`);
+    }
+    
+    // Si hay nombre, buscar productos similares
+    if (nombreProducto) {
+      const productosSimilares = productosArray
+        .filter((p: any) => 
+          p.nombre.toLowerCase().includes(nombreProducto.toLowerCase().substring(0, 3)) ||
+          nombreProducto.toLowerCase().includes(p.nombre.toLowerCase().substring(0, 3))
+        )
+        .slice(0, 3)
+        .map((p: any) => `${p.nombre} (ID: ${p.id})`);
+      
+      if (productosSimilares.length > 0) {
+        sugerencias.push(`Productos similares: ${productosSimilares.join(', ')}`);
+      }
+    }
+    
+    // Sugerencia general
+    if (productosArray.length === 0) {
+      sugerencias.push('No hay productos registrados en tu inventario. Primero importa productos.');
+    } else {
+      sugerencias.push(`Total de productos disponibles: ${productosArray.length}`);
+    }
+    
+    return sugerencias.join('. ');
   }
 
   // Métodos de validación específicos

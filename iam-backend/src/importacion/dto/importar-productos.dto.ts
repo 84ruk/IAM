@@ -31,7 +31,7 @@ export class ConfiguracionEspecificaProductos {
 
   @IsOptional()
   @IsBoolean()
-  generarSKUAutomatico?: boolean = false;
+  generarSKUAutomatico?: boolean = true;
 
   @IsOptional()
   @IsString()
@@ -39,7 +39,7 @@ export class ConfiguracionEspecificaProductos {
 
   @IsOptional()
   @IsBoolean()
-  crearProveedorSiNoExiste?: boolean = false;
+  crearProveedorSiNoExiste?: boolean = true;
 }
 
 export class ImportarProductosDto {
@@ -95,9 +95,9 @@ export class ImportarProductosDto {
         tipoValidacion: parsed.tipoValidacion || TipoValidacionProducto.ESTRICTA,
         validarPrecios: parsed.validarPrecios ?? true,
         validarStock: parsed.validarStock ?? true,
-        generarSKUAutomatico: parsed.generarSKUAutomatico ?? false,
+        generarSKUAutomatico: parsed.generarSKUAutomatico ?? true,
         prefijoSKU: parsed.prefijoSKU || 'PROD',
-        crearProveedorSiNoExiste: parsed.crearProveedorSiNoExiste ?? false,
+        crearProveedorSiNoExiste: parsed.crearProveedorSiNoExiste ?? true,
       };
     } catch (error) {
       // Si hay error en el parsing, usar valores por defecto

@@ -208,17 +208,8 @@ export class MovimientosEstrategia implements EstrategiaImportacion {
     let productoId = producto?.id;
     
     if (!producto && trabajo.opciones.configuracionEspecifica?.crearProductoSiNoExiste) {
-      const nuevoProducto = await this.prisma.producto.create({
-        data: {
-          nombre: String(movimiento.producto || movimiento.productoNombre).trim(),
-          descripcion: `Producto creado automáticamente desde importación`,
-          stock: 0,
-          precioCompra: 0,
-          precioVenta: 0,
-          stockMinimo: 0,
-          empresaId: trabajo.empresaId,
-        },
-      });
+      // Crear producto automáticamente con datos del movimiento
+      const nuevoProducto = await this.crearProductoAutomatico(movimiento, trabajo);
       productoId = nuevoProducto.id;
     }
 
@@ -260,6 +251,156 @@ export class MovimientosEstrategia implements EstrategiaImportacion {
         });
       }
     }
+  }
+
+  /**
+   * Crea un producto automáticamente basado en los datos del movimiento
+   */
+  private async crearProductoAutomatico(movimiento: MovimientoImportacion, trabajo: TrabajoImportacion): Promise<any> {
+    const nombreProducto = String(movimiento.producto || movimiento.productoNombre).trim();
+    
+    // Buscar proveedor si se especifica en el movimiento
+    let proveedorId = null;
+    if (movimiento.proveedor && trabajo.opciones.configuracionEspecifica?.crearProveedorSiNoExiste) {
+      const proveedor = await this.buscarOCrearProveedor(String(movimiento.proveedor), trabajo.empresaId);
+      proveedorId = proveedor?.id;
+    }
+
+    // Procesar categoría/etiquetas si se especifica
+    const etiquetas: string[] = [];
+    if (movimiento.categoria) {
+      etiquetas.push(String(movimiento.categoria).trim());
+    }
+
+    // Determinar tipo de producto basado en el nombre o categoría
+    const tipoProducto = this.determinarTipoProducto(nombreProducto, String(movimiento.categoria || ''));
+
+    // Determinar unidad de medida
+    const unidad = this.determinarUnidadMedida(String(movimiento.unidad || ''), nombreProducto);
+
+    const datosProducto = {
+      nombre: nombreProducto,
+      descripcion: `Producto creado automáticamente desde importación de movimientos`,
+      stock: 0, // Se actualizará con el movimiento
+      precioCompra: Number(movimiento.precioCompra) || 0,
+      precioVenta: Number(movimiento.precioVenta) || 0,
+      stockMinimo: Number(movimiento.stockMinimo) || 0,
+      empresaId: trabajo.empresaId,
+      proveedorId: proveedorId,
+      etiquetas: etiquetas,
+      tipoProducto: tipoProducto,
+      unidad: unidad,
+      estado: 'ACTIVO' as const,
+      // Generar SKU automático si está configurado
+      sku: trabajo.opciones.configuracionEspecifica?.generarSKUAutomatico 
+        ? this.generarSKUAutomatico(nombreProducto, String(trabajo.opciones.configuracionEspecifica?.prefijoSKU || 'PROD'))
+        : null,
+    };
+
+    return await this.prisma.producto.create({
+      data: datosProducto,
+    });
+  }
+
+  /**
+   * Busca o crea un proveedor automáticamente
+   */
+  private async buscarOCrearProveedor(nombreProveedor: string, empresaId: number): Promise<any> {
+    const nombre = String(nombreProveedor).trim();
+    
+    // Buscar proveedor existente
+    const proveedorExistente = await this.prisma.proveedor.findFirst({
+      where: {
+        nombre: {
+          equals: nombre,
+          mode: 'insensitive'
+        },
+        empresaId,
+        estado: 'ACTIVO'
+      }
+    });
+
+    if (proveedorExistente) {
+      return proveedorExistente;
+    }
+
+    // Crear nuevo proveedor
+    return await this.prisma.proveedor.create({
+      data: {
+        nombre: nombre,
+        email: 'sin-email@proveedor.com',
+        telefono: 'Sin teléfono',
+        empresaId: empresaId,
+        estado: 'ACTIVO'
+      }
+    });
+  }
+
+  /**
+   * Determina el tipo de producto basado en el nombre o categoría
+   */
+  private determinarTipoProducto(nombre: string, categoria?: string): 'GENERICO' | 'ROPA' | 'ALIMENTO' | 'ELECTRONICO' | 'MEDICAMENTO' | 'SUPLEMENTO' | 'EQUIPO_MEDICO' | 'CUIDADO_PERSONAL' | 'BIOLOGICO' | 'MATERIAL_QUIRURGICO' | 'SOFTWARE' | 'HARDWARE' {
+    const texto = `${nombre} ${categoria || ''}`.toLowerCase();
+    
+    if (texto.includes('medicamento') || texto.includes('medicina') || texto.includes('farmacia')) {
+      return 'MEDICAMENTO';
+    }
+    if (texto.includes('alimento') || texto.includes('comida') || texto.includes('bebida')) {
+      return 'ALIMENTO';
+    }
+    if (texto.includes('ropa') || texto.includes('vestido') || texto.includes('camisa')) {
+      return 'ROPA';
+    }
+    if (texto.includes('electronico') || texto.includes('tecnologia') || texto.includes('computadora')) {
+      return 'ELECTRONICO';
+    }
+    
+    return 'GENERICO';
+  }
+
+  /**
+   * Determina la unidad de medida basada en el nombre del producto
+   */
+  private determinarUnidadMedida(unidadEspecificada?: string, nombreProducto?: string): 'UNIDAD' | 'KILO' | 'KILOGRAMO' | 'LITRO' | 'LITROS' | 'CAJA' | 'PAQUETE' | 'METRO' | 'METROS' | 'GRAMO' | 'GRAMOS' | 'MILILITRO' | 'MILILITROS' | 'CENTIMETRO' | 'CENTIMETROS' | 'LICENCIA' {
+    if (unidadEspecificada) {
+      const unidad = String(unidadEspecificada).toUpperCase();
+      const unidadesValidas = [
+        'UNIDAD', 'KILO', 'KILOGRAMO', 'LITRO', 'LITROS', 'CAJA', 'PAQUETE', 
+        'METRO', 'METROS', 'GRAMO', 'GRAMOS', 'MILILITRO', 'MILILITROS', 
+        'CENTIMETRO', 'CENTIMETROS'
+      ];
+      
+      if (unidadesValidas.includes(unidad)) {
+        return unidad as 'UNIDAD' | 'KILO' | 'KILOGRAMO' | 'LITRO' | 'LITROS' | 'CAJA' | 'PAQUETE' | 'METRO' | 'METROS' | 'GRAMO' | 'GRAMOS' | 'MILILITRO' | 'MILILITROS' | 'CENTIMETRO' | 'CENTIMETROS' | 'LICENCIA';
+      }
+    }
+
+    // Determinar por nombre del producto
+    const nombre = (nombreProducto || '').toLowerCase();
+    
+    if (nombre.includes('kg') || nombre.includes('kilo')) return 'KILOGRAMO';
+    if (nombre.includes('l') || nombre.includes('litro')) return 'LITRO';
+    if (nombre.includes('ml') || nombre.includes('mililitro')) return 'MILILITRO';
+    if (nombre.includes('g') || nombre.includes('gramo')) return 'GRAMO';
+    if (nombre.includes('m') || nombre.includes('metro')) return 'METRO';
+    if (nombre.includes('cm') || nombre.includes('centimetro')) return 'CENTIMETRO';
+    if (nombre.includes('caja') || nombre.includes('paquete')) return 'CAJA';
+    
+    return 'UNIDAD';
+  }
+
+  /**
+   * Genera un SKU automático para el producto
+   */
+  private generarSKUAutomatico(nombre: string, prefijo?: string): string {
+    const prefijoSKU = prefijo || 'PROD';
+    const timestamp = Date.now().toString().slice(-6);
+    const nombreCodificado = nombre
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .toUpperCase()
+      .slice(0, 4);
+    
+    return `${prefijoSKU}-${nombreCodificado}-${timestamp}`;
   }
 
   obtenerConfiguracionProcesamiento() {

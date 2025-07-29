@@ -10,6 +10,7 @@ import { ImportacionUnificadaProcesador } from './procesadores/importacion-unifi
 import { RedisConfigService } from '../common/services/redis-config.service';
 import { ColasConfigService } from './services/colas-config.service';
 import { TrabajoSerializerService } from './services/trabajo-serializer.service';
+import { ImportacionCacheService } from '../importacion/servicios/importacion-cache.service';
 
 @Injectable()
 export class ColasService implements OnModuleInit, OnModuleDestroy {
@@ -28,6 +29,7 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
     private importacionProveedoresProcesador: ImportacionProveedoresProcesador,
     private importacionMovimientosProcesador: ImportacionMovimientosProcesador,
     private importacionUnificadaProcesador: ImportacionUnificadaProcesador,
+    private cacheService: ImportacionCacheService,
   ) {}
 
   async onModuleInit() {
@@ -205,12 +207,20 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
   }
 
   async obtenerTrabajoImportacion(trabajoId: string): Promise<TrabajoImportacion | null> {
-    const job = await this.importacionQueue.getJob(trabajoId);
-    if (!job) {
-      return null;
-    }
-
     try {
+      // Primero intentar obtener del cache (datos más actualizados)
+      const trabajoCache = await this.cacheService.getTrabajoCache(trabajoId);
+      if (trabajoCache) {
+        this.logger.debug(`📦 Trabajo ${trabajoId} obtenido desde cache`);
+        return trabajoCache;
+      }
+
+      // Si no está en cache, obtener desde BullMQ
+      const job = await this.importacionQueue.getJob(trabajoId);
+      if (!job) {
+        return null;
+      }
+
       const estado = await job.getState();
       const progreso = job.progress || 0;
 
@@ -230,6 +240,10 @@ export class ColasService implements OnModuleInit, OnModuleDestroy {
         return null;
       }
 
+      // Guardar en cache para futuras consultas
+      await this.cacheService.setTrabajoCache(trabajoId, trabajoCompleto);
+
+      this.logger.debug(`📦 Trabajo ${trabajoId} obtenido desde BullMQ y cacheado`);
       return trabajoCompleto;
     } catch (error) {
       this.logger.error(`Error obteniendo trabajo ${trabajoId}:`, error);

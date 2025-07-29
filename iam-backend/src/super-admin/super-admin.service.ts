@@ -519,17 +519,14 @@ export class SuperAdminService {
   async updateSystemConfig(config: SystemConfigDto): Promise<void> {
     // En producción, esto guardaría en una base de datos de configuración
     // Por ahora, solo validamos y simulamos guardado
-    console.log('Configuración actualizada:', config);
   }
 
   async testEmailConfig(testEmail: TestEmailDto): Promise<void> {
     // En producción, esto enviaría un email real
-    console.log('Email de prueba enviado a:', testEmail.to);
   }
 
   async backupNow(): Promise<void> {
     // En producción, esto iniciaría un backup real
-    console.log('Backup iniciado');
   }
 
   // ==================== HELPER METHODS ====================

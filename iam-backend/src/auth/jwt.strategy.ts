@@ -98,6 +98,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             recentTokens: suspiciousActivity.recentTokens,
           },
         );
+        
+        // Limpiar automáticamente tokens excedentes
+        const cleanedTokens = await this.blacklistService.cleanupExcessTokens(userId, 10);
+        if (cleanedTokens > 0) {
+          this.logger.log(
+            `Limpieza automática completada: ${cleanedTokens} tokens revocados para usuario ${userId}`,
+          );
+        }
+        
         // No bloquear el token, solo loggear la actividad sospechosa
       }
 

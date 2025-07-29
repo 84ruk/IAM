@@ -5,6 +5,7 @@ import { ImportacionCacheService } from '../../importacion/servicios/importacion
 import { AdvancedLoggingService } from '../../importacion/services/advanced-logging.service';
 import { SmartErrorResolverService } from '../../importacion/services/smart-error-resolver.service';
 import { ImportacionProgressTrackerService } from '../../importacion/services/importacion-progress-tracker.service';
+import { ImportacionWebSocketService } from '../../importacion/servicios/importacion-websocket.service';
 import { TrabajoImportacion, ResultadoImportacion, ErrorImportacion, EstadoTrabajo, ProductoImportacion } from '../interfaces/trabajo-importacion.interface';
 import { EnhancedBaseProcesadorService } from '../services/enhanced-base-procesador.service';
 import { LoteProcesador } from '../interfaces/base-procesador.interface';
@@ -19,7 +20,8 @@ export class ImportacionProductosProcesador extends EnhancedBaseProcesadorServic
     cacheService: ImportacionCacheService,
     advancedLogging: AdvancedLoggingService,
     smartErrorResolver: SmartErrorResolverService,
-    progressTracker: ImportacionProgressTrackerService
+    progressTracker: ImportacionProgressTrackerService,
+    websocketService: ImportacionWebSocketService
   ) {
     super(
       prisma, 
@@ -27,6 +29,7 @@ export class ImportacionProductosProcesador extends EnhancedBaseProcesadorServic
       advancedLogging,
       smartErrorResolver,
       progressTracker,
+      websocketService,
       'ImportacionProductosProcesador', 
       {
         loteSize: 100,
@@ -113,7 +116,7 @@ export class ImportacionProductosProcesador extends EnhancedBaseProcesadorServic
                   fila: registro._filaOriginal,
                   columna: 'nombre',
                   valor: String(registro.nombre),
-                  mensaje: 'Producto ya existe y no se permite sobrescribir',
+                  mensaje: `Producto "${String(registro.nombre)}" ya existe en la base de datos. Para sobrescribirlo, activa la opción "Sobrescribir existentes"`,
                   tipo: 'duplicado',
                 });
                 resultado.estadisticas.duplicados++;
@@ -171,7 +174,7 @@ export class ImportacionProductosProcesador extends EnhancedBaseProcesadorServic
                 fila: registro._filaOriginal,
                 columna: 'nombre',
                 valor: String(registro.nombre),
-                mensaje: 'Producto ya existe y no se permite sobrescribir',
+                mensaje: `Producto "${String(registro.nombre)}" ya existe en la base de datos. Para sobrescribirlo, activa la opción "Sobrescribir existentes"`,
                 tipo: 'duplicado',
               });
               resultado.estadisticas.duplicados++;

@@ -1,236 +1,600 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { ErrorImportacion } from '../../colas/interfaces/trabajo-importacion.interface';
+import { TrabajoImportacion, ResultadoImportacion, RegistroImportacion, EstadoTrabajo } from '../../colas/interfaces/trabajo-importacion.interface';
+import { ImportacionConfigService } from '../config/importacion.config';
+import { AdvancedLoggingService } from './advanced-logging.service';
+import { ErrorHandlerService } from './error-handler.service';
+import { ValidationCacheService } from './validation-cache.service';
+import { AutocorreccionInteligenteService } from './autocorreccion-inteligente.service';
 
-export interface BatchProcessorConfig {
-  batchSize: number;
+export interface BatchConfig {
+  size: number;
   concurrency: number;
-  retryAttempts: number;
   timeout: number;
+  retryAttempts: number;
+  backoffDelay: number;
   enableProgressTracking: boolean;
+  enableMemoryMonitoring: boolean;
+  maxMemoryUsage: number; // en bytes
 }
 
-export interface BatchProcessorResult<T> {
-  success: boolean;
-  processed: number;
-  errors: ErrorImportacion[];
-  data: T[];
-  executionTime: number;
+export interface BatchResult {
+  procesados: number;
+  exitosos: number;
+  errores: number;
+  tiempoProcesamiento: number;
+  memoriaUtilizada: number;
+  throughput: number;
+  erroresDetallados: any[];
+}
+
+export interface BatchProgress {
+  totalRegistros: number;
+  registrosProcesados: number;
+  lotesCompletados: number;
+  lotesTotales: number;
+  progreso: number; // 0-100
+  tiempoEstimado: number; // en segundos
+  velocidad: number; // registros por segundo
 }
 
 @Injectable()
 export class BatchProcessorService {
   private readonly logger = new Logger(BatchProcessorService.name);
+  private readonly config: BatchConfig;
+  private readonly activeBatches = new Map<string, {
+    startTime: Date;
+    processed: number;
+    errors: number;
+    memoryStart: number;
+  }>();
+
+  constructor(
+    private readonly loggingService: AdvancedLoggingService,
+    private readonly errorHandler: ErrorHandlerService,
+    private readonly cacheService: ValidationCacheService,
+    private readonly autocorreccionService: AutocorreccionInteligenteService,
+  ) {
+    const colasConfig = ImportacionConfigService.getConfiguracionColas();
+    this.config = {
+      size: colasConfig.batchSize,
+      concurrency: colasConfig.concurrency,
+      timeout: colasConfig.timeout,
+      retryAttempts: colasConfig.retryAttempts,
+      backoffDelay: colasConfig.backoffDelay,
+      enableProgressTracking: true,
+      enableMemoryMonitoring: true,
+      maxMemoryUsage: 500 * 1024 * 1024, // 500MB
+    };
+  }
 
   /**
-   * Procesa datos en lotes optimizados con concurrencia controlada
+   * Procesa registros en lotes optimizados
    */
-  async processBatch<T, R>(
-    data: T[],
-    processor: (item: T, index: number) => Promise<R>,
-    config: Partial<BatchProcessorConfig> = {},
+  async procesarEnLotes(
+    registros: RegistroImportacion[],
+    trabajo: TrabajoImportacion,
+    procesador: (lote: RegistroImportacion[], contexto: any) => Promise<BatchResult>,
+    contexto: any = {},
     job?: Job
-  ): Promise<BatchProcessorResult<R>> {
+  ): Promise<ResultadoImportacion> {
     const startTime = Date.now();
-    const finalConfig: BatchProcessorConfig = {
-      batchSize: 100,
-      concurrency: 5,
-      retryAttempts: 3,
-      timeout: 30000,
-      enableProgressTracking: true,
-      ...config
-    };
-
-    const result: BatchProcessorResult<R> = {
-      success: true,
+    const batchId = `${trabajo.id}-${Date.now()}`;
+    
+    // Inicializar tracking
+    this.activeBatches.set(batchId, {
+      startTime: new Date(),
       processed: 0,
-      errors: [],
-      data: [],
-      executionTime: 0
-    };
+      errors: 0,
+      memoryStart: process.memoryUsage().heapUsed,
+    });
+
+    this.loggingService.iniciarTracking(trabajo.id, {
+      trabajoId: trabajo.id,
+      empresaId: trabajo.empresaId,
+      usuarioId: trabajo.usuarioId,
+      tipoImportacion: trabajo.tipo,
+      archivo: trabajo.archivoOriginal,
+    });
 
     try {
-      // Dividir datos en lotes
-      const batches = this.createBatches(data, finalConfig.batchSize);
-      
+      // Dividir registros en lotes
+      const lotes = this.dividirEnLotes(registros, this.config.size);
+      const totalLotes = lotes.length;
+      let lotesCompletados = 0;
+      let totalProcesados = 0;
+      let totalExitosos = 0;
+      let totalErrores = 0;
+      const erroresAcumulados: any[] = [];
+
+      this.loggingService.log('info', `Iniciando procesamiento de ${registros.length} registros en ${totalLotes} lotes`, {
+        trabajoId: trabajo.id,
+        empresaId: trabajo.empresaId,
+        usuarioId: trabajo.usuarioId,
+        tipoImportacion: trabajo.tipo,
+        archivo: trabajo.archivoOriginal,
+        etapa: 'inicio_procesamiento',
+        timestamp: new Date(),
+      }, {
+        totalRegistros: registros.length,
+        totalLotes,
+        configuracionLotes: this.config,
+      });
+
       // Procesar lotes con concurrencia controlada
-      for (let i = 0; i < batches.length; i += finalConfig.concurrency) {
-        const currentBatches = batches.slice(i, i + finalConfig.concurrency);
-        
-        // Procesar lotes en paralelo
-        const batchPromises = currentBatches.map((batch, batchIndex) =>
-          this.processBatchWithRetry(batch, processor, finalConfig, i + batchIndex)
-        );
-
-        const batchResults = await Promise.allSettled(batchPromises);
-        
-        // Consolidar resultados
-        batchResults.forEach((batchResult, index) => {
-          if (batchResult.status === 'fulfilled') {
-            result.data.push(...batchResult.value.data);
-            result.processed += batchResult.value.processed;
-            result.errors.push(...batchResult.value.errors);
-          } else {
-            result.success = false;
-            result.errors.push({
-              fila: i + index,
-              columna: 'sistema',
-              valor: '',
-              mensaje: `Error procesando lote: ${batchResult.reason}`,
-              tipo: 'sistema'
-            });
+      const resultados = await this.procesarLotesConConcurrencia(
+        lotes,
+        procesador,
+        contexto,
+        (progreso) => {
+          // Callback de progreso
+          if (this.config.enableProgressTracking) {
+            this.actualizarProgreso(trabajo, progreso, job);
           }
-        });
-
-        // Actualizar progreso si está habilitado
-        if (finalConfig.enableProgressTracking && job) {
-          const progress = Math.round(((i + finalConfig.concurrency) / batches.length) * 100);
-          await job.updateProgress(Math.min(progress, 100));
         }
+      );
+
+      // Consolidar resultados
+      for (const resultado of resultados) {
+        totalProcesados += resultado.procesados;
+        totalExitosos += resultado.exitosos;
+        totalErrores += resultado.errores;
+        erroresAcumulados.push(...resultado.erroresDetallados);
+        lotesCompletados++;
       }
 
-      result.executionTime = Date.now() - startTime;
-      
-      this.logger.log(`Procesamiento por lotes completado: ${result.processed}/${data.length} registros procesados en ${result.executionTime}ms`);
-      
-      return result;
+      const tiempoTotal = Date.now() - startTime;
+      const memoriaFinal = process.memoryUsage().heapUsed;
+      const throughput = totalProcesados > 0 ? (totalProcesados / tiempoTotal) * 1000 : 0;
+
+      // Actualizar métricas finales
+      this.loggingService.actualizarMetricas(trabajo.id, {
+        registrosProcesados: totalProcesados,
+        registrosExitosos: totalExitosos,
+        registrosConError: totalErrores,
+      });
+
+      const resultadoFinal: ResultadoImportacion = {
+        trabajoId: trabajo.id,
+        estado: totalErrores === 0 ? EstadoTrabajo.COMPLETADO : EstadoTrabajo.ERROR,
+        estadisticas: {
+          total: totalProcesados,
+          exitosos: totalExitosos,
+          errores: totalErrores,
+          duplicados: 0, // Se calcularía si es necesario
+        },
+        errores: erroresAcumulados.slice(0, 100), // Limitar a 100 errores
+        tiempoProcesamiento: tiempoTotal,
+        archivoResultado: undefined, // Se generaría si es necesario
+      };
+
+      // Log de finalización
+      this.loggingService.log('info', 'Procesamiento por lotes completado', {
+        trabajoId: trabajo.id,
+        empresaId: trabajo.empresaId,
+        usuarioId: trabajo.usuarioId,
+        tipoImportacion: trabajo.tipo,
+        archivo: trabajo.archivoOriginal,
+        etapa: 'finalizacion',
+        timestamp: new Date(),
+      }, {
+        totalProcesados,
+        totalExitosos,
+        totalErrores,
+        tiempoTotal,
+        throughput,
+        memoriaUtilizada: memoriaFinal,
+        eficiencia: totalProcesados > 0 ? (totalExitosos / totalProcesados) * 100 : 0,
+      });
+
+      // Finalizar tracking
+      this.loggingService.finalizarTracking(trabajo.id);
+      this.activeBatches.delete(batchId);
+
+      return resultadoFinal;
 
     } catch (error) {
-      result.success = false;
-      result.errors.push({
-        fila: 0,
-        columna: 'sistema',
-        valor: '',
-        mensaje: `Error en procesamiento por lotes: ${error.message}`,
-        tipo: 'sistema'
-      });
-      result.executionTime = Date.now() - startTime;
+      this.logger.error(`Error en procesamiento por lotes para trabajo ${trabajo.id}:`, error);
       
-      this.logger.error('Error en procesamiento por lotes:', error);
-      return result;
+      // Log de error
+      this.loggingService.log('error', 'Error en procesamiento por lotes', {
+        trabajoId: trabajo.id,
+        empresaId: trabajo.empresaId,
+        usuarioId: trabajo.usuarioId,
+        tipoImportacion: trabajo.tipo,
+        archivo: trabajo.archivoOriginal,
+        etapa: 'error',
+        timestamp: new Date(),
+      }, {
+        error: error.message,
+        stack: error.stack,
+      });
+
+      this.activeBatches.delete(batchId);
+
+      throw error;
     }
+  }
+
+  /**
+   * Procesa lotes con control de concurrencia
+   */
+  private async procesarLotesConConcurrencia(
+    lotes: RegistroImportacion[][],
+    procesador: (lote: RegistroImportacion[], contexto: any) => Promise<BatchResult>,
+    contexto: any,
+    onProgress?: (progreso: BatchProgress) => void
+  ): Promise<BatchResult[]> {
+    const resultados: BatchResult[] = [];
+    const semaphore = new Semaphore(this.config.concurrency);
+
+    for (let i = 0; i < lotes.length; i++) {
+      const lote = lotes[i];
+      const loteIndex = i;
+
+      await semaphore.acquire();
+
+      try {
+        // Verificar memoria antes de procesar
+        if (this.config.enableMemoryMonitoring) {
+          this.verificarMemoria();
+        }
+
+        const resultado = await this.procesarLoteConRetry(lote, procesador, contexto, loteIndex);
+        resultados.push(resultado);
+
+        // Actualizar progreso
+        if (onProgress) {
+          const progreso: BatchProgress = {
+            totalRegistros: lotes.reduce((sum, l) => sum + l.length, 0),
+            registrosProcesados: resultados.reduce((sum, r) => sum + r.procesados, 0),
+            lotesCompletados: resultados.length,
+            lotesTotales: lotes.length,
+            progreso: Math.round((resultados.length / lotes.length) * 100),
+            tiempoEstimado: this.calcularTiempoEstimado(resultados, lotes.length),
+            velocidad: this.calcularVelocidad(resultados),
+          };
+          onProgress(progreso);
+        }
+
+      } finally {
+        semaphore.release();
+      }
+    }
+
+    return resultados;
   }
 
   /**
    * Procesa un lote individual con reintentos
    */
-  private async processBatchWithRetry<T, R>(
-    batch: T[],
-    processor: (item: T, index: number) => Promise<R>,
-    config: BatchProcessorConfig,
-    batchIndex: number
-  ): Promise<BatchProcessorResult<R>> {
-    let lastError: Error = new Error('Error desconocido en procesamiento por lotes');
-    
-    for (let attempt = 1; attempt <= config.retryAttempts; attempt++) {
+  private async procesarLoteConRetry(
+    lote: RegistroImportacion[],
+    procesador: (lote: RegistroImportacion[], contexto: any) => Promise<BatchResult>,
+    contexto: any,
+    loteIndex: number
+  ): Promise<BatchResult> {
+    let ultimoError: Error | null = null;
+
+    for (let intento = 1; intento <= this.config.retryAttempts; intento++) {
       try {
-        const batchPromises = batch.map((item, index) =>
-          this.processItemWithTimeout(item, processor, config.timeout, batchIndex * config.batchSize + index)
-        );
+        const startTime = Date.now();
+        const resultado = await Promise.race([
+          procesador(lote, contexto),
+          this.crearTimeout(this.config.timeout, `Timeout procesando lote ${loteIndex}`)
+        ]);
 
-        const results = await Promise.allSettled(batchPromises);
-        
-        const data: R[] = [];
-        const errors: ErrorImportacion[] = [];
-        let processed = 0;
-
-        results.forEach((result, index) => {
-          if (result.status === 'fulfilled') {
-            data.push(result.value);
-            processed++;
-          } else {
-            errors.push({
-              fila: batchIndex * config.batchSize + index + 1,
-              columna: 'procesamiento',
-              valor: '',
-              mensaje: `Error procesando item: ${result.reason}`,
-              tipo: 'sistema'
-            });
-          }
-        });
+        const tiempoProcesamiento = Date.now() - startTime;
+        const memoriaUtilizada = process.memoryUsage().heapUsed;
+        const throughput = lote.length > 0 ? (lote.length / tiempoProcesamiento) * 1000 : 0;
 
         return {
-          success: errors.length === 0,
-          processed,
-          errors,
-          data,
-          executionTime: 0
+          ...resultado,
+          tiempoProcesamiento,
+          memoriaUtilizada,
+          throughput,
         };
 
       } catch (error) {
-        lastError = error;
-        if (attempt < config.retryAttempts) {
-          await this.delay(Math.pow(2, attempt) * 1000); // Backoff exponencial
+        ultimoError = error;
+        
+        if (intento < this.config.retryAttempts) {
+          this.logger.warn(`Intento ${intento} falló para lote ${loteIndex}, reintentando en ${this.config.backoffDelay * intento}ms`);
+          await this.delay(this.config.backoffDelay * intento);
         }
       }
     }
 
-    throw lastError || new Error('Error desconocido en procesamiento por lotes');
+    // Si todos los intentos fallaron, devolver resultado con error
+    this.logger.error(`Todos los intentos fallaron para lote ${loteIndex}:`, ultimoError);
+    
+    return {
+      procesados: lote.length,
+      exitosos: 0,
+      errores: lote.length,
+      tiempoProcesamiento: 0,
+      memoriaUtilizada: process.memoryUsage().heapUsed,
+      throughput: 0,
+      erroresDetallados: [{
+        tipo: 'sistema',
+        mensaje: `Error procesando lote: ${ultimoError?.message}`,
+        loteIndex,
+        registros: lote.length,
+      }],
+    };
   }
 
   /**
-   * Procesa un item individual con timeout
+   * Divide registros en lotes optimizados
    */
-  private async processItemWithTimeout<T, R>(
-    item: T,
-    processor: (item: T, index: number) => Promise<R>,
-    timeout: number,
-    index: number
-  ): Promise<R> {
-    return Promise.race([
-      processor(item, index),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout')), timeout)
-      )
-    ]);
-  }
-
-  /**
-   * Crea lotes de datos
-   */
-  private createBatches<T>(data: T[], batchSize: number): T[][] {
-    const batches: T[][] = [];
-    for (let i = 0; i < data.length; i += batchSize) {
-      batches.push(data.slice(i, i + batchSize));
+  private dividirEnLotes(registros: RegistroImportacion[], tamanoLote: number): RegistroImportacion[][] {
+    const lotes: RegistroImportacion[][] = [];
+    
+    for (let i = 0; i < registros.length; i += tamanoLote) {
+      lotes.push(registros.slice(i, i + tamanoLote));
     }
-    return batches;
+
+    return lotes;
   }
 
   /**
-   * Delay utility
+   * Verifica el uso de memoria y aplica optimizaciones si es necesario
+   */
+  private verificarMemoria(): void {
+    const memoriaActual = process.memoryUsage().heapUsed;
+    
+    if (memoriaActual > this.config.maxMemoryUsage) {
+      this.logger.warn(`Uso de memoria alto: ${Math.round(memoriaActual / 1024 / 1024)}MB`);
+      
+      // Forzar garbage collection si está disponible
+      if (global.gc) {
+        global.gc();
+        this.logger.log('Garbage collection forzado');
+      }
+      
+      // Limpiar cache si es necesario
+      this.cacheService.optimizeCache();
+    }
+  }
+
+  /**
+   * Crea un timeout para evitar bloqueos
+   */
+  private crearTimeout(ms: number, mensaje: string): Promise<never> {
+    return new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(mensaje)), ms);
+    });
+  }
+
+  /**
+   * Delay para reintentos
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
-   * Optimiza la configuración de lotes basado en el tamaño de datos
+   * Actualiza el progreso del trabajo
    */
-  getOptimizedConfig(dataSize: number): BatchProcessorConfig {
-    if (dataSize <= 100) {
+  private actualizarProgreso(trabajo: TrabajoImportacion, progreso: BatchProgress, job?: Job): void {
+    // Actualizar trabajo si está disponible
+    if (job) {
+      job.updateProgress(progreso.progreso);
+    }
+
+    // Log de progreso cada 10%
+    if (progreso.progreso % 10 === 0) {
+      this.loggingService.log('info', `Progreso: ${progreso.progreso}%`, {
+        trabajoId: trabajo.id,
+        empresaId: trabajo.empresaId,
+        usuarioId: trabajo.usuarioId,
+        tipoImportacion: trabajo.tipo,
+        archivo: trabajo.archivoOriginal,
+        etapa: 'progreso',
+        timestamp: new Date(),
+      }, {
+        progreso: progreso.progreso,
+        registrosProcesados: progreso.registrosProcesados,
+        velocidad: progreso.velocidad,
+        tiempoEstimado: progreso.tiempoEstimado,
+      });
+    }
+  }
+
+  /**
+   * Calcula tiempo estimado restante
+   */
+  private calcularTiempoEstimado(resultados: BatchResult[], lotesTotales: number): number {
+    if (resultados.length === 0) return 0;
+
+    const lotesRestantes = lotesTotales - resultados.length;
+    const tiempoPromedioPorLote = resultados.reduce((sum, r) => sum + r.tiempoProcesamiento, 0) / resultados.length;
+    
+    return Math.round(lotesRestantes * tiempoPromedioPorLote / 1000);
+  }
+
+  /**
+   * Calcula velocidad de procesamiento
+   */
+  private calcularVelocidad(resultados: BatchResult[]): number {
+    if (resultados.length === 0) return 0;
+
+    const totalTiempo = resultados.reduce((sum, r) => sum + r.tiempoProcesamiento, 0);
+    const totalRegistros = resultados.reduce((sum, r) => sum + r.procesados, 0);
+    
+    return totalTiempo > 0 ? (totalRegistros / totalTiempo) * 1000 : 0;
+  }
+
+  /**
+   * Obtiene estadísticas de lotes activos
+   */
+  obtenerEstadisticasBatches(): {
+    batchesActivos: number;
+    memoriaTotalUtilizada: number;
+    throughputPromedio: number;
+  } {
+    const batchesActivos = this.activeBatches.size;
+    let memoriaTotalUtilizada = 0;
+    let throughputTotal = 0;
+
+    for (const batch of this.activeBatches.values()) {
+      const memoriaActual = process.memoryUsage().heapUsed;
+      memoriaTotalUtilizada += memoriaActual - batch.memoryStart;
+      
+      const tiempoTranscurrido = Date.now() - batch.startTime.getTime();
+      if (tiempoTranscurrido > 0) {
+        throughputTotal += (batch.processed / tiempoTranscurrido) * 1000;
+      }
+    }
+
+    return {
+      batchesActivos,
+      memoriaTotalUtilizada,
+      throughputPromedio: batchesActivos > 0 ? throughputTotal / batchesActivos : 0,
+    };
+  }
+
+  /**
+   * Limpia batches inactivos
+   */
+  limpiarBatchesInactivos(): void {
+    const ahora = Date.now();
+    const tiempoLimite = 30 * 60 * 1000; // 30 minutos
+
+    for (const [batchId, batch] of this.activeBatches.entries()) {
+      if (ahora - batch.startTime.getTime() > tiempoLimite) {
+        this.activeBatches.delete(batchId);
+        this.logger.warn(`Batch inactivo eliminado: ${batchId}`);
+      }
+    }
+  }
+
+  /**
+   * Obtiene configuración optimizada basada en el número de registros
+   */
+  getOptimizedConfig(totalRegistros: number): BatchConfig {
+    if (totalRegistros <= 100) {
       return {
-        batchSize: 10,
-        concurrency: 2,
-        retryAttempts: 2,
-        timeout: 15000,
-        enableProgressTracking: true
+        ...this.config,
+        size: 50,
+        concurrency: 1,
+        enableProgressTracking: false,
       };
-    } else if (dataSize <= 1000) {
+    } else if (totalRegistros <= 1000) {
       return {
-        batchSize: 50,
+        ...this.config,
+        size: 100,
+        concurrency: 2,
+      };
+    } else if (totalRegistros <= 10000) {
+      return {
+        ...this.config,
+        size: 200,
         concurrency: 3,
-        retryAttempts: 3,
-        timeout: 20000,
-        enableProgressTracking: true
       };
     } else {
       return {
-        batchSize: 100,
-        concurrency: 5,
-        retryAttempts: 3,
-        timeout: 30000,
-        enableProgressTracking: true
+        ...this.config,
+        size: 500,
+        concurrency: 4,
       };
+    }
+  }
+
+  /**
+   * Procesa un lote de datos con una función de procesamiento
+   */
+  async processBatch<T>(
+    datos: T[],
+    procesador: (item: T) => Promise<any>,
+    config?: Partial<BatchConfig>
+  ): Promise<BatchResult> {
+    const batchConfig = config ? { ...this.config, ...config } : this.config;
+    const lotes = this.dividirEnLotesGenerico(datos, batchConfig.size);
+    
+    let totalProcesados = 0;
+    let totalExitosos = 0;
+    let totalErrores = 0;
+    const erroresDetallados: any[] = [];
+
+    for (const lote of lotes) {
+      try {
+        const resultados = await Promise.allSettled(
+          lote.map(item => procesador(item))
+        );
+
+        for (const resultado of resultados) {
+          totalProcesados++;
+          if (resultado.status === 'fulfilled') {
+            totalExitosos++;
+          } else {
+            totalErrores++;
+            erroresDetallados.push({
+              error: resultado.reason,
+              timestamp: new Date(),
+            });
+          }
+        }
+      } catch (error) {
+        totalErrores += lote.length;
+        erroresDetallados.push({
+          error,
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    return {
+      procesados: totalProcesados,
+      exitosos: totalExitosos,
+      errores: totalErrores,
+      tiempoProcesamiento: 0, // Se calcularía si es necesario
+      memoriaUtilizada: process.memoryUsage().heapUsed,
+      throughput: totalProcesados > 0 ? totalProcesados : 0,
+      erroresDetallados,
+    };
+  }
+
+  /**
+   * Divide datos genéricos en lotes
+   */
+  private dividirEnLotesGenerico<T>(datos: T[], tamanoLote: number): T[][] {
+    const lotes: T[][] = [];
+    for (let i = 0; i < datos.length; i += tamanoLote) {
+      lotes.push(datos.slice(i, i + tamanoLote));
+    }
+    return lotes;
+  }
+}
+
+/**
+ * Semáforo para controlar concurrencia
+ */
+class Semaphore {
+  private permits: number;
+  private waitQueue: Array<() => void> = [];
+
+  constructor(permits: number) {
+    this.permits = permits;
+  }
+
+  async acquire(): Promise<void> {
+    if (this.permits > 0) {
+      this.permits--;
+      return Promise.resolve();
+    }
+
+    return new Promise<void>(resolve => {
+      this.waitQueue.push(resolve);
+    });
+  }
+
+  release(): void {
+    if (this.waitQueue.length > 0) {
+      const resolve = this.waitQueue.shift()!;
+      resolve();
+    } else {
+      this.permits++;
     }
   }
 } 

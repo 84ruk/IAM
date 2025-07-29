@@ -9,18 +9,19 @@ import { ImportacionProductosProcesador } from './procesadores/importacion-produ
 import { ImportacionProveedoresProcesador } from './procesadores/importacion-proveedores.procesador';
 import { ImportacionMovimientosProcesador } from './procesadores/importacion-movimientos.procesador';
 import { ImportacionUnificadaProcesador } from './procesadores/importacion-unificada.procesador';
-import { PrismaModule } from '../prisma/prisma.module';
-import { AuthModule } from '../auth/auth.module';
-import { CommonModule } from '../common/common.module';
 import { ImportacionCacheService } from '../importacion/servicios/importacion-cache.service';
 import { AdvancedLoggingService } from '../importacion/services/advanced-logging.service';
 import { SmartErrorResolverService } from '../importacion/services/smart-error-resolver.service';
 import { ImportacionProgressTrackerService } from '../importacion/services/importacion-progress-tracker.service';
+import { ImportacionWebSocketService } from '../importacion/servicios/importacion-websocket.service';
 import { EstrategiaImportacionFactory } from '../importacion/factories/estrategia-importacion.factory';
 import { ProductosEstrategia } from '../importacion/dto/estrategias/productos-estrategia';
 import { ProveedoresEstrategia } from '../importacion/dto/estrategias/proveedores-estrategia';
 import { MovimientosEstrategia } from '../importacion/dto/estrategias/movimientos-estrategia';
-// import { ImportacionModule } from '../importacion/importacion.module';
+import { PrismaModule } from '../prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module';
+import { CommonModule } from '../common/common.module';
+import { WebSocketsModule } from '../websockets/websockets.module';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { MovimientosEstrategia } from '../importacion/dto/estrategias/movimiento
     PrismaModule,
     AuthModule,
     CommonModule,
-    // ImportacionModule, // Comentado para evitar dependencia circular
+    WebSocketsModule, // Importar el módulo de WebSockets
   ],
   providers: [
     ColasService,
@@ -44,6 +45,7 @@ import { MovimientosEstrategia } from '../importacion/dto/estrategias/movimiento
     AdvancedLoggingService,
     SmartErrorResolverService,
     ImportacionProgressTrackerService,
+    ImportacionWebSocketService,
     EstrategiaImportacionFactory,
     ProductosEstrategia,
     ProveedoresEstrategia,
@@ -63,6 +65,7 @@ import { MovimientosEstrategia } from '../importacion/dto/estrategias/movimiento
     AdvancedLoggingService,
     SmartErrorResolverService,
     ImportacionProgressTrackerService,
+    ImportacionWebSocketService,
     EstrategiaImportacionFactory,
     ProductosEstrategia,
     ProveedoresEstrategia,

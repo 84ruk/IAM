@@ -53,9 +53,6 @@ export class DashboardCQRSController {
     @Request() req,
     @Query('forceRefresh') forceRefresh?: string
   ) {
-    console.log('🎯 [CQRS] Controlador getKpis llamado');
-    console.log('Query params:', { forceRefresh });
-    
     const user = req.user as JwtUser;
     
     try {
@@ -65,10 +62,8 @@ export class DashboardCQRSController {
         forceRefresh === 'true'
       );
       
-      console.log('✅ [CQRS] Resultado de KPIs:', result);
       return result;
     } catch (error) {
-      console.error('❌ [CQRS] Error en getKpis:', error);
       throw new HttpException(
         `Error al obtener KPIs: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -91,9 +86,6 @@ export class DashboardCQRSController {
     @Query('period') period?: string,
     @Query('forceRefresh') forceRefresh?: string
   ) {
-    console.log('🎯 [CQRS] Controlador getFinancialKPIs llamado');
-    console.log('Query params:', { period, forceRefresh });
-    
     const user = req.user as JwtUser;
     
     try {
@@ -104,10 +96,8 @@ export class DashboardCQRSController {
         forceRefresh === 'true'
       );
       
-      console.log('✅ [CQRS] Resultado de Financial KPIs:', result);
       return result;
     } catch (error) {
-      console.error('❌ [CQRS] Error en getFinancialKPIs:', error);
       throw new HttpException(
         `Error al obtener KPIs financieros: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -129,9 +119,6 @@ export class DashboardCQRSController {
     @Query('industry') industry?: string,
     @Query('forceRefresh') forceRefresh?: string
   ) {
-    console.log('🎯 [CQRS] Controlador getIndustryKPIs llamado');
-    console.log('Query params:', { industry, forceRefresh });
-    
     const user = req.user as JwtUser;
     
     try {
@@ -142,10 +129,8 @@ export class DashboardCQRSController {
         forceRefresh === 'true'
       );
       
-      console.log('✅ [CQRS] Resultado de Industry KPIs:', result);
       return result;
     } catch (error) {
-      console.error('❌ [CQRS] Error en getIndustryKPIs:', error);
       throw new HttpException(
         `Error al obtener KPIs de industria: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -167,9 +152,6 @@ export class DashboardCQRSController {
     @Query('days') days?: string,
     @Query('forceRefresh') forceRefresh?: string
   ) {
-    console.log('🎯 [CQRS] Controlador getPredictiveKPIs llamado');
-    console.log('Query params:', { days, forceRefresh });
-    
     const user = req.user as JwtUser;
     
     try {
@@ -180,12 +162,54 @@ export class DashboardCQRSController {
         forceRefresh === 'true'
       );
       
-      console.log('✅ [CQRS] Resultado de Predictive KPIs:', result);
       return result;
     } catch (error) {
-      console.error('❌ [CQRS] Error en getPredictiveKPIs:', error);
       throw new HttpException(
         `Error al obtener KPIs predictivos: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * 📊 Obtiene TODOS los KPIs en una sola request (OPTIMIZADO)
+   * 
+   * @param req - Request con información del usuario autenticado
+   * @param period - Período de análisis (opcional)
+   * @param industry - Tipo de industria (opcional)
+   * @param days - Días para predicción (opcional)
+   * @param forceRefresh - Fuerza la actualización del cache
+   * @returns Todos los KPIs en una sola respuesta
+   */
+  @Get('all-kpis')
+  @Roles(Rol.SUPERADMIN, Rol.ADMIN, Rol.EMPLEADO)
+  async getAllKPIs(
+    @Request() req,
+    @Query('period') period?: string,
+    @Query('industry') industry?: string,
+    @Query('days') days?: string,
+    @Query('forceRefresh') forceRefresh?: string
+  ) {
+    const user = req.user as JwtUser;
+    
+    try {
+      const result = await this.dashboardCQRSService.getDashboardData(
+        user.empresaId!,
+        user.rol
+      );
+      
+      return {
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+        cacheInfo: {
+          cached: !forceRefresh || forceRefresh !== 'true',
+          expiresIn: '5 minutes'
+        }
+      };
+    } catch (error) {
+      throw new HttpException(
+        `Error al obtener KPIs: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
@@ -206,19 +230,9 @@ export class DashboardCQRSController {
     @Query('days') days?: string,
     @Query('forceRefresh') forceRefresh?: string
   ) {
-    console.log('🎯 [CQRS] Controlador getDailyMovements llamado');
-    console.log('Query params:', { days, forceRefresh });
-    
     const user = req.user as JwtUser;
-    console.log('Usuario:', { 
-      id: user.id, 
-      email: user.email, 
-      rol: user.rol, 
-      empresaId: user.empresaId 
-    });
     
     try {
-      console.log('🚀 [CQRS] Llamando al servicio getDailyMovements...');
       const result = await this.dashboardCQRSService.getDailyMovements(
         user.empresaId!,
         days ? parseInt(days) : 7,
@@ -226,14 +240,8 @@ export class DashboardCQRSController {
         forceRefresh === 'true'
       );
       
-      console.log('✅ [CQRS] Resultado del servicio:', {
-        dataLength: result.data?.length,
-        summary: result.summary,
-        meta: result.meta
-      });
       return result;
     } catch (error) {
-      console.error('❌ [CQRS] Error en controlador getDailyMovements:', error);
       throw new HttpException(
         `Error al obtener movimientos diarios: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -250,16 +258,12 @@ export class DashboardCQRSController {
   @Get('filter-options')
   @Roles(Rol.SUPERADMIN, Rol.ADMIN, Rol.EMPLEADO)
   async getFilterOptions(@Request() req) {
-    console.log('🎯 [CQRS] Controlador getFilterOptions llamado');
-    
     const user = req.user as JwtUser;
     
     try {
       const result = await this.dashboardCQRSService.getFilterOptions(user.empresaId!);
-      console.log('✅ [CQRS] Opciones de filtro obtenidas');
       return result;
     } catch (error) {
-      console.error('❌ [CQRS] Error en getFilterOptions:', error);
       throw new HttpException(
         `Error al obtener opciones de filtro: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -275,16 +279,12 @@ export class DashboardCQRSController {
    */
   @Get('data')
   async getDashboardData(@Request() req) {
-    console.log('🎯 [CQRS] Controlador getDashboardData llamado');
-    
     const user = req.user as JwtUser;
     
     try {
       const result = await this.dashboardCQRSService.getDashboardData(user.empresaId!, user.rol);
-      console.log('✅ [CQRS] Datos del dashboard obtenidos');
       return result;
     } catch (error) {
-      console.error('❌ [CQRS] Error en getDashboardData:', error);
       throw new HttpException(
         `Error al obtener datos del dashboard: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -300,14 +300,10 @@ export class DashboardCQRSController {
   @Get('cache/stats')
   @Roles(Rol.SUPERADMIN, Rol.ADMIN)
   async getCacheStats() {
-    console.log('🎯 [CQRS] Controlador getCacheStats llamado');
-    
     try {
       const result = await this.dashboardCQRSService.getCacheStats();
-      console.log('✅ [CQRS] Estadísticas de cache obtenidas');
       return result;
     } catch (error) {
-      console.error('❌ [CQRS] Error en getCacheStats:', error);
       throw new HttpException(
         `Error al obtener estadísticas de cache: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -328,14 +324,10 @@ export class DashboardCQRSController {
     @Request() req,
     @Query('cacheType') cacheType?: string
   ) {
-    console.log('🎯 [CQRS] Controlador invalidateCache llamado');
-    console.log('Query params:', { cacheType });
-    
     const user = req.user as JwtUser;
     
     try {
       await this.dashboardCQRSService.invalidateCache(user.empresaId!, cacheType);
-      console.log('✅ [CQRS] Cache invalidado exitosamente');
       return { 
         message: 'Cache invalidado exitosamente',
         empresaId: user.empresaId,
@@ -343,7 +335,6 @@ export class DashboardCQRSController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      console.error('❌ [CQRS] Error en invalidateCache:', error);
       throw new HttpException(
         `Error al invalidar cache: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -360,7 +351,6 @@ export class DashboardCQRSController {
   @Get('test')
   @Roles(Rol.SUPERADMIN, Rol.ADMIN, Rol.EMPLEADO)
   async testEndpoint(@Request() req) {
-    console.log('🎯 [CQRS] Endpoint de prueba llamado');
     const user = req.user as JwtUser;
     return {
       message: 'Controlador CQRS funcionando correctamente',
@@ -386,23 +376,15 @@ export class DashboardCQRSController {
   @Get('test-daily-movements')
   @Roles(Rol.SUPERADMIN, Rol.ADMIN, Rol.EMPLEADO)
   async testDailyMovements(@Request() req) {
-    console.log('🎯 [CQRS] Test daily-movements endpoint llamado');
     const user = req.user as JwtUser;
     
     try {
-      console.log('🚀 [CQRS] Llamando al servicio getDailyMovements desde test...');
       const result = await this.dashboardCQRSService.getDailyMovements(
         user.empresaId!,
         7,
         user.rol,
         true
       );
-      
-      console.log('✅ [CQRS] Resultado del servicio en test:', {
-        dataLength: result.data?.length,
-        summary: result.summary,
-        meta: result.meta
-      });
       
       return {
         message: 'Test daily-movements exitoso',
@@ -419,7 +401,6 @@ export class DashboardCQRSController {
         status: 'success'
       };
     } catch (error) {
-      console.error('❌ [CQRS] Error en test daily-movements:', error);
       return {
         message: 'Error en test daily-movements',
         controller: 'DashboardCQRSController',

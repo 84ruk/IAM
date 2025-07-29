@@ -6,13 +6,22 @@ import { JwtUser } from '../../auth/interfaces/jwt-user.interface';
 import { Rol } from '@prisma/client';
 import { AppLoggerService } from '../../common/services/logger.service';
 
+// Interfaz para el request con propiedades extendidas
+interface ExtendedRequest {
+  user: JwtUser | null;
+  url: string;
+  method: string;
+  financialAccessLevel?: 'full' | 'limited';
+  userRole?: Rol;
+}
+
 describe('FinancialDataGuard', () => {
   let guard: FinancialDataGuard;
   let reflector: Reflector;
   let logger: AppLoggerService;
 
   const mockExecutionContext = (user: JwtUser | null, requiresFinancialAccess = true) => {
-    const mockRequest = {
+    const mockRequest: ExtendedRequest = {
       user,
       url: '/dashboard/financial-kpis',
       method: 'GET',
@@ -22,6 +31,8 @@ describe('FinancialDataGuard', () => {
       switchToHttp: () => ({
         getRequest: () => mockRequest,
       }),
+      getHandler: () => ({}),
+      getClass: () => ({}),
     } as ExecutionContext;
   };
 
@@ -32,7 +43,7 @@ describe('FinancialDataGuard', () => {
         {
           provide: Reflector,
           useValue: {
-            getAllAndOverride: jest.fn().mockReturnValue(requiresFinancialAccess),
+            getAllAndOverride: jest.fn().mockReturnValue(true),
           },
         },
         {
@@ -134,7 +145,7 @@ describe('FinancialDataGuard', () => {
         rol: 'ADMIN' as Rol,
         empresaId: 1,
       };
-      const mockRequest = {
+      const mockRequest: ExtendedRequest = {
         user,
         url: '/dashboard/financial-kpis',
         method: 'GET',
@@ -143,6 +154,8 @@ describe('FinancialDataGuard', () => {
         switchToHttp: () => ({
           getRequest: () => mockRequest,
         }),
+        getHandler: () => ({}),
+        getClass: () => ({}),
       } as ExecutionContext;
 
       guard.canActivate(context);
@@ -158,7 +171,7 @@ describe('FinancialDataGuard', () => {
         rol: 'EMPLEADO' as Rol,
         empresaId: 1,
       };
-      const mockRequest = {
+      const mockRequest: ExtendedRequest = {
         user,
         url: '/dashboard/financial-kpis',
         method: 'GET',
@@ -167,6 +180,8 @@ describe('FinancialDataGuard', () => {
         switchToHttp: () => ({
           getRequest: () => mockRequest,
         }),
+        getHandler: () => ({}),
+        getClass: () => ({}),
       } as ExecutionContext;
 
       guard.canActivate(context);

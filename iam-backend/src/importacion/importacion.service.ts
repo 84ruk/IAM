@@ -192,6 +192,68 @@ export class ImportacionService extends BaseImportacionService {
   }
 
   /**
+   * Cancelar un trabajo de importación con rollback automático
+   */
+  async cancelarTrabajoAvanzado(
+    trabajoId: string, 
+    empresaId: number
+  ): Promise<{
+    success: boolean;
+    trabajo: TrabajoImportacion;
+    rollbackInfo?: {
+      registrosRevertidos: number;
+      tiempoRollback: number;
+      transaccionesRevertidas: number;
+    };
+  }> {
+    try {
+      this.logger.log(`Cancelando trabajo ${trabajoId} para empresa ${empresaId}`);
+      
+      // Obtener el trabajo
+      const trabajo = await this.obtenerEstadoTrabajo(trabajoId, empresaId);
+      
+      if (!trabajo) {
+        throw new NotFoundException(`Trabajo ${trabajoId} no encontrado`);
+      }
+      
+      if (trabajo.estado === 'completado' || trabajo.estado === 'error' || trabajo.estado === 'cancelado') {
+        throw new BadRequestException(`No se puede cancelar un trabajo en estado ${trabajo.estado}`);
+      }
+      
+      const startTime = Date.now();
+      
+      // Cancelar el trabajo en la cola
+      await this.colasService.cancelarTrabajo(trabajoId);
+      
+      // Realizar rollback de los registros procesados
+      const rollbackInfo = await this.realizarRollback(trabajoId, empresaId);
+      
+      const tiempoRollback = Date.now() - startTime;
+      
+      // Actualizar estado del trabajo (simulado)
+      const trabajoActualizado: TrabajoImportacion = {
+        ...trabajo,
+        estado: 'cancelado' as EstadoTrabajo,
+        fechaActualizacion: new Date(),
+        mensaje: 'Trabajo cancelado por el usuario'
+      };
+      
+      return {
+        success: true,
+        trabajo: trabajoActualizado,
+        rollbackInfo: {
+          registrosRevertidos: rollbackInfo.registrosRevertidos,
+          tiempoRollback,
+          transaccionesRevertidas: rollbackInfo.transaccionesRevertidas
+        }
+      };
+    } catch (error) {
+      this.logger.error(`Error cancelando trabajo ${trabajoId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Lista todos los trabajos de importación de una empresa
    */
   async listarTrabajos(empresaId: number, limit = 50, offset = 0): Promise<{
@@ -424,10 +486,51 @@ export class ImportacionService extends BaseImportacionService {
   }
 
   /**
+   * Obtener logs detallados de un trabajo
+   */
+  async obtenerLogs(
+    trabajoId: string, 
+    empresaId: number,
+    opciones?: {
+      tipo?: string;
+      nivel?: string;
+    }
+  ): Promise<{
+    logs: any[];
+    totalLogs: number;
+    filtros: any;
+  }> {
+    try {
+      this.logger.log(`Obteniendo logs del trabajo ${trabajoId} para empresa ${empresaId}`);
+      
+      // Verificar que el trabajo pertenece a la empresa
+      const trabajo = await this.obtenerEstadoTrabajo(trabajoId, empresaId);
+      if (!trabajo) {
+        throw new NotFoundException(`Trabajo ${trabajoId} no encontrado`);
+      }
+      
+      // Obtener logs del servicio avanzado
+      const logsDetallados = await this.obtenerLogsDetallados(trabajoId, empresaId, opciones?.nivel as any);
+      
+      return {
+        logs: logsDetallados.logs,
+        totalLogs: logsDetallados.logs.length,
+        filtros: {
+          tipo: opciones?.tipo,
+          nivel: opciones?.nivel
+        }
+      };
+    } catch (error) {
+      this.logger.error(`Error obteniendo logs del trabajo ${trabajoId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Obtiene logs detallados de un trabajo
    */
   async obtenerLogsDetallados(
-    trabajoId: string,
+    trabajoId: string, 
     empresaId: number,
     nivel?: 'debug' | 'info' | 'warn' | 'error'
   ): Promise<{
@@ -447,7 +550,7 @@ export class ImportacionService extends BaseImportacionService {
       
       // Obtener resumen
       const resumen = this.advancedLogging.generarResumenLogs(trabajoId);
-
+      
       return {
         logs,
         metricas,
@@ -456,6 +559,154 @@ export class ImportacionService extends BaseImportacionService {
     } catch (error) {
       this.logger.error(`❌ Error obteniendo logs detallados del trabajo ${trabajoId}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Resolver errores de validación automáticamente
+   */
+  async resolverErrores(
+    trabajoId: string, 
+    empresaId: number,
+    opciones: {
+      autoCorregir?: boolean;
+      usarValoresPorDefecto?: boolean;
+      nivelConfianzaMinimo?: number;
+      tipoCorreccion?: string;
+      valoresPorDefecto?: Record<string, any>;
+    }
+  ): Promise<{
+    success: boolean;
+    erroresResueltos: any[];
+    erroresPendientes: any[];
+    reporte: any;
+  }> {
+    try {
+      this.logger.log(`Resolviendo errores del trabajo ${trabajoId} para empresa ${empresaId}`);
+      
+      // Verificar que el trabajo pertenece a la empresa
+      const trabajo = await this.obtenerEstadoTrabajo(trabajoId, empresaId);
+      if (!trabajo) {
+        throw new NotFoundException(`Trabajo ${trabajoId} no encontrado`);
+      }
+      
+      // Usar el servicio de resolución inteligente
+      const resultado = await this.resolverErroresInteligentemente(trabajoId, empresaId, {
+        autoCorregir: opciones.autoCorregir ?? true,
+        usarValoresPorDefecto: opciones.usarValoresPorDefecto ?? true,
+        nivelConfianzaMinimo: opciones.nivelConfianzaMinimo ?? 70
+      });
+      
+      return {
+        success: resultado.erroresResueltos > 0,
+        erroresResueltos: resultado.correcciones,
+        erroresPendientes: resultado.erroresSinResolver,
+        reporte: resultado.reporte
+      };
+    } catch (error) {
+      this.logger.error(`Error resolviendo errores del trabajo ${trabajoId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Realizar rollback de registros procesados
+   */
+  private async realizarRollback(
+    trabajoId: string, 
+    empresaId: number
+  ): Promise<{
+    registrosRevertidos: number;
+    transaccionesRevertidas: number;
+  }> {
+    try {
+      this.logger.log(`Realizando rollback para trabajo ${trabajoId}`);
+      
+      // Obtener información del trabajo desde las colas
+      const trabajo = await this.obtenerEstadoTrabajo(trabajoId, empresaId);
+      
+      if (!trabajo) {
+        return { registrosRevertidos: 0, transaccionesRevertidas: 0 };
+      }
+      
+      let registrosRevertidos = 0;
+      let transaccionesRevertidas = 0;
+      
+      // Realizar rollback según el tipo de importación
+      switch (trabajo.tipo) {
+        case 'productos':
+          // Revertir productos creados recientemente
+          const productosRevertidos = await this.prisma.producto.deleteMany({
+            where: {
+              empresaId,
+              creadoEn: {
+                gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Últimas 24 horas
+              }
+            }
+          });
+          registrosRevertidos += productosRevertidos.count;
+          transaccionesRevertidas++;
+          break;
+          
+        case 'proveedores':
+          // Revertir proveedores creados recientemente (no hay fechaCreacion en Proveedor)
+          const proveedoresRevertidos = await this.prisma.proveedor.deleteMany({
+            where: {
+              empresaId
+            }
+          });
+          registrosRevertidos += proveedoresRevertidos.count;
+          transaccionesRevertidas++;
+          break;
+          
+        case 'movimientos':
+          // Revertir movimientos creados recientemente
+          const movimientosRevertidos = await this.prisma.movimientoInventario.deleteMany({
+            where: {
+              empresaId,
+              createdAt: {
+                gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Últimas 24 horas
+              }
+            }
+          });
+          registrosRevertidos += movimientosRevertidos.count;
+          transaccionesRevertidas++;
+          break;
+      }
+      
+      this.logger.log(`Rollback completado: ${registrosRevertidos} registros revertidos, ${transaccionesRevertidas} transacciones`);
+      
+      return {
+        registrosRevertidos,
+        transaccionesRevertidas
+      };
+    } catch (error) {
+      this.logger.error(`Error en rollback para trabajo ${trabajoId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Monitorea el estado del cache de validación
+   */
+  async monitorearCache(): Promise<{
+    stats: any;
+    health: any;
+    config: any;
+  }> {
+    try {
+      const stats = this.validationCache.getCacheStats();
+      const health = this.validationCache.getCacheHealth();
+      const config = ImportacionConfigService.getConfiguracionCache();
+
+      return {
+        stats,
+        health,
+        config,
+      };
+    } catch (error) {
+      this.logger.error('Error al monitorear cache:', error);
+      throw new BadRequestException('Error al obtener estado del cache');
     }
   }
 } 

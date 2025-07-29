@@ -5,6 +5,7 @@ import { ImportacionCacheService } from '../../importacion/servicios/importacion
 import { AdvancedLoggingService } from '../../importacion/services/advanced-logging.service';
 import { SmartErrorResolverService } from '../../importacion/services/smart-error-resolver.service';
 import { ImportacionProgressTrackerService } from '../../importacion/services/importacion-progress-tracker.service';
+import { ImportacionWebSocketService } from '../../importacion/servicios/importacion-websocket.service';
 import { 
   TrabajoImportacion, 
   ResultadoImportacion, 
@@ -32,6 +33,7 @@ export abstract class EnhancedBaseProcesadorService implements BaseProcesadorInt
     protected readonly advancedLogging: AdvancedLoggingService,
     protected readonly smartErrorResolver: SmartErrorResolverService,
     protected readonly progressTracker: ImportacionProgressTrackerService,
+    protected readonly websocketService: ImportacionWebSocketService,
     loggerName: string,
     config: Partial<ProcesadorConfig> = {}
   ) {
@@ -65,6 +67,9 @@ export abstract class EnhancedBaseProcesadorService implements BaseProcesadorInt
     });
 
     this.progressTracker.iniciarTracking(trabajo.id, trabajo.tipo, trabajo.totalRegistros);
+
+    // Emitir evento de trabajo creado
+    this.websocketService.emitTrabajoCreado(trabajo);
 
     const resultado: ResultadoImportacion = {
       trabajoId: trabajo.id,
@@ -106,6 +111,18 @@ export abstract class EnhancedBaseProcesadorService implements BaseProcesadorInt
       const datos = await this.leerArchivoExcel(trabajo.archivoOriginal);
       resultado.estadisticas.total = datos.length;
 
+      // Emitir progreso actualizado
+      this.websocketService.emitProgresoActualizado(
+        trabajo.empresaId,
+        trabajo.id,
+        10,
+        0,
+        0,
+        0,
+        'PROCESANDO',
+        'Archivo leído correctamente'
+      );
+
       this.advancedLogging.log('info', 'Archivo leído correctamente', {
         trabajoId: trabajo.id,
         empresaId: trabajo.empresaId,
@@ -136,6 +153,17 @@ export abstract class EnhancedBaseProcesadorService implements BaseProcesadorInt
 
         this.progressTracker.marcarEtapaConError(trabajo.id, 'validacion', 'Errores de validación encontrados', erroresValidacion);
         
+        // Emitir error de validación
+        this.websocketService.emitErrorValidacion(
+          trabajo.empresaId,
+          trabajo.id,
+          1,
+          'estructura',
+          'archivo',
+          'Errores de validación en estructura del archivo',
+          'validacion'
+        );
+
         this.advancedLogging.log('error', 'Errores de validación en archivo', {
           trabajoId: trabajo.id,
           empresaId: trabajo.empresaId,
@@ -149,17 +177,27 @@ export abstract class EnhancedBaseProcesadorService implements BaseProcesadorInt
         return resultado;
       }
 
-      this.progressTracker.completarEtapa(trabajo.id, 'validacion');
+      // Emitir progreso actualizado después de validación exitosa
+      this.websocketService.emitProgresoActualizado(
+        trabajo.empresaId,
+        trabajo.id,
+        30,
+        0,
+        0,
+        0,
+        'PROCESANDO',
+        'Validación de estructura completada'
+      );
 
       // 3. Procesar registros en lotes
       this.progressTracker.actualizarProgreso({
         trabajoId: trabajo.id,
         etapa: 'procesamiento',
-        progreso: 0,
+        progreso: 40,
         registrosProcesados: 0,
         registrosTotal: datos.length,
         errores: [],
-        mensaje: 'Iniciando procesamiento de registros...',
+        mensaje: 'Procesando registros...',
         timestamp: new Date(),
       });
 
@@ -167,134 +205,53 @@ export abstract class EnhancedBaseProcesadorService implements BaseProcesadorInt
         const lote = datos.slice(i, i + this.config.loteSize);
         await loteProcesador.procesarLote(lote, trabajo, resultado, job);
         
-        // Actualizar progreso
+        // Actualizar progreso usando el método nativo de BullMQ
         const registrosProcesados = Math.min(i + this.config.loteSize, datos.length);
         const progreso = Math.round((registrosProcesados / datos.length) * 100);
-        
-        this.progressTracker.actualizarProgreso({
-          trabajoId: trabajo.id,
-          etapa: 'procesamiento',
-          progreso: progreso,
-          registrosProcesados: registrosProcesados,
-          registrosTotal: datos.length,
-          errores: resultado.errores.slice(-10), // Últimos 10 errores
-          mensaje: `Procesando lote ${Math.floor(i / this.config.loteSize) + 1}/${Math.ceil(datos.length / this.config.loteSize)}`,
-          timestamp: new Date(),
-        });
-
-        // Actualizar métricas
-        this.advancedLogging.actualizarMetricas(trabajo.id, {
-          registrosProcesados: registrosProcesados,
-          registrosExitosos: resultado.estadisticas.exitosos,
-          registrosConError: resultado.estadisticas.errores,
-        });
-
-        // Actualizar progreso de BullMQ
         await job.updateProgress(Math.min(progreso, 100));
-      }
 
-      this.progressTracker.completarEtapa(trabajo.id, 'procesamiento');
-
-      // 4. Resolver errores inteligentemente si es necesario
-      if (resultado.errores.length > 0) {
-        this.progressTracker.actualizarProgreso({
-          trabajoId: trabajo.id,
-          etapa: 'guardado',
-          progreso: 50,
-          registrosProcesados: datos.length,
-          registrosTotal: datos.length,
-          errores: resultado.errores,
-          mensaje: 'Analizando errores para corrección automática...',
-          timestamp: new Date(),
-        });
-
-        const resolucionErrores = this.smartErrorResolver.resolverErrores(
-          resultado.errores,
-          trabajo.tipo,
-          datos[0] || {}
+        // Emitir progreso actualizado
+        this.websocketService.emitProgresoActualizado(
+          trabajo.empresaId,
+          trabajo.id,
+          progreso,
+          registrosProcesados,
+          resultado.estadisticas.exitosos,
+          resultado.estadisticas.errores,
+          'PROCESANDO',
+          `Procesados ${registrosProcesados}/${datos.length} registros`
         );
 
-        if (resolucionErrores.erroresResueltos.length > 0) {
-          this.advancedLogging.log('info', 'Errores resueltos automáticamente', {
-            trabajoId: trabajo.id,
-            empresaId: trabajo.empresaId,
-            usuarioId: trabajo.usuarioId,
-            tipoImportacion: trabajo.tipo,
-            archivo: trabajo.archivoOriginal,
-            etapa: 'resolucion_errores',
-            timestamp: new Date(),
-          }, { 
-            erroresResueltos: resolucionErrores.erroresResueltos.length,
-            erroresSinResolver: resolucionErrores.erroresSinResolver.length 
-          });
-        }
+        // Actualizar el trabajo en cache
+        trabajo.progreso = progreso;
+        trabajo.registrosProcesados = registrosProcesados;
+        trabajo.registrosExitosos = resultado.estadisticas.exitosos;
+        trabajo.registrosConError = resultado.estadisticas.errores;
+        await this.cacheService.setTrabajoCache(trabajo.id, trabajo);
       }
 
-      // 5. Generar archivo de resultados si hay errores
+      // 4. Generar archivo de resultados si hay errores
       if (resultado.errores.length > 0) {
-        this.progressTracker.actualizarProgreso({
-          trabajoId: trabajo.id,
-          etapa: 'guardado',
-          progreso: 80,
-          registrosProcesados: datos.length,
-          registrosTotal: datos.length,
-          errores: resultado.errores,
-          mensaje: 'Generando reporte de errores...',
-          timestamp: new Date(),
-        });
-
         resultado.archivoResultado = await this.generarArchivoErrores(trabajo, resultado.errores);
       }
-
-      // 6. Finalizar
-      this.progressTracker.actualizarProgreso({
-        trabajoId: trabajo.id,
-        etapa: 'finalizacion',
-        progreso: 100,
-        registrosProcesados: datos.length,
-        registrosTotal: datos.length,
-        errores: resultado.errores,
-        mensaje: 'Finalizando importación...',
-        timestamp: new Date(),
-      });
 
       resultado.estado = EstadoTrabajo.COMPLETADO;
       resultado.tiempoProcesamiento = Date.now() - inicio;
 
-      // Actualizar estadísticas finales
-      this.progressTracker.actualizarEstadisticas(
-        trabajo.id,
-        resultado.estadisticas.exitosos,
-        resultado.estadisticas.errores
-      );
+      // Emitir trabajo completado
+      this.websocketService.emitTrabajoCompletado(trabajo);
 
-      // Finalizar tracking
-      this.progressTracker.finalizarTracking(trabajo.id);
-      this.advancedLogging.finalizarTracking(trabajo.id);
-
-      this.logger.log(`✅ Importación completada: ${resultado.estadisticas.exitosos}/${resultado.estadisticas.total} registros exitosos`);
+      this.logger.log(`Importación completada: ${resultado.estadisticas.exitosos}/${resultado.estadisticas.total} registros`);
 
       return resultado;
 
     } catch (error) {
-      this.logger.error(`❌ Error en procesamiento:`, error);
+      this.logger.error(`Error procesando importación de ${trabajo.tipo}:`, error);
       
-      resultado.estado = EstadoTrabajo.ERROR;
-      resultado.tiempoProcesamiento = Date.now() - inicio;
-
-      this.progressTracker.marcarEtapaConError(trabajo.id, 'procesamiento', error.message);
+      // Emitir error
+      this.websocketService.emitTrabajoError(trabajo);
       
-      this.advancedLogging.log('error', 'Error durante el procesamiento', {
-        trabajoId: trabajo.id,
-        empresaId: trabajo.empresaId,
-        usuarioId: trabajo.usuarioId,
-        tipoImportacion: trabajo.tipo,
-        archivo: trabajo.archivoOriginal,
-        etapa: 'error',
-        timestamp: new Date(),
-      }, { error: error.message });
-
-      return resultado;
+      throw new Error(`Error procesando importación: ${error.message}`);
     }
   }
 

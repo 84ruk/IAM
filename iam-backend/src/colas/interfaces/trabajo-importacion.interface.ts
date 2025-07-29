@@ -21,6 +21,8 @@ export interface TrabajoImportacion {
   fechaFin?: Date;
   progreso: number;
   estado: EstadoTrabajo;
+  mensaje?: string; // <-- Agregado para compatibilidad
+  fechaActualizacion?: Date; // <-- Agregado para compatibilidad
 }
 
 export interface OpcionesImportacion {

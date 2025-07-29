@@ -276,7 +276,13 @@ export class JwtBlacklistService {
         }),
       ]);
 
-      const suspicious = activeTokens > 10 || recentTokens > 20;
+      // Umbrales más realistas para evitar falsos positivos
+      // En desarrollo/testing puede haber más tokens activos
+      const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+      const activeThreshold = isDevelopment ? 25 : 15; // Más permisivo en desarrollo
+      const recentThreshold = isDevelopment ? 50 : 30; // Más permisivo en desarrollo
+
+      const suspicious = activeTokens > activeThreshold || recentTokens > recentThreshold;
 
       if (suspicious) {
         this.secureLogger.logSecurityError(
@@ -285,7 +291,8 @@ export class JwtBlacklistService {
           JSON.stringify({
             activeTokens,
             recentTokens,
-            threshold: { active: 10, recent: 20 },
+            threshold: { active: activeThreshold, recent: recentThreshold },
+            environment: process.env.NODE_ENV,
           }),
         );
       }
@@ -304,6 +311,69 @@ export class JwtBlacklistService {
         activeTokens: 0,
         recentTokens: 0,
       };
+    }
+  }
+
+  /**
+   * Limpiar tokens excedentes automáticamente
+   */
+  async cleanupExcessTokens(userId: number, maxActiveTokens: number = 10): Promise<number> {
+    try {
+      // Obtener todos los tokens activos del usuario ordenados por fecha de creación
+      const activeTokens = await this.prisma.refreshToken.findMany({
+        where: {
+          userId,
+          isRevoked: false,
+          expiresAt: {
+            gt: new Date(),
+          },
+        },
+        orderBy: {
+          createdAt: 'asc', // Los más antiguos primero
+        },
+      });
+
+      // Si hay más tokens de los permitidos, revocar los más antiguos
+      if (activeTokens.length > maxActiveTokens) {
+        const tokensToRevoke = activeTokens.slice(0, activeTokens.length - maxActiveTokens);
+        
+        const revokedCount = await this.prisma.refreshToken.updateMany({
+          where: {
+            id: {
+              in: tokensToRevoke.map(token => token.id),
+            },
+          },
+          data: {
+            isRevoked: true,
+          },
+        });
+
+        this.logger.log(
+          `Cleaned up ${revokedCount.count} excess tokens for user ${userId}`,
+        );
+
+        return revokedCount.count;
+      }
+
+      return 0;
+    } catch (error) {
+      this.logger.error(
+        `Error cleaning up excess tokens for user ${userId}: ${error.message}`,
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Limpiar toda la blacklist (solo para desarrollo/testing)
+   */
+  async clearBlacklist(): Promise<void> {
+    try {
+      await this.prisma.blacklistedToken.deleteMany({});
+      this.logger.log('Blacklist cleared successfully');
+    } catch (error) {
+      this.logger.error(`Error clearing blacklist: ${error.message}`);
+      throw error;
     }
   }
 

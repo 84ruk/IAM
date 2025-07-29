@@ -7,6 +7,7 @@ import {
   ValidateNested,
   IsObject,
   IsDateString,
+  IsNumber,
 } from 'class-validator';
 import { Type, Expose } from 'class-transformer';
 
@@ -38,7 +39,7 @@ export class ConfiguracionEspecificaProductosUnificada {
 
   @IsOptional()
   @IsBoolean()
-  generarSKUAutomatico?: boolean = false;
+  generarSKUAutomatico?: boolean = true;
 
   @IsOptional()
   @IsString()
@@ -46,7 +47,7 @@ export class ConfiguracionEspecificaProductosUnificada {
 
   @IsOptional()
   @IsBoolean()
-  crearProveedorSiNoExiste?: boolean = false;
+  crearProveedorSiNoExiste?: boolean = true;
 }
 
 export class ConfiguracionEspecificaProveedoresUnificada {
@@ -101,12 +102,48 @@ export class ConfiguracionEspecificaMovimientosUnificada {
   crearProductoSiNoExiste?: boolean = false;
 
   @IsOptional()
+  @IsBoolean()
+  crearProveedorSiNoExiste?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  generarSKUAutomatico?: boolean = true;
+
+  @IsOptional()
+  @IsString()
+  prefijoSKU?: string = 'PROD';
+
+  @IsOptional()
   @IsString()
   motivoPorDefecto?: string = 'Importación masiva';
 
   @IsOptional()
   @IsBoolean()
   actualizarStockEnTiempoReal?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  usarPreciosDelMovimiento?: boolean = false;
+
+  @IsOptional()
+  @IsBoolean()
+  crearCategoriaSiNoExiste?: boolean = true;
+
+  @IsOptional()
+  @IsString()
+  descripcionPorDefecto?: string = 'Producto creado automáticamente desde importación';
+
+  @IsOptional()
+  @IsNumber()
+  stockMinimoPorDefecto?: number = 0;
+
+  @IsOptional()
+  @IsBoolean()
+  validarProveedorExistente?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  permitirMovimientosSinProducto?: boolean = false;
 }
 
 // DTO unificado principal

@@ -15,6 +15,8 @@ import {
   MaxFileSizeValidator,
   BadRequestException,
   Logger,
+  UseGuards,
+  HttpException,
 } from '@nestjs/common';
 import { FileTypeValidator } from './validators/file-type.validator';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -29,6 +31,7 @@ import {
 } from './dto';
 import { DetectorTipoImportacionService } from './servicios/detector-tipo-importacion.service';
 import { PlantillasService } from './servicios/plantillas.service';
+import { ValidationCacheService } from './services/validation-cache.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { EmpresaRequired } from '../auth/decorators/empresa-required.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -36,6 +39,13 @@ import { JwtUser } from '../auth/interfaces/jwt-user.interface';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import * as fs from 'fs';
+import { Rol } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { UnifiedEmpresaGuard } from '../auth/guards/unified-empresa.guard';
+import { ImportacionWebSocketService } from './importacion-websocket.service';
+import { ResolverErroresDto } from './dto/resolver-errores.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Importación')
 @Controller('importacion')
@@ -46,6 +56,7 @@ export class ImportacionController {
     private readonly importacionService: ImportacionService,
     private readonly detectorTipoService: DetectorTipoImportacionService,
     private readonly plantillasService: PlantillasService,
+    private readonly importacionWebSocketService: ImportacionWebSocketService,
   ) {}
 
   /**
@@ -1184,5 +1195,120 @@ export class ImportacionController {
       this.logger.error(`Error obteniendo logs del trabajo ${trabajoId}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Cancelar un trabajo de importación con rollback automático
+   */
+  @Post(':trabajoId/cancelar')
+  @Roles(Rol.SUPERADMIN, Rol.ADMIN, Rol.EMPLEADO)
+  @ApiOperation({ summary: 'Cancelar un trabajo de importación' })
+  @ApiResponse({ status: 200, description: 'Trabajo cancelado exitosamente' })
+  @ApiResponse({ status: 404, description: 'Trabajo no encontrado' })
+  @ApiResponse({ status: 400, description: 'No se puede cancelar el trabajo' })
+  async cancelarTrabajoAvanzado(
+    @Param('trabajoId') trabajoId: string,
+    @CurrentUser() usuario: JwtUser,
+  ) {
+    try {
+      this.logger.log(`Cancelando trabajo ${trabajoId} por usuario ${usuario.email}`);
+      
+      const resultado = await this.importacionService.cancelarTrabajoAvanzado(trabajoId, usuario.empresaId!);
+      
+      // Emitir evento de cancelación por WebSocket
+      if (resultado.success) {
+        this.importacionWebSocketService.emitTrabajoCancelado(
+          usuario.empresaId!.toString(),
+          resultado.trabajo
+        );
+      }
+      
+      return resultado;
+    } catch (error) {
+      this.logger.error(`Error cancelando trabajo ${trabajoId}:`, error);
+      throw new HttpException(
+        `Error al cancelar el trabajo: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * Obtener logs detallados de un trabajo
+   */
+  @Get(':trabajoId/logs')
+  @Roles(Rol.SUPERADMIN, Rol.ADMIN, Rol.EMPLEADO)
+  @ApiOperation({ summary: 'Obtener logs detallados de un trabajo' })
+  @ApiResponse({ status: 200, description: 'Logs obtenidos exitosamente' })
+  async obtenerLogsAvanzados(
+    @Param('trabajoId') trabajoId: string,
+    @CurrentUser() usuario: JwtUser,
+    @Query('tipo') tipo?: string,
+    @Query('nivel') nivel?: string,
+  ) {
+    try {
+      this.logger.log(`Obteniendo logs del trabajo ${trabajoId} por usuario ${usuario.email}`);
+      
+      return await this.importacionService.obtenerLogs(trabajoId, usuario.empresaId!, {
+        tipo,
+        nivel
+      });
+    } catch (error) {
+      this.logger.error(`Error obteniendo logs del trabajo ${trabajoId}:`, error);
+      throw new HttpException(
+        `Error al obtener logs: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * Resolver errores de validación automáticamente
+   */
+  @Post(':trabajoId/resolver-errores')
+  @Roles(Rol.SUPERADMIN, Rol.ADMIN, Rol.EMPLEADO)
+  @ApiOperation({ summary: 'Resolver errores de validación automáticamente' })
+  @ApiResponse({ status: 200, description: 'Errores resueltos exitosamente' })
+  async resolverErroresAvanzado(
+    @Param('trabajoId') trabajoId: string,
+    @Body() opciones: ResolverErroresDto,
+    @CurrentUser() usuario: JwtUser,
+  ) {
+    try {
+      this.logger.log(`Resolviendo errores del trabajo ${trabajoId} por usuario ${usuario.email}`);
+      
+      const resultado = await this.importacionService.resolverErrores(trabajoId, usuario.empresaId!, opciones);
+      
+      // Emitir evento de resolución por WebSocket
+      if (resultado.success) {
+        this.importacionWebSocketService.emitErroresResueltos(
+          usuario.empresaId!.toString(),
+          trabajoId,
+          resultado.erroresResueltos
+        );
+      }
+      
+      return resultado;
+    } catch (error) {
+      this.logger.error(`Error resolviendo errores del trabajo ${trabajoId}:`, error);
+      throw new HttpException(
+        `Error al resolver errores: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * Monitorea el estado del cache de validación
+   */
+  @Get('cache/estado')
+  @ApiOperation({ summary: 'Monitorea el estado del cache de validación' })
+  @ApiResponse({ status: 200, description: 'Estado del cache de validación obtenido' })
+  async monitorearCache() {
+    const estado = await this.importacionService.monitorearCache();
+    return {
+      success: true,
+      estado,
+    };
   }
 } 

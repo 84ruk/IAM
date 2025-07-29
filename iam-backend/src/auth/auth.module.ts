@@ -29,6 +29,7 @@ import { TwoFactorController } from './two-factor.controller';
 import { SessionManagementController } from './session-management.controller';
 import { SessionManagementService } from './services/session-management.service';
 import { NotificationModule } from '../notifications/notification.module';
+import { WebSocketAuthService } from './services/websocket-auth.service';
 
 @Module({
   imports: [
@@ -79,12 +80,13 @@ import { NotificationModule } from '../notifications/notification.module';
     RateLimiterService, // Servicio de rate limiting
     RateLimitGuard, // Guard de rate limiting
     SessionManagementService, // NUEVO: Servicio de gestión de sesiones
+    WebSocketAuthService, // NUEVO: Servicio de autenticación para WebSockets
   ],
-      controllers: [
-      AuthController,
-      TwoFactorController, // NUEVO: Controlador de 2FA
-      SessionManagementController, // NUEVO: Controlador de gestión de sesiones
-    ],
+  controllers: [
+    AuthController,
+    TwoFactorController, // NUEVO: Controlador de 2FA
+    SessionManagementController, // NUEVO: Controlador de gestión de sesiones
+  ],
   exports: [
     AuthService,
     RefreshTokenService,
@@ -103,6 +105,8 @@ import { NotificationModule } from '../notifications/notification.module';
     RateLimiterService, // Exportar el servicio de rate limiting
     RateLimitGuard, // Exportar el guard de rate limiting
     SessionManagementService, // NUEVO: Exportar el servicio de gestión de sesiones
+    WebSocketAuthService, // NUEVO: Exportar el servicio de autenticación para WebSockets
+    JwtModule, // <-- Exportar JwtModule para que JwtService esté disponible
   ],
 })
 export class AuthModule {}

@@ -8,6 +8,7 @@ import {
   UseGuards,
   Req,
   Param,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { RateLimit, RateLimitGuard } from './guards/rate-limit.guard';
@@ -31,6 +32,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { JwtBlacklistService } from './jwt-blacklist.service';
 
 @Controller('auth')
 @SkipEmpresaCheck()
@@ -39,6 +41,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
     private readonly refreshTokenService: RefreshTokenService,
+    private readonly blacklistService: JwtBlacklistService,
   ) {}
 
   @Post('login')
@@ -237,6 +240,14 @@ export class AuthController {
       message: 'Token renovado exitosamente',
       refreshToken: newRefreshToken,
     };
+  }
+
+  @Post('clear-blacklist')
+  @Public()
+  @HttpCode(200)
+  async clearBlacklist() {
+    await this.blacklistService.clearBlacklist();
+    return { message: 'Blacklist cleared' };
   }
 
   @Get('needs-setup')

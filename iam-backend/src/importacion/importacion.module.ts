@@ -1,69 +1,55 @@
 import { Module } from '@nestjs/common';
 import { ImportacionController } from './importacion.controller';
 import { ImportacionService } from './importacion.service';
+import { DetectorTipoImportacionService } from './servicios/detector-tipo-importacion.service';
+import { PlantillasService } from './servicios/plantillas.service';
 import { ProcesadorArchivosService } from './servicios/procesador-archivos.service';
 import { ValidadorDatosService } from './servicios/validador-datos.service';
 import { TransformadorDatosService } from './servicios/transformador-datos.service';
-import { PlantillasService } from './servicios/plantillas.service';
 import { BatchProcessorService } from './services/batch-processor.service';
 import { ValidationCacheService } from './services/validation-cache.service';
 import { ErrorHandlerService } from './services/error-handler.service';
 import { AdvancedLoggingService } from './services/advanced-logging.service';
 import { SmartErrorResolverService } from './services/smart-error-resolver.service';
 import { ImportacionProgressTrackerService } from './services/importacion-progress-tracker.service';
-import { EstrategiaImportacionFactory } from './factories/estrategia-importacion.factory';
-import { ProductosEstrategia } from './dto/estrategias/productos-estrategia';
-import { ProveedoresEstrategia } from './dto/estrategias/proveedores-estrategia';
-import { MovimientosEstrategia } from './dto/estrategias/movimientos-estrategia';
-import { DetectorTipoImportacionService } from './servicios/detector-tipo-importacion.service';
+import { AutocorreccionInteligenteService } from './services/autocorreccion-inteligente.service';
+import { ImportacionRapidaService } from './services/importacion-rapida.service';
+import { ImportacionConfigService } from './config/importacion.config';
+import { TrabajoImportacionFactory } from './factories/trabajo-importacion.factory';
 import { ColasModule } from '../colas/colas.module';
 import { PrismaModule } from '../prisma/prisma.module';
-import { AuthModule } from '../auth/auth.module';
-import { CommonModule } from '../common/common.module';
+import { WebSocketsModule } from '../websockets/websockets.module';
+import { ImportacionWebSocketService } from './importacion-websocket.service';
 
 @Module({
   imports: [
-    ColasModule,    // Para procesamiento asíncrono
-    PrismaModule,   // Para acceso a base de datos
-    AuthModule,     // Para autenticación y autorización
-    CommonModule,   // Para configuración Redis unificada
+    ColasModule,
+    PrismaModule,
+    WebSocketsModule,
   ],
   controllers: [ImportacionController],
   providers: [
     ImportacionService,
+    DetectorTipoImportacionService,
+    PlantillasService,
     ProcesadorArchivosService,
     ValidadorDatosService,
     TransformadorDatosService,
-    PlantillasService,
     BatchProcessorService,
     ValidationCacheService,
     ErrorHandlerService,
     AdvancedLoggingService,
     SmartErrorResolverService,
     ImportacionProgressTrackerService,
-    EstrategiaImportacionFactory,
-    ProductosEstrategia,
-    ProveedoresEstrategia,
-    MovimientosEstrategia,
-    DetectorTipoImportacionService,
+    AutocorreccionInteligenteService,
+    ImportacionRapidaService,
+    ImportacionConfigService,
+    TrabajoImportacionFactory,
+    ImportacionWebSocketService,
   ],
   exports: [
     ImportacionService,
-    ProcesadorArchivosService,
-    ValidadorDatosService,
-    TransformadorDatosService,
-    PlantillasService,
-    BatchProcessorService,
-    ValidationCacheService,
-    ErrorHandlerService,
-    AdvancedLoggingService,
-    SmartErrorResolverService,
-    ImportacionProgressTrackerService,
-    EstrategiaImportacionFactory,
-    ProductosEstrategia,
-    ProveedoresEstrategia,
-    MovimientosEstrategia,
-    DetectorTipoImportacionService,
+    ImportacionWebSocketService,
   ],
 })
 export class ImportacionModule {} 
