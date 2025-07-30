@@ -1,11 +1,9 @@
 'use client'
 
 import useSWR from 'swr'
-import { format } from 'date-fns'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ComposedChart, AreaChart, Area } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { useMemo, useState, useCallback, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/Card'
-import { CardSkeleton } from '@/components/ui/CardSkeleton'
 import { useAutoRefresh } from '@/lib/useAutoRefresh'
 import { useOptimizedKPIs } from '@/hooks/useKPIs'
 import DashboardRequestOptimizer from '@/components/dashboard/DashboardRequestOptimizer'
@@ -37,7 +35,7 @@ import {
 } from 'lucide-react'
 import { DashboardConditionalImportButton } from '@/components/ui/ConditionalImportButton'
 import ImportButton from '@/components/ui/ImportButton'
-
+import Link from 'next/link'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
 import { Loader2 } from 'lucide-react'
@@ -355,7 +353,7 @@ export default function DashboardClient() {
             <div className="w-full max-w-4xl">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Comienza aquí</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <a 
+                <Link 
                   href="/dashboard/productos/nuevo" 
                   className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#8E94F2] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
@@ -367,9 +365,9 @@ export default function DashboardClient() {
                     <p className="text-sm text-gray-600">Registra tu primer producto</p>
                   </div>
                   <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#8E94F2] transition-colors ml-auto" />
-                </a>
+                </Link>
 
-                <a 
+                <Link 
                   href="/dashboard/proveedores" 
                   className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#8E94F2] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
@@ -381,9 +379,9 @@ export default function DashboardClient() {
                     <p className="text-sm text-gray-600">Gestiona tus proveedores</p>
                   </div>
                   <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#8E94F2] transition-colors ml-auto" />
-                </a>
+                </Link>
 
-                <a 
+                <Link 
                   href="/dashboard/movimientos/nuevo" 
                   className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#8E94F2] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
@@ -395,9 +393,9 @@ export default function DashboardClient() {
                     <p className="text-sm text-gray-600">Registra entradas y salidas</p>
                   </div>
                   <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#8E94F2] transition-colors ml-auto" />
-                </a>
+                </Link>
 
-                <a 
+                <Link 
                   href="/dashboard/kpis" 
                   className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#8E94F2] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
@@ -409,9 +407,9 @@ export default function DashboardClient() {
                     <p className="text-sm text-gray-600">Ver métricas detalladas</p>
                   </div>
                   <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#8E94F2] transition-colors ml-auto" />
-                </a>
+                </Link>
 
-                <a 
+                <Link 
                   href="/dashboard/daily-movements" 
                   className="group flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-[#8E94F2] transition-all duration-200 shadow-sm hover:shadow-md"
                 >
@@ -423,7 +421,7 @@ export default function DashboardClient() {
                     <p className="text-sm text-gray-600">Análisis detallado por día</p>
                   </div>
                   <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#8E94F2] transition-colors ml-auto" />
-                </a>
+                </Link>
               </div>
             </div>
             
@@ -450,7 +448,7 @@ export default function DashboardClient() {
 
             <Select
               value={selectedMonth}
-              onChange={(e) => handleMonthChange(e as any)}
+              onChange={(e) => handleMonthChange(e as React.ChangeEvent<HTMLSelectElement>)}
               options={MONTHS.map((month, index) => ({
                 value: index.toString(),
                 label: month
