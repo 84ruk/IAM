@@ -1,22 +1,19 @@
 'use client'
 
-import { Movimiento, MovimientosResponse } from '@/types/movimiento'
+import { MovimientosResponse } from '@/types/movimiento'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import useSWR from 'swr'
-import { pluralizarUnidad, formatearCantidadConUnidad } from '@/lib/pluralization'
+import { formatearCantidadConUnidad } from '@/lib/pluralization'
 import { 
   Plus, 
   Search, 
-  Filter, 
   Calendar,
   Package,
   TrendingUp,
   TrendingDown,
   RefreshCw,
-  Clock,
   ArrowUpRight,
   ArrowDownLeft,
   User,
@@ -50,8 +47,7 @@ export default function MovimientosClient() {
   const [filtroFecha, setFiltroFecha] = useState('')
   const [movimientosExpandidos, setMovimientosExpandidos] = useState<Set<number>>(new Set())
 
-  // Extraer movimientos y estadísticas de la respuesta
-  const movimientos = response?.movimientos || []
+  // Extraer estadísticas de la respuesta
   const estadisticas = response?.estadisticas || { total: 0, entradas: 0, salidas: 0, hoy: 0 }
   
   // Memoizar fecha de hoy para evitar recálculos
@@ -67,9 +63,9 @@ export default function MovimientosClient() {
 
   // Filtrar movimientos
   const movimientosFiltrados = useMemo(() => {
-    if (!movimientos) return []
+    const movimientosData = response?.movimientos || []
     
-    return movimientos.filter(movimiento => {
+    return movimientosData.filter(movimiento => {
       const cumpleFiltroTexto = filtro === '' || 
         movimiento.producto?.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
         movimiento.motivo?.toLowerCase().includes(filtro.toLowerCase()) ||
@@ -82,7 +78,7 @@ export default function MovimientosClient() {
       
       return cumpleFiltroTexto && cumpleFiltroTipo && cumpleFiltroFecha
     })
-  }, [movimientos, filtro, filtroTipo, filtroFecha])
+  }, [response?.movimientos, filtro, filtroTipo, filtroFecha])
 
   // KPIs dinámicos basados en filtros aplicados
   const kpisFiltrados = useMemo(() => {

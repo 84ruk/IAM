@@ -15,30 +15,19 @@ import {
   ShoppingCart, 
   DollarSign, 
   BarChart3,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Calendar,
   RefreshCw,
-  PercentCircle,
-  Info,
-  Wifi,
-  WifiOff,
   Target,
-  Activity,
   TrendingDown,
-  Upload,
-  Plus,
   ArrowRight,
-  Database
+  Database,
+  Activity,
+  CheckCircle,
+  PercentCircle
 } from 'lucide-react'
 import { DashboardConditionalImportButton } from '@/components/ui/ConditionalImportButton'
 import ImportButton from '@/components/ui/ImportButton'
 import Link from 'next/link'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { Tooltip as ReactTooltip } from 'react-tooltip'
-import { Loader2 } from 'lucide-react'
+
 import Select from '@/components/ui/Select'
 import KPICard from '@/components/dashboard/KPICard'
 import DailyMovementsChart from '@/components/dashboard/DailyMovementsChart'
@@ -83,9 +72,7 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ]
 
-const Badge = ({ text, color }: { text: string; color: string }) => (
-  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${color}`}>{text}</span>
-)
+
 
 type ProductoKPI = {
   id: number;
@@ -99,17 +86,7 @@ type ProductoKPI = {
   cantidadMovimientos: number;
 }
 
-type MovimientoKPI = {
-  id: number;
-  productoId: number;
-  tipo: 'ENTRADA' | 'SALIDA';
-  cantidad: number;
-  fecha: string;
-  motivo: string | null;
-  producto: {
-    nombre: string;
-  };
-}
+
 
 export default function DashboardClient() {
   const { data, isLoading, error, mutate } = useSWR('/dashboard/data', fetcher, {
@@ -129,26 +106,19 @@ export default function DashboardClient() {
   } = useOptimizedKPIs('mes', 'general', 30)
   
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
-  const [monthLoading, setMonthLoading] = useState(false)
   const [lastUpdate, setLastUpdate] = useState(new Date())
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true)
+
+  const [autoRefreshEnabled] = useState(true)
   const [isOnline, setIsOnline] = useState(true)
   const [showUpdateNotification, setShowUpdateNotification] = useState(false)
 
   const kpis = useMemo(() => data?.kpis || null, [data])
   const ventasPorDia = useMemo(() => data?.ventasPorDia || [], [data])
-  const stockCritico = useMemo(() => data?.stockCritico || [], [data])
   const stockPorCategoria = useMemo(() => data?.stockPorCategoria || [], [data])
-  const productosMasVendidos = useMemo(() => data?.productosMasVendidos || [], [data])
-  const pedidosRecientes = useMemo(() => data?.pedidosRecientes || [], [data])
-  const prediccionQuiebre = useMemo(() => data?.prediccionQuiebre || [], [data])
-  const diasGraficos = data?.diasGraficos || []
+
   const productos = useMemo(() => data?.productos || [], [data]) as ProductoKPI[]
-  const movimientos = useMemo(() => data?.movimientos || [], [data]) as MovimientoKPI[]
 
   const handleRefresh = useCallback(async (isAuto = false) => {
-    setIsRefreshing(true)
     try {
       await mutate()
       setLastUpdate(new Date())
@@ -159,8 +129,6 @@ export default function DashboardClient() {
       }
     } catch (error) {
       console.error('Error al refrescar:', error)
-    } finally {
-      setIsRefreshing(false)
     }
   }, [mutate])
 
@@ -246,8 +214,6 @@ export default function DashboardClient() {
 
   const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedMonth(parseInt(e.target.value))
-    setMonthLoading(true)
-    setTimeout(() => setMonthLoading(false), 1000)
   }
 
   const NoData = ({ text }: { text: string }) => (
@@ -258,23 +224,7 @@ export default function DashboardClient() {
     </div>
   )
 
-  const getRiesgoColor = (riesgo: string) => {
-    switch (riesgo.toLowerCase()) {
-      case 'alto': return 'bg-red-100 text-red-800'
-      case 'medio': return 'bg-yellow-100 text-yellow-800'
-      case 'bajo': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
 
-  const getEstadoColor = (estado: string) => {
-    switch (estado.toLowerCase()) {
-      case 'activo': return 'bg-green-100 text-green-800'
-      case 'inactivo': return 'bg-red-100 text-red-800'
-      case 'pendiente': return 'bg-yellow-100 text-yellow-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
 
   if (isLoading) {
     return (

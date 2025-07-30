@@ -14,33 +14,21 @@ import {
   Activity,
   CheckCircle,
   XCircle,
-  Clock,
   AlertTriangle,
   Loader2,
   RefreshCw,
-  Settings,
   BarChart3,
   History,
   Zap,
   Brain,
   Target,
   Info,
-  ChevronRight,
-  ChevronDown,
   Database,
   Terminal,
-  Eye,
-  EyeOff,
-  Copy,
-  Trash2,
   Play,
-  Pause,
-  Filter,
   Search,
   Calendar,
   TrendingUp,
-  TrendingDown,
-  Shield,
   Sparkles
 } from 'lucide-react'
 import { useImportacionUnified } from '@/hooks/useImportacionUnified'
@@ -48,7 +36,6 @@ import SmartImportModal from '@/components/importacion/SmartImportModal'
 import ImportacionProgress from '@/components/importacion/ImportacionProgress'
 import { TipoImportacion, ImportacionResultado } from '@/types/importacion'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 
 interface ImportacionLog {
   id: string
@@ -78,7 +65,7 @@ export default function ImportacionPage() {
   const [showAdvancedMode, setShowAdvancedMode] = useState(false)
   const [logs, setLogs] = useState<ImportacionLog[]>([])
   const [smartTemplates, setSmartTemplates] = useState<SmartTemplate[]>([])
-  const [selectedTemplate, setSelectedTemplate] = useState<SmartTemplate | null>(null)
+
   const [logFilters, setLogFilters] = useState({
     level: 'all',
     search: '',
@@ -87,24 +74,13 @@ export default function ImportacionPage() {
 
   const {
     state,
-    importar,
-    cancelarTrabajo,
-    clearState,
-    clearError,
-    clearSuccess,
-    subscribeToTrabajo,
-    descargarPlantilla
+    cancelarTrabajo
   } = useImportacionUnified()
 
   const {
-    isImporting,
     currentTrabajo,
-    error,
-    success,
     isConnected,
-    trabajos,
-    estadisticas,
-    modo
+    trabajos
   } = state
 
   // Generar logs de ejemplo
@@ -223,8 +199,7 @@ export default function ImportacionPage() {
     return true
   })
 
-  const handleTemplateSelect = (template: SmartTemplate) => {
-    setSelectedTemplate(template)
+  const handleTemplateSelect = (_template: SmartTemplate) => {
     setShowSmartModal(true)
   }
 
@@ -592,7 +567,7 @@ export default function ImportacionPage() {
                         </div>
                         {log.details && (
                           <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                            <pre className="whitespace-pre-wrap">{JSON.stringify(log.details as Record<string, unknown>, null, 2)}</pre>
+                            <pre className="whitespace-pre-wrap">{String(JSON.stringify(log.details, null, 2))}</pre>
                           </div>
                         )}
                       </div>

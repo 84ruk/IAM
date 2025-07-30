@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -12,9 +12,7 @@ import {
   Users, 
   Plus, 
   Search, 
-  Filter,
   User,
-  Mail,
   Shield,
   Calendar,
   Building,
@@ -28,12 +26,10 @@ import {
 import { cn } from '@/lib/utils'
 import { AdminUser, RoleOption } from '@/types/admin'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { useServerUser } from '@/context/ServerUserContext'
 
 export default function AdminUsersPage() {
   const user = useServerUser();
-  const router = useRouter()
   
   const [users, setUsers] = useState<AdminUser[]>([])
   const [roles, setRoles] = useState<RoleOption[]>([])

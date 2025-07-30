@@ -22,10 +22,10 @@ export class AppError extends Error {
   public statusCode: number
   public isOperational: boolean
   public errors?: ValidationError[]
-  public details?: any
+  public details?: unknown
   public timestamp: string
 
-  constructor(message: string, statusCode: number = 500, isOperational: boolean = true, details?: any) {
+  constructor(message: string, statusCode: number = 500, isOperational: boolean = true, details?: unknown) {
     super(message)
     this.statusCode = statusCode
     this.isOperational = isOperational
@@ -38,7 +38,7 @@ export class AppError extends Error {
 }
 
 export class ValidationAppError extends AppError {
-  constructor(errors: ValidationError[], details?: any) {
+  constructor(errors: ValidationError[], details?: unknown) {
     super('Error de validación', 400, true, details)
     this.errors = errors
   }
@@ -102,36 +102,42 @@ function sanitizeMessage(message: string): string {
 }
 
 // Función para parsear errores de la API
-export function parseApiError(response: Response, data?: any): AppError {
+export function parseApiError(response: Response, data?: unknown): AppError {
   const statusCode = response.status
   let message = 'Error desconocido'
   let errors: ValidationError[] = []
-  let details: any = null
+  let details: unknown = null
 
-  if (data) {
+  if (data && typeof data === 'object' && data !== null) {
+    const errorData = data as Record<string, unknown>
+    
     // Extraer detalles si están disponibles
-    if (data.details) {
-      details = data.details
+    if ('details' in errorData && errorData.details) {
+      details = errorData.details
     }
 
     // Manejar diferentes formatos de error
-    if (typeof data.message === 'string') {
-      message = sanitizeMessage(data.message)
-    } else if (Array.isArray(data.message)) {
-      message = data.message.map((msg: string) => sanitizeMessage(msg)).join(', ')
-      errors = data.message.map((msg: string, index: number) => ({
-        field: `field_${index}`,
-        message: sanitizeMessage(msg)
-      }))
-    } else if (data.error) {
-      message = sanitizeMessage(data.error)
+    if ('message' in errorData && errorData.message) {
+      if (typeof errorData.message === 'string') {
+        message = sanitizeMessage(errorData.message)
+      } else if (Array.isArray(errorData.message)) {
+        const messages = errorData.message as string[]
+        message = messages.map((msg: string) => sanitizeMessage(msg)).join(', ')
+        errors = messages.map((msg: string, index: number) => ({
+          field: `field_${index}`,
+          message: sanitizeMessage(msg)
+        }))
+      }
+    } else if ('error' in errorData && errorData.error && typeof errorData.error === 'string') {
+      message = sanitizeMessage(errorData.error)
     }
 
     // Manejar errores de validación específicos
-    if (data.errors && Array.isArray(data.errors)) {
-      errors = data.errors.map((err: any) => ({
-        field: err.field || err.path || 'unknown',
-        message: sanitizeMessage(err.message || 'Error de validación')
+    if ('errors' in errorData && errorData.errors && Array.isArray(errorData.errors)) {
+      const errorArray = errorData.errors as Array<Record<string, unknown>>
+      errors = errorArray.map((err) => ({
+        field: (err.field || err.path || 'unknown') as string,
+        message: sanitizeMessage((err.message || 'Error de validación') as string)
       }))
     }
   }
@@ -187,8 +193,11 @@ export function handleNetworkError(error: unknown): AppError {
 // Función para mostrar errores al usuario
 export function showErrorToUser(error: AppError): string {
   // Si hay detalles con sugerencias, usarlas
-  if (error.details?.suggestion) {
-    return sanitizeMessage(error.details.suggestion)
+  if (error.details && typeof error.details === 'object' && error.details !== null) {
+    const details = error.details as Record<string, unknown>
+    if ('suggestion' in details && details.suggestion && typeof details.suggestion === 'string') {
+      return sanitizeMessage(details.suggestion)
+    }
   }
 
   switch (error.constructor) {
@@ -248,7 +257,7 @@ export function logError(error: AppError, context?: { context?: string, operatio
 
 // Hook para manejo de errores en componentes
 export function useErrorHandler() {
-  const handleError = (error: any, context?: string): AppError => {
+  const handleError = (error: unknown, context?: string): AppError => {
     let appError: AppError
 
     if (error instanceof AppError) {
@@ -256,9 +265,12 @@ export function useErrorHandler() {
     } else if (error instanceof Response) {
       // Manejar respuesta de fetch
       appError = new AppError(`Error HTTP ${error.status}`, error.status)
+    } else if (error instanceof Error) {
+      // Error estándar de JavaScript
+      appError = new AppError(error.message || 'Error desconocido')
     } else {
       // Error genérico
-      appError = new AppError(error.message || 'Error desconocido')
+      appError = new AppError('Error desconocido')
     }
 
     logError(appError, { context })
@@ -274,7 +286,7 @@ export function useErrorHandler() {
     }
   }
 
-  const handleAsyncError = async (asyncFn: () => Promise<any>, context?: string): Promise<any> => {
+  const handleAsyncError = async <T>(asyncFn: () => Promise<T>, context?: string): Promise<T> => {
     try {
       return await asyncFn()
     } catch (error) {
@@ -293,7 +305,7 @@ export function useErrorHandler() {
 }
 
 // Función para validar respuestas de API
-export async function validateApiResponse(response: Response): Promise<any> {
+export async function validateApiResponse(response: Response): Promise<unknown> {
   if (!response.ok) {
     try {
       const data = await response.json()
@@ -314,7 +326,7 @@ export async function validateApiResponse(response: Response): Promise<any> {
 }
 
 // Función para crear fetch con manejo de errores
-export async function safeFetch(url: string, options?: RequestInit): Promise<any> {
+export async function safeFetch(url: string, options?: RequestInit): Promise<unknown> {
   try {
     const response = await fetch(url, {
       credentials: 'include',

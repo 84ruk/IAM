@@ -52,7 +52,9 @@ export interface CreateProductoDto {
   color?: string
   }
 
-export interface UpdateProductoDto extends Partial<CreateProductoDto> {}
+export interface UpdateProductoDto extends Partial<CreateProductoDto> {
+  // Hereda todas las propiedades de CreateProductoDto como opcionales
+}
 
 export interface ProductFilters {
   search?: string

@@ -16,8 +16,7 @@ import {
   Settings,
   Download,
   Share2,
-  Eye,
-  EyeOff,
+
   Maximize2,
   Minimize2
 } from 'lucide-react'

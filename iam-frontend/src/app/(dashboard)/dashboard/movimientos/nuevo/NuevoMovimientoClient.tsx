@@ -11,15 +11,12 @@ import {
   Package, 
   ArrowUp, 
   ArrowDown, 
-  Search, 
   AlertTriangle, 
   Loader2, 
   CheckCircle, 
-  Filter,
   TrendingUp,
   TrendingDown,
   Hash,
-  FileText,
   Truck
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -46,6 +43,28 @@ interface Producto {
 }
 
 // Subcomponente: Campos del formulario
+interface MovimientoFieldsProps {
+  tipo: string
+  setTipo: (tipo: string) => void
+  productoId: string
+  setProductoId: (id: string) => void
+  productosActivos: Producto[]
+  productosInactivos: Producto[]
+  cantidad: string
+  setCantidad: (cantidad: string) => void
+  proveedorId: string
+  setProveedorId: (id: string) => void
+  proveedores: Array<{ id: number; nombre: string; estado: string }>
+  motivo: string
+  setMotivo: (motivo: string) => void
+  descripcion: string
+  setDescripcion: (descripcion: string) => void
+  inputRef: React.RefObject<HTMLInputElement>
+  producto: Producto | null
+  isLoading: boolean
+  cantidadValida: () => boolean
+}
+
 function MovimientoFields({
   tipo, setTipo,
   productoId, setProductoId,
@@ -59,7 +78,7 @@ function MovimientoFields({
   producto,
   isLoading,
   cantidadValida
-}: any) {
+}: MovimientoFieldsProps) {
   return (
     <div className="space-y-6">
       {/* Tipo de movimiento */}
@@ -101,11 +120,11 @@ function MovimientoFields({
         onChange={(e) => setProductoId(e.target.value)}
         required
         options={[
-          ...productosActivos.map((prod: any) => ({
+          ...productosActivos.map((prod: Producto) => ({
             value: String(prod.id),
             label: `${prod.nombre} - Stock: ${prod.stock} ${prod.unidad}`
           })),
-          ...productosInactivos.map((prod: any) => ({
+          ...productosInactivos.map((prod: Producto) => ({
             value: String(prod.id),
             label: `${prod.nombre} - Stock: ${prod.stock} ${prod.unidad} (Inactivo)`
           }))
@@ -134,7 +153,7 @@ function MovimientoFields({
         onChange={(e) => setProveedorId(e.target.value)}
         options={[
           { value: '', label: 'Sin proveedor' },
-          ...proveedores.filter((p: any) => p.estado === 'ACTIVO').map((proveedor: any) => ({
+          ...proveedores.filter((p) => p.estado === 'ACTIVO').map((proveedor) => ({
             value: String(proveedor.id),
             label: proveedor.nombre
           }))
@@ -161,7 +180,12 @@ function MovimientoFields({
 }
 
 // Subcomponente: Información del producto seleccionado
-function ProductoInfoCard({ producto, getStockStatus }: any) {
+interface ProductoInfoCardProps {
+  producto: Producto | null
+  getStockStatus: (producto: Producto) => string
+}
+
+function ProductoInfoCard({ producto, getStockStatus }: ProductoInfoCardProps) {
   if (!producto) return null
   const status = getStockStatus(producto)
   return (
@@ -224,7 +248,13 @@ function ProductoInfoCard({ producto, getStockStatus }: any) {
 }
 
 // Subcomponente: Resumen del movimiento
-function MovimientoResumen({ producto, cantidad, tipo }: any) {
+interface MovimientoResumenProps {
+  producto: Producto | null
+  cantidad: string
+  tipo: string
+}
+
+function MovimientoResumen({ producto, cantidad, tipo }: MovimientoResumenProps) {
   if (!producto || !cantidad) return null
   return (
     <Card>
@@ -281,11 +311,11 @@ export default function NuevoMovimientoClient() {
   const [productosActivos, setProductosActivos] = useState<Producto[]>([])
   const [productosInactivos, setProductosInactivos] = useState<Producto[]>([])
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
-  const [mostrarInactivos, setMostrarInactivos] = useState(false)
+
   const [productoId, setProductoId] = useState('')
   const [producto, setProducto] = useState<Producto | null>(null)
   const [proveedorId, setProveedorId] = useState('')
-  const [codigoBarras, setCodigoBarras] = useState('')
+
   const [tipo, setTipo] = useState<'ENTRADA' | 'SALIDA'>('ENTRADA')
   const [cantidad, setCantidad] = useState('')
   const [motivo, setMotivo] = useState('')
@@ -296,9 +326,6 @@ export default function NuevoMovimientoClient() {
   const [isLoadingProductos, setIsLoadingProductos] = useState(true)
   const [isLoadingProveedores, setIsLoadingProveedores] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  // Combinar productos activos e inactivos
-  const todosLosProductos = [...productosActivos, ...productosInactivos]
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -351,14 +378,13 @@ export default function NuevoMovimientoClient() {
 
   useEffect(() => {
     if (productoId) {
+      const todosLosProductos = [...productosActivos, ...productosInactivos]
       const prod = todosLosProductos.find(p => p.id === Number(productoId))
       setProducto(prod || null)
-      setCodigoBarras(prod?.codigoBarras || '')
     } else {
       setProducto(null)
-      setCodigoBarras('')
     }
-  }, [productoId, todosLosProductos])
+  }, [productoId, productosActivos, productosInactivos])
 
   // Autofocus al cargar
   useEffect(() => {
@@ -380,7 +406,14 @@ export default function NuevoMovimientoClient() {
     setErrors([])
 
     try {
-      const movimientoData: any = {
+      const movimientoData: {
+        tipo: string
+        cantidad: number
+        productoId: number
+        motivo?: string
+        descripcion?: string
+        proveedorId?: number
+      } = {
         tipo,
         cantidad: parseInt(cantidad),
         productoId: producto.id,

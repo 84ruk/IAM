@@ -12,7 +12,7 @@ export const getErrorMessage = (error: FieldError | { message?: unknown } | unde
  * @param formData - Objeto con los datos del formulario
  * @returns Objeto limpio sin valores vacíos
  */
-export function cleanFormData<T extends Record<string, any>>(formData: T): Partial<T> {
+export function cleanFormData<T extends Record<string, unknown>>(formData: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(formData).map(([key, value]) => {
       // Si el valor es string vacío, null o undefined, no incluirlo
@@ -28,7 +28,7 @@ export function cleanFormData<T extends Record<string, any>>(formData: T): Parti
         return [key, value]
       }
       return [key, value]
-    }).filter(([_, value]) => value !== undefined)
+    }).filter(([, value]) => value !== undefined)
   ) as Partial<T>
 }
 
@@ -37,7 +37,7 @@ export function cleanFormData<T extends Record<string, any>>(formData: T): Parti
  * @param formData - Objeto con los datos del formulario
  * @returns Objeto limpio sin valores vacíos
  */
-export function cleanFormDataWithProveedor<T extends Record<string, any>>(formData: T): Partial<T> {
+export function cleanFormDataWithProveedor<T extends Record<string, unknown>>(formData: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(formData).map(([key, value]) => {
       // Si el valor es string vacío, null o undefined, no incluirlo
@@ -49,6 +49,6 @@ export function cleanFormDataWithProveedor<T extends Record<string, any>>(formDa
         return [key, undefined]
       }
       return [key, value]
-    }).filter(([_, value]) => value !== undefined)
+    }).filter(([, value]) => value !== undefined)
   ) as Partial<T>
 }

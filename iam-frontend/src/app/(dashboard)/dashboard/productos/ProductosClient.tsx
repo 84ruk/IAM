@@ -7,34 +7,20 @@ import useSWR from 'swr'
 import { cn } from '@/lib/utils'
 import { useSearchDebounce } from '@/hooks/useDebounce'
 import { 
-  ArrowDownIcon, 
-  ArrowUpIcon, 
-  Search, 
-  Filter, 
   Plus, 
   Edit, 
   Trash2, 
   Eye, 
   Package, 
   AlertTriangle,
-  TrendingUp,
-  DollarSign,
-  Calendar,
   RefreshCw,
-  MoreHorizontal,
   CheckCircle,
   XCircle,
   RotateCcw,
-  X,
-  Tag
+  X
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
-import { CardSkeleton } from '@/components/ui/CardSkeleton'
-import { pluralizarUnidad, formatearCantidadConUnidad } from '@/lib/pluralization'
 import { Producto } from '@/types/producto'
-import { TipoProductoConfig, TipoProducto } from '@/types/enums'
-import ProductTypeIcon from '@/components/ui/ProductTypeIcon'
-import EtiquetaTag from '@/components/ui/EtiquetaTag'
 import StockInfoModal from '@/components/ui/StockInfoModal'
 import ProductFormModal from '@/components/ui/ProductFormModal'
 import FormularioProducto from '@/components/productos/FormularioProducto'
@@ -67,12 +53,10 @@ export default function ProductosClient() {
   const [filtroTexto, setFiltroTexto] = useState('')
   const [filtroEtiqueta, setFiltroEtiqueta] = useState('')
   const [filtroTipoProducto, setFiltroTipoProducto] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState<'ACTIVO' | 'INACTIVO' | ''>('')
+  const [filtroEstado, setFiltroEstado] = useState<'ACTIVO' | 'INACTIVO' | ''>('') // Vacío por defecto para mostrar todos
   const [mostrarAgotados, setMostrarAgotados] = useState(false)
   
   // Estados de UI
-  const [orden, setOrden] = useState<'asc' | 'desc'>('asc')
-  const [columnaOrden, setColumnaOrden] = useState<keyof Producto>('nombre')
   const [pagina, setPagina] = useState(1)
   const [eliminandoId, setEliminandoId] = useState<number | null>(null)
   const [vista, setVista] = useState<'tabla' | 'tarjetas'>('tarjetas')
@@ -81,7 +65,9 @@ export default function ProductosClient() {
   const [showStockModal, setShowStockModal] = useState(false)
   const [selectedProducto, setSelectedProducto] = useState<Producto | null>(null)
   const [showProductFormModal, setShowProductFormModal] = useState(false)
-  const [productoEdit, setProductoEdit] = useState<Producto | null>(null)
+  const [isChangingPage, setIsChangingPage] = useState(false)
+  const [itemsPorPagina, setItemsPorPagina] = useState(50) // Aumentado para mejor escalabilidad
+
 
   // Aplicar debounce al filtro de texto (500ms)
   const { debouncedValue: debouncedFiltroTexto, isSearching } = useSearchDebounce(filtroTexto, 500)
@@ -102,11 +88,16 @@ export default function ProductosClient() {
     
     // Agregar parámetros de paginación
     params.set('page', pagina.toString())
-    params.set('limit', '12') // Usar 12 productos por página para la vista de tarjetas
+    params.set('limit', itemsPorPagina.toString()) // Usar límite dinámico para escalabilidad
+    
+    // Solo enviar filtro de estado si se especifica explícitamente
+    if (filtroEstado) {
+      params.set('estado', filtroEstado)
+    }
     
     const queryString = params.toString()
     return `/productos${queryString ? `?${queryString}` : ''}`
-  }, [debouncedFiltroTexto, filtroEtiqueta, filtroTipoProducto, filtroEstado, mostrarAgotados, pagina])
+  }, [debouncedFiltroTexto, filtroEtiqueta, filtroTipoProducto, filtroEstado, mostrarAgotados, pagina, itemsPorPagina])
 
   // Obtener productos con filtros aplicados en el backend
   const { data: productosData, error: errorProductos, mutate } = useSWR(buildUrl(), fetcher, {
@@ -127,18 +118,42 @@ export default function ProductosClient() {
     }
   }, [productosData])
 
+  // Resetear página cuando cambien los filtros (excepto cuando se cambia manualmente la página)
+  useEffect(() => {
+    if (hasInitialData) {
+      setPagina(1)
+    }
+  }, [debouncedFiltroTexto, filtroEtiqueta, filtroTipoProducto, filtroEstado, mostrarAgotados, hasInitialData])
+
+  // Resetear página cuando cambie la vista para evitar problemas de paginación
+  useEffect(() => {
+    if (hasInitialData) {
+      setPagina(1)
+    }
+  }, [vista, hasInitialData])
+
+  // Resetear página cuando cambie el límite de items por página
+  useEffect(() => {
+    if (hasInitialData) {
+      setPagina(1)
+    }
+  }, [itemsPorPagina, hasInitialData])
+
   // Estado de carga personalizado - solo mostrar loading si no hay datos iniciales
   const isLoading = !hasInitialData && !isSearching
 
   // Usar datos locales para evitar skeleton screens durante la búsqueda
   const productos = localProductos
   const totalProductos = localTotal
-  const itemsPorPagina = 12
+  
+  // Usar el límite real que viene del backend
+  const limiteBackend = productosData?.limit || itemsPorPagina
 
   const productosFiltrados = productos // ya viene paginado del backend
 
   // Usar la paginación que viene del backend
   const totalPaginas = productosData?.totalPages || 1
+  const paginaActual = productosData?.page || 1
 
   // Obtener etiquetas únicas para el filtro
   const etiquetasUnicas = useMemo(() => {
@@ -146,17 +161,20 @@ export default function ProductosClient() {
     return [...new Set(etiquetas)]
   }, [productos])
 
-  // Tipos de producto únicos - usar los valores del enum
-  const tiposProducto = Object.values(TipoProducto)
+  // Función para manejar cambio de página
+  const handlePageChange = useCallback((nuevaPagina: number) => {
+    setIsChangingPage(true)
+    setPagina(nuevaPagina)
+    // Scroll hacia arriba para mejor UX
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
-  const cambiarOrden = (columna: keyof Producto) => {
-    if (columna === columnaOrden) {
-      setOrden(orden === 'asc' ? 'desc' : 'asc')
-    } else {
-      setColumnaOrden(columna)
-      setOrden('asc')
+  // Resetear indicador de carga cuando lleguen nuevos datos
+  useEffect(() => {
+    if (productosData) {
+      setIsChangingPage(false)
     }
-  }
+  }, [productosData])
 
   // Función para limpiar filtros
   const limpiarFiltros = useCallback(() => {
@@ -166,6 +184,7 @@ export default function ProductosClient() {
     setFiltroEstado('')
     setMostrarAgotados(false)
     setPagina(1)
+    setHasInitialData(false) // Forzar recarga de datos
   }, [])
 
   // Verificar si hay filtros activos
@@ -183,10 +202,10 @@ export default function ProductosClient() {
   }, [filtroEtiqueta])
 
   // Función para mostrar errores
-  const mostrarError = (mensaje: string) => {
+  const mostrarError = useCallback((mensaje: string) => {
     setError(mensaje)
     setTimeout(() => setError(null), 5000)
-  }
+  }, [])
 
   // Función para manejar errores de respuesta del backend
   const manejarErrorBackend = async (response: Response, accion: string) => {
@@ -210,7 +229,7 @@ export default function ProductosClient() {
       
       // Error genérico
       mostrarError(`Error al ${accion}: ${errorData.message || 'Error desconocido'}`)
-    } catch (parseError) {
+    } catch {
       // Si no se puede parsear la respuesta, mostrar error genérico
       mostrarError(`Error al ${accion}. Código de estado: ${response.status}`)
     }
@@ -286,14 +305,7 @@ export default function ProductosClient() {
     return ((producto.precioVenta - producto.precioCompra) / producto.precioCompra * 100).toFixed(1)
   }
 
-  const getCodigoBarras = (producto: Producto) => {
-    return producto.codigoBarras || 'Sin código'
-  }
 
-  const mostrarStockInfo = (producto: Producto) => {
-    setSelectedProducto(producto)
-    setShowStockModal(true)
-  }
 
   const handleProductFormSuccess = () => {
     setShowProductFormModal(false)
@@ -487,6 +499,9 @@ export default function ProductosClient() {
             hayFiltrosActivos={hayFiltrosActivos}
             onLimpiarFiltros={limpiarFiltros}
             onAgregarProducto={() => setShowProductFormModal(true)}
+            totalProductos={totalProductos}
+            paginaActual={paginaActual}
+            totalPaginas={totalPaginas}
           />
         ) : (
           <>
@@ -535,6 +550,14 @@ export default function ProductosClient() {
             {/* Vista de tarjetas */}
             {vista === 'tarjetas' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+                {isChangingPage && (
+                  <div className="col-span-full flex justify-center py-8">
+                    <div className="flex items-center gap-3">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8E94F2]"></div>
+                      <span className="text-gray-600">Cargando productos...</span>
+                    </div>
+                  </div>
+                )}
                 {productosFiltrados.map((producto: Producto) => (
                   <ProductCard
                     key={producto.id}
@@ -557,6 +580,14 @@ export default function ProductosClient() {
             {vista === 'tabla' && (
               <Card className="mb-8">
                 <CardContent className="p-0">
+                  {isChangingPage && (
+                    <div className="flex justify-center py-8">
+                      <div className="flex items-center gap-3">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8E94F2]"></div>
+                        <span className="text-gray-600">Cargando productos...</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
@@ -661,13 +692,16 @@ export default function ProductosClient() {
             {/* Paginación */}
             {totalPaginas > 1 && (
               <Pagination
-                currentPage={productosData?.page || 1}
+                currentPage={paginaActual}
                 totalPages={totalPaginas}
                 totalItems={totalProductos}
-                itemsPerPage={itemsPorPagina}
-                startIndex={((productosData?.page || 1) - 1) * itemsPorPagina}
-                endIndex={Math.min((productosData?.page || 1) * itemsPorPagina, totalProductos)}
-                onPageChange={setPagina}
+                itemsPerPage={limiteBackend}
+                startIndex={((paginaActual - 1) * limiteBackend)}
+                endIndex={Math.min(paginaActual * limiteBackend, totalProductos)}
+                onPageChange={handlePageChange}
+                isChangingPage={isChangingPage}
+                showItemsPerPage={true}
+                onItemsPerPageChange={setItemsPorPagina}
               />
             )}
           </>

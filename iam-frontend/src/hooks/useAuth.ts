@@ -5,7 +5,7 @@ import { useServerUser } from '@/context/ServerUserContext'
 
 interface AuthInfo {
   isAuthenticated: boolean
-  user: any | null
+  user: unknown | null
   token: string | null
   error: string | null
   empresaId: number | null

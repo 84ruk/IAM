@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
-import Button from '@/components/ui/Button'
+
 import { FormErrorAlert } from '@/components/ui/FormErrorAlert'
 import VolverAtras from '@/components/ui/VolverAtras'
 import { 
@@ -305,7 +305,7 @@ export default function NuevoUsuarioPage() {
                   label="Rol"
                   name="rol"
                   value={formData.rol}
-                  onChange={(e) => handleInputChange('rol', e.target.value as any)}
+                  onChange={(e) => handleInputChange('rol', e.target.value)}
                   options={roles.map(role => ({ 
                     value: role.value, 
                     label: role.label 

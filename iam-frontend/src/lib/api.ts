@@ -12,7 +12,7 @@ const API_CONFIG = {
 }
 
 // Tipos para las respuestas de API
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data: T
   message?: string
   status: 'success' | 'error'
@@ -27,7 +27,7 @@ export interface PaginatedResponse<T> {
 }
 
 // Validación de entrada
-function validateInput(data: any, schema?: Record<string, any>): void {
+function validateInput(data: unknown, schema?: Record<string, unknown>): void {
   if (!data) return
 
   // Validación básica de tipos
@@ -104,7 +104,7 @@ export class ApiClient {
   private async makeRequest<T>(
     method: string,
     endpoint: string,
-    data?: any,
+    data?: unknown,
     options?: RequestInit & { responseType?: string },
     retryCount = 0
   ): Promise<T> {
@@ -159,7 +159,7 @@ export class ApiClient {
       }
 
       return await validateApiResponse(response)
-    } catch (error: unknown) {
+    } catch (error) {
       // Manejar errores específicos antes de reintentos
       if (error instanceof AppError) {
         // Error 403 específico de empresa requerida
@@ -207,7 +207,7 @@ export class ApiClient {
   }
 
   // Método GET genérico
-  async get<T>(endpoint: string, options?: RequestInit & { params?: Record<string, any>; responseType?: string }): Promise<T> {
+  async get<T>(endpoint: string, options?: RequestInit & { params?: Record<string, unknown>; responseType?: string }): Promise<T> {
     let url = endpoint
     
     if (options?.params) {
@@ -228,17 +228,17 @@ export class ApiClient {
   }
 
   // Método POST genérico
-  async post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown, options?: RequestInit): Promise<T> {
     return this.makeRequest<T>('POST', endpoint, data, options)
   }
 
   // Método PUT genérico
-  async put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown, options?: RequestInit): Promise<T> {
     return this.makeRequest<T>('PUT', endpoint, data, options)
   }
 
   // Método PATCH genérico
-  async patch<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+  async patch<T>(endpoint: string, data?: unknown, options?: RequestInit): Promise<T> {
     return this.makeRequest<T>('PATCH', endpoint, data, options)
   }
 
@@ -249,7 +249,7 @@ export class ApiClient {
 }
 
 // Funciones helper para manejo de datos
-export function normalizeApiResponse<T>(response: any): T {
+export function normalizeApiResponse<T>(response: unknown): T {
   // Si la respuesta es un array, asegurar que siempre sea un array
   if (Array.isArray(response)) {
     return response as T
@@ -273,7 +273,7 @@ export function normalizeApiResponse<T>(response: any): T {
   return response as T
 }
 
-export function isEmptyResponse(response: any): boolean {
+export function isEmptyResponse(response: unknown): boolean {
   if (!response) return true
   if (Array.isArray(response)) return response.length === 0
   if (typeof response === 'object' && 'data' in response) {

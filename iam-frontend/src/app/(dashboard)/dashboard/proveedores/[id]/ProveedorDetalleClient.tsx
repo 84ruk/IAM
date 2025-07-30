@@ -15,9 +15,7 @@ import {
   Package,
   Plus,
   Search,
-  RefreshCw,
   Eye,
-  MoreHorizontal,
   TrendingUp,
   X,
   UserPlus
@@ -367,10 +365,10 @@ export default function ProveedorDetalleClient() {
                     </div>
                   )}
 
-                  {(proveedor as any).direccion && (
+                  {(proveedor as { direccion?: string }).direccion && (
                     <div className="flex items-start gap-3">
                       <Package className="w-4 h-4 text-gray-400 mt-0.5" />
-                      <span className="text-gray-700">{(proveedor as any).direccion}</span>
+                      <span className="text-gray-700">{(proveedor as { direccion?: string }).direccion}</span>
                     </div>
                   )}
                 </div>

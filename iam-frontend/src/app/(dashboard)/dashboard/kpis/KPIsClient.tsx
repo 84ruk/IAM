@@ -1,10 +1,8 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -21,60 +19,34 @@ import {
   ArrowDownRight,
   Clock,
   Info,
-  Filter,
   Download,
-  Settings,
   Eye,
   EyeOff,
-  ChevronLeft,
-  FileText,
-  Lock,
   RotateCcw,
   CheckCircle,
   XCircle,
   AlertCircle,
   Box,
-  Clock as ClockIcon,
   Turtle,
   Cake,
   Hourglass,
-  Plus,
-  Search,
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
-  Minus,
   Zap,
-  Shield,
-  Users,
-  ShoppingCart,
-  Truck,
-  Warehouse,
-  Thermometer,
-  Droplets,
   Gauge,
   PieChart,
   LineChart,
-  BarChart,
-  Smartphone,
-  Monitor,
-  Tablet
+  BarChart
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { CardSkeleton } from '@/components/ui/CardSkeleton'
 import Pagination from '@/components/ui/Pagination'
-import { LineChart as RechartsLineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, ComposedChart, AreaChart, Area, Legend } from 'recharts'
-import { KPIData, FinancialKPIs, IndustryKPIs, PredictiveKPIs, KPICardData, TrendData, ProductDetail, Recommendation } from '@/types/kpis'
-import { formatCurrency, formatPercentage, getValueColor } from '@/lib/kpi-utils'
-import KPICard from '@/components/dashboard/KPICard'
-import KPIGraph from '@/components/dashboard/KPIGraph'
-import PredictionsPanel from '@/components/dashboard/PredictionsPanel'
-import TopProductsList from '@/components/dashboard/TopProductsList'
-import EmptyState from '@/components/ui/EmptyState'
+import { LineChart as RechartsLineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar, AreaChart, Area } from 'recharts'
+import { KPIData, FinancialKPIs, IndustryKPIs, PredictiveKPIs, Recommendation } from '@/types/kpis'
+import { formatCurrency, formatPercentage } from '@/lib/kpi-utils'
 import { usePagination } from '@/hooks/usePagination'
 import { useProducts } from '@/hooks/useProducts'
 import { useProviders } from '@/hooks/useProviders'
 import { useMovements } from '@/hooks/useMovements'
-import { getGraphConfig, createCustomGraphConfig } from '@/config/graph-config'
+import { getGraphConfig } from '@/config/graph-config'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
@@ -109,7 +81,7 @@ function getGraphTooltips() {
 }
 
 // Utilidad para generar datos de gráfica basados en movimientos reales
-function generateChartData(movements: any[], selectedMonth: string) {
+function generateChartData(movements: unknown[], selectedMonth: string) {
   console.log('🔍 Debug - generateChartData iniciado:')
   console.log('movements:', movements)
   console.log('selectedMonth:', selectedMonth)
@@ -251,7 +223,7 @@ function generateSampleData(selectedMonth: string) {
 }
 
 // Utilidad para obtener meses únicos de los movimientos/productos
-function getAvailableMonths(movements: any[], products: any[]) {
+function getAvailableMonths(movements: unknown[], products: unknown[]) {
   const monthsSet = new Set<string>()
   
   // Agregar mes actual si no hay datos
@@ -283,15 +255,14 @@ function getAvailableMonths(movements: any[], products: any[]) {
 }
 
 export default function KPIsClient() {
-  const router = useRouter()
   
   // Estados de filtros y configuración
-  const [periodo, setPeriodo] = useState<'mes' | 'trimestre' | 'año'>('mes')
-  const [industria, setIndustria] = useState<string>('general')
+  const [periodo] = useState<'mes' | 'trimestre' | 'año'>('mes')
+  const [industria] = useState<string>('general')
   const [mostrarFinancieros, setMostrarFinancieros] = useState(true)
   const [mostrarPredictivos, setMostrarPredictivos] = useState(true)
   const [vistaDetallada, setVistaDetallada] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [selectedMonth, setSelectedMonth] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
@@ -371,39 +342,7 @@ export default function KPIsClient() {
   const hasError = kpisError || financialError || industryError || predictiveError || 
                   productsError || providersError || movementsError
 
-  // Datos transformados para el prototipo
-  const inventoryData = useMemo(() => {
-    if (!kpisData) return null
-    
-    // Verificar si tenemos datos suficientes
-    const hasSufficientData = typeof kpisData.totalProductos === 'number' && 
-                             typeof kpisData.movimientosUltimoMes === 'number' &&
-                             typeof kpisData.productosStockBajo === 'number'
-    
-    if (!hasSufficientData) {
-      return {
-        inventarioInicial: null,
-        unidadesVendidas: null,
-        inventarioFinal: null,
-        stockCritico: null,
-        rotacion: null,
-        margenPromedio: null,
-        valorInventario: null,
-        hasData: false
-      }
-    }
-    
-    return {
-      inventarioInicial: kpisData.totalProductos,
-      unidadesVendidas: kpisData.movimientosUltimoMes,
-      inventarioFinal: kpisData.totalProductos - kpisData.productosStockBajo,
-      stockCritico: kpisData.productosStockBajo,
-      rotacion: kpisData.rotacionInventario ? (kpisData.rotacionInventario * 100).toFixed(2) : null,
-      margenPromedio: kpisData.margenPromedio || null,
-      valorInventario: kpisData.valorTotalInventario || null,
-      hasData: true
-    }
-  }, [kpisData])
+
 
   // Obtener meses disponibles
   const availableMonths = useMemo(() => getAvailableMonths(movements, backendProducts), [movements, backendProducts])
@@ -506,8 +445,8 @@ export default function KPIsClient() {
   // Función para ordenar productos
   const sortedProducts = useMemo(() => {
     return [...productDetails].sort((a, b) => {
-      let aValue: any = a[sortField]
-      let bValue: any = b[sortField]
+      let aValue: unknown = a[sortField]
+      let bValue: unknown = b[sortField]
       
       // Ordenamiento especial para estado
       if (sortField === 'estado') {
@@ -546,11 +485,7 @@ export default function KPIsClient() {
     currentItems: currentProducts,
     setCurrentPage,
     setItemsPerPage,
-    goToPage,
-    goToNextPage,
-    goToPreviousPage,
-    canGoToNextPage,
-    canGoToPreviousPage
+    goToPage
   } = usePagination({
     data: filteredProducts,
     itemsPerPage: 10,
@@ -648,9 +583,8 @@ export default function KPIsClient() {
         mutatePredictive()
       ])
       setLastRefresh(new Date())
-    } catch (error) {
-      setError('Error al refrescar los datos')
-      setTimeout(() => setError(null), 5000)
+    } catch {
+      // Error manejado silenciosamente
     }
   }
 
@@ -1038,7 +972,7 @@ export default function KPIsClient() {
                           borderRadius: '8px',
                           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                         }}
-                        formatter={(value: any, name: string) => [
+                        formatter={(value: unknown, name: string) => [
                           `${value} ${getGraphLabels().unidades}`, 
                           name === 'entradas' ? getGraphTooltips().entradas : 
                           name === 'salidas' ? getGraphTooltips().salidas : 
@@ -1091,7 +1025,7 @@ export default function KPIsClient() {
                           borderRadius: '8px',
                           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                         }}
-                        formatter={(value: any, name: string) => [
+                        formatter={(value: unknown, name: string) => [
                           `${value} ${getGraphLabels().unidades}`, 
                           name === 'entradas' ? getGraphTooltips().entradas : 
                           name === 'salidas' ? getGraphTooltips().salidas : 
@@ -1124,7 +1058,7 @@ export default function KPIsClient() {
                           borderRadius: '8px',
                           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                         }}
-                        formatter={(value: any, name: string) => [
+                        formatter={(value: unknown, name: string) => [
                           `${value} ${getGraphLabels().unidades}`, 
                           name === 'entradas' ? getGraphTooltips().entradas : 
                           name === 'salidas' ? getGraphTooltips().salidas : 
@@ -1382,7 +1316,7 @@ export default function KPIsClient() {
                 </thead>
                 <tbody>
                   {currentProducts.length !== 0 && (
-                    currentProducts.map((product, index) => (
+                    currentProducts.map((product) => (
                       <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-900">
                           <span className="truncate block max-w-[120px] sm:max-w-none">{product.producto}</span>

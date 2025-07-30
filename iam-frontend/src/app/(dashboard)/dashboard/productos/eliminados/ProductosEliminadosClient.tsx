@@ -9,7 +9,6 @@ import {
   Search,
   RotateCcw,
   AlertTriangle,
-  RefreshCw,
   XCircle,
   Package,
   CheckCircle,
@@ -326,7 +325,7 @@ export default function ProductosEliminadosClient() {
                   {/* Icono de tipo de producto en esquina superior derecha */}
                   <div className="absolute top-4 right-4">
                     <ProductTypeIcon 
-                      tipoProducto={producto.tipoProducto as any || 'GENERICO'} 
+                      tipoProducto={producto.tipoProducto || 'GENERICO'} 
                       size="sm"
                     />
                   </div>
