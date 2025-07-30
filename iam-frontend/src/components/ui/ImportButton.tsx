@@ -3,8 +3,7 @@
 import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import { Upload, Plus, Sparkles, Brain } from 'lucide-react'
-import UnifiedImportModal from '@/components/importacion/UnifiedImportModal'
-import SafeAutoImportModal from '@/components/importacion/SafeAutoImportModal'
+import SmartImportModal from '@/components/importacion/SmartImportModal'
 
 interface ImportButtonProps {
   variant?: 'default' | 'outline' | 'ghost'
@@ -180,14 +179,14 @@ export default function ImportButton({
 
       {/* Asegurar que los modales estén dentro del contexto de importación */}
       {isUnifiedModalOpen && (
-        <UnifiedImportModal 
+        <SmartImportModal 
           isOpen={isUnifiedModalOpen} 
           onClose={handleCloseUnifiedModal} 
         />
       )}
 
       {isAutoModalOpen && (
-        <SafeAutoImportModal 
+        <SmartImportModal 
           isOpen={isAutoModalOpen} 
           onClose={handleCloseAutoModal} 
         />
@@ -323,7 +322,7 @@ export function AddImportButton() {
         </div>
       )}
 
-      <SafeAutoImportModal 
+      <SmartImportModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
       />
@@ -347,7 +346,7 @@ export function AutoImportButton() {
         Importación Inteligente
       </Button>
 
-      <SafeAutoImportModal 
+      <SmartImportModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
       />

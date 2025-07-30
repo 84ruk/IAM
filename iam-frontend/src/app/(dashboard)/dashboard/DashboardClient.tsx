@@ -36,6 +36,7 @@ import {
   Database
 } from 'lucide-react'
 import { DashboardConditionalImportButton } from '@/components/ui/ConditionalImportButton'
+import ImportButton from '@/components/ui/ImportButton'
 
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
@@ -479,6 +480,10 @@ export default function DashboardClient() {
 
         {/* Request Blocker (solo en desarrollo) */}
         <RequestBlocker enabled={process.env.NODE_ENV === 'development'} />
+
+        <div className="flex justify-end mb-4">
+          <ImportButton />
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <KPICard

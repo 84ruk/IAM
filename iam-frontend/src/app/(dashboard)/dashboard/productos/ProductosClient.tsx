@@ -32,7 +32,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { CardSkeleton } from '@/components/ui/CardSkeleton'
 import { pluralizarUnidad, formatearCantidadConUnidad } from '@/lib/pluralization'
 import { Producto } from '@/types/producto'
-import { TipoProductoConfig } from '@/types/enums'
+import { TipoProductoConfig, TipoProducto } from '@/types/enums'
 import ProductTypeIcon from '@/components/ui/ProductTypeIcon'
 import EtiquetaTag from '@/components/ui/EtiquetaTag'
 import StockInfoModal from '@/components/ui/StockInfoModal'
@@ -87,7 +87,7 @@ export default function ProductosClient() {
   const { debouncedValue: debouncedFiltroTexto, isSearching } = useSearchDebounce(filtroTexto, 500)
 
   // Estado local para mantener datos durante la búsqueda
-  const [localProductos, setLocalProductos] = useState<any[]>([])
+  const [localProductos, setLocalProductos] = useState<Producto[]>([])
   const [localTotal, setLocalTotal] = useState(0)
   const [hasInitialData, setHasInitialData] = useState(false)
 
@@ -100,9 +100,13 @@ export default function ProductosClient() {
     if (filtroEstado) params.set('estado', filtroEstado)
     if (mostrarAgotados) params.set('agotados', 'true')
     
+    // Agregar parámetros de paginación
+    params.set('page', pagina.toString())
+    params.set('limit', '12') // Usar 12 productos por página para la vista de tarjetas
+    
     const queryString = params.toString()
     return `/productos${queryString ? `?${queryString}` : ''}`
-  }, [debouncedFiltroTexto, filtroEtiqueta, filtroTipoProducto, filtroEstado, mostrarAgotados])
+  }, [debouncedFiltroTexto, filtroEtiqueta, filtroTipoProducto, filtroEstado, mostrarAgotados, pagina])
 
   // Obtener productos con filtros aplicados en el backend
   const { data: productosData, error: errorProductos, mutate } = useSWR(buildUrl(), fetcher, {
@@ -131,11 +135,10 @@ export default function ProductosClient() {
   const totalProductos = localTotal
   const itemsPorPagina = 12
 
-  const productosFiltrados = productos // ya viene paginado
+  const productosFiltrados = productos // ya viene paginado del backend
 
-  const totalPaginas = useMemo(() => {
-    return Math.max(1, Math.ceil(totalProductos / itemsPorPagina))
-  }, [totalProductos])
+  // Usar la paginación que viene del backend
+  const totalPaginas = productosData?.totalPages || 1
 
   // Obtener etiquetas únicas para el filtro
   const etiquetasUnicas = useMemo(() => {
@@ -143,8 +146,8 @@ export default function ProductosClient() {
     return [...new Set(etiquetas)]
   }, [productos])
 
-  // Tipos de producto únicos
-  const tiposProducto = ['GENERICO', 'ROPA', 'ALIMENTO', 'ELECTRONICO']
+  // Tipos de producto únicos - usar los valores del enum
+  const tiposProducto = Object.values(TipoProducto)
 
   const cambiarOrden = (columna: keyof Producto) => {
     if (columna === columnaOrden) {
@@ -658,12 +661,12 @@ export default function ProductosClient() {
             {/* Paginación */}
             {totalPaginas > 1 && (
               <Pagination
-                currentPage={pagina}
+                currentPage={productosData?.page || 1}
                 totalPages={totalPaginas}
                 totalItems={totalProductos}
                 itemsPerPage={itemsPorPagina}
-                startIndex={(pagina - 1) * itemsPorPagina}
-                endIndex={pagina * itemsPorPagina}
+                startIndex={((productosData?.page || 1) - 1) * itemsPorPagina}
+                endIndex={Math.min((productosData?.page || 1) * itemsPorPagina, totalProductos)}
                 onPageChange={setPagina}
               />
             )}

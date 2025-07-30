@@ -1,304 +1,651 @@
 'use client'
 
-import { useMemo, useCallback, useRef } from 'react'
-import { useImportacionOptimized } from './useImportacionOptimized'
-import { useImportacionWebSocket } from './useImportacionWebSocket'
-import { TipoImportacion } from '@/context/ImportacionGlobalContext'
-import { ImportacionAutoDto } from '@/lib/api/importacion'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useToast } from '@/hooks/useToast'
+import { useAuth } from '@/hooks/useAuth'
+import { useServerUser } from '@/context/ServerUserContext'
+import io, { Socket } from 'socket.io-client'
+import { 
+  ImportacionTrabajo, 
+  ImportacionOpciones, 
+  ImportacionResultado, 
+  ImportacionEstado,
+  TipoImportacion 
+} from '@/types/importacion'
 
-// Configuración para determinar cuándo usar WebSocket
-const WEBSOCKET_THRESHOLDS = {
-  RECORDS: 1000, // Más de 1000 registros
-  FILE_SIZE: 10 * 1024 * 1024, // Más de 10MB
-  ESTIMATED_TIME: 30000, // Más de 30 segundos
-  COMPLEXITY_LEVELS: {
-    SIMPLE: ['proveedores', 'categorias'] as const,
-    MEDIUM: ['productos', 'movimientos'] as const,
-    COMPLEX: ['inventario_completo', 'datos_historicos'] as const
-  }
-} as const
 
-// Función para analizar si un archivo necesita WebSocket
-const analyzeFileForWebSocket = (file: File, tipo: TipoImportacion): boolean => {
-  // Por tamaño de archivo
-  if (file.size > WEBSOCKET_THRESHOLDS.FILE_SIZE) {
-    return true
-  }
-
-  // Por tipo de importación (complejidad)
-  const isComplexType = WEBSOCKET_THRESHOLDS.COMPLEXITY_LEVELS.COMPLEX.includes(tipo as any)
-  if (isComplexType) {
-    return true
-  }
-
-  // Por tipo de importación (media)
-  const isMediumType = WEBSOCKET_THRESHOLDS.COMPLEXITY_LEVELS.MEDIUM.includes(tipo as any)
-  if (isMediumType && file.size > 5 * 1024 * 1024) { // 5MB para tipos medios
-    return true
-  }
-
-  return false
-}
 
 interface UseImportacionUnifiedReturn {
-  // Estado base
-  isImporting: boolean
-  currentTrabajo: any
-  error: string | null
-  success: string | null
-  validationErrors: any[] | null
-  deteccionTipo: any
-  
-  // Estado de WebSocket
-  isConnected: boolean
-  subscribedTrabajos: Set<string>
-  
-  // Trabajos y estadísticas
-  trabajos: any[]
-  trabajosRecientes: any[]
-  trabajosEnProgreso: any[]
-  estadisticas: {
-    total: number
-    completados: number
-    conError: number
-    enProgreso: number
-    porcentajeExito: number
-  }
-  
-  // Funciones de importación
-  importarNormal: (archivo: File, tipo: TipoImportacion, opciones: any) => Promise<void>
-  importarAutomatica: (archivo: File, opciones: ImportacionAutoDto) => Promise<void>
-  validarAutomatica: (archivo: File, opciones?: any) => Promise<any>
-  confirmarAutomatica: (trabajoId: string, opciones: any) => Promise<void>
-  
-  // Funciones de utilidad
-  descargarPlantilla: (tipo: TipoImportacion) => Promise<void>
-  cancelarTrabajo: () => Promise<void>
-  descargarReporteErrores: () => Promise<void>
-  
-  // Funciones de limpieza
+  state: ImportacionEstado
+  importar: (file: File, tipo: TipoImportacion, opciones?: ImportacionOpciones) => Promise<ImportacionResultado>
+  cancelarTrabajo: (trabajoId: string) => Promise<void>
+  clearState: () => void
   clearError: () => void
   clearSuccess: () => void
-  clearValidationErrors: () => void
-  clearDeteccionTipo: () => void
-  
-  // Funciones de WebSocket
   subscribeToTrabajo: (trabajoId: string) => void
   unsubscribeFromTrabajo: (trabajoId: string) => void
-  
-  // Utilidades
-  isReady: boolean
-  hasData: boolean
-  hasActiveImport: boolean
-  
-  // Análisis de archivos
-  analyzeFile: (file: File, tipo: TipoImportacion) => { needsWebSocket: boolean; reason: string }
+  descargarPlantilla: (tipo: TipoImportacion) => Promise<void>
+  descargarReporteErrores: (trabajoId: string) => Promise<void>
 }
 
-export const useImportacionUnified = (): UseImportacionUnifiedReturn => {
-  const baseHook = useImportacionOptimized()
-  const webSocketHook = useImportacionWebSocket()
-  
-  // Ref para mantener las suscripciones activas
-  const subscribedTrabajosRef = useRef<Set<string>>(new Set())
-  
-  // Función para analizar archivos
-  const analyzeFile = useCallback((file: File, tipo: TipoImportacion) => {
-    const needsWebSocket = analyzeFileForWebSocket(file, tipo)
-    
-    let reason = ''
-    if (file.size > WEBSOCKET_THRESHOLDS.FILE_SIZE) {
-      reason = `Archivo grande (${(file.size / 1024 / 1024).toFixed(1)}MB)`
-    } else if (WEBSOCKET_THRESHOLDS.COMPLEXITY_LEVELS.COMPLEX.includes(tipo as any)) {
-      reason = 'Tipo de importación complejo'
-    } else if (WEBSOCKET_THRESHOLDS.COMPLEXITY_LEVELS.MEDIUM.includes(tipo as any) && file.size > 5 * 1024 * 1024) {
-      reason = 'Tipo medio con archivo grande'
-    } else {
-      reason = 'Archivo pequeño, no necesita WebSocket'
+export function useImportacionUnified(): UseImportacionUnifiedReturn {
+  const [state, setState] = useState<ImportacionEstado>({
+    isImporting: false,
+    currentTrabajo: null,
+    error: null,
+    success: null,
+    modo: null,
+    isConnected: false,
+    trabajos: [],
+    estadisticas: {
+      total: 0,
+      completados: 0,
+      conError: 0,
+      enProgreso: 0,
+      porcentajeExito: 0
     }
-    
-    return { needsWebSocket, reason }
-  }, [])
-  
-  // Combinar estado de WebSocket con el estado base (memoizado para evitar re-renders)
-  const combinedState = useMemo(() => ({
-    ...baseHook,
-    isConnected: webSocketHook.isConnected,
-    subscribedTrabajos: subscribedTrabajosRef.current,
-  }), [baseHook, webSocketHook.isConnected])
-  
-  // Función para asegurar conexión WebSocket solo cuando sea necesario
-  const ensureWebSocketConnection = useCallback(async (file: File, tipo: TipoImportacion) => {
-    const analysis = analyzeFile(file, tipo)
-    
-    if (!analysis.needsWebSocket) {
-      console.log('📁 Archivo pequeño, usando HTTP:', analysis.reason)
+  })
+
+  const [socket, setSocket] = useState<Socket | null>(null)
+  const webSocketConnected = useRef(false)
+  const currentTrabajoId = useRef<string | null>(null)
+  const pollingInterval = useRef<NodeJS.Timeout | null>(null)
+  const { toast } = useToast()
+  const { validateAuth } = useAuth()
+  const user = useServerUser()
+
+  // Función para desconectar WebSocket
+  const disconnectWebSocket = useCallback(() => {
+    if (socket) {
+      console.log('🔌 Desconectando WebSocket...')
+      socket.disconnect()
+      setSocket(null)
+      setState(prev => ({ ...prev, isConnected: false }))
+      webSocketConnected.current = false
+    }
+  }, [socket])
+
+  // Limpiar polling al desmontar
+  useEffect(() => {
+    return () => {
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current)
+      }
+      disconnectWebSocket()
+    }
+  }, [disconnectWebSocket])
+
+  // Función para conectar WebSocket solo cuando sea necesario
+  const connectWebSocket = useCallback(async (): Promise<boolean> => {
+    if (state.isConnected && socket) {
+      return true
+    }
+
+    try {
+      console.log('🔌 Conectando WebSocket para archivo grande...')
+      
+      // Validar autenticación
+      const isValid = await validateAuth()
+      if (!isValid) {
+        throw new Error('No autorizado')
+      }
+
+      // Crear nueva conexión Socket.IO
+      const newSocket = io(`${process.env.NEXT_PUBLIC_API_URL}/importacion`, {
+        withCredentials: true,
+        transports: ['websocket', 'polling'],
+        autoConnect: false,
+        reconnection: false,
+        timeout: 10000,
+        forceNew: true
+      })
+
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          newSocket.disconnect()
+          resolve(false)
+        }, 10000)
+
+        newSocket.on('connect', () => {
+          clearTimeout(timeout)
+          console.log('✅ WebSocket conectado para seguimiento en tiempo real')
+          setSocket(newSocket)
+          setState(prev => ({ ...prev, isConnected: true }))
+          webSocketConnected.current = true
+          resolve(true)
+        })
+
+        newSocket.on('disconnect', () => {
+          console.log('❌ WebSocket desconectado')
+          setSocket(null)
+          setState(prev => ({ ...prev, isConnected: false }))
+          webSocketConnected.current = false
+        })
+
+        newSocket.on('connect_error', (error) => {
+          clearTimeout(timeout)
+          console.error('❌ Error de conexión WebSocket:', error)
+          setSocket(null)
+          setState(prev => ({ ...prev, isConnected: false }))
+          webSocketConnected.current = false
+          resolve(false)
+        })
+
+        // Conectar manualmente
+        newSocket.connect()
+      })
+    } catch (error) {
+      console.error('❌ Error al conectar WebSocket:', error)
       return false
     }
+  }, [state.isConnected, socket, validateAuth])
+
+  // Escuchar eventos WebSocket
+  useEffect(() => {
+    if (!socket || !webSocketConnected.current) return
+
+    const handleProgresoActualizado = (data: unknown) => {
+      console.log('📊 Progreso actualizado via WebSocket:', data)
+      const progressData = data as {
+        trabajoId: string
+        progreso?: number
+        registrosProcesados?: number
+        registrosExitosos?: number
+        registrosConError?: number
+        totalRegistros?: number
+        mensaje?: string
+        estado?: 'pendiente' | 'procesando' | 'completado' | 'error' | 'cancelado'
+      }
+      
+      if (progressData.trabajoId === currentTrabajoId.current) {
+        setState(prev => ({
+          ...prev,
+          currentTrabajo: prev.currentTrabajo ? {
+            ...prev.currentTrabajo,
+            progreso: progressData.progreso || 0,
+            registrosProcesados: progressData.registrosProcesados || 0,
+            registrosExitosos: progressData.registrosExitosos || 0,
+            registrosConError: progressData.registrosConError || 0,
+            totalRegistros: progressData.totalRegistros || 0,
+            mensaje: progressData.mensaje,
+            estado: progressData.estado || 'procesando'
+          } : null
+        }))
+      }
+    }
+
+    const handleTrabajoCompletado = (data: unknown) => {
+      console.log('✅ Trabajo completado via WebSocket:', data)
+      const completionData = data as { trabajoId: string }
+      
+      if (completionData.trabajoId === currentTrabajoId.current) {
+        setState(prev => ({
+          ...prev,
+          isImporting: false,
+          currentTrabajo: null,
+          success: 'Importación completada exitosamente'
+        }))
+        toast.success('Importación completada exitosamente')
+        stopPolling()
+        disconnectWebSocket()
+      }
+    }
+
+    const handleTrabajoError = (data: unknown) => {
+      console.log('❌ Error en trabajo via WebSocket:', data)
+      const errorData = data as { trabajoId: string; mensaje?: string }
+      
+      if (errorData.trabajoId === currentTrabajoId.current) {
+        setState(prev => ({
+          ...prev,
+          isImporting: false,
+          currentTrabajo: null,
+          error: errorData.mensaje || 'Error en la importación'
+        }))
+        toast.error(errorData.mensaje || 'Error en la importación')
+        stopPolling()
+        disconnectWebSocket()
+      }
+    }
+
+    socket.on('progreso:actualizado', handleProgresoActualizado)
+    socket.on('trabajo:completado', handleTrabajoCompletado)
+    socket.on('trabajo:error', handleTrabajoError)
+
+    return () => {
+      socket.off('progreso:actualizado', handleProgresoActualizado)
+      socket.off('trabajo:completado', handleTrabajoCompletado)
+      socket.off('trabajo:error', handleTrabajoError)
+    }
+  }, [socket, webSocketConnected.current, currentTrabajoId, toast, disconnectWebSocket])
+
+  // Función para determinar el modo de importación basado en el tamaño del archivo
+  const determinarModo = useCallback((file: File, tipo: string): 'http' | 'websocket' => {
+    const fileSizeMB = file.size / (1024 * 1024)
     
-    console.log('🔌 Archivo grande, conectando WebSocket:', analysis.reason)
+    // Archivos pequeños (< 1MB) usan importación rápida
+    if (fileSizeMB < 1) {
+      console.log(`📁 Archivo pequeño (${fileSizeMB.toFixed(2)}MB) - Usando importación rápida`)
+      return 'http'
+    }
     
-    // Intentar conectar WebSocket si no está conectado
-    if (!webSocketHook.isConnected) {
+    // Archivos grandes (≥ 1MB) usan WebSocket
+    console.log(`📁 Archivo grande (${fileSizeMB.toFixed(2)}MB) - Usando WebSocket`)
+    return 'websocket'
+  }, [])
+
+  // Función para importación HTTP (usando importación rápida para archivos pequeños)
+  const importarHTTP = useCallback(async (file: File, tipo: string, opciones?: ImportacionOpciones) => {
+    const formData = new FormData()
+    formData.append('archivo', file)
+    formData.append('tipo', tipo)
+    
+    // Agregar opciones si existen
+    if (opciones) {
+      Object.keys(opciones).forEach(key => {
+        const value = opciones[key as keyof ImportacionOpciones]
+        if (value !== undefined) {
+          formData.append(key, String(value))
+        }
+      })
+    }
+
+    // Usar API route del frontend que hace proxy al backend
+    const response = await fetch('/api/importacion/rapida', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.error || result.message || 'Error en importación rápida')
+    }
+
+    // NO mostrar alerts automáticos - el componente manejará la UI
+    return result
+  }, [])
+
+  // Función para importación WebSocket (usando el endpoint unificado existente)
+  const importarWebSocket = useCallback(async (file: File, tipo: string, opciones?: ImportacionOpciones) => {
+    // Asegurar conexión WebSocket solo para archivos grandes
+    console.log('🔌 Conectando WebSocket para archivo grande...')
+    const connected = await connectWebSocket()
+    if (!connected) {
+      throw new Error('No se pudo conectar WebSocket para seguimiento')
+    }
+    
+    webSocketConnected.current = true
+    console.log('✅ WebSocket conectado para seguimiento en tiempo real')
+
+    const formData = new FormData()
+    formData.append('archivo', file)
+    formData.append('tipo', tipo)
+
+    // Agregar opciones si existen
+    if (opciones) {
+      Object.keys(opciones).forEach(key => {
+        const value = opciones[key as keyof ImportacionOpciones]
+        if (value !== undefined) {
+          formData.append(key, String(value))
+        }
+      })
+    }
+
+    // Usar API route del frontend que hace proxy al backend
+    const response = await fetch('/api/importacion/unificada', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || 'Error en importación WebSocket')
+    }
+
+    return await response.json()
+  }, [connectWebSocket])
+
+  // Función para iniciar polling como respaldo
+  const startPolling = useCallback((trabajoId: string) => {
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current)
+    }
+
+    currentTrabajoId.current = trabajoId
+
+    pollingInterval.current = setInterval(async () => {
       try {
-        webSocketHook.connect()
-        // Esperar un poco para que se establezca la conexión
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        if (!webSocketHook.isConnected) {
-          console.warn('⚠️ No se pudo conectar WebSocket, usando HTTP como fallback')
-          return false
+        const response = await fetch(`/api/importacion/trabajos/${trabajoId}/estado`, {
+          credentials: 'include'
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const trabajo = data.trabajo
+
+          setState(prev => ({
+            ...prev,
+            currentTrabajo: trabajo
+          }))
+
+          if (trabajo.estado === 'completado' || trabajo.estado === 'error') {
+            stopPolling()
+            setState(prev => ({
+              ...prev,
+              isImporting: false,
+              currentTrabajo: null,
+              success: trabajo.estado === 'completado' ? 'Importación completada' : null,
+              error: trabajo.estado === 'error' ? trabajo.mensaje || 'Error en la importación' : null
+            }))
+
+            // NO mostrar alerts automáticos - el componente manejará la UI
+          }
         }
       } catch (error) {
-        console.warn('⚠️ Error conectando WebSocket, usando HTTP como fallback:', error)
-        return false
+        console.error('Error en polling:', error)
       }
+    }, 2000) // Polling cada 2 segundos
+  }, [])
+
+  // Función para detener polling
+  const stopPolling = useCallback(() => {
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current)
+      pollingInterval.current = null
     }
-    
-    return true
-  }, [webSocketHook.isConnected, webSocketHook.connect, analyzeFile])
-  
-  // Funciones específicas para importación normal
-  const importarNormal = useCallback(async (
-    archivo: File, 
-    tipo: TipoImportacion, 
-    opciones: any
-  ) => {
+    currentTrabajoId.current = null
+  }, [])
+
+  // Función principal de importación
+  const importar = useCallback(async (file: File, tipo: string, opciones?: any) => {
+    setState(prev => ({ ...prev, isImporting: true, error: null, success: null }))
+
     try {
-      // Analizar si necesita WebSocket
-      const useWebSocket = await ensureWebSocketConnection(archivo, tipo)
-      
-      if (useWebSocket) {
-        console.log('🚀 Importación con WebSocket')
-        // Aquí podrías implementar lógica específica para WebSocket
+      const modo = determinarModo(file, tipo)
+      setState(prev => ({ ...prev, modo }))
+
+      console.log(`🚀 Iniciando importación - Modo: ${modo}, Archivo: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`)
+
+      let result: any
+
+      if (modo === 'http') {
+        // Importación HTTP (con progreso simulado)
+        console.log('⚡ Usando importación HTTP rápida')
+        
+        // Crear trabajo simulado para mostrar progreso
+        const trabajoSimulado = {
+          id: `http-${Date.now()}`,
+          estado: 'procesando' as const,
+          progreso: 0,
+          registrosProcesados: 0,
+          registrosExitosos: 0,
+          registrosConError: 0,
+          totalRegistros: 0,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+          tipo: tipo,
+          empresaId: 0,
+          usuarioId: 0,
+          archivoOriginal: file.name,
+          errores: [],
+          opciones: opciones || {},
+          modo: 'http' as const
+        }
+        
+        setState(prev => ({
+          ...prev,
+          currentTrabajo: trabajoSimulado
+        }))
+        
+        // Simular progreso más realista
+        const simularProgreso = () => {
+          let progreso = 0
+          const totalSteps = 10 // Dividir en 10 pasos
+          const stepTime = 300 // 300ms por paso
+          
+          const interval = setInterval(() => {
+            progreso += 10 // Incremento fijo de 10%
+            
+            if (progreso >= 90) {
+              progreso = 90
+              clearInterval(interval)
+            }
+            
+            setState(prev => ({
+              ...prev,
+              currentTrabajo: prev.currentTrabajo ? {
+                ...prev.currentTrabajo,
+                progreso: Math.min(progreso, 90),
+                registrosProcesados: Math.floor((progreso / 100) * 50), // Simular registros procesados
+                totalRegistros: 50 // Valor estimado
+              } : null
+            }))
+          }, stepTime)
+          
+          return interval
+        }
+        
+        const progresoInterval = simularProgreso()
+        
+        // Realizar importación
+        result = await importarHTTP(file, tipo, opciones)
+        
+        // Completar progreso con datos reales
+        clearInterval(progresoInterval)
+        
+        // Extraer datos del resultado
+        const registrosProcesados = result.registrosProcesados || result.data?.registrosProcesados || 0
+        const registrosExitosos = result.registrosExitosos || result.data?.registrosExitosos || 0
+        const registrosConError = result.registrosConError || result.data?.registrosConError || 0
+        const errores = result.errores || result.data?.errores || []
+        const correcciones = result.correcciones || result.data?.correcciones || []
+        
+        setState(prev => ({
+          ...prev,
+          isImporting: false,
+          success: 'Importación completada exitosamente',
+          currentTrabajo: prev.currentTrabajo ? {
+            ...prev.currentTrabajo,
+            estado: 'completado',
+            progreso: 100,
+            registrosProcesados,
+            registrosExitosos,
+            registrosConError,
+            totalRegistros: registrosProcesados,
+            errores
+          } : null
+        }))
+        
+        // Asegurar que el resultado tenga todos los datos necesarios
+        result.registrosProcesados = registrosProcesados
+        result.registrosExitosos = registrosExitosos
+        result.registrosConError = registrosConError
+        result.errores = errores
+        result.correcciones = correcciones
+        
+        // NO mostrar alerts automáticos - el componente manejará la UI
+        
+        // Limpiar estado del WebSocket para archivos HTTP
+        disconnectWebSocket()
       } else {
-        console.log('⚡ Importación con HTTP')
+        // Importación WebSocket (con seguimiento)
+        console.log('🔌 Usando importación WebSocket con seguimiento')
+        result = await importarWebSocket(file, tipo, opciones)
+        
+        if (result.trabajoId) {
+          // Iniciar seguimiento del trabajo
+          setState(prev => ({
+            ...prev,
+            currentTrabajo: {
+              id: result.trabajoId,
+              estado: 'pendiente',
+              progreso: 0,
+              registrosProcesados: 0,
+              registrosExitosos: 0,
+              registrosConError: 0,
+              totalRegistros: 0,
+              fechaCreacion: new Date().toISOString(),
+              fechaActualizacion: new Date().toISOString(),
+              tipo: tipo,
+              empresaId: 0,
+              usuarioId: 0,
+              archivoOriginal: file.name,
+              errores: [],
+              opciones: opciones || {},
+              modo: 'websocket'
+            }
+          }))
+          
+          // Iniciar polling como respaldo
+          startPolling(result.trabajoId)
+        }
       }
-      
-      await baseHook.importarUnified(archivo, tipo, opciones)
+
+      return result
     } catch (error) {
-      console.error('Error en importación normal:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+      console.error('❌ Error en importación:', errorMessage)
+      
+      setState(prev => ({
+        ...prev,
+        isImporting: false,
+        error: errorMessage
+      }))
+      toast.error(errorMessage)
       throw error
     }
-  }, [baseHook.importarUnified, ensureWebSocketConnection])
-  
-  // Funciones específicas para importación automática
-  const importarAutomatica = useCallback(async (
-    archivo: File, 
-    opciones: ImportacionAutoDto
-  ) => {
+  }, [determinarModo, importarHTTP, importarWebSocket, startPolling, disconnectWebSocket, toast])
+
+  // Función para cancelar trabajo
+  const cancelarTrabajo = useCallback(async (trabajoId: string) => {
     try {
-      // Para importación automática, siempre usar WebSocket si está disponible
-      const useWebSocket = await ensureWebSocketConnection(archivo, 'productos')
-      
-      if (useWebSocket) {
-        console.log('🚀 Importación automática con WebSocket')
-      } else {
-        console.log('⚡ Importación automática con HTTP')
+      const response = await fetch(`/api/importacion/trabajos/${trabajoId}/cancelar`, {
+        method: 'POST',
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        setState(prev => ({
+          ...prev,
+          isImporting: false,
+          currentTrabajo: prev.currentTrabajo ? {
+            ...prev.currentTrabajo,
+            estado: 'cancelado'
+          } : null
+        }))
+        stopPolling()
+        disconnectWebSocket()
+        toast.success('Importación cancelada')
       }
-      
-      await baseHook.importarAuto(archivo, opciones)
     } catch (error) {
-      console.error('Error en importación automática:', error)
-      throw error
+      console.error('Error cancelando trabajo:', error)
+      toast.error('Error al cancelar la importación')
     }
-  }, [baseHook.importarAuto, ensureWebSocketConnection])
-  
-  const validarAutomatica = useCallback(async (
-    archivo: File, 
-    opciones?: any
-  ) => {
-    try {
-      return await baseHook.validarAuto(archivo, opciones)
-    } catch (error) {
-      console.error('Error en validación automática:', error)
-      throw error
-    }
-  }, [baseHook.validarAuto])
-  
-  const confirmarAutomatica = useCallback(async (
-    trabajoId: string, 
-    opciones: any
-  ) => {
-    try {
-      // La función confirmarAuto no toma parámetros según el hook base
-      await baseHook.confirmarAuto()
-    } catch (error) {
-      console.error('Error en confirmación automática:', error)
-      throw error
-    }
-  }, [baseHook.confirmarAuto])
-  
-  // Funciones de WebSocket optimizadas
+  }, [stopPolling, disconnectWebSocket, toast])
+
+  // Función para limpiar estado
+  const clearState = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      isImporting: false,
+      currentTrabajo: null,
+      error: null,
+      success: null,
+      modo: null
+    }))
+    stopPolling()
+    disconnectWebSocket()
+  }, [stopPolling, disconnectWebSocket])
+
+  // Función para limpiar error
+  const clearError = useCallback(() => {
+    setState(prev => ({ ...prev, error: null }))
+  }, [])
+
+  // Función para limpiar éxito
+  const clearSuccess = useCallback(() => {
+    setState(prev => ({ ...prev, success: null }))
+  }, [])
+
+  // Función para suscribirse a un trabajo
   const subscribeToTrabajo = useCallback((trabajoId: string) => {
-    if (!subscribedTrabajosRef.current.has(trabajoId)) {
-    webSocketHook.subscribeToTrabajo(trabajoId)
-      subscribedTrabajosRef.current.add(trabajoId)
+    if (socket && webSocketConnected.current) {
+      socket.emit('subscribe:trabajos', { trabajoId })
+      console.log(`🔔 Suscrito al trabajo: ${trabajoId}`)
     }
-  }, [webSocketHook.subscribeToTrabajo])
-  
+  }, [socket])
+
+  // Función para desuscribirse de un trabajo
   const unsubscribeFromTrabajo = useCallback((trabajoId: string) => {
-    if (subscribedTrabajosRef.current.has(trabajoId)) {
-    webSocketHook.unsubscribeFromTrabajo(trabajoId)
-      subscribedTrabajosRef.current.delete(trabajoId)
+    if (socket && webSocketConnected.current) {
+      socket.emit('unsubscribe:trabajos', { trabajoId })
+      console.log(`🔕 Desuscrito del trabajo: ${trabajoId}`)
     }
-  }, [webSocketHook.unsubscribeFromTrabajo])
-  
-  // Función de descarga de plantilla corregida
-  const descargarPlantilla = useCallback(async (tipo: TipoImportacion) => {
-    if (typeof baseHook.descargarPlantilla === 'function') {
-      return await baseHook.descargarPlantilla(tipo)
+  }, [socket])
+
+  // Función para descargar plantilla
+  const descargarPlantilla = useCallback(async (tipo: string) => {
+    try {
+      const response = await fetch(`/api/importacion/plantillas/${tipo}`, {
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `plantilla-${tipo}.xlsx`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        toast.success('Plantilla descargada exitosamente')
+      }
+    } catch (error) {
+      console.error('Error descargando plantilla:', error)
+      toast.error('Error al descargar la plantilla')
     }
-    // Fallback si la función no está disponible
-    console.warn('Función descargarPlantilla no disponible')
-  }, [baseHook.descargarPlantilla])
-  
+  }, [toast])
+
+  // Función para descargar reporte de errores
+  const descargarReporteErrores = useCallback(async (trabajoId: string) => {
+    try {
+      const response = await fetch(`/api/importacion/trabajos/${trabajoId}/reporte-errores`, {
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `reporte-errores-${trabajoId}.xlsx`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        toast.success('Reporte de errores descargado')
+      }
+    } catch (error) {
+      console.error('Error descargando reporte:', error)
+      toast.error('Error al descargar el reporte')
+    }
+  }, [toast])
+
   return {
-    // Estado base
-    isImporting: combinedState.isImporting,
-    currentTrabajo: combinedState.currentTrabajo,
-    error: combinedState.error,
-    success: combinedState.success,
-    validationErrors: combinedState.validationErrors,
-    deteccionTipo: combinedState.deteccionTipo,
-    
-    // Estado de WebSocket
-    isConnected: combinedState.isConnected,
-    subscribedTrabajos: subscribedTrabajosRef.current,
-    
-    // Trabajos y estadísticas
-    trabajos: combinedState.trabajos,
-    trabajosRecientes: combinedState.trabajosRecientes,
-    trabajosEnProgreso: combinedState.trabajosEnProgreso,
-    estadisticas: combinedState.estadisticas,
-    
-    // Funciones de importación
-    importarNormal,
-    importarAutomatica,
-    validarAutomatica,
-    confirmarAutomatica,
-    
-    // Funciones de utilidad
-    descargarPlantilla,
-    cancelarTrabajo: baseHook.cancelarTrabajo,
-    descargarReporteErrores: baseHook.descargarReporteErrores,
-    
-    // Funciones de limpieza
-    clearError: baseHook.clearError,
-    clearSuccess: baseHook.clearSuccess,
-    clearValidationErrors: baseHook.clearValidationErrors,
-    clearDeteccionTipo: baseHook.clearDeteccionTipo,
-    
-    // Funciones de WebSocket
+    state,
+    importar,
+    cancelarTrabajo,
+    clearState,
+    clearError,
+    clearSuccess,
     subscribeToTrabajo,
     unsubscribeFromTrabajo,
-    
-    // Utilidades
-    isReady: combinedState.isReady,
-    hasData: combinedState.hasData,
-    hasActiveImport: combinedState.hasActiveImport || false,
-    
-    // Análisis de archivos
-    analyzeFile,
+    descargarPlantilla,
+    descargarReporteErrores
   }
 } 

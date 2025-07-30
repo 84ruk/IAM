@@ -1,7 +1,7 @@
 import React from 'react'
 import { Search, Filter, X, Loader2 } from 'lucide-react'
 import Select from '@/components/ui/Select'
-import { TipoProductoConfig } from '@/types/enums'
+import { TipoProductoConfig, TipoProducto } from '@/types/enums'
 
 interface ProductFiltersProps {
   filtroTexto: string
@@ -40,7 +40,7 @@ export default function ProductFilters({
   onLimpiarFiltros,
   isSearching = false
 }: ProductFiltersProps) {
-  const tiposProducto = ['GENERICO', 'ROPA', 'ALIMENTO', 'ELECTRONICO']
+  const tiposProducto = Object.values(TipoProducto)
 
   return (
     <div>

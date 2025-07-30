@@ -7,11 +7,15 @@ export async function GET(
   try {
     const { id } = await params;
     
+    // Obtener todas las cookies del request
+    const cookies = request.headers.get('cookie') || ''
+    
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/movimientos/eliminados/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Cookie': request.headers.get('cookie') || '',
+        'Cookie': cookies,
+        'X-Requested-With': 'XMLHttpRequest',
       },
     });
 

@@ -1,5 +1,18 @@
 import { TipoProducto, TipoProductoConfig } from '@/types/enums'
-import { Package, Shirt, Apple, Zap } from 'lucide-react'
+import { 
+  Package, 
+  Shirt, 
+  Apple, 
+  Zap, 
+  Pill, 
+  Heart, 
+  Stethoscope, 
+  Droplets, 
+  FlaskConical, 
+  Scissors, 
+  Code, 
+  Cpu 
+} from 'lucide-react'
 
 interface ProductTypeIconProps {
   tipoProducto?: TipoProducto
@@ -17,6 +30,22 @@ const getIcon = (tipo: TipoProducto) => {
       return Apple
     case TipoProducto.ELECTRONICO:
       return Zap
+    case TipoProducto.MEDICAMENTO:
+      return Pill
+    case TipoProducto.SUPLEMENTO:
+      return Heart
+    case TipoProducto.EQUIPO_MEDICO:
+      return Stethoscope
+    case TipoProducto.CUIDADO_PERSONAL:
+      return Droplets
+    case TipoProducto.BIOLOGICO:
+      return FlaskConical
+    case TipoProducto.MATERIAL_QUIRURGICO:
+      return Scissors
+    case TipoProducto.SOFTWARE:
+      return Code
+    case TipoProducto.HARDWARE:
+      return Cpu
     default:
       return Package
   }

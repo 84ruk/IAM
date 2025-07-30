@@ -10,47 +10,149 @@ export interface ImportacionConfig {
   supportedFormats: string[]
 }
 
-export const IMPORTACION_CONFIG: Record<TipoImportacion, ImportacionConfig> = {
-  productos: {
-    title: 'Productos',
-    description: 'Importa tu catálogo de productos',
-    icon: '📦',
-    camposRequeridos: ['nombre', 'stock', 'precioCompra', 'precioVenta'],
-    camposOpcionales: ['descripcion', 'stockMinimo', 'etiqueta', 'proveedor'],
-    maxFileSizeMB: 50,
-    supportedFormats: ['.xlsx', '.xls', '.numbers', '.csv']
+export const IMPORTACION_CONFIG = {
+  // Límites de archivos
+  LIMITES: {
+    RAPIDA: {
+      TAMANO_MAXIMO_MB: 10,
+      REGISTROS_MAXIMOS: 1000,
+      TIEMPO_ESTIMADO_SEGUNDOS: 30
+    },
+    WEBSOCKET: {
+      TAMANO_MAXIMO_MB: 50,
+      REGISTROS_MAXIMOS: 10000,
+      TIEMPO_ESTIMADO_SEGUNDOS: 300
+    }
   },
-  proveedores: {
-    title: 'Proveedores',
-    description: 'Importa tu lista de proveedores',
-    icon: '🏢',
-    camposRequeridos: ['nombre', 'email'],
-    camposOpcionales: ['telefono', 'direccion', 'rfc', 'contacto'],
-    maxFileSizeMB: 50,
-    supportedFormats: ['.xlsx', '.xls', '.numbers', '.csv']
+
+  // Tipos de importación soportados
+  TIPOS_SOPORTADOS: {
+    PRODUCTOS: {
+      nombre: 'Productos',
+      descripcion: 'Importar productos desde archivo Excel/CSV',
+      camposRequeridos: ['nombre', 'precio', 'stock'],
+      camposOpcionales: ['descripcion', 'categoria', 'proveedor'],
+      formatosSoportados: ['.xlsx', '.xls', '.csv'],
+      maxFileSizeMB: 50,
+      icono: 'Package',
+      color: 'blue'
+    },
+    PROVEEDORES: {
+      nombre: 'Proveedores',
+      descripcion: 'Importar proveedores desde archivo Excel/CSV',
+      camposRequeridos: ['nombre', 'email'],
+      camposOpcionales: ['telefono', 'direccion', 'rfc'],
+      formatosSoportados: ['.xlsx', '.xls', '.csv'],
+      maxFileSizeMB: 50,
+      icono: 'ShoppingCart',
+      color: 'orange'
+    },
+    MOVIMIENTOS: {
+      nombre: 'Movimientos',
+      descripcion: 'Importar movimientos de inventario desde archivo Excel/CSV',
+      camposRequeridos: ['producto', 'tipo', 'cantidad'],
+      camposOpcionales: ['fecha', 'motivo', 'proveedor'],
+      formatosSoportados: ['.xlsx', '.xls', '.csv'],
+      maxFileSizeMB: 50,
+      icono: 'Activity',
+      color: 'purple'
+    }
   },
-  movimientos: {
-    title: 'Movimientos',
-    description: 'Importa movimientos de inventario',
-    icon: '📊',
-    camposRequeridos: ['producto', 'tipo', 'cantidad', 'fecha'],
-    camposOpcionales: ['motivo', 'proveedor', 'observaciones'],
-    maxFileSizeMB: 50,
-    supportedFormats: ['.xlsx', '.xls', '.numbers', '.csv']
+
+  // Configuración de WebSocket
+  WEBSOCKET: {
+    NAMESPACE: '/importacion',
+    EVENTOS: {
+      PROGRESO: 'progreso:actualizado',
+      COMPLETADO: 'trabajo:completado',
+      ERROR: 'trabajo:error',
+      SUSCRIPCION: 'subscribe:trabajos',
+      DESUSCRIPCION: 'unsubscribe:trabajos'
+    },
+    RECONEXION: {
+      INTENTOS_MAXIMOS: 3,
+      TIEMPO_ENTRE_INTENTOS: 5000
+    }
   },
-  auto: {
-    title: 'Importación Automática',
-    description: 'Detecta automáticamente el tipo de datos',
-    icon: '🤖',
-    camposRequeridos: [],
-    camposOpcionales: [],
-    maxFileSizeMB: 50,
-    supportedFormats: ['.xlsx', '.xls', '.numbers', '.csv']
+
+  // Configuración de polling
+  POLLING: {
+    INTERVALO_MS: 2000,
+    TIMEOUT_MS: 300000 // 5 minutos
+  },
+
+  // Mensajes de error
+  MENSAJES_ERROR: {
+    ARCHIVO_NO_PROPORCIONADO: 'Por favor selecciona un archivo',
+    TIPO_NO_VALIDO: 'Tipo de importación no válido',
+    TAMANO_EXCEDIDO: 'El archivo es demasiado grande',
+    FORMATO_NO_SOPORTADO: 'Formato de archivo no soportado',
+    WEBSOCKET_NO_CONECTADO: 'No se pudo conectar al servidor',
+    IMPORTACION_FALLIDA: 'Error en la importación',
+    CANCELACION_FALLIDA: 'Error al cancelar la importación'
+  },
+
+  // Mensajes de éxito
+  MENSAJES_EXITO: {
+    IMPORTACION_COMPLETADA: 'Importación completada exitosamente',
+    PLANTILLA_DESCARGADA: 'Plantilla descargada exitosamente',
+    REPORTE_DESCARGADO: 'Reporte de errores descargado',
+    TRABAJO_CANCELADO: 'Importación cancelada'
   }
 }
 
-export const getImportacionConfig = (tipo: TipoImportacion): ImportacionConfig => {
-  return IMPORTACION_CONFIG[tipo]
+// Función para determinar el modo de importación
+export function determinarModoImportacion(file: File): 'http' | 'websocket' {
+  const fileSizeMB = file.size / (1024 * 1024)
+  
+  // Archivos pequeños usan HTTP
+  if (fileSizeMB < IMPORTACION_CONFIG.LIMITES.RAPIDA.TAMANO_MAXIMO_MB) {
+    return 'http'
+  }
+  
+  // Archivos grandes usan WebSocket
+  return 'websocket'
+}
+
+// Función para validar archivo
+export function validarArchivo(file: File): { valido: boolean; error?: string } {
+  // Validar tamaño
+  const fileSizeMB = file.size / (1024 * 1024)
+  if (fileSizeMB > IMPORTACION_CONFIG.LIMITES.WEBSOCKET.TAMANO_MAXIMO_MB) {
+    return {
+      valido: false,
+      error: `El archivo es demasiado grande (${fileSizeMB.toFixed(2)}MB). Máximo: ${IMPORTACION_CONFIG.LIMITES.WEBSOCKET.TAMANO_MAXIMO_MB}MB`
+    }
+  }
+
+  // Validar formato
+  const extension = file.name.toLowerCase().split('.').pop()
+  const formatosSoportados = ['.xlsx', '.xls', '.csv']
+  if (!extension || !formatosSoportados.includes(`.${extension}`)) {
+    return {
+      valido: false,
+      error: `Formato no soportado: .${extension}. Formatos válidos: ${formatosSoportados.join(', ')}`
+    }
+  }
+
+  return { valido: true }
+}
+
+// Función para obtener información del archivo
+export function obtenerInformacionArchivo(file: File) {
+  const fileSizeMB = file.size / (1024 * 1024)
+  const modo = determinarModoImportacion(file)
+  const extension = file.name.split('.').pop()?.toUpperCase() || 'UNKNOWN'
+  
+  return {
+    nombre: file.name,
+    tamaño: fileSizeMB.toFixed(2),
+    tipo: file.type,
+    extension,
+    modo,
+    ultimaModificacion: new Date(file.lastModified).toLocaleDateString(),
+    registrosEstimados: Math.floor(fileSizeMB * 100) // Estimación aproximada
+  }
 }
 
 export const DEFAULT_IMPORTACION_OPTIONS = {

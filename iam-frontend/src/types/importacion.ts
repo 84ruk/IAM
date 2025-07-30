@@ -1,75 +1,79 @@
-// Tipos compartidos para importación - Compatibles con backend y frontend
+export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos'
 
-export interface MensajeUsuario {
-  tipo: 'success' | 'warning' | 'error' | 'info'
-  titulo: string
-  mensaje: string
-  detalles?: string[]
-  timestamp?: string
-}
-
-export interface ResumenProcesamiento {
-  duplicadosEncontrados: number
-  erroresValidacion: number
-  erroresSistema: number
-  registrosOmitidos: number
-  recomendaciones: string[]
-}
-
-// Extensión de TrabajoImportacion para incluir nuevos campos opcionales
-export interface TrabajoImportacionExtendido {
-  // Campos existentes
+export interface ImportacionTrabajo {
   id: string
-  tipo: 'productos' | 'proveedores' | 'movimientos'
   estado: 'pendiente' | 'procesando' | 'completado' | 'error' | 'cancelado'
-  empresaId: number
-  usuarioId: number
-  archivoOriginal: string
-  totalRegistros: number
+  progreso: number
   registrosProcesados: number
   registrosExitosos: number
   registrosConError: number
+  totalRegistros: number
+  mensaje?: string
   fechaCreacion: string
   fechaActualizacion: string
-  progreso: number
-  mensaje?: string
-  errores?: string[]
-  
-  // Nuevos campos opcionales para compatibilidad
-  mensajesUsuario?: MensajeUsuario[]
-  resumenProcesamiento?: ResumenProcesamiento
+  tipo: string
+  empresaId: number
+  usuarioId: number
+  archivoOriginal: string
+  errores: unknown[]
+  opciones: ImportacionOpciones
+  modo?: 'http' | 'websocket'
 }
 
-// Extensión de ResultadoImportacion para incluir nuevos campos opcionales
-export interface ResultadoImportacionExtendido {
-  // Campos existentes
-  success: boolean
-  message: string
-  trabajoId: string
-  estado: string
-  totalRegistros?: number
-  errores?: number
-  erroresDetallados?: any[]
-  deteccionTipo?: any
-  
-  // Nuevos campos opcionales para compatibilidad
-  mensajesUsuario?: MensajeUsuario[]
-  resumenProcesamiento?: ResumenProcesamiento
+export interface ImportacionOpciones {
+  sobrescribirExistentes?: boolean
+  validarSolo?: boolean
+  notificarEmail?: boolean
+  emailNotificacion?: string
+  [key: string]: unknown
 }
 
-// Tipos para eventos de WebSocket
-export interface ImportacionWebSocketEvent {
-  event: string
+export interface CorreccionImportacion {
+  campo: string
+  valorOriginal: string
+  valorCorregido: string
+  tipo: 'formato' | 'normalizacion'
+  confianza: number
+  fila: number
+  datosOriginales?: unknown
+}
+
+export interface ImportacionResultado {
   trabajoId?: string
-  data?: any
+  registrosProcesados: number
+  registrosExitosos: number
+  registrosConError: number
+  mensaje?: string
+  message?: string
+  errores?: unknown[]
+  correcciones?: CorreccionImportacion[]
+  hasErrors?: boolean
+  errorCount?: number
+  successCount?: number
+  errorFile?: string
+  processingTime?: number
+  modo?: 'http' | 'websocket'
+  usuarioId?: number
+  empresaId?: number
+  data?: {
+    correcciones?: CorreccionImportacion[]
+    [key: string]: unknown
+  }
 }
 
-// Tipos para opciones de manejo de duplicados
-export interface DuplicateHandlingOptions {
-  sobrescribirExistentes: boolean
-  onSobrescribirChange: (value: boolean) => void
-  duplicadosEncontrados?: number
-  totalRegistros?: number
-  onRetry?: () => void
-  className?: string
+export interface ImportacionEstado {
+  isImporting: boolean
+  currentTrabajo: ImportacionTrabajo | null
+  error: string | null
+  success: string | null
+  modo: 'http' | 'websocket' | null
+  isConnected: boolean
+  trabajos: ImportacionTrabajo[]
+  estadisticas: {
+    total: number
+    completados: number
+    conError: number
+    enProgreso: number
+    porcentajeExito: number
+  }
 } 

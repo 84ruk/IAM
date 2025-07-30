@@ -26,7 +26,15 @@ export enum TipoProducto {
   GENERICO = 'GENERICO',
   ROPA = 'ROPA',
   ALIMENTO = 'ALIMENTO',
-  ELECTRONICO = 'ELECTRONICO'
+  ELECTRONICO = 'ELECTRONICO',
+  MEDICAMENTO = 'MEDICAMENTO',
+  SUPLEMENTO = 'SUPLEMENTO',
+  EQUIPO_MEDICO = 'EQUIPO_MEDICO',
+  CUIDADO_PERSONAL = 'CUIDADO_PERSONAL',
+  BIOLOGICO = 'BIOLOGICO',
+  MATERIAL_QUIRURGICO = 'MATERIAL_QUIRURGICO',
+  SOFTWARE = 'SOFTWARE',
+  HARDWARE = 'HARDWARE'
 }
 
 export enum UnidadMedida {
@@ -71,5 +79,45 @@ export const TipoProductoConfig: Record<TipoProducto, {
     label: 'Electrónico',
     color: 'text-blue-600',
     bgColor: 'bg-blue-100'
+  },
+  MEDICAMENTO: {
+    label: 'Medicamento',
+    color: 'text-red-600',
+    bgColor: 'bg-red-100'
+  },
+  SUPLEMENTO: {
+    label: 'Suplemento',
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-100'
+  },
+  EQUIPO_MEDICO: {
+    label: 'Equipo Médico',
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-100'
+  },
+  CUIDADO_PERSONAL: {
+    label: 'Cuidado Personal',
+    color: 'text-pink-600',
+    bgColor: 'bg-pink-100'
+  },
+  BIOLOGICO: {
+    label: 'Biológico',
+    color: 'text-teal-600',
+    bgColor: 'bg-teal-100'
+  },
+  MATERIAL_QUIRURGICO: {
+    label: 'Material Quirúrgico',
+    color: 'text-cyan-600',
+    bgColor: 'bg-cyan-100'
+  },
+  SOFTWARE: {
+    label: 'Software',
+    color: 'text-emerald-600',
+    bgColor: 'bg-emerald-100'
+  },
+  HARDWARE: {
+    label: 'Hardware',
+    color: 'text-slate-600',
+    bgColor: 'bg-slate-100'
   }
 }

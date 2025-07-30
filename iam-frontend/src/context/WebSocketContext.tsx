@@ -134,26 +134,27 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     }, 1000)
   }, [disconnect, connect])
 
-  // Efecto para manejar la conexión automática
+  // Efecto para manejar la conexión automática - DESHABILITADO TEMPORALMENTE
   useEffect(() => {
     if (!isMountedRef.current) {
       isMountedRef.current = true
     }
 
-    const needsWebSocket = isWebSocketNeeded()
-    const userAuthenticated = user && user.empresaId
+    // DESHABILITADO: No conectar automáticamente para evitar reconexiones infinitas
+    // const needsWebSocket = isWebSocketNeeded()
+    // const userAuthenticated = user && user.empresaId
 
     // Solo conectar si es necesario y el usuario está autenticado
-    if (userAuthenticated && needsWebSocket && !isConnected && !isConnecting) {
-      console.log('WebSocket: Iniciando conexión automática');
-      connect()
-    }
+    // if (userAuthenticated && needsWebSocket && !isConnected && !isConnecting) {
+    //   console.log('WebSocket: Iniciando conexión automática');
+    //   connect()
+    // }
 
     // Desconectar si ya no es necesario
-    if ((!userAuthenticated || !needsWebSocket) && isConnected) {
-      console.log('WebSocket: Desconectando - usuario no autenticado o ruta no necesita WebSocket');
-      disconnect()
-    }
+    // if ((!userAuthenticated || !needsWebSocket) && isConnected) {
+    //   console.log('WebSocket: Desconectando - usuario no autenticado o ruta no necesita WebSocket');
+    //   disconnect()
+    // }
 
     return () => {
       // Cleanup al desmontar

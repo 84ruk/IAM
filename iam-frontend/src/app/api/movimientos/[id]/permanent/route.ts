@@ -7,11 +7,15 @@ export async function DELETE(
   try {
     const { id } = await params;
     
+    // Obtener todas las cookies del request
+    const cookies = request.headers.get('cookie') || ''
+    
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/movimientos/${id}/permanent`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        'Cookie': request.headers.get('cookie') || '',
+        'Cookie': cookies,
+        'X-Requested-With': 'XMLHttpRequest',
       },
     });
 

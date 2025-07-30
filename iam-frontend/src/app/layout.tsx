@@ -2,7 +2,7 @@
 import './globals.css'
 import { montserrat } from './fonts'
 import { ReactNode } from 'react'
-import { ImportacionErrorBoundary } from '@/components/importacion/ImportacionErrorBoundary'
+
 import { BackendStatus } from '@/components/ui/BackendStatus'
 import { Toaster } from 'sonner'
 
@@ -17,11 +17,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="apple-touch-icon" href="/favicon.ico" />
       </head>
       <body className={`${montserrat.className} bg-gray-50 antialiased text-gray-800`}>
-        <ImportacionErrorBoundary>
-          <BackendStatus>
-            {children}
-          </BackendStatus>
-        </ImportacionErrorBoundary>
+        <BackendStatus>
+          {children}
+        </BackendStatus>
         <Toaster 
           position="top-right"
           richColors

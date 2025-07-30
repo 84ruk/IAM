@@ -45,8 +45,8 @@ import {
 } from 'lucide-react'
 import { useImportacionUnified } from '@/hooks/useImportacionUnified'
 import SmartImportModal from '@/components/importacion/SmartImportModal'
-import ImportacionStats from '@/components/importacion/ImportacionStats'
-import { TipoImportacion } from '@/context/ImportacionGlobalContext'
+import ImportacionProgress from '@/components/importacion/ImportacionProgress'
+import { TipoImportacion } from '@/types/importacion'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -86,22 +86,26 @@ export default function ImportacionPage() {
   })
 
   const {
+    state,
+    importar,
+    cancelarTrabajo,
+    clearState,
+    clearError,
+    clearSuccess,
+    subscribeToTrabajo,
+    descargarPlantilla
+  } = useImportacionUnified()
+
+  const {
     isImporting,
     currentTrabajo,
     error,
     success,
-    validationErrors,
     isConnected,
     trabajos,
     estadisticas,
-    importarNormal,
-    descargarPlantilla,
-    cancelarTrabajo,
-    clearError,
-    clearSuccess,
-    clearValidationErrors,
-    subscribeToTrabajo
-  } = useImportacionUnified()
+    modo
+  } = state
 
   // Generar logs de ejemplo
   useEffect(() => {
@@ -335,11 +339,27 @@ export default function ImportacionPage() {
             </Card>
           </div>
 
-          <ImportacionStats 
-            trabajos={trabajos}
-            isLoading={false}
-            isConnected={isConnected}
-          />
+          {/* Mostrar progreso de importación activa */}
+          {currentTrabajo && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Importación en Progreso
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ImportacionProgress
+                  trabajo={currentTrabajo}
+                  onCancel={cancelarTrabajo}
+                  onDownloadReport={(trabajoId) => {
+                    // Implementar descarga de reporte
+                    console.log('Descargar reporte:', trabajoId)
+                  }}
+                />
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Tab: Importar */}

@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validar tamaño del archivo (máximo 10MB para importación rápida)
-    const maxSize = 10 * 1024 * 1024 // 10MB
+    // Validar tamaño del archivo (máximo 50MB para importación unificada)
+    const maxSize = 50 * 1024 * 1024 // 50MB
     if (archivo.size > maxSize) {
       return NextResponse.json(
         { error: `Archivo demasiado grande: ${(archivo.size / 1024 / 1024).toFixed(1)}MB. Máximo: ${maxSize / 1024 / 1024}MB` },
@@ -45,18 +45,61 @@ export async function POST(request: NextRequest) {
     backendFormData.append('archivo', archivo)
     backendFormData.append('tipo', tipo)
 
-    // Solo agregar descripción si existe (única propiedad opcional que acepta el DTO)
-    const descripcion = formData.get('descripcion')
-    if (descripcion) {
-      backendFormData.append('descripcion', descripcion.toString())
-    }
+    // Agregar propiedades booleanas como strings
+    const propiedadesBooleanas = [
+      'sobrescribirExistentes',
+      'validarSolo', 
+      'notificarEmail'
+    ]
+
+    propiedadesBooleanas.forEach(propiedad => {
+      const valor = formData.get(propiedad)
+      if (valor !== null) {
+        // Convertir a string boolean
+        const boolValue = valor === 'true' || valor === true || valor === '1'
+        backendFormData.append(propiedad, boolValue.toString())
+      }
+    })
+
+    // Agregar propiedades de string
+    const propiedadesString = [
+      'emailNotificacion'
+    ]
+
+    propiedadesString.forEach(propiedad => {
+      const valor = formData.get(propiedad)
+      if (valor !== null && valor !== '') {
+        backendFormData.append(propiedad, valor.toString())
+      }
+    })
+
+    // Agregar configuraciones específicas como JSON strings
+    const configuraciones = [
+      'configuracionProductos',
+      'configuracionProveedores', 
+      'configuracionMovimientos'
+    ]
+
+    configuraciones.forEach(config => {
+      const valor = formData.get(config)
+      if (valor !== null) {
+        try {
+          // Si es un string JSON, parsearlo y volver a stringificar
+          const parsed = typeof valor === 'string' ? JSON.parse(valor) : valor
+          backendFormData.append(config, JSON.stringify(parsed))
+        } catch (error) {
+          // Si no es JSON válido, enviarlo como string
+          backendFormData.append(config, valor.toString())
+        }
+      }
+    })
 
     // Obtener todas las cookies del request
     const cookies = request.headers.get('cookie') || ''
 
     // Enviar al backend con las cookies de autenticación
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-    const response = await fetch(`${backendUrl}/importacion/rapida`, {
+    const response = await fetch(`${backendUrl}/importacion/unificada`, {
       method: 'POST',
       body: backendFormData,
       headers: {
@@ -68,35 +111,21 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorData = await response.json()
       return NextResponse.json(
-        { error: errorData.message || 'Error en importación rápida' },
+        { error: errorData.message || 'Error en importación unificada' },
         { status: response.status }
       )
     }
 
     const data = await response.json()
 
-    // Pasar toda la información del backend al frontend
     return NextResponse.json({
-      success: data.success,
-      data: data.data,
-      message: data.message,
-      hasErrors: data.hasErrors,
-      errorCount: data.errorCount,
-      successCount: data.successCount,
-      errorFile: data.errorFile,
-      // Extraer datos del objeto data del backend
-      correcciones: data.data?.correcciones || [],
-      registrosProcesados: data.data?.registrosProcesados,
-      registrosExitosos: data.data?.registrosExitosos,
-      registrosConError: data.data?.registrosConError,
-      errores: data.data?.errores || [],
-      resumen: data.data?.resumen,
-      // También incluir en el nivel raíz para compatibilidad
-      ...data.data
+      success: true,
+      data,
+      message: 'Importación unificada iniciada correctamente'
     })
 
   } catch (error) {
-    console.error('Error en importación rápida:', error)
+    console.error('Error en importación unificada:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
