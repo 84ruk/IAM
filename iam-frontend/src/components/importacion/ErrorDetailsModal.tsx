@@ -9,7 +9,6 @@ import {
   AlertTriangle, 
   FileText, 
   Info,
-  CheckCircle,
   XCircle,
   Download
 } from 'lucide-react';

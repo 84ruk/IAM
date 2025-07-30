@@ -360,7 +360,7 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
   }, [])
 
   // Función principal de importación
-  const importar = useCallback(async (file: File, tipo: string, opciones?: any) => {
+  const importar = useCallback(async (file: File, tipo: string, opciones?: ImportacionOpciones) => {
     setState(prev => ({ ...prev, isImporting: true, error: null, success: null }))
 
     try {
@@ -369,7 +369,7 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
 
       console.log(`🚀 Iniciando importación - Modo: ${modo}, Archivo: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`)
 
-      let result: any
+      let result: ImportacionResultado
 
       if (modo === 'http') {
         // Importación HTTP (con progreso simulado)
@@ -451,20 +451,20 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
             ...prev.currentTrabajo,
             estado: 'completado',
             progreso: 100,
-            registrosProcesados,
-            registrosExitosos,
-            registrosConError,
-            totalRegistros: registrosProcesados,
-            errores
+            registrosProcesados: Number(registrosProcesados),
+            registrosExitosos: Number(registrosExitosos),
+            registrosConError: Number(registrosConError),
+            totalRegistros: Number(registrosProcesados),
+            errores: Array.isArray(errores) ? errores : []
           } : null
         }))
         
         // Asegurar que el resultado tenga todos los datos necesarios
-        result.registrosProcesados = registrosProcesados
-        result.registrosExitosos = registrosExitosos
-        result.registrosConError = registrosConError
-        result.errores = errores
-        result.correcciones = correcciones
+        result.registrosProcesados = Number(registrosProcesados)
+        result.registrosExitosos = Number(registrosExitosos)
+        result.registrosConError = Number(registrosConError)
+        result.errores = Array.isArray(errores) ? errores : []
+        result.correcciones = Array.isArray(correcciones) ? correcciones : []
         
         // NO mostrar alerts automáticos - el componente manejará la UI
         
@@ -477,27 +477,27 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         
         if (result.trabajoId) {
           // Iniciar seguimiento del trabajo
-          setState(prev => ({
-            ...prev,
-            currentTrabajo: {
-              id: result.trabajoId,
-              estado: 'pendiente',
-              progreso: 0,
-              registrosProcesados: 0,
-              registrosExitosos: 0,
-              registrosConError: 0,
-              totalRegistros: 0,
-              fechaCreacion: new Date().toISOString(),
-              fechaActualizacion: new Date().toISOString(),
-              tipo: tipo,
-              empresaId: 0,
-              usuarioId: 0,
-              archivoOriginal: file.name,
-              errores: [],
-              opciones: opciones || {},
-              modo: 'websocket'
-            }
-          }))
+                  setState(prev => ({
+          ...prev,
+          currentTrabajo: {
+            id: result.trabajoId || `websocket-${Date.now()}`,
+            estado: 'pendiente',
+            progreso: 0,
+            registrosProcesados: 0,
+            registrosExitosos: 0,
+            registrosConError: 0,
+            totalRegistros: 0,
+            fechaCreacion: new Date().toISOString(),
+            fechaActualizacion: new Date().toISOString(),
+            tipo: tipo,
+            empresaId: 0,
+            usuarioId: 0,
+            archivoOriginal: file.name,
+            errores: [],
+            opciones: opciones || {},
+            modo: 'websocket'
+          }
+        }))
           
           // Iniciar polling como respaldo
           startPolling(result.trabajoId)

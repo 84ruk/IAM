@@ -61,7 +61,7 @@ const ImportacionErrorNotification: React.FC<ImportacionErrorNotificationProps> 
     );
   }
 
-  const isPartialSuccess = successCount > 0 && errorCount > 0;
+  // const isPartialSuccess = successCount > 0 && errorCount > 0;
   const isCompleteFailure = successCount === 0 && errorCount > 0;
 
   return (

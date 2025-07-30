@@ -7,13 +7,11 @@ import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { ImportacionTrabajo } from '@/types/importacion'
 import { 
-  Upload, 
   CheckCircle, 
   XCircle, 
   Loader2, 
   AlertTriangle,
   Wifi,
-  WifiOff,
   Brain,
   Zap,
   FileText,
@@ -21,8 +19,6 @@ import {
   ShoppingCart,
   Activity,
   Clock,
-  Play,
-  Pause,
   Square,
   Timer,
   TrendingUp,
@@ -107,13 +103,13 @@ export default function ImportacionProgress({
     }
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
+  // const formatFileSize = (bytes: number) => {
+  //   if (bytes === 0) return '0 Bytes'
+  //   const k = 1024
+  //   const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  //   const i = Math.floor(Math.log(bytes) / Math.log(k))
+  //   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  // }
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
