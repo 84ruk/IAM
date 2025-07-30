@@ -153,12 +153,9 @@ export default function RegisterPage() {
   // Limpiar errores cuando cambian los campos
   useEffect(() => {
     if (generalError) {
-      setGeneralError('')
+      setTimeout(() => setGeneralError(''), 5000)
     }
-    if (Object.keys(fieldErrors).length > 0) {
-      setFieldErrors({})
-    }
-  }, [data.nombre, data.email, data.password, data.confirmPassword])
+  }, [generalError, fieldErrors])
 
   // Función para manejar errores específicos del backend
   const handleBackendError = (error: AppError) => {
@@ -277,10 +274,13 @@ export default function RegisterPage() {
         router.push('/login')
       }, 2000)
 
-    } catch (err: any) {
-      // Error de red o excepción no manejada
-      const networkError = new NetworkError('Error de conexión inesperado')
-      handleBackendError(networkError)
+    } catch (err: unknown) {
+      console.error('Error en registro:', err)
+      if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+        setGeneralError(err.message)
+      } else {
+        setGeneralError('Error inesperado al registrar usuario')
+      }
     } finally {
       setIsSubmitting(false)
     }

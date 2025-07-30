@@ -121,7 +121,7 @@ export default function TestimonialsSection() {
 
                 {/* Content */}
                 <p className="text-gray-700 mb-6 leading-relaxed">
-                  "{testimonial.content}"
+                  &quot;IAM ha transformado la gestión de nuestro inventario. Ahora todo es más rápido y eficiente.&quot;
                 </p>
 
                 {/* Author */}

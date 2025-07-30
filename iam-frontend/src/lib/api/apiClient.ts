@@ -1,9 +1,8 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
-import { ErrorHandlerService, UserFriendlyError } from './errorHandler'
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
 
 class ApiClient {
-  private instance: AxiosInstance
-  private requestQueue: Array<() => Promise<any>> = []
+  private instance: axios.AxiosInstance
+  private requestQueue: Array<() => Promise<unknown>> = []
   private isProcessing = false
   private lastRequestTime = 0
   private readonly minRequestInterval = 100 // 100ms entre requests
@@ -81,11 +80,11 @@ class ApiClient {
 
   private async handleServerError(error: AxiosError): Promise<AxiosResponse> {
     const config = error.config!
-    const retryCount = (config as any).retryCount || 0
+    const retryCount = (config as Record<string, unknown>).retryCount || 0
     const maxRetries = 3
 
     if (retryCount < maxRetries) {
-      ;(config as any).retryCount = retryCount + 1
+      ;(config as Record<string, unknown>).retryCount = retryCount + 1
       const delay = Math.pow(2, retryCount) * 1000 // Exponential backoff
       
       await this.delay(delay)
@@ -105,58 +104,38 @@ class ApiClient {
     const timeSinceLastRequest = now - this.lastRequestTime
 
     if (timeSinceLastRequest < this.minRequestInterval) {
-      const delay = this.minRequestInterval - timeSinceLastRequest
-      await this.delay(delay)
+      await this.delay(this.minRequestInterval - timeSinceLastRequest)
     }
 
     this.lastRequestTime = Date.now()
     return requestFn()
   }
 
-  private async makeRequest<T = any>(config: AxiosRequestConfig): Promise<T> {
+  private async makeRequest<T = unknown>(config: AxiosRequestConfig): Promise<T> {
     return this.throttleRequest(async () => {
-      try {
-        const response = await this.instance.request(config)
-        return response.data
-      } catch (error) {
-        // El error ya fue procesado por el interceptor
-        throw error
-      }
+      const response = await this.instance.request<T>(config)
+      return response.data
     })
   }
 
-  async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    return this.makeRequest({ ...config, method: 'GET', url })
+  async get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    return this.makeRequest<T>({ ...config, method: 'GET', url })
   }
 
-  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    // Si es FormData, no establecer Content-Type manualmente
-    if (data instanceof FormData) {
-      const { headers, ...restConfig } = config || {}
-      const { 'Content-Type': _, ...restHeaders } = headers || {}
-      
-      return this.makeRequest({ 
-        ...restConfig, 
-        method: 'POST', 
-        url, 
-        data,
-        headers: restHeaders
-      })
-    }
-    
-    return this.makeRequest({ ...config, method: 'POST', url, data })
+  async post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    return this.makeRequest<T>({ ...config, method: 'POST', url, data })
   }
 
-  async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    return this.makeRequest({ ...config, method: 'PUT', url, data })
+  async put<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    return this.makeRequest<T>({ ...config, method: 'PUT', url, data })
   }
 
-  async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    return this.makeRequest({ ...config, method: 'DELETE', url })
+  async delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    return this.makeRequest<T>({ ...config, method: 'DELETE', url })
   }
 
-  async patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    return this.makeRequest({ ...config, method: 'PATCH', url, data })
+  async patch<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    return this.makeRequest<T>({ ...config, method: 'PATCH', url, data })
   }
 }
 

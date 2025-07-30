@@ -13,11 +13,8 @@ import {
   Package,
   CheckCircle,
   TrendingUp,
-  DollarSign,
   Trash2,
-  Plus,
   Eye,
-  Edit,
   Building2
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -29,8 +26,8 @@ import VolverAtras from '@/components/ui/VolverAtras'
 import ProductTypeIcon from '@/components/ui/ProductTypeIcon'
 import EtiquetaTag from '@/components/ui/EtiquetaTag'
 
-// Tipo para los productos eliminados
-interface ProductoEliminado {
+// Tipo para los productos en la papelera (inactivos y eliminados)
+interface ProductoPapelera {
   id: number
   nombre: string
   descripcion?: string
@@ -39,9 +36,9 @@ interface ProductoEliminado {
   stock: number
   stockMinimo: number
   unidad: string
-      etiqueta?: string
+  etiqueta?: string
   etiquetas?: string[]
-  estado: 'ELIMINADO'
+  estado: 'INACTIVO' | 'ELIMINADO'
   empresaId: number
   proveedorId?: number
   createdAt: string
@@ -68,7 +65,7 @@ const fetcher = (url: string) =>
   })
 
 export default function ProductosEliminadosClient() {
-  const { data: productosEliminados, isLoading, error: errorBackend, mutate } = useSWR<ProductoEliminado[]>('/productos/eliminados', fetcher)
+  const { data: productosPapelera, isLoading, error: errorBackend, mutate } = useSWR<ProductoPapelera[]>('/productos/papelera', fetcher)
   
   const [filtro, setFiltro] = useState('')
   const [restaurandoId, setRestaurandoId] = useState<number | null>(null)
@@ -76,13 +73,13 @@ export default function ProductosEliminadosClient() {
   const [showProductFormModal, setShowProductFormModal] = useState(false)
 
   const productosFiltrados = useMemo(() => {
-    if (!productosEliminados) return []
+    if (!productosPapelera) return []
     
-    return productosEliminados.filter((p) =>
+    return productosPapelera.filter((p) =>
       p.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
       p.etiquetas?.some(etiqueta => etiqueta.toLowerCase().includes(filtro.toLowerCase()))
     )
-  }, [productosEliminados, filtro])
+  }, [productosPapelera, filtro])
 
   const mostrarError = (mensaje: string) => {
     setError(mensaje)
@@ -144,14 +141,14 @@ export default function ProductosEliminadosClient() {
     }
   }
 
-  const getStockStatus = (producto: ProductoEliminado) => {
+  const getStockStatus = (producto: ProductoPapelera) => {
     if (producto.stock === 0) return { color: 'bg-red-100 text-red-700', icon: XCircle, text: 'Agotado' }
     if (producto.stock <= producto.stockMinimo) return { color: 'bg-orange-100 text-orange-700', icon: AlertTriangle, text: 'Crítico' }
     if (producto.stock > producto.stockMinimo * 3) return { color: 'bg-yellow-100 text-yellow-700', icon: TrendingUp, text: 'Alto' }
     return { color: 'bg-green-100 text-green-700', icon: CheckCircle, text: 'Normal' }
   }
 
-  const getMargen = (producto: ProductoEliminado) => {
+  const getMargen = (producto: ProductoPapelera) => {
     if (producto.precioCompra <= 0) return 0
     return ((producto.precioVenta - producto.precioCompra) / producto.precioCompra) * 100
   }
@@ -184,8 +181,8 @@ export default function ProductosEliminadosClient() {
         </div>
         <div className="flex flex-col items-center justify-center py-12">
           <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error al cargar productos eliminados</h2>
-          <p className="text-gray-600 mb-4">No se pudieron cargar los productos eliminados</p>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error al cargar la papelera</h2>
+          <p className="text-gray-600 mb-4">No se pudieron cargar los productos de la papelera</p>
         </div>
       </div>
     )
@@ -203,7 +200,7 @@ export default function ProductosEliminadosClient() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Papelera de Productos</h1>
           <p className="text-gray-600 mt-1">
-            Productos eliminados que puedes restaurar
+            Productos inactivos y eliminados que puedes restaurar
           </p>
         </div>
         
@@ -224,8 +221,8 @@ export default function ProductosEliminadosClient() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Eliminados</p>
-                <p className="text-2xl font-bold text-gray-900">{productosEliminados?.length || 0}</p>
+                <p className="text-sm font-medium text-gray-600">Total en Papelera</p>
+                <p className="text-2xl font-bold text-gray-900">{productosPapelera?.length || 0}</p>
               </div>
               <div className="p-3 bg-red-100 rounded-lg">
                 <Trash2 className="w-6 h-6 text-red-600" />
@@ -255,7 +252,7 @@ export default function ProductosEliminadosClient() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
-            placeholder="Buscar productos eliminados..."
+            placeholder="Buscar en la papelera..."
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent"
@@ -298,17 +295,17 @@ export default function ProductosEliminadosClient() {
         </div>
       )}
 
-      {/* Lista de productos eliminados */}
+      {/* Lista de productos en la papelera */}
       {productosFiltrados.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12">
           <Trash2 className="w-16 h-16 text-gray-300 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {filtro ? 'No se encontraron productos' : 'No hay productos eliminados'}
+            {filtro ? 'No se encontraron productos' : 'No hay productos en la papelera'}
           </h3>
           <p className="text-gray-600 text-center">
             {filtro 
               ? 'Intenta con otros términos de búsqueda' 
-              : 'Los productos que elimines aparecerán aquí para que puedas restaurarlos'
+              : 'Los productos inactivos y eliminados aparecerán aquí para que puedas restaurarlos'
             }
           </p>
         </div>
@@ -352,8 +349,13 @@ export default function ProductosEliminadosClient() {
                         </div>
                       )}
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium bg-red-100 text-red-700">
-                          Eliminado
+                        <span className={cn(
+                          "inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full font-medium",
+                          producto.estado === 'ELIMINADO' 
+                            ? "bg-red-100 text-red-700" 
+                            : "bg-orange-100 text-orange-700"
+                        )}>
+                          {producto.estado === 'ELIMINADO' ? 'Eliminado' : 'Inactivo'}
                         </span>
                       </div>
                     </div>

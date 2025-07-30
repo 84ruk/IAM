@@ -52,8 +52,24 @@ export interface CreateProductoDto {
   color?: string
   }
 
-export interface UpdateProductoDto extends Partial<CreateProductoDto> {
-  // Hereda todas las propiedades de CreateProductoDto como opcionales
+export interface UpdateProductoDto {
+  nombre?: string
+  descripcion?: string
+  proveedorId?: number
+  precioCompra?: number
+  precioVenta?: number
+  stock?: number
+  stockMinimo?: number
+  unidad?: string
+  etiquetas?: string[]
+  codigoBarras?: string
+  rfid?: string
+  sku?: string
+  tipoProducto?: TipoProducto
+  temperaturaOptima?: number
+  humedadOptima?: number
+  talla?: string
+  color?: string
 }
 
 export interface ProductFilters {

@@ -311,7 +311,7 @@ export async function validateApiResponse(response: Response): Promise<unknown> 
       const data = await response.json()
       const error = parseApiError(response, data)
       throw error
-    } catch (parseError) {
+    } catch {
       // Si no se puede parsear la respuesta JSON, crear un error básico
       const error = parseApiError(response)
       throw error
@@ -339,10 +339,7 @@ export async function safeFetch(url: string, options?: RequestInit): Promise<unk
     })
 
     return await validateApiResponse(response)
-  } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
-    throw handleNetworkError(error)
+  } catch {
+    throw new AppError('Error de conexión')
   }
 } 

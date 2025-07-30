@@ -15,10 +15,10 @@ interface TopProduct {
 }
 
 interface TopProductsListProps {
+  data: Array<Record<string, unknown>>
   title: string
-  products: TopProduct[]
   isLoading?: boolean
-  error?: any
+  error?: Error | null
   className?: string
 }
 

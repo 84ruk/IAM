@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ImportacionController } from './importacion.controller';
+import { ImportacionRapidaController } from './importacion-rapida.controller';
 import { ImportacionService } from './importacion.service';
 import { DetectorTipoImportacionService } from './servicios/detector-tipo-importacion.service';
 import { PlantillasService } from './servicios/plantillas.service';
@@ -14,6 +15,7 @@ import { SmartErrorResolverService } from './services/smart-error-resolver.servi
 import { ImportacionProgressTrackerService } from './services/importacion-progress-tracker.service';
 import { AutocorreccionInteligenteService } from './services/autocorreccion-inteligente.service';
 import { ImportacionRapidaService } from './services/importacion-rapida.service';
+import { ReporteErroresService } from './services/reporte-errores.service';
 import { ImportacionConfigService } from './config/importacion.config';
 import { TrabajoImportacionFactory } from './factories/trabajo-importacion.factory';
 import { ColasModule } from '../colas/colas.module';
@@ -27,7 +29,7 @@ import { ImportacionWebSocketService } from './importacion-websocket.service';
     PrismaModule,
     WebSocketsModule,
   ],
-  controllers: [ImportacionController],
+  controllers: [ImportacionController, ImportacionRapidaController],
   providers: [
     ImportacionService,
     DetectorTipoImportacionService,
@@ -43,6 +45,7 @@ import { ImportacionWebSocketService } from './importacion-websocket.service';
     ImportacionProgressTrackerService,
     AutocorreccionInteligenteService,
     ImportacionRapidaService,
+    ReporteErroresService,
     ImportacionConfigService,
     TrabajoImportacionFactory,
     ImportacionWebSocketService,

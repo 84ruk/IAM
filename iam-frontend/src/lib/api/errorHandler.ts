@@ -7,12 +7,12 @@ export interface BackendError {
   statusCode: number;
   message: string;
   error?: string;
-  details?: any;
+  details?: unknown;
 }
 
 export interface ValidationError {
   property: string;
-  value: any;
+  value: unknown;
   constraints: string[];
   children?: ValidationError[];
 }
@@ -30,7 +30,7 @@ export class ErrorHandlerService {
   /**
    * Convierte errores del backend en mensajes amigables para el usuario
    */
-  static parseBackendError(error: any): UserFriendlyError {
+  static parseBackendError(error: unknown): UserFriendlyError {
     if (!error) {
       return {
         message: 'Error desconocido',
@@ -40,13 +40,13 @@ export class ErrorHandlerService {
     }
 
     // Si ya es un UserFriendlyError, devolverlo
-    if (error.userFriendlyError) {
-      return error.userFriendlyError
+    if (error && typeof error === 'object' && 'userFriendlyError' in error) {
+      return (error as { userFriendlyError: UserFriendlyError }).userFriendlyError
     }
 
     // Parsear errores de respuesta HTTP
-    if (error.response?.data) {
-      const backendError = error.response.data
+    if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) {
+      const backendError = error.response.data as BackendError
       
       return {
         message: backendError.message || 'Error del servidor',
@@ -57,7 +57,8 @@ export class ErrorHandlerService {
     }
 
     // Parsear errores de red
-    if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'NETWORK_ERROR' || 
+        error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' && error.message.includes('Network Error')) {
       return {
         message: 'Error de conexión. Verifica tu conexión a internet.',
         type: 'network',
@@ -66,8 +67,16 @@ export class ErrorHandlerService {
     }
 
     // Error por defecto
+    if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+      return {
+        message: error.message,
+        type: 'system',
+        code: 'UNKNOWN_ERROR'
+      }
+    }
+
     return {
-      message: error.message || 'Error desconocido',
+      message: 'Error desconocido',
       type: 'system',
       code: 'UNKNOWN_ERROR'
     }
@@ -76,9 +85,17 @@ export class ErrorHandlerService {
   /**
    * Parsea errores de validación específicos del backend
    */
-  private static parseValidationError(error: any): UserFriendlyError {
-    const message = error.message || '';
-    const details = error.details || [];
+  private static parseValidationError(error: unknown): UserFriendlyError {
+    if (!error || typeof error !== 'object') {
+      return {
+        message: 'Error de validación desconocido',
+        type: 'validation'
+      }
+    }
+
+    const errorObj = error as { message?: string; details?: unknown }
+    const message = errorObj.message || '';
+    const details = errorObj.details || [];
 
     // Error específico de opciones
     if (message.includes('opciones -> property opciones should not exist')) {
@@ -161,13 +178,17 @@ export class ErrorHandlerService {
     }
 
     // Error de validación de datos
-    if (details.length > 0) {
-      const validationDetails = details.map((detail: any) => {
+    if (Array.isArray(details) && details.length > 0) {
+      const validationDetails = details.map((detail: unknown) => {
         if (typeof detail === 'string') return detail;
-        if (detail.property && detail.constraints) {
-          return `${detail.property}: ${detail.constraints.join(', ')}`;
+        if (detail && typeof detail === 'object' && 'property' in detail && 'constraints' in detail) {
+          const detailObj = detail as { property: string; constraints: string[] }
+          return `${detailObj.property}: ${detailObj.constraints.join(', ')}`;
         }
-        return detail.message || detail;
+        if (detail && typeof detail === 'object' && 'message' in detail) {
+          return (detail as { message: string }).message;
+        }
+        return String(detail);
       });
 
       return {
@@ -199,7 +220,7 @@ export class ErrorHandlerService {
   /**
    * Parsea errores específicos de importación
    */
-  static parseImportError(error: any, tipo: string): UserFriendlyError {
+  static parseImportError(error: unknown, tipo: string): UserFriendlyError {
     const baseError = this.parseBackendError(error);
 
     // Personalizar según el tipo de importación

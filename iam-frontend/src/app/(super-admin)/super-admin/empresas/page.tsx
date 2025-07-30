@@ -15,15 +15,11 @@ import {
   TrendingUp,
   Calendar,
   Mail,
-  MapPin,
-  Eye,
   BarChart3,
-  AlertTriangle,
   CheckCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 
 interface Empresa {
   id: number

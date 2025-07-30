@@ -3,11 +3,11 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtUser } from '../../auth/interfaces/jwt-user.interface';
 import { Rol } from '@prisma/client';
-import { AppLoggerService } from '../../common/services/logger.service';
 
 // Roles que pueden acceder a datos financieros completos
 const FINANCIAL_DATA_ROLES: Rol[] = ['SUPERADMIN', 'ADMIN'];
@@ -20,9 +20,10 @@ const NO_FINANCIAL_ACCESS_ROLES: Rol[] = ['PROVEEDOR'];
 
 @Injectable()
 export class FinancialDataGuard implements CanActivate {
+  private readonly logger = new Logger(FinancialDataGuard.name);
+
   constructor(
     private reflector: Reflector,
-    private logger: AppLoggerService,
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -30,7 +31,7 @@ export class FinancialDataGuard implements CanActivate {
     const user: JwtUser = request.user;
 
     if (!user) {
-      this.logger.security('Acceso denegado: usuario no autenticado', 0, 'unknown', {
+      this.logger.warn('Acceso denegado: usuario no autenticado', {
         path: request.url,
         method: request.method,
         guard: 'FinancialDataGuard',
@@ -55,7 +56,9 @@ export class FinancialDataGuard implements CanActivate {
     const hasNoAccess = NO_FINANCIAL_ACCESS_ROLES.includes(user.rol);
 
     if (hasNoAccess) {
-      this.logger.security('Acceso denegado a datos financieros', user.id, user.email, {
+      this.logger.warn('Acceso denegado a datos financieros', {
+        userId: user.id,
+        userEmail: user.email,
         rol: user.rol,
         path: request.url,
         method: request.method,
@@ -70,7 +73,9 @@ export class FinancialDataGuard implements CanActivate {
     }
 
     // Log de acceso exitoso
-    this.logger.security('Acceso a datos financieros autorizado', user.id, user.email, {
+    this.logger.log('Acceso a datos financieros autorizado', {
+      userId: user.id,
+      userEmail: user.email,
       rol: user.rol,
       path: request.url,
       method: request.method,

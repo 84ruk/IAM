@@ -8,7 +8,6 @@ import { Producto } from '@/types/producto'
 import VolverAtras from '@/components/ui/VolverAtras'
 import Link from 'next/link'
 import { Eye } from 'lucide-react'
-import router from 'next/router'
 
 export default function EditarProductoClient() {
   const params = useParams()

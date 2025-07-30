@@ -199,7 +199,7 @@ export default function ImportacionPage() {
     return true
   })
 
-  const handleTemplateSelect = (_template: SmartTemplate) => {
+  const handleTemplateSelect = (template: SmartTemplate) => {
     setShowSmartModal(true)
   }
 
@@ -565,11 +565,11 @@ export default function ImportacionPage() {
                             {format(log.timestamp, 'HH:mm:ss')}
                           </span>
                         </div>
-                        {log.details && (
+                        {log.details ? (
                           <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                            <pre className="whitespace-pre-wrap">{String(JSON.stringify(log.details, null, 2))}</pre>
+                            <pre className="whitespace-pre-wrap">{String(JSON.stringify(log.details as Record<string, unknown>, null, 2))}</pre>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>

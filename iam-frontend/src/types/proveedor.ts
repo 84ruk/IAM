@@ -20,6 +20,8 @@ export interface CreateProveedorDto {
   telefono?: string
 }
 
-export interface UpdateProveedorDto extends Partial<CreateProveedorDto> {
-  // Hereda todas las propiedades de CreateProveedorDto como opcionales
+export interface UpdateProveedorDto {
+  nombre?: string
+  email?: string
+  telefono?: string
 } 

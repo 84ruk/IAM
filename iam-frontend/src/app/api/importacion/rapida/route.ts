@@ -8,14 +8,22 @@ export async function POST(request: NextRequest) {
 
     if (!archivo) {
       return NextResponse.json(
-        { error: 'Archivo no proporcionado' },
+        { 
+          success: false,
+          error: 'Archivo no proporcionado',
+          message: 'Por favor selecciona un archivo para importar'
+        },
         { status: 400 }
       )
     }
 
     if (!tipo) {
       return NextResponse.json(
-        { error: 'Tipo de importación no especificado' },
+        { 
+          success: false,
+          error: 'Tipo de importación no especificado',
+          message: 'Debes especificar el tipo de importación'
+        },
         { status: 400 }
       )
     }
@@ -26,7 +34,11 @@ export async function POST(request: NextRequest) {
     
     if (!validExtensions.includes(fileExtension)) {
       return NextResponse.json(
-        { error: `Extensión no soportada: ${fileExtension}. Use: ${validExtensions.join(', ')}` },
+        { 
+          success: false,
+          error: `Extensión no soportada: ${fileExtension}`,
+          message: `El archivo debe tener una de estas extensiones: ${validExtensions.join(', ')}`
+        },
         { status: 400 }
       )
     }
@@ -35,7 +47,11 @@ export async function POST(request: NextRequest) {
     const maxSize = 10 * 1024 * 1024 // 10MB
     if (archivo.size > maxSize) {
       return NextResponse.json(
-        { error: `Archivo demasiado grande: ${(archivo.size / 1024 / 1024).toFixed(1)}MB. Máximo: ${maxSize / 1024 / 1024}MB` },
+        { 
+          success: false,
+          error: `Archivo demasiado grande: ${(archivo.size / 1024 / 1024).toFixed(1)}MB`,
+          message: `El archivo es demasiado grande. Máximo permitido: ${maxSize / 1024 / 1024}MB`
+        },
         { status: 400 }
       )
     }
@@ -45,11 +61,14 @@ export async function POST(request: NextRequest) {
     backendFormData.append('archivo', archivo)
     backendFormData.append('tipo', tipo)
 
-    // Solo agregar descripción si existe (única propiedad opcional que acepta el DTO)
-    const descripcion = formData.get('descripcion')
-    if (descripcion) {
-      backendFormData.append('descripcion', descripcion.toString())
-    }
+    // Agregar opciones adicionales si existen
+    const opciones = ['descripcion', 'estrategiaDuplicados', 'validarSolo', 'generarReporteDetallado']
+    opciones.forEach(opcion => {
+      const valor = formData.get(opcion)
+      if (valor !== null) {
+        backendFormData.append(opcion, valor.toString())
+      }
+    })
 
     // Obtener todas las cookies del request
     const cookies = request.headers.get('cookie') || ''
@@ -65,41 +84,77 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    const responseData = await response.json()
+
     if (!response.ok) {
-      const errorData = await response.json()
-      return NextResponse.json(
-        { error: errorData.message || 'Error en importación rápida' },
-        { status: response.status }
-      )
+      // Manejar errores del backend de forma más detallada
+      const errorMessage = responseData.message || responseData.error || 'Error en importación rápida'
+      const errorDetails = responseData.details || responseData.errores || []
+      
+      return NextResponse.json({
+        success: false,
+        error: errorMessage,
+        message: errorMessage,
+        details: errorDetails,
+        statusCode: response.status
+      }, { status: response.status })
     }
 
-    const data = await response.json()
+    // Procesar respuesta exitosa del backend
+    const data = responseData
 
-    // Pasar toda la información del backend al frontend
+    // Debug: Log de la respuesta del backend
+    console.log('🔍 Respuesta del backend:', JSON.stringify(data, null, 2))
+    console.log('🔍 Errores en data.data:', data.data?.errores)
+    console.log('🔍 Tipo de errores:', typeof data.data?.errores, Array.isArray(data.data?.errores))
+
+    // Estructura de respuesta unificada y compatible
     return NextResponse.json({
-      success: data.success,
-      data: data.data,
-      message: data.message,
-      hasErrors: data.hasErrors,
-      errorCount: data.errorCount,
-      successCount: data.successCount,
-      errorFile: data.errorFile,
-      // Extraer datos del objeto data del backend
-      correcciones: data.data?.correcciones || [],
-      registrosProcesados: data.data?.registrosProcesados,
-      registrosExitosos: data.data?.registrosExitosos,
-      registrosConError: data.data?.registrosConError,
+      success: data.success !== false, // Asegurar que success sea boolean
+      data: {
+        ...data.data,
+        // Asegurar que todos los campos estén presentes
+        registrosProcesados: data.data?.registrosProcesados || 0,
+        registrosExitosos: data.data?.registrosExitosos || 0,
+        registrosConError: data.data?.registrosConError || 0,
+        errores: data.data?.errores || [],
+        correcciones: data.data?.correcciones || [],
+        resumen: data.data?.resumen || {},
+        archivoErrores: data.data?.archivoErrores || null,
+        tiempoProcesamiento: data.data?.tiempoProcesamiento || 0
+      },
+      message: data.message || 'Importación completada',
+      hasErrors: (data.data?.registrosConError || 0) > 0,
+      errorCount: data.data?.registrosConError || 0,
+      successCount: data.data?.registrosExitosos || 0,
+      errorFile: data.data?.archivoErrores || null,
+      
+      // Información de detección automática
+      tipoDetectado: data.tipoDetectado,
+      tipoUsado: data.tipoUsado,
+      confianzaDetectada: data.confianzaDetectada,
+      mensajeDeteccion: data.mensajeDeteccion,
+      
+      // Campos adicionales para compatibilidad
+      registrosProcesados: data.data?.registrosProcesados || 0,
+      registrosExitosos: data.data?.registrosExitosos || 0,
+      registrosConError: data.data?.registrosConError || 0,
       errores: data.data?.errores || [],
-      resumen: data.data?.resumen,
-      // También incluir en el nivel raíz para compatibilidad
-      ...data.data
+      correcciones: data.data?.correcciones || [],
+      resumen: data.data?.resumen || {},
+      archivoErrores: data.data?.archivoErrores || null
     })
 
   } catch (error) {
     console.error('Error en importación rápida:', error)
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    )
+    
+    const errorMessage = error instanceof Error ? error.message : 'Error interno del servidor'
+    
+    return NextResponse.json({
+      success: false,
+      error: errorMessage,
+      message: 'Error interno del servidor durante la importación',
+      details: error instanceof Error ? error.stack : undefined
+    }, { status: 500 })
   }
 } 

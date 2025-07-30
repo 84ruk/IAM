@@ -10,18 +10,14 @@ import {
   Filter, 
   Download,
   RefreshCw,
-  Eye,
   AlertTriangle,
-  CheckCircle,
   Clock,
   User,
-  Shield,
   Building,
   Package,
   Calendar,
   Info
 } from 'lucide-react'
-import Link from 'next/link'
 
 interface AuditLog {
   id: number
@@ -162,7 +158,7 @@ export default function SuperAdminAuditPage() {
       case 'auth':
       case 'login':
       case 'logout':
-        return Shield
+        return User // Changed from Shield to User for consistency with other icons
       default:
         return Activity
     }

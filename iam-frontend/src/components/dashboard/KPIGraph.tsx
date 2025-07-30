@@ -22,32 +22,16 @@ import { Loader2, AlertCircle, BarChart3 } from 'lucide-react'
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B']
 
 interface KPIGraphProps {
+  data: Record<string, unknown>
   title: string
-  type: 'line' | 'bar' | 'pie'
-  data: any[]
-  dataKey: string
-  xAxisDataKey?: string
-  isLoading?: boolean
-  error?: any
+  type: 'line' | 'bar' | 'area'
   height?: number
-  formatValue?: (value: number) => string
-  formatLabel?: (label: string) => string
   className?: string
 }
 
-export default function KPIGraph({
-  title,
-  type,
-  data,
-  dataKey,
-  xAxisDataKey = 'fecha',
-  isLoading = false,
-  error = null,
-  height = 250,
-  formatValue,
-  formatLabel,
-  className = ''
-}: KPIGraphProps) {
+export function KPIGraph({ data, title, type, height = 300, className }: KPIGraphProps) {
+  const chartData = data as Array<Record<string, unknown>>
+
   const NoData = () => (
     <div className="flex flex-col items-center justify-center p-8 text-gray-500">
       <BarChart3 className="w-12 h-12 mb-4 opacity-50" />

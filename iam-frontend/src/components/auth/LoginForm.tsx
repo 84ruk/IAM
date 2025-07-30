@@ -56,12 +56,9 @@ export default function LoginForm() {
   // Limpiar errores cuando cambian los campos
   useEffect(() => {
     if (generalError) {
-      setGeneralError('');
+      setTimeout(() => setGeneralError(''), 5000)
     }
-    if (Object.keys(fieldErrors).length > 0) {
-      setFieldErrors({});
-    }
-  }, [data.email, data.password]);
+  }, [generalError, fieldErrors])
 
   // Función para manejar errores específicos del backend
   const handleBackendError = (error: AppError) => {
@@ -177,10 +174,13 @@ export default function LoginForm() {
         }, 1000);
       }
 
-    } catch (err: any) {
-      // Error de red o excepción no manejada
-      const networkError = new NetworkError('Error de conexión inesperado');
-      handleBackendError(networkError);
+    } catch (err: unknown) {
+      console.error('Error en login:', err)
+      if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+        setGeneralError(err.message)
+      } else {
+        setGeneralError('Error inesperado al iniciar sesión')
+      }
     } finally {
       setIsLoading(false);
     }
@@ -205,9 +205,16 @@ export default function LoginForm() {
   const handleRetry = useCallback(() => {
     // Reintentar la operación de login
     if (data.email && data.password) {
-      handleSubmit(new Event('submit') as any)
+      handleSubmit(new Event('submit') as React.FormEvent)
     }
   }, [data.email, data.password, handleSubmit])
+
+  const handleFieldError = (field: string, error: unknown) => {
+    setFieldErrors(prev => ({
+      ...prev,
+      [field]: typeof error === 'string' ? error : 'Error de validación'
+    }))
+  }
 
   if (isLoading && !showSuccess) {
     return (

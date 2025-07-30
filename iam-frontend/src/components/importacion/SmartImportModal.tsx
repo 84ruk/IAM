@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import ImportacionProgress from './ImportacionProgress'
 import ImportacionErrorNotification from './ImportacionErrorNotification'
-import ErrorDetailsModal from './ErrorDetailsModal'
+import ImportacionErrorDetails from './ImportacionErrorDetails'
 import { 
   Upload, 
   FileText, 
@@ -19,8 +19,8 @@ import {
   ArrowLeft,
   X
 } from 'lucide-react'
-import { useToast } from '@/hooks/useToast'
-import { TipoImportacion, ImportacionResultado } from '@/types/importacion'
+import { useToast } from '@/components/ui/Toast'
+import { TipoImportacion, ImportacionResultado, ErrorImportacion } from '@/types/importacion'
 
 interface SmartImportModalProps {
   isOpen: boolean
@@ -36,7 +36,6 @@ export default function SmartImportModal({
   onError
 }: SmartImportModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [tipoImportacion, setTipoImportacion] = useState<TipoImportacion>('productos')
   const [dragActive, setDragActive] = useState(false)
   const [opciones, setOpciones] = useState({
     sobrescribirExistentes: false,
@@ -50,7 +49,7 @@ export default function SmartImportModal({
   const [currentStep, setCurrentStep] = useState<'upload' | 'importing' | 'result'>('upload')
   
   const { state, importar, cancelarTrabajo, clearState, clearError, clearSuccess } = useImportacionUnified()
-  const { toast } = useToast()
+  const { addToast } = useToast()
 
   // Limpiar errores y resultados cuando cambia el archivo
   useEffect(() => {
@@ -72,6 +71,14 @@ export default function SmartImportModal({
       setCurrentStep('upload')
     }
   }, [state.isImporting, state.currentTrabajo, importacionResult, selectedFile])
+
+  // Manejar errores automáticamente para evitar que se quede atascado
+  useEffect(() => {
+    if (state.error && currentStep === 'importing') {
+      // Si hay error durante la importación, volver al step de upload
+      setCurrentStep('upload')
+    }
+  }, [state.error, currentStep])
 
   // Función para determinar el modo esperado basado en el tamaño del archivo
   const getModoEsperado = (file: File): 'http' | 'websocket' => {
@@ -107,16 +114,12 @@ export default function SmartImportModal({
     }
     
     setSelectedFile(null)
-    setTipoImportacion('productos' as TipoImportacion)
     setOpciones({
       sobrescribirExistentes: false,
       validarSolo: false,
       notificarEmail: false,
       emailNotificacion: ''
     })
-    setImportacionResult(null)
-    setShowErrorDetailsModal(false)
-    setCurrentStep('upload')
     clearState()
     onClose()
   }, [state.isImporting, state.currentTrabajo, cancelarTrabajo, clearState, onClose])
@@ -124,7 +127,6 @@ export default function SmartImportModal({
   // Función para limpiar completamente el estado
   const limpiarEstadoCompleto = useCallback(() => {
     setSelectedFile(null)
-    setTipoImportacion('productos' as TipoImportacion)
     setOpciones({
       sobrescribirExistentes: false,
       validarSolo: false,
@@ -192,53 +194,63 @@ export default function SmartImportModal({
     }
   }, [])
 
-  // Manejar importación
+  // Función para manejar la importación
   const handleImport = useCallback(async () => {
     if (!selectedFile) {
-      toast.error('Por favor selecciona un archivo')
+      addToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Por favor selecciona un archivo para importar.'
+      })
       return
     }
 
     try {
-      // Para importación inteligente, usar el tipo seleccionado
-      const result = await importar(selectedFile, tipoImportacion as TipoImportacion, opciones)
+      const result = await importar(selectedFile, 'productos', opciones) // Hardcodeado a 'productos'
       
-      // Debug: Log del resultado
-      console.log('🔍 Resultado de importación:', {
-        registrosProcesados: result.registrosProcesados,
-        registrosExitosos: result.registrosExitosos,
-        registrosConError: result.registrosConError,
-        correcciones: result.correcciones?.length || 0,
-        errores: result.errores?.length || 0,
-        hasErrors: result.hasErrors,
-        mensaje: result.mensaje,
-        message: result.message,
-        data: result.data
-      })
+      // Debug: Log del resultado completo
+      console.log('🔍 Resultado de importación:', result)
+      console.log('🔍 Errores recibidos:', result.errores)
+      console.log('🔍 Tipo de errores:', typeof result.errores, Array.isArray(result.errores))
       
-      // Debug: Log detallado de la estructura
-      console.log('🔍 Estructura completa del resultado:', result)
-      
-      // Guardar resultado para mostrar notificación
+      // Siempre establecer el resultado y cambiar al step 'result'
       setImportacionResult(result)
+      setCurrentStep('result')
       
-      if (onSuccess) {
-        onSuccess(result)
+      // Verificar si la importación fue exitosa basándose en los registros procesados
+      if (result.registrosProcesados > 0 && result.registrosExitosos > 0) {
+        onSuccess?.(result)
+        
+        // Mostrar información de detección automática si está disponible
+        if (result.tipoDetectado && result.tipoUsado && result.tipoDetectado !== result.tipoUsado) {
+          addToast({
+            type: 'info',
+            title: 'Tipo Detectado Automáticamente',
+            message: `El archivo fue detectado como ${result.tipoDetectado} y se importó correctamente.`
+          })
+        }
+      } else {
+        const errorMessage = result.mensaje || result.message || 'Error desconocido durante la importación'
+        onError?.(errorMessage)
+        
+        // Solo mostrar toast para errores críticos
+        addToast({
+          type: 'error',
+          title: 'Error de importación',
+          message: errorMessage
+        })
       }
-      
-      // NO mostrar alertas automáticas - el usuario verá el resultado en la UI
-      
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+      const errorMessage = error instanceof Error ? error.message : 'Error inesperado'
+      onError?.(errorMessage)
       
-      if (onError) {
-        onError(errorMessage)
-      }
-      
-      // Solo mostrar toast para errores críticos
-      toast.error(errorMessage)
+      addToast({
+        type: 'error',
+        title: 'Error de importación',
+        message: errorMessage
+      })
     }
-  }, [selectedFile, tipoImportacion, opciones, importar, onSuccess, onError, toast])
+  }, [selectedFile, opciones, importar, onSuccess, onError, addToast])
 
   // Limpiar errores
   const handleClearError = useCallback(() => {
@@ -426,26 +438,6 @@ export default function SmartImportModal({
             </div>
           )}
 
-          {/* Selector de tipo de importación - solo mostrar en step upload */}
-          {currentStep === 'upload' && (
-            <div className="space-y-3">
-              <h4 className="text-sm font-medium text-gray-700">Tipo de importación</h4>
-              <div className="grid grid-cols-3 gap-2">
-                {['productos', 'proveedores', 'movimientos'].map((tipo) => (
-                  <Button
-                    key={tipo}
-                    variant={tipoImportacion === tipo ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setTipoImportacion(tipo as TipoImportacion)}
-                    className="capitalize"
-                  >
-                    {tipo}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Opciones de importación - solo mostrar en step upload */}
           {currentStep === 'upload' && (
             <div className="space-y-3">
@@ -507,35 +499,72 @@ export default function SmartImportModal({
 
           {/* Notificación de errores de importación - solo mostrar en step result */}
           {currentStep === 'result' && importacionResult && (
-            <ImportacionErrorNotification
-              hasErrors={importacionResult.hasErrors || importacionResult.registrosConError > 0 || false}
-              errorCount={importacionResult.errorCount || importacionResult.registrosConError || 0}
-              successCount={importacionResult.successCount || importacionResult.registrosExitosos || 0}
-              errorFile={importacionResult.errorFile}
-              message={importacionResult.mensaje || importacionResult.message || `Procesados: ${importacionResult.registrosProcesados || 0}, Exitosos: ${importacionResult.registrosExitosos || 0}, Errores: ${importacionResult.registrosConError || 0}`}
-              correcciones={importacionResult.correcciones || importacionResult.data?.correcciones || []}
-              onDownloadReport={() => {
-                if (importacionResult.errorFile) {
-                  // Implementar descarga del archivo de errores
-                  console.log('Descargar archivo de errores:', importacionResult.errorFile)
-                }
-              }}
-              onViewDetails={() => setShowErrorDetailsModal(true)}
-            />
+            <div className="space-y-4">
+              {/* Debug: Mostrar información cruda del resultado */}
+              <div className="bg-gray-50 p-4 rounded-lg border">
+                <h4 className="font-medium text-gray-900 mb-2">Debug Info:</h4>
+                <pre className="text-xs text-gray-600 overflow-auto">
+                  {JSON.stringify({
+                    hasErrors: importacionResult.hasErrors,
+                    registrosConError: importacionResult.registrosConError,
+                    errores: importacionResult.errores,
+                    errorCount: importacionResult.errorCount,
+                    message: importacionResult.message,
+                    mensaje: importacionResult.mensaje
+                  }, null, 2)}
+                </pre>
+              </div>
+
+              {/* Mostrar errores detallados si existen */}
+              {Array.isArray(importacionResult.errores) && importacionResult.errores.length > 0 && (
+                <ImportacionErrorDetails
+                  errores={importacionResult.errores as ErrorImportacion[]}
+                  onClose={() => setCurrentStep('upload')}
+                  onRetry={() => {
+                    setCurrentStep('upload')
+                    setImportacionResult(null)
+                  }}
+                  onDownloadReport={() => {
+                    if (importacionResult.errorFile) {
+                      console.log('Descargar archivo de errores:', String(importacionResult.errorFile))
+                    }
+                  }}
+                />
+              )}
+
+              {/* Mostrar éxito si no hay errores */}
+              {(!importacionResult.errores || importacionResult.errores.length === 0) && importacionResult.registrosExitosos > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-green-800">
+                        Importación Exitosa
+                      </h3>
+                      <p className="text-sm text-green-600">
+                        Se importaron {importacionResult.registrosExitosos} registros correctamente
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Mensajes de estado - solo mostrar en step upload */}
           {currentStep === 'upload' && state.success && !importacionResult && (
             <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
               <CheckCircle className="w-4 h-4 text-green-600" />
-              <span className="text-sm text-green-800">{state.success}</span>
+              <span className="text-sm text-green-800">{String(state.success)}</span>
             </div>
           )}
 
           {currentStep === 'upload' && state.error && (
             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
               <XCircle className="w-4 h-4 text-red-600" />
-              <span className="text-sm text-red-800 flex-1">{state.error}</span>
+              <span className="text-sm text-red-800 flex-1">{String(state.error)}</span>
               <Button
                 variant="ghost"
                 size="sm"
@@ -597,16 +626,19 @@ export default function SmartImportModal({
       </div>
 
       {/* Modal de detalles de errores */}
-      {importacionResult && importacionResult.data && importacionResult.data.errores && (
-        <ErrorDetailsModal
-          isOpen={showErrorDetailsModal}
+      {importacionResult && importacionResult.errores && Array.isArray(importacionResult.errores) && showErrorDetailsModal && (
+        <ImportacionErrorDetails
+          errores={importacionResult.errores as ErrorImportacion[]}
           onClose={() => setShowErrorDetailsModal(false)}
-          errores={importacionResult.data.errores}
-          tipoImportacion={tipoImportacion}
+          onRetry={() => {
+            setCurrentStep('upload')
+            setImportacionResult(null)
+            setShowErrorDetailsModal(false)
+          }}
           onDownloadReport={() => {
             if (importacionResult.errorFile) {
               // Implementar descarga del archivo de errores
-              console.log('Descargar archivo de errores:', importacionResult.errorFile)
+              console.log('Descargar archivo de errores:', String(importacionResult.errorFile))
             }
           }}
         />

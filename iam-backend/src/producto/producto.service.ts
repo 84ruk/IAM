@@ -108,8 +108,17 @@ export class ProductoService {
 
     const where: any = {
       empresaId,
-      estado: filters?.estado || 'ACTIVO', // Por defecto solo productos activos
     };
+
+    // Solo aplicar filtro de estado si se especifica explícitamente
+    if (filters?.estado && filters.estado !== '') {
+      where.estado = filters.estado;
+      console.log('🔍 Backend: Aplicando filtro de estado:', filters.estado);
+    } else {
+      // Por defecto mostrar solo productos activos en la página principal
+      where.estado = 'ACTIVO';
+      console.log('🔍 Backend: Mostrando solo productos activos por defecto');
+    }
 
     // Filtro de búsqueda por nombre o descripción
     if (filters?.search) {
@@ -261,6 +270,36 @@ export class ProductoService {
           },
         },
       },
+    });
+  }
+
+  async findTrash(empresaId: number | undefined) {
+    // Si el usuario no tiene empresa configurada, devolver array vacío
+    if (!empresaId) {
+      return [];
+    }
+
+    return this.prisma.producto.findMany({
+      where: {
+        empresaId,
+        estado: {
+          in: ['INACTIVO', 'ELIMINADO'] // Productos inactivos y eliminados
+        },
+      },
+      include: {
+        proveedor: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            telefono: true,
+          },
+        },
+      },
+      orderBy: [
+        { estado: 'asc' }, // Primero INACTIVO, luego ELIMINADO
+        { nombre: 'asc' }
+      ],
     });
   }
 

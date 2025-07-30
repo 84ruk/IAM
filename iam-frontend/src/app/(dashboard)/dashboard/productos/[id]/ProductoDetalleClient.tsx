@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Edit, Trash2, Package, AlertTriangle, TrendingUp, DollarSign, Calendar, CheckCircle, XCircle, Tag, Eye } from 'lucide-react'
+import { Edit, Trash2, Package, AlertTriangle, TrendingUp, DollarSign, CheckCircle, XCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Producto } from '@/types/producto'
-import { TipoProductoConfig, TipoProducto } from '@/types/enums'
 import ProductTypeIcon from '@/components/ui/ProductTypeIcon'
 import EtiquetaTag from '@/components/ui/EtiquetaTag'
-import StockInfoModal from '@/components/ui/StockInfoModal'
 import VolverAtras from '@/components/ui/VolverAtras'
-import Link from 'next/link'
 
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
@@ -31,8 +28,6 @@ export default function ProductoDetalleClient() {
   const router = useRouter()
   const [producto, setProducto] = useState<Producto | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showStockModal, setShowStockModal] = useState(false)
   const [eliminando, setEliminando] = useState(false)
 
   useEffect(() => {
@@ -42,7 +37,6 @@ export default function ProductoDetalleClient() {
         const data = await fetcher(`/productos/${params?.id}`)
         setProducto(data)
       } catch (err) {
-        setError('Error al cargar el producto')
         console.error('Error:', err)
       } finally {
         setIsLoading(false)
@@ -75,7 +69,7 @@ export default function ProductoDetalleClient() {
 
       router.push('/dashboard/productos')
     } catch (error) {
-      setError('Error al eliminar el producto')
+      console.error('Error al eliminar el producto:', error)
     } finally {
       setEliminando(false)
     }
@@ -113,14 +107,14 @@ export default function ProductoDetalleClient() {
     )
   }
 
-  if (error || !producto) {
+  if (!producto) {
     return (
       <div className="p-6 bg-[#F8F9FB] min-h-screen">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col items-center justify-center py-12">
             <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">Error al cargar el producto</h2>
-            <p className="text-gray-600 mb-4">{error || 'Producto no encontrado'}</p>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Producto no encontrado</h2>
+            <p className="text-gray-600 mb-4">El producto que buscas no existe o ha sido eliminado.</p>
             <VolverAtras href="/dashboard/productos" label="Volver a productos" />
           </div>
         </div>

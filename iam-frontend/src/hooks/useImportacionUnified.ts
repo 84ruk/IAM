@@ -1,19 +1,15 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useToast } from '@/hooks/useToast'
+import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/hooks/useAuth'
-import { useServerUser } from '@/context/ServerUserContext'
 import io, { Socket } from 'socket.io-client'
 import { 
-  ImportacionTrabajo, 
   ImportacionOpciones, 
   ImportacionResultado, 
   ImportacionEstado,
   TipoImportacion 
 } from '@/types/importacion'
-
-
 
 interface UseImportacionUnifiedReturn {
   state: ImportacionEstado
@@ -50,9 +46,8 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
   const webSocketConnected = useRef(false)
   const currentTrabajoId = useRef<string | null>(null)
   const pollingInterval = useRef<NodeJS.Timeout | null>(null)
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { validateAuth } = useAuth()
-  const user = useServerUser()
 
   // Función para desconectar WebSocket
   const disconnectWebSocket = useCallback(() => {
@@ -65,15 +60,21 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
     }
   }, [socket])
 
+  // Función para detener polling
+  const stopPolling = useCallback(() => {
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current)
+      pollingInterval.current = null
+    }
+  }, [])
+
   // Limpiar polling al desmontar
   useEffect(() => {
     return () => {
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current)
-      }
+      stopPolling()
       disconnectWebSocket()
     }
-  }, [disconnectWebSocket])
+  }, [stopPolling, disconnectWebSocket])
 
   // Función para conectar WebSocket solo cuando sea necesario
   const connectWebSocket = useCallback(async (): Promise<boolean> => {
@@ -185,7 +186,11 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
           currentTrabajo: null,
           success: 'Importación completada exitosamente'
         }))
-        toast.success('Importación completada exitosamente')
+        addToast({
+          type: 'success',
+          title: 'Éxito',
+          message: 'Importación completada exitosamente'
+        })
         stopPolling()
         disconnectWebSocket()
       }
@@ -202,7 +207,11 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
           currentTrabajo: null,
           error: errorData.mensaje || 'Error en la importación'
         }))
-        toast.error(errorData.mensaje || 'Error en la importación')
+        addToast({
+          type: 'error',
+          title: 'Error',
+          message: errorData.mensaje || 'Error en la importación'
+        })
         stopPolling()
         disconnectWebSocket()
       }
@@ -217,7 +226,7 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
       socket.off('trabajo:completado', handleTrabajoCompletado)
       socket.off('trabajo:error', handleTrabajoError)
     }
-  }, [socket, webSocketConnected.current, currentTrabajoId, toast, disconnectWebSocket])
+  }, [socket, webSocketConnected.current, currentTrabajoId, addToast, disconnectWebSocket, stopPolling])
 
   // Función para determinar el modo de importación basado en el tamaño del archivo
   const determinarModo = useCallback((file: File, tipo: string): 'http' | 'websocket' => {
@@ -234,8 +243,10 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
     return 'websocket'
   }, [])
 
-  // Función para importación HTTP (usando importación rápida para archivos pequeños)
+  // Función para importación HTTP (archivos pequeños)
   const importarHTTP = useCallback(async (file: File, tipo: string, opciones?: ImportacionOpciones) => {
+    console.log('⚡ Usando importación HTTP rápida')
+    
     const formData = new FormData()
     formData.append('archivo', file)
     formData.append('tipo', tipo)
@@ -260,10 +271,68 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
     const result = await response.json()
 
     if (!response.ok) {
-      throw new Error(result.error || result.message || 'Error en importación rápida')
+      // Manejar errores de forma más detallada
+      const errorMessage = result.message || result.error || 'Error en importación rápida'
+      const errorDetails = result.details || []
+      
+      console.error('Error en importación HTTP:', {
+        status: response.status,
+        message: errorMessage,
+        details: errorDetails
+      })
+      
+      throw new Error(errorMessage)
     }
 
-    // NO mostrar alerts automáticos - el componente manejará la UI
+    // Verificar si la respuesta es exitosa
+    if (result.success === false) {
+      const errorMessage = result.message || result.error || 'Error en importación rápida'
+      console.error('Importación falló:', errorMessage)
+      throw new Error(errorMessage)
+    }
+
+    // Validar que la respuesta tenga la estructura esperada
+    if (!result.data) {
+      console.warn('Respuesta sin estructura data, usando respuesta directa')
+      return {
+        ...result,
+        data: {
+          registrosProcesados: result.registrosProcesados || 0,
+          registrosExitosos: result.registrosExitosos || 0,
+          registrosConError: result.registrosConError || 0,
+          errores: result.errores || [],
+          correcciones: result.correcciones || [],
+          resumen: result.resumen || {},
+          archivoErrores: result.archivoErrores || null
+        }
+      }
+    }
+
+    // Log de información de detección automática
+    if (result.tipoDetectado && result.tipoUsado) {
+      console.log('🔍 Información de detección automática:', {
+        tipoDetectado: result.tipoDetectado,
+        tipoUsado: result.tipoUsado,
+        confianza: result.confianzaDetectada,
+        mensaje: result.mensajeDeteccion
+      })
+    }
+
+    // Debug: Log detallado del resultado completo
+    console.log('🔍 Resultado completo de importación HTTP:', {
+      success: result.success,
+      hasErrors: result.hasErrors,
+      registrosProcesados: result.registrosProcesados,
+      registrosExitosos: result.registrosExitosos,
+      registrosConError: result.registrosConError,
+      errores: result.errores,
+      errorCount: result.errorCount,
+      message: result.message,
+      mensaje: result.mensaje,
+      data: result.data
+    })
+
+    console.log('✅ Importación HTTP completada:', result)
     return result
   }, [])
 
@@ -350,15 +419,6 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
     }, 2000) // Polling cada 2 segundos
   }, [])
 
-  // Función para detener polling
-  const stopPolling = useCallback(() => {
-    if (pollingInterval.current) {
-      clearInterval(pollingInterval.current)
-      pollingInterval.current = null
-    }
-    currentTrabajoId.current = null
-  }, [])
-
   // Función principal de importación
   const importar = useCallback(async (file: File, tipo: string, opciones?: ImportacionOpciones) => {
     setState(prev => ({ ...prev, isImporting: true, error: null, success: null }))
@@ -402,8 +462,8 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         
         // Simular progreso más realista
         const simularProgreso = () => {
+          if (!pollingInterval.current) return null
           let progreso = 0
-          const totalSteps = 10 // Dividir en 10 pasos
           const stepTime = 300 // 300ms por paso
           
           const interval = setInterval(() => {
@@ -434,27 +494,34 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         result = await importarHTTP(file, tipo, opciones)
         
         // Completar progreso con datos reales
-        clearInterval(progresoInterval)
+        if (progresoInterval) {
+          clearInterval(progresoInterval)
+        }
         
         // Extraer datos del resultado
-        const registrosProcesados = result.registrosProcesados || result.data?.registrosProcesados || 0
-        const registrosExitosos = result.registrosExitosos || result.data?.registrosExitosos || 0
-        const registrosConError = result.registrosConError || result.data?.registrosConError || 0
+        const registrosProcesados = Number(result.registrosProcesados || result.data?.registrosProcesados || 0)
+        const registrosExitosos = Number(result.registrosExitosos || result.data?.registrosExitosos || 0)
+        const registrosConError = Number(result.registrosConError || result.data?.registrosConError || 0)
         const errores = result.errores || result.data?.errores || []
         const correcciones = result.correcciones || result.data?.correcciones || []
+        
+        // Determinar si la importación fue exitosa o tuvo errores
+        const tieneErrores = registrosConError > 0 || (Array.isArray(errores) && errores.length > 0)
+        const fueExitosa = registrosProcesados > 0 && registrosExitosos > 0 && !tieneErrores
         
         setState(prev => ({
           ...prev,
           isImporting: false,
-          success: 'Importación completada exitosamente',
+          success: fueExitosa ? 'Importación completada exitosamente' : null,
+          error: tieneErrores ? (result.mensaje || result.message || 'Importación completada con errores') : null,
           currentTrabajo: prev.currentTrabajo ? {
             ...prev.currentTrabajo,
-            estado: 'completado',
+            estado: fueExitosa ? 'completado' : 'error',
             progreso: 100,
-            registrosProcesados: Number(registrosProcesados),
-            registrosExitosos: Number(registrosExitosos),
-            registrosConError: Number(registrosConError),
-            totalRegistros: Number(registrosProcesados),
+            registrosProcesados: registrosProcesados,
+            registrosExitosos: registrosExitosos,
+            registrosConError: registrosConError,
+            totalRegistros: registrosProcesados,
             errores: Array.isArray(errores) ? errores : []
           } : null
         }))
@@ -509,19 +576,50 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
       console.error('❌ Error en importación:', errorMessage)
       
+      // Limpiar estado de importación
       setState(prev => ({
         ...prev,
         isImporting: false,
+        currentTrabajo: null,
         error: errorMessage
       }))
-      toast.error(errorMessage)
+      
+      // Limpiar recursos
+      stopPolling()
+      disconnectWebSocket()
+      
+      addToast({
+        type: 'error',
+        title: 'Error',
+        message: errorMessage
+      })
+      
       throw error
     }
-  }, [determinarModo, importarHTTP, importarWebSocket, startPolling, disconnectWebSocket, toast])
+  }, [determinarModo, importarHTTP, importarWebSocket, startPolling, disconnectWebSocket, addToast])
 
   // Función para cancelar trabajo
   const cancelarTrabajo = useCallback(async (trabajoId: string) => {
     try {
+      // Si es una importación rápida (HTTP), no hay trabajo real que cancelar
+      if (trabajoId.startsWith('http-')) {
+        setState(prev => ({
+          ...prev,
+          isImporting: false,
+          currentTrabajo: null,
+          error: 'Importación cancelada por el usuario'
+        }))
+        stopPolling()
+        disconnectWebSocket()
+        addToast({
+          type: 'info',
+          title: 'Cancelado',
+          message: 'Importación cancelada'
+        })
+        return
+      }
+
+      // Para trabajos reales (WebSocket), intentar cancelar en el backend
       const response = await fetch(`/api/importacion/trabajos/${trabajoId}/cancelar`, {
         method: 'POST',
         credentials: 'include'
@@ -538,13 +636,45 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         }))
         stopPolling()
         disconnectWebSocket()
-        toast.success('Importación cancelada')
+        addToast({
+          type: 'success',
+          title: 'Éxito',
+          message: 'Importación cancelada'
+        })
+      } else {
+        // Si falla la cancelación, limpiar el estado de todas formas
+        setState(prev => ({
+          ...prev,
+          isImporting: false,
+          currentTrabajo: null,
+          error: 'No se pudo cancelar la importación'
+        }))
+        stopPolling()
+        disconnectWebSocket()
+        addToast({
+          type: 'warning',
+          title: 'Advertencia',
+          message: 'Importación detenida (no se pudo cancelar en el servidor)'
+        })
       }
     } catch (error) {
       console.error('Error cancelando trabajo:', error)
-      toast.error('Error al cancelar la importación')
+      // En caso de error, limpiar el estado de todas formas
+      setState(prev => ({
+        ...prev,
+        isImporting: false,
+        currentTrabajo: null,
+        error: 'Error al cancelar la importación'
+      }))
+      stopPolling()
+      disconnectWebSocket()
+      addToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Error al cancelar la importación'
+      })
     }
-  }, [stopPolling, disconnectWebSocket, toast])
+  }, [stopPolling, disconnectWebSocket, addToast])
 
   // Función para limpiar estado
   const clearState = useCallback(() => {
@@ -603,13 +733,21 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        toast.success('Plantilla descargada exitosamente')
+        addToast({
+          type: 'success',
+          title: 'Éxito',
+          message: 'Plantilla descargada exitosamente'
+        })
       }
     } catch (error) {
       console.error('Error descargando plantilla:', error)
-      toast.error('Error al descargar la plantilla')
+              addToast({
+          type: 'error',
+          title: 'Error',
+          message: 'Error al descargar la plantilla'
+        })
     }
-  }, [toast])
+  }, [addToast])
 
   // Función para descargar reporte de errores
   const descargarReporteErrores = useCallback(async (trabajoId: string) => {
@@ -628,13 +766,21 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        toast.success('Reporte de errores descargado')
+        addToast({
+          type: 'success',
+          title: 'Éxito',
+          message: 'Reporte de errores descargado'
+        })
       }
     } catch (error) {
       console.error('Error descargando reporte:', error)
-      toast.error('Error al descargar el reporte')
+      addToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Error al descargar el reporte'
+      })
     }
-  }, [toast])
+  }, [addToast])
 
   return {
     state,

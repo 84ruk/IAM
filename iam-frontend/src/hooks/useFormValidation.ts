@@ -7,7 +7,7 @@ export interface ValidationRule {
   minLength?: number
   maxLength?: number
   pattern?: RegExp
-  custom?: (value: any) => boolean | string
+  custom?: (value: unknown) => boolean | string
   sanitize?: boolean
 }
 
@@ -20,7 +20,7 @@ export interface ValidationErrors {
 }
 
 // Sanitización de entrada
-function sanitizeInput(value: any, sanitize: boolean = true): any {
+function sanitizeInput(value: unknown, sanitize: boolean = true): unknown {
   if (!sanitize || value == null) return value
 
   if (typeof value === 'string') {
@@ -37,8 +37,8 @@ function sanitizeInput(value: any, sanitize: boolean = true): any {
     return value.map(item => sanitizeInput(item, sanitize))
   }
 
-  if (typeof value === 'object') {
-    const sanitized: any = {}
+  if (typeof value === 'object' && value !== null) {
+    const sanitized: Record<string, unknown> = {}
     for (const [key, val] of Object.entries(value)) {
       sanitized[key] = sanitizeInput(val, sanitize)
     }
@@ -49,7 +49,7 @@ function sanitizeInput(value: any, sanitize: boolean = true): any {
 }
 
 // Validación de campos individuales
-function validateField(value: any, rules: ValidationRule): string | null {
+function validateField(value: unknown, rules: ValidationRule): string | null {
   const { required, minLength, maxLength, pattern, custom, sanitize } = rules
 
   // Sanitizar si es necesario
@@ -120,7 +120,7 @@ export const validationMessages = {
 }
 
 // Hook principal de validación
-export function useFormValidation<T extends Record<string, any>>(
+export function useFormValidation<T extends Record<string, unknown>>(
   initialData: T,
   validationRules: ValidationRules = {}
 ) {
@@ -129,7 +129,7 @@ export function useFormValidation<T extends Record<string, any>>(
   const [isValidating, setIsValidating] = useState(false)
 
   // Actualizar campo
-  const updateField = useCallback((field: keyof T, value: any) => {
+  const updateField = useCallback((field: keyof T, value: unknown) => {
     setData(prev => ({ ...prev, [field]: value }))
     
     // Validar inmediatamente si hay reglas para este campo
@@ -231,12 +231,12 @@ export function useFormValidation<T extends Record<string, any>>(
 
   // Obtener datos sanitizados
   const getSanitizedData = useCallback((): T => {
-    const sanitized: any = {}
+    const sanitized: Record<string, unknown> = {}
     Object.entries(data).forEach(([field, value]) => {
       const rules = validationRules[field]
       sanitized[field] = sanitizeInput(value, rules?.sanitize)
     })
-    return sanitized
+    return sanitized as T
   }, [data, validationRules])
 
   // Verificar si hay errores

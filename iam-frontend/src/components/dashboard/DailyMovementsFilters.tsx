@@ -15,13 +15,12 @@ import {
   Minus,
   DollarSign,
   Activity,
-  RefreshCw,
   Eye,
   EyeOff
 } from 'lucide-react'
 
 interface DailyMovementsFiltersProps {
-  onFiltersChange: (filters: any) => void
+  onFiltersChange: (filters: Record<string, unknown>) => void
   onReset: () => void
   className?: string
 }
@@ -43,10 +42,19 @@ export default function DailyMovementsFilters({
     sortOrder: 'desc'
   })
 
-  const handleFilterChange = (key: string, value: any) => {
-    const newFilters = { ...filters, [key]: value }
-    setFilters(newFilters)
-    onFiltersChange(newFilters)
+  const handleFilterChange = (filterName: string, value: unknown) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }))
+  }
+
+  const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined }) => {
+    setFilters(prev => ({
+      ...prev,
+      startDate: range.from?.toISOString().split('T')[0],
+      endDate: range.to?.toISOString().split('T')[0]
+    }))
   }
 
   const handleReset = () => {

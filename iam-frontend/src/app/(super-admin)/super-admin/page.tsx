@@ -8,7 +8,6 @@ import {
   Users, 
   Building, 
   BarChart3, 
-  TrendingUp, 
   AlertTriangle,
   CheckCircle,
   Activity,
@@ -17,7 +16,6 @@ import {
   Filter,
   RefreshCw,
   Eye,
-  EyeOff,
   Plus,
   Settings
 } from 'lucide-react'
@@ -70,7 +68,6 @@ interface DashboardStats {
 export default function SuperAdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [errors, setErrors] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
@@ -81,7 +78,6 @@ export default function SuperAdminDashboard() {
   const fetchStats = async () => {
     try {
       setIsLoading(true)
-      setErrors([])
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/super-admin/dashboard-stats`, {
         credentials: 'include'
@@ -95,7 +91,6 @@ export default function SuperAdminDashboard() {
       setStats(data)
     } catch (error) {
       console.error('Error:', error)
-      setErrors(['Error al cargar las estadísticas del dashboard'])
     } finally {
       setIsLoading(false)
     }

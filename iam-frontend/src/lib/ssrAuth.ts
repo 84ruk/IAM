@@ -37,37 +37,46 @@ export async function requireAuth() {
       }
 
       return await res.json()
-    } catch (fetchError: any) {
+    } catch (fetchError: unknown) {
       clearTimeout(timeoutId)
       
       // Manejar diferentes tipos de errores de conexión
-      if (fetchError.name === 'AbortError') {
+      if (fetchError && typeof fetchError === 'object' && 'name' in fetchError && fetchError.name === 'AbortError') {
         console.warn('Timeout al verificar autenticación - backend no responde')
         return null
       }
       
-      if (fetchError.code === 'ECONNREFUSED' || fetchError.message?.includes('ECONNREFUSED')) {
+      if (fetchError && typeof fetchError === 'object' && 'code' in fetchError && 
+          (fetchError.code === 'ECONNREFUSED' || 
+           (fetchError.message && typeof fetchError.message === 'string' && fetchError.message.includes('ECONNREFUSED')))) {
         console.warn('Backend no disponible - conexión rechazada')
         return null
       }
       
-      if (fetchError.code === 'ENOTFOUND' || fetchError.message?.includes('ENOTFOUND')) {
+      if (fetchError && typeof fetchError === 'object' && 'code' in fetchError && 
+          (fetchError.code === 'ENOTFOUND' || 
+           (fetchError.message && typeof fetchError.message === 'string' && fetchError.message.includes('ENOTFOUND')))) {
         console.warn('No se puede resolver el host del backend')
         return null
       }
       
-      if (fetchError.message?.includes('fetch failed')) {
+      if (fetchError && typeof fetchError === 'object' && 'message' in fetchError && 
+          typeof fetchError.message === 'string' && fetchError.message.includes('fetch failed')) {
         console.warn('Error de red al conectar con el backend')
         return null
       }
       
       // Para otros errores, loggear pero no fallar
-      console.warn('Error al verificar autenticación:', fetchError.message)
+      if (fetchError && typeof fetchError === 'object' && 'message' in fetchError && typeof fetchError.message === 'string') {
+        console.warn('Error al verificar autenticación:', fetchError.message)
+      }
       return null
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Error general en la función
-    console.warn('Error general en requireAuth:', error.message)
+    if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+      console.warn('Error general en requireAuth:', error.message)
+    }
     return null
   }
 }
@@ -77,13 +86,13 @@ export async function requireAuth() {
  * @param userFromBackend - Usuario devuelto por requireAuth()
  * @returns Usuario mapeado al formato del frontend
  */
-export function mapUserFromBackend(userFromBackend: any): User {
+export function mapUserFromBackend(userFromBackend: Record<string, unknown>): User {
   return {
-    sub: userFromBackend.id, // Mapear id a sub
-    email: userFromBackend.email,
-    rol: userFromBackend.rol,
-    empresaId: userFromBackend.empresaId,
-    tipoIndustria: userFromBackend.tipoIndustria,
-    setupCompletado: userFromBackend.setupCompletado
+    sub: userFromBackend.id as number, // Mapear id a sub
+    email: userFromBackend.email as string,
+    rol: userFromBackend.rol as string,
+    empresaId: userFromBackend.empresaId as number,
+    tipoIndustria: userFromBackend.tipoIndustria as string,
+    setupCompletado: userFromBackend.setupCompletado as boolean
   }
 } 

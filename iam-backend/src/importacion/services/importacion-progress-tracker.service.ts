@@ -22,7 +22,7 @@ export interface ProgressUpdate {
   progreso: number;
   registrosProcesados: number;
   registrosTotal: number;
-  errores: ErrorImportacion[];
+  errores?: ErrorImportacion[];
   mensaje?: string;
   tiempoEstimado?: number;
   timestamp: Date;
@@ -40,13 +40,13 @@ export interface ProgressSummary {
   registrosExitosos: number;
   registrosConError: number;
   tasaExito: number;
-  velocidadProcesamiento: number; // registros por segundo
+  velocidadProcesamiento: number;
   ultimaActualizacion: Date;
 }
 
 @Injectable()
 export class ImportacionProgressTrackerService {
-  private readonly logger = new Logger(ImportacionProgressTrackerService.name);
+  private readonly logger = new Logger(ImportacionProgressTrackerService.name)
   private readonly progressData: Map<string, ProgressSummary> = new Map();
   private readonly stageTemplates: Record<string, ProgressStage[]> = {
     productos: [
@@ -95,7 +95,7 @@ export class ImportacionProgressTrackerService {
 
     this.progressData.set(trabajoId, progressSummary);
     
-    this.logger.log(`Iniciando tracking para trabajo ${trabajoId} - ${tipoImportacion} (${totalRegistros} registros)`);
+    this.logger.log(`📊 Tracking iniciado para trabajo ${trabajoId} (${tipoImportacion}, ${totalRegistros} registros)`);
   }
 
   /**
@@ -104,14 +104,14 @@ export class ImportacionProgressTrackerService {
   actualizarProgreso(update: ProgressUpdate): void {
     const progress = this.progressData.get(update.trabajoId);
     if (!progress) {
-      this.logger.warn(`No se encontró progreso para trabajo ${update.trabajoId}`);
+      this.logger.warn(`⚠️ No se encontró progreso para trabajo ${update.trabajoId}`);
       return;
     }
 
     // Actualizar etapa específica
     const etapa = progress.etapas.find(e => e.id === update.etapa);
     if (etapa) {
-      etapa.progreso = update.progreso;
+      etapa.progreso = Math.min(100, Math.max(0, update.progreso)); // Asegurar rango 0-100
       etapa.registrosProcesados = update.registrosProcesados;
       etapa.registrosTotal = update.registrosTotal;
       etapa.errores = update.errores;
@@ -134,8 +134,8 @@ export class ImportacionProgressTrackerService {
     progress.ultimaActualizacion = update.timestamp;
     progress.tiempoTranscurrido = this.calcularTiempoTranscurrido(progress);
 
-    // Calcular progreso general
-    progress.progresoGeneral = this.calcularProgresoGeneral(progress.etapas);
+    // Calcular progreso general mejorado
+    progress.progresoGeneral = this.calcularProgresoGeneralMejorado(progress.etapas, update);
 
     // Calcular velocidad de procesamiento
     if (progress.tiempoTranscurrido > 0) {
@@ -147,7 +147,7 @@ export class ImportacionProgressTrackerService {
       progress.tasaExito = Math.round((progress.registrosExitosos / progress.registrosProcesados) * 100);
     }
 
-    this.logger.debug(`Progreso actualizado para ${update.trabajoId}: ${update.etapa} - ${update.progreso}%`);
+    this.logger.debug(`📊 Progreso actualizado para ${update.trabajoId}: ${update.etapa} - ${update.progreso}% (General: ${progress.progresoGeneral}%)`);
   }
 
   /**
@@ -155,90 +155,149 @@ export class ImportacionProgressTrackerService {
    */
   completarEtapa(trabajoId: string, etapaId: string, errores: ErrorImportacion[] = []): void {
     const progress = this.progressData.get(trabajoId);
-    if (!progress) return;
+    if (!progress) {
+      this.logger.warn(`⚠️ No se encontró progreso para trabajo ${trabajoId}`);
+      return;
+    }
 
     const etapa = progress.etapas.find(e => e.id === etapaId);
     if (etapa) {
-      etapa.progreso = 100;
       etapa.estado = 'completado';
+      etapa.progreso = 100;
       etapa.tiempoFin = new Date();
       etapa.errores = errores;
 
-      // Activar siguiente etapa
-      const etapaIndex = progress.etapas.findIndex(e => e.id === etapaId);
-      const siguienteEtapa = progress.etapas[etapaIndex + 1];
-      if (siguienteEtapa) {
-        siguienteEtapa.estado = 'procesando';
-        siguienteEtapa.tiempoInicio = new Date();
-        progress.etapaActual = siguienteEtapa.id;
+      // Actualizar etapa actual
+      const currentIndex = progress.etapas.findIndex(e => e.id === etapaId);
+      if (currentIndex < progress.etapas.length - 1) {
+        progress.etapaActual = progress.etapas[currentIndex + 1].id;
+        progress.etapas[currentIndex + 1].estado = 'procesando';
+        progress.etapas[currentIndex + 1].tiempoInicio = new Date();
       }
 
-      this.logger.log(`Etapa ${etapaId} completada para trabajo ${trabajoId}`);
+      // Recalcular progreso general
+      progress.progresoGeneral = this.calcularProgresoGeneralMejorado(progress.etapas);
+      progress.ultimaActualizacion = new Date();
+
+      this.logger.log(`✅ Etapa ${etapaId} completada para trabajo ${trabajoId} (Progreso general: ${progress.progresoGeneral}%)`);
     }
   }
 
   /**
    * Marca una etapa como con error
    */
-  marcarEtapaConError(trabajoId: string, etapaId: string, error: string, errores: ErrorImportacion[] = []): void {
+  marcarEtapaConError(trabajoId: string, etapaId: string, error: ErrorImportacion): void {
     const progress = this.progressData.get(trabajoId);
-    if (!progress) return;
+    if (!progress) {
+      this.logger.warn(`⚠️ No se encontró progreso para trabajo ${trabajoId}`);
+      return;
+    }
 
     const etapa = progress.etapas.find(e => e.id === etapaId);
     if (etapa) {
       etapa.estado = 'error';
-      etapa.mensaje = error;
-      etapa.errores = errores;
-      etapa.tiempoFin = new Date();
+      etapa.errores = [error];
+      etapa.mensaje = error.mensaje;
 
-      this.logger.error(`Etapa ${etapaId} con error para trabajo ${trabajoId}: ${error}`);
+      this.logger.error(`❌ Etapa ${etapaId} con error para trabajo ${trabajoId}: ${error.mensaje}`);
     }
   }
 
   /**
-   * Actualiza estadísticas de registros
-   */
-  actualizarEstadisticas(
-    trabajoId: string,
-    registrosExitosos: number,
-    registrosConError: number
-  ): void {
-    const progress = this.progressData.get(trabajoId);
-    if (!progress) return;
-
-    progress.registrosExitosos = registrosExitosos;
-    progress.registrosConError = registrosConError;
-
-    if (progress.registrosProcesados > 0) {
-      progress.tasaExito = Math.round((registrosExitosos / progress.registrosProcesados) * 100);
-    }
-  }
-
-  /**
-   * Obtiene el resumen de progreso actual
+   * Obtiene el progreso actual de un trabajo
    */
   obtenerProgreso(trabajoId: string): ProgressSummary | null {
-    const progress = this.progressData.get(trabajoId);
-    if (!progress) return null;
-
-    // Actualizar tiempo transcurrido
-    progress.tiempoTranscurrido = this.calcularTiempoTranscurrido(progress);
-
-    return { ...progress };
+    return this.progressData.get(trabajoId) || null;
   }
 
   /**
-   * Obtiene el progreso de una etapa específica
+   * Calcula el progreso general mejorado
    */
-  obtenerProgresoEtapa(trabajoId: string, etapaId: string): ProgressStage | null {
-    const progress = this.progressData.get(trabajoId);
-    if (!progress) return null;
+  private calcularProgresoGeneralMejorado(etapas: ProgressStage[], update?: ProgressUpdate): number {
+    if (etapas.length === 0) return 0;
 
-    return progress.etapas.find(e => e.id === etapaId) || null;
+    // Pesos de las etapas (pueden variar según el tipo de importación)
+    const pesos = {
+      validacion: 0.15,
+      verificacion_productos: 0.10,
+      procesamiento: 0.50,
+      guardado: 0.20,
+      actualizacion_stock: 0.10,
+      finalizacion: 0.05
+    };
+
+    let progresoTotal = 0;
+    let pesoTotal = 0;
+
+    for (const etapa of etapas) {
+      const peso = pesos[etapa.id as keyof typeof pesos] || 1 / etapas.length;
+      pesoTotal += peso;
+
+      if (etapa.estado === 'completado') {
+        progresoTotal += peso * 100;
+      } else if (etapa.estado === 'procesando') {
+        // Si es la etapa actual y tenemos información de progreso
+        if (update && update.etapa === etapa.id) {
+          progresoTotal += peso * update.progreso;
+        } else {
+          progresoTotal += peso * etapa.progreso;
+        }
+      }
+      // Las etapas pendientes contribuyen 0 al progreso
+    }
+
+    // Normalizar por el peso total
+    const progresoNormalizado = pesoTotal > 0 ? progresoTotal / pesoTotal : 0;
+    
+    // Asegurar que el progreso esté entre 0 y 100
+    return Math.min(100, Math.max(0, Math.round(progresoNormalizado * 100) / 100));
   }
 
   /**
-   * Calcula el tiempo estimado restante
+   * Calcula el progreso general (método anterior para compatibilidad)
+   */
+  private calcularProgresoGeneral(etapas: ProgressStage[]): number {
+    if (etapas.length === 0) return 0;
+
+    const progresoTotal = etapas.reduce((sum, etapa) => {
+      if (etapa.estado === 'completado') {
+        return sum + 100;
+      } else if (etapa.estado === 'procesando') {
+        return sum + etapa.progreso;
+      }
+      return sum;
+    }, 0);
+
+    return Math.round(progresoTotal / etapas.length);
+  }
+
+  /**
+   * Calcula el tiempo transcurrido
+   */
+  private calcularTiempoTranscurrido(progress: ProgressSummary): number {
+    const primeraEtapa = progress.etapas.find(e => e.tiempoInicio);
+    if (!primeraEtapa?.tiempoInicio) return 0;
+
+    return Date.now() - primeraEtapa.tiempoInicio.getTime();
+  }
+
+  /**
+   * Calcula el tiempo estimado total
+   */
+  private calcularTiempoEstimado(totalRegistros: number, tipo: string): number {
+    // Estimaciones basadas en el tipo de importación y cantidad de registros
+    const estimacionesPorTipo = {
+      productos: 0.5, // segundos por registro
+      proveedores: 0.3,
+      movimientos: 0.8,
+    };
+
+    const tiempoPorRegistro = estimacionesPorTipo[tipo as keyof typeof estimacionesPorTipo] || 0.5;
+    return Math.round(totalRegistros * tiempoPorRegistro * 1000); // en milisegundos
+  }
+
+  /**
+   * Calcula el tiempo restante
    */
   calcularTiempoRestante(trabajoId: string): number {
     const progress = this.progressData.get(trabajoId);
@@ -247,136 +306,36 @@ export class ImportacionProgressTrackerService {
     const tiempoTranscurrido = progress.tiempoTranscurrido;
     const progresoActual = progress.progresoGeneral;
     
-    // Tiempo total estimado basado en el progreso actual
+    if (progresoActual >= 100) return 0;
+
     const tiempoTotalEstimado = (tiempoTranscurrido / progresoActual) * 100;
-    
     return Math.max(0, tiempoTotalEstimado - tiempoTranscurrido);
   }
 
   /**
-   * Genera reporte de progreso para el frontend
+   * Limpia el progreso de un trabajo
    */
-  generarReporteProgreso(trabajoId: string): {
-    progreso: ProgressSummary;
-    tiempoRestante: number;
-    proximaEtapa?: string;
-    alertas: string[];
+  limpiarProgreso(trabajoId: string): void {
+    this.progressData.delete(trabajoId);
+    this.logger.log(`🧹 Progreso limpiado para trabajo ${trabajoId}`);
+  }
+
+  /**
+   * Obtiene estadísticas de todos los trabajos
+   */
+  obtenerEstadisticas(): {
+    totalTrabajos: number;
+    trabajosActivos: number;
+    trabajosCompletados: number;
+    trabajosConError: number;
   } {
-    const progress = this.obtenerProgreso(trabajoId);
-    if (!progress) {
-      return {
-        progreso: null as any,
-        tiempoRestante: 0,
-        alertas: ['No se encontró información de progreso'],
-      };
-    }
-
-    const tiempoRestante = this.calcularTiempoRestante(trabajoId);
-    const proximaEtapa = this.obtenerProximaEtapa(progress);
-    const alertas = this.generarAlertas(progress);
-
-    return {
-      progreso: progress,
-      tiempoRestante,
-      proximaEtapa,
-      alertas,
-    };
-  }
-
-  /**
-   * Finaliza el tracking de un trabajo
-   */
-  finalizarTracking(trabajoId: string): ProgressSummary | null {
-    const progress = this.progressData.get(trabajoId);
-    if (!progress) return null;
-
-    // Marcar todas las etapas como completadas
-    progress.etapas.forEach(etapa => {
-      if (etapa.estado === 'procesando') {
-        etapa.estado = 'completado';
-        etapa.progreso = 100;
-        etapa.tiempoFin = new Date();
-      }
-    });
-
-    progress.progresoGeneral = 100;
-    progress.ultimaActualizacion = new Date();
-
-    this.logger.log(`Tracking finalizado para trabajo ${trabajoId}`);
-
-    return progress;
-  }
-
-  /**
-   * Limpia datos de progreso antiguos
-   */
-  limpiarDatosAntiguos(diasAntiguedad: number = 7): void {
-    const fechaLimite = new Date();
-    fechaLimite.setDate(fechaLimite.getDate() - diasAntiguedad);
-
-    for (const [trabajoId, progress] of this.progressData.entries()) {
-      if (progress.ultimaActualizacion < fechaLimite) {
-        this.progressData.delete(trabajoId);
-      }
-    }
-
-    this.logger.log(`Datos de progreso antiguos limpiados`);
-  }
-
-  // Métodos privados de utilidad
-
-  private calcularTiempoEstimado(totalRegistros: number, tipoImportacion: string): number {
-    // Estimaciones basadas en experiencia
-    const velocidadesEstimadas = {
-      productos: 50, // registros por segundo
-      proveedores: 100,
-      movimientos: 30,
-    };
-
-    const velocidad = velocidadesEstimadas[tipoImportacion] || 50;
-    return Math.ceil(totalRegistros / velocidad);
-  }
-
-  private calcularTiempoTranscurrido(progress: ProgressSummary): number {
-    const primeraEtapa = progress.etapas.find(e => e.tiempoInicio);
-    if (!primeraEtapa?.tiempoInicio) return 0;
-
-    return Date.now() - primeraEtapa.tiempoInicio.getTime();
-  }
-
-  private calcularProgresoGeneral(etapas: ProgressStage[]): number {
-    if (etapas.length === 0) return 0;
-
-    const progresoTotal = etapas.reduce((sum, etapa) => sum + etapa.progreso, 0);
-    return Math.round(progresoTotal / etapas.length);
-  }
-
-  private obtenerProximaEtapa(progress: ProgressSummary): string | undefined {
-    const etapaActualIndex = progress.etapas.findIndex(e => e.id === progress.etapaActual);
-    const proximaEtapa = progress.etapas[etapaActualIndex + 1];
+    const trabajos = Array.from(this.progressData.values());
     
-    return proximaEtapa?.nombre;
-  }
-
-  private generarAlertas(progress: ProgressSummary): string[] {
-    const alertas: string[] = [];
-
-    // Alerta por baja tasa de éxito
-    if (progress.tasaExito < 50 && progress.registrosProcesados > 10) {
-      alertas.push(`Tasa de éxito baja: ${progress.tasaExito}%`);
-    }
-
-    // Alerta por velocidad lenta
-    if (progress.velocidadProcesamiento < 10 && progress.tiempoTranscurrido > 30000) {
-      alertas.push('Velocidad de procesamiento lenta detectada');
-    }
-
-    // Alerta por errores en etapa actual
-    const etapaActual = progress.etapas.find(e => e.id === progress.etapaActual);
-    if (etapaActual?.errores && etapaActual.errores.length > 0) {
-      alertas.push(`${etapaActual.errores.length} errores en etapa actual`);
-    }
-
-    return alertas;
+    return {
+      totalTrabajos: trabajos.length,
+      trabajosActivos: trabajos.filter(t => t.progresoGeneral > 0 && t.progresoGeneral < 100).length,
+      trabajosCompletados: trabajos.filter(t => t.progresoGeneral >= 100).length,
+      trabajosConError: trabajos.filter(t => t.etapas.some(e => e.estado === 'error')).length,
+    };
   }
 } 

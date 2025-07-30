@@ -18,20 +18,21 @@ import {
   Info
 } from 'lucide-react'
 import { formatCurrency, formatPercentage } from '@/lib/kpi-utils'
+import React from 'react'
 
 interface DailyMovementsSummaryProps {
-  data: any
-  isLoading?: boolean
-  error?: any
-  className?: string
+  data: Record<string, unknown> | null
+  isLoading: boolean
+  error: Error | null
 }
 
-export default function DailyMovementsSummary({
-  data,
-  isLoading = false,
-  error = null,
-  className = ''
-}: DailyMovementsSummaryProps) {
+export function DailyMovementsSummary({ data, isLoading, error }: DailyMovementsSummaryProps) {
+  const summary = data?.summary as Record<string, unknown> | undefined
+  const topProducts = summary?.productosMasVendidos as Array<Record<string, unknown>> | undefined
+  const topSuppliers = summary?.proveedoresPrincipales as Array<Record<string, unknown>> | undefined
+  const stockAlerts = summary?.alertasStock as Array<Record<string, unknown>> | undefined
+  const distribution = summary?.distribucionPorTipo as Array<Record<string, unknown>> | undefined
+
   if (isLoading) {
     return (
       <Card className={className}>
@@ -72,17 +73,17 @@ export default function DailyMovementsSummary({
   }
 
   // Calcular métricas del resumen
-  const totalEntradas = data.data.reduce((sum: number, item: any) => sum + (item.entradas || 0), 0)
-  const totalSalidas = data.data.reduce((sum: number, item: any) => sum + (item.salidas || 0), 0)
+  const totalEntradas = data.data.reduce((sum: number, item: Record<string, unknown>) => sum + (Number(item.entradas) || 0), 0)
+  const totalSalidas = data.data.reduce((sum: number, item: Record<string, unknown>) => sum + (Number(item.salidas) || 0), 0)
   const totalNeto = totalEntradas - totalSalidas
-  const totalValorEntradas = data.data.reduce((sum: number, item: any) => sum + (item.valorEntradas || 0), 0)
-  const totalValorSalidas = data.data.reduce((sum: number, item: any) => sum + (item.valorSalidas || 0), 0)
+  const totalValorEntradas = data.data.reduce((sum: number, item: Record<string, unknown>) => sum + (Number(item.valorEntradas) || 0), 0)
+  const totalValorSalidas = data.data.reduce((sum: number, item: Record<string, unknown>) => sum + (Number(item.valorSalidas) || 0), 0)
   const totalValorNeto = totalValorEntradas - totalValorSalidas
   // Usar el margen del backend si está disponible, sino calcular correctamente
   const margenPromedio = data.summary?.margenBrutoPromedio !== undefined 
     ? data.summary.margenBrutoPromedio 
     : (totalValorEntradas > 0 ? ((totalValorSalidas - totalValorEntradas) / totalValorEntradas) * 100 : 0)
-  const diasConActividad = data.data.filter((item: any) => (item.entradas || 0) + (item.salidas || 0) > 0).length
+  const diasConActividad = data.data.filter((item: Record<string, unknown>) => (Number(item.entradas) || 0) + (Number(item.salidas) || 0) > 0).length
   const promedioDiario = data.data.length > 0 ? ((totalEntradas + totalSalidas) / data.data.length) : 0
 
   // Obtener color de tendencia
@@ -111,6 +112,62 @@ export default function DailyMovementsSummary({
   }
 
   const inventoryHealth = getInventoryHealth()
+
+  const renderMetricCard = (title: string, value: unknown, icon: React.ComponentType<{ className?: string }>, color: string) => (
+    <div className="flex items-center p-4 bg-white rounded-lg shadow-sm border">
+      <div className={`p-2 rounded-lg ${color} mr-3`}>
+        {React.createElement(icon, { className: 'w-5 h-5 text-white' })}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-gray-600">{title}</p>
+        <p className="text-lg font-semibold text-gray-900">
+          {typeof value === 'number' ? value.toLocaleString() : String(value || 0)}
+        </p>
+      </div>
+    </div>
+  )
+
+  const renderTopItem = (item: Record<string, unknown>, index: number) => (
+    <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+      <div className="flex items-center">
+        <span className="text-sm font-medium text-gray-500 w-6">{index + 1}</span>
+        <span className="text-sm text-gray-900 truncate">
+          {String(item.nombre || item.proveedor || 'N/A')}
+        </span>
+      </div>
+      <span className="text-sm font-medium text-gray-600">
+        {typeof item.cantidadTotal === 'number' ? item.cantidadTotal.toLocaleString() : '0'}
+      </span>
+    </div>
+  )
+
+  const renderStockAlert = (alert: Record<string, unknown>) => (
+    <div key={String(alert.productoId)} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+      <div className="flex items-center">
+        <div className={`w-2 h-2 rounded-full mr-2 ${
+          alert.severidad === 'CRITICA' ? 'bg-red-500' : 
+          alert.severidad === 'ADVERTENCIA' ? 'bg-yellow-500' : 'bg-blue-500'
+        }`} />
+        <span className="text-sm text-gray-900 truncate">
+          {String(alert.nombre || 'N/A')}
+        </span>
+      </div>
+      <span className="text-sm font-medium text-gray-600">
+        {typeof alert.stockActual === 'number' ? alert.stockActual : 0}
+      </span>
+    </div>
+  )
+
+  const renderDistributionItem = (item: Record<string, unknown>) => (
+    <div key={String(item.tipo)} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+      <span className="text-sm text-gray-900">
+        {String(item.tipo || 'N/A')}
+      </span>
+      <span className="text-sm font-medium text-gray-600">
+        {typeof item.cantidad === 'number' ? item.cantidad.toLocaleString() : '0'}
+      </span>
+    </div>
+  )
 
   return (
     <Card className={className}>

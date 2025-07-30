@@ -53,7 +53,7 @@ export default function ProductosClient() {
   const [filtroTexto, setFiltroTexto] = useState('')
   const [filtroEtiqueta, setFiltroEtiqueta] = useState('')
   const [filtroTipoProducto, setFiltroTipoProducto] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState<'ACTIVO' | 'INACTIVO' | ''>('') // Vacío por defecto para mostrar todos
+  const [filtroEstado, setFiltroEstado] = useState<'ACTIVO' | 'INACTIVO' | 'ELIMINADO' | ''>('ACTIVO') // Activos por defecto
   const [mostrarAgotados, setMostrarAgotados] = useState(false)
   
   // Estados de UI
@@ -96,7 +96,15 @@ export default function ProductosClient() {
     }
     
     const queryString = params.toString()
-    return `/productos${queryString ? `?${queryString}` : ''}`
+    const url = `/productos${queryString ? `?${queryString}` : ''}`
+    
+    // Debug: mostrar la URL que se está construyendo (solo en desarrollo)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 URL construida:', url)
+      console.log('🔍 Filtro estado:', filtroEstado)
+    }
+    
+    return url
   }, [debouncedFiltroTexto, filtroEtiqueta, filtroTipoProducto, filtroEstado, mostrarAgotados, pagina, itemsPorPagina])
 
   // Obtener productos con filtros aplicados en el backend

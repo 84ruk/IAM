@@ -24,6 +24,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react'
+import { toast } from 'react-toastify'
 
 interface SystemConfig {
   security: {
@@ -130,7 +131,7 @@ export default function SuperAdminConfigPage() {
     }
   }
 
-  const handleConfigChange = (section: keyof SystemConfig, field: string, value: any) => {
+  const handleConfigChange = (section: keyof SystemConfig, field: string, value: unknown) => {
     if (!config) return
 
     setConfig(prev => ({
@@ -140,6 +141,28 @@ export default function SuperAdminConfigPage() {
         [field]: value
       }
     }))
+  }
+
+  const handleConfigUpdate = async (configData: Record<string, unknown>) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/admin/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configData)
+      })
+      
+      if (!response.ok) {
+        throw new Error('Error al actualizar configuración')
+      }
+      
+      toast.success('Configuración actualizada exitosamente')
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error al actualizar configuración')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const testEmailConfig = async () => {

@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  ArrowLeft, 
   Edit, 
   Trash2, 
   AlertTriangle,
@@ -22,7 +21,6 @@ import {
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
-import Select from '@/components/ui/Select'
 import { Proveedor } from '@/types/proveedor'
 import { Producto } from '@/types/producto'
 

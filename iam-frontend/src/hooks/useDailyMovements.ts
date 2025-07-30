@@ -144,8 +144,8 @@ export function useDailyMovements(options: UseDailyMovementsOptions = {}): UseDa
 
   // Cargar datos iniciales y cuando cambien los días o filtros
   useEffect(() => {
-    fetchData(false)
-  }, [currentDays, currentFilters]) // Dependencias específicas en lugar de fetchData
+    fetchData()
+  }, [fetchData])
 
   // Cleanup al desmontar
   useEffect(() => {

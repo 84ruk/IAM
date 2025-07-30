@@ -68,7 +68,7 @@ import KPICard from '@/components/dashboard/KPICard'
 import { formatCurrency, formatPercentage, getValueColor } from '@/lib/kpi-utils'
 import DailyMovementsTable from '@/components/dashboard/DailyMovementsTable'
 import DailyMovementsFilters from '@/components/dashboard/DailyMovementsFilters'
-import DailyMovementsSummary from '@/components/dashboard/DailyMovementsSummary'
+import { DailyMovementsSummary } from '@/components/dashboard/DailyMovementsSummary'
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B']
 
@@ -81,9 +81,13 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
   const [selectedChartType, setSelectedChartType] = useState<'line' | 'bar' | 'area' | 'combined'>('combined')
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false)
   const [showComparatives, setShowComparatives] = useState(false)
-  const [filters, setFilters] = useState<any>({})
+  const [filters, setFilters] = useState<Record<string, unknown>>({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<Record<string, unknown> | null>(null)
+  const [summary, setSummary] = useState<Record<string, unknown> | null>(null)
 
-  const { data, isLoading, error, refetch, forceRefresh } = useDailyMovements({
+  const { data: apiData, isLoading: apiIsLoading, error: apiError, refetch, forceRefresh } = useDailyMovements({
     days: selectedDays,
     autoRefresh: true,
     refreshInterval: 5 * 60 * 1000 // 5 minutos
@@ -91,10 +95,10 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
 
   // Procesar datos para las gráficas
   const chartData = useMemo(() => {
-    if (!data?.data) return []
+    if (!apiData?.data) return []
 
     try {
-      return data.data.map(item => ({
+      return apiData.data.map(item => ({
         ...item,
         fecha: format(new Date(item.fecha), 'dd/MM'),
         fechaCompleta: item.fecha,
@@ -106,31 +110,31 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
       console.error('Error procesando datos de la gráfica:', error)
       return []
     }
-  }, [data])
+  }, [apiData])
 
   // Datos para gráfica de productos más vendidos (reales del backend)
   const topProductsData = useMemo(() => {
-    if (!data?.summary?.productosMasVendidos) return []
+    if (!apiData?.summary?.productosMasVendidos) return []
     
     // Usar datos reales del backend
-    return data.summary.productosMasVendidos.map(producto => ({
+    return apiData.summary.productosMasVendidos.map(producto => ({
       nombre: producto.nombre,
       ventas: producto.cantidadTotal,
       porcentaje: producto.porcentaje
     }))
-  }, [data?.summary?.productosMasVendidos])
+  }, [apiData?.summary?.productosMasVendidos])
 
   // Datos para distribución por tipo (reales del backend)
   const distributionData = useMemo(() => {
-    if (!data?.summary?.distribucionPorTipo) return []
+    if (!apiData?.summary?.distribucionPorTipo) return []
     
     // Usar datos reales del backend
-    return data.summary.distribucionPorTipo.map(tipo => ({
+    return apiData.summary.distribucionPorTipo.map(tipo => ({
       name: tipo.tipo,
       value: tipo.cantidad,
       color: tipo.tipo === 'ALIMENTO' ? '#00C49F' : '#FF8042'
     }))
-  }, [data?.summary?.distribucionPorTipo])
+  }, [apiData?.summary?.distribucionPorTipo])
 
   // Datos para flujo de inventario
   const inventoryFlowData = useMemo(() => {
@@ -147,15 +151,15 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
 
   // Datos para proveedores principales (reales del backend)
   const providersData = useMemo(() => {
-    if (!data?.summary?.proveedoresPrincipales) return []
+    if (!apiData?.summary?.proveedoresPrincipales) return []
     
     // Usar datos reales del backend
-    return data.summary.proveedoresPrincipales.map(proveedor => ({
+    return apiData.summary.proveedoresPrincipales.map(proveedor => ({
       proveedor: proveedor.nombre,
       volumen: proveedor.cantidadTotal,
       porcentaje: proveedor.porcentaje
     }))
-  }, [data?.summary?.proveedoresPrincipales])
+  }, [apiData?.summary?.proveedoresPrincipales])
 
   // Datos para margen promedio diario
   const marginData = useMemo(() => {
@@ -170,16 +174,16 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
 
   // Datos para alertas de stock (reales del backend)
   const stockAlerts = useMemo(() => {
-    if (!data?.summary?.alertasStock) return []
+    if (!apiData?.summary?.alertasStock) return []
     
     // Usar datos reales del backend
-    return data.summary.alertasStock.map(alerta => ({
+    return apiData.summary.alertasStock.map(alerta => ({
       producto: alerta.nombre,
       stock: alerta.stockActual,
       minimo: alerta.stockMinimo,
       estado: alerta.severidad
     }))
-  }, [data?.summary?.alertasStock])
+  }, [apiData?.summary?.alertasStock])
 
   // Datos para comparación de días
   const comparisonData = useMemo(() => {
@@ -239,7 +243,7 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
   }
 
   // Manejar cambios de filtros
-  const handleFiltersChange = (newFilters: any) => {
+  const handleFiltersChange = (newFilters: Record<string, unknown>) => {
     setFilters(newFilters)
     
     // Aplicar filtros a los controles principales
@@ -260,15 +264,15 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
 
   // Calcular métricas adicionales
   const additionalMetrics = useMemo(() => {
-    if (!data?.data || !data?.summary) return null
+    if (!apiData?.data || !apiData?.summary) return null
 
-    const totalEntradas = data.data.reduce((sum, item) => sum + (item.entradas || 0), 0)
-    const totalSalidas = data.data.reduce((sum, item) => sum + (item.salidas || 0), 0)
-    const totalValorEntradas = data.data.reduce((sum, item) => sum + (item.valorEntradas || 0), 0)
-    const totalValorSalidas = data.data.reduce((sum, item) => sum + (item.valorSalidas || 0), 0)
+    const totalEntradas = apiData.data.reduce((sum, item) => sum + (item.entradas || 0), 0)
+    const totalSalidas = apiData.data.reduce((sum, item) => sum + (item.salidas || 0), 0)
+    const totalValorEntradas = apiData.data.reduce((sum, item) => sum + (item.valorEntradas || 0), 0)
+    const totalValorSalidas = apiData.data.reduce((sum, item) => sum + (item.valorSalidas || 0), 0)
     // Usar el margen del backend para consistencia
-    const margenPromedio = data.summary?.margenBrutoPromedio !== undefined 
-      ? data.summary.margenBrutoPromedio 
+    const margenPromedio = apiData.summary?.margenBrutoPromedio !== undefined 
+      ? apiData.summary.margenBrutoPromedio 
       : (totalValorEntradas > 0 ? ((totalValorSalidas - totalValorEntradas) / totalValorEntradas) * 100 : 0)
 
     return {
@@ -279,16 +283,16 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
       margenPromedio,
       rotacionInventario: totalEntradas > 0 ? (totalSalidas / totalEntradas) * 100 : 0
     }
-  }, [data])
+  }, [apiData])
 
-  if (error) {
+  if (apiError) {
     return (
       <Card className="p-6">
         <CardContent>
           <div className="text-center">
             <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Error al cargar datos</h3>
-            <p className="text-gray-600 mb-4">{error.message}</p>
+            <p className="text-gray-600 mb-4">{apiError.message}</p>
             <Button onClick={() => refetch()} variant="outline">
               <RefreshCw className="w-4 h-4 mr-2" />
               Reintentar
@@ -324,7 +328,7 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
                 </SelectContent>
               </Select>
 
-              <Select value={selectedChartType} onValueChange={(value: any) => setSelectedChartType(value)}>
+              <Select value={selectedChartType} onValueChange={(value: string) => setSelectedChartType(value)}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -369,11 +373,11 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <KPICard
             title="Total Movimientos"
-            value={data?.summary?.totalMovimientos || 0}
+            value={apiData?.summary?.totalMovimientos || 0}
             icon={Activity}
             iconColor="text-blue-600"
-            isLoading={isLoading}
-            error={!!error}
+            isLoading={apiIsLoading}
+            error={!!apiError}
           />
 
           <Card>
@@ -381,22 +385,22 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Tendencia</p>
-                  {isLoading ? (
+                  {apiIsLoading ? (
                     <div className="h-8 bg-gray-200 rounded animate-pulse mt-1"></div>
-                  ) : error ? (
+                  ) : apiError ? (
                     <p className="text-2xl font-bold text-red-600">Error</p>
                   ) : (
-                    <Badge className={getTendencyColor(data?.summary?.tendencia || 'ESTABLE')}>
-                      {getTendencyIcon(data?.summary?.tendencia || 'ESTABLE')}
-                      {data?.summary?.tendencia || 'ESTABLE'}
+                    <Badge className={getTendencyColor(apiData?.summary?.tendencia || 'ESTABLE')}>
+                      {getTendencyIcon(apiData?.summary?.tendencia || 'ESTABLE')}
+                      {apiData?.summary?.tendencia || 'ESTABLE'}
                     </Badge>
                   )}
                 </div>
-                {(data?.summary?.tendencia === 'CRECIENTE' ? TrendingUp : data?.summary?.tendencia === 'DECRECIENTE' ? TrendingDown : Minus) && 
+                {(apiData?.summary?.tendencia === 'CRECIENTE' ? TrendingUp : apiData?.summary?.tendencia === 'DECRECIENTE' ? TrendingDown : Minus) && 
                   React.createElement(
-                    data?.summary?.tendencia === 'CRECIENTE' ? TrendingUp : data?.summary?.tendencia === 'DECRECIENTE' ? TrendingDown : Minus,
+                    apiData?.summary?.tendencia === 'CRECIENTE' ? TrendingUp : apiData?.summary?.tendencia === 'DECRECIENTE' ? TrendingDown : Minus,
                     { 
-                      className: `w-8 h-8 ${data?.summary?.tendencia === 'CRECIENTE' ? 'text-green-600' : data?.summary?.tendencia === 'DECRECIENTE' ? 'text-red-600' : 'text-yellow-600'}` 
+                      className: `w-8 h-8 ${apiData?.summary?.tendencia === 'CRECIENTE' ? 'text-green-600' : apiData?.summary?.tendencia === 'DECRECIENTE' ? 'text-red-600' : 'text-yellow-600'}` 
                     }
                   )
                 }
@@ -409,8 +413,8 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
             value={formatCurrency(additionalMetrics?.totalValorEntradas || 0)}
             icon={DollarSign}
             iconColor="text-green-600"
-            isLoading={isLoading}
-            error={!!error}
+            isLoading={apiIsLoading}
+            error={!!apiError}
           />
 
           <KPICard
@@ -419,16 +423,16 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
             icon={PercentCircle}
             iconColor="text-purple-600"
             valueColor={getValueColor(Number(additionalMetrics?.margenPromedio.toFixed(2)) || 0, 20)}
-            isLoading={isLoading}
-            error={!!error}
+            isLoading={apiIsLoading}
+            error={!!apiError}
           />
         </div>
 
         {/* Resumen Ejecutivo */}
         <DailyMovementsSummary
-          data={data}
-          isLoading={isLoading}
-          error={error}
+          data={apiData}
+          isLoading={apiIsLoading}
+          error={apiError}
         />
 
       {/* Dashboard Principal */}
@@ -442,7 +446,7 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {apiIsLoading ? (
               <div className="flex items-center justify-center h-64">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>

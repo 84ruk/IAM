@@ -29,14 +29,8 @@ function ResetPasswordContent() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!token) {
-      setErrors(['Token de recuperación no válido'])
-      setIsVerifying(false)
-      return
-    }
-
     verifyToken()
-  }, [token])
+  }, [verifyToken])
 
   const verifyToken = async () => {
     try {

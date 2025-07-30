@@ -25,7 +25,7 @@ interface PredictionsPanelProps {
   predictions: PredictionItem[]
   type: 'quiebre' | 'tendencia'
   isLoading?: boolean
-  error?: any
+  error?: Error | null
   className?: string
 }
 

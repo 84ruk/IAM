@@ -187,9 +187,13 @@ export default function SetupEmpresaPage() {
         router.push('/dashboard')
       }
       
-    } catch (error: any) {
-      console.error('Error configurando empresa:', error)
-      setApiError(error?.message || 'Error al configurar empresa')
+    } catch (err: unknown) {
+      console.error('Error al configurar empresa:', err)
+      if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+        setApiError(err.message)
+      } else {
+        setApiError('Error inesperado al configurar empresa')
+      }
     } finally {
       setIsSubmitting(false)
     }

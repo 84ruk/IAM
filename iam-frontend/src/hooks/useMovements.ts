@@ -2,6 +2,13 @@ import useSWR from 'swr'
 import { Movimiento } from '@/types/movimiento'
 import { TipoMovimiento } from '@/types/enums'
 
+interface MovimientosEstadisticas {
+  total: number
+  entradas: number
+  salidas: number
+  hoy: number
+}
+
 const fetcher = (url: string) =>
   fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
     credentials: 'include',
@@ -19,7 +26,7 @@ const fetcher = (url: string) =>
 export function useMovements(tipo?: TipoMovimiento) {
   const url = tipo ? `/movimientos?tipo=${tipo}` : '/movimientos'
   
-  const { data, error, isLoading, mutate } = useSWR<{ movimientos: Movimiento[], estadisticas: any }>(
+  const { data, error, isLoading, mutate } = useSWR<{ movimientos: Movimiento[], estadisticas: MovimientosEstadisticas }>(
     url,
     fetcher,
     {

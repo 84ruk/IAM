@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { isEmptyResponse, getEmptyStateMessage } from '@/lib/api'
 
 interface UseEmptyStateOptions {
-  data: any
+  data: unknown
   type: 'productos' | 'proveedores' | 'movimientos' | 'usuarios' | 'dashboard'
   context?: string
   hayFiltrosActivos?: boolean

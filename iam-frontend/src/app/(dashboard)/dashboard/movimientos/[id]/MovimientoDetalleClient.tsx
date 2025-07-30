@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  ArrowLeft, 
   Edit, 
   Trash2, 
   AlertTriangle,
@@ -12,14 +11,11 @@ import {
   XCircle,
   Package,
   Calendar,
-  Hash,
   User,
   Mail,
   Phone,
   TrendingUp,
   TrendingDown,
-  DollarSign,
-  Tag,
   Eye,
   FileText,
   MessageCircle,

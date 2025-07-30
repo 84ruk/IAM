@@ -9,15 +9,15 @@ interface BackendStatusProps {
 }
 
 export function BackendStatus({ children, fallback }: BackendStatusProps) {
-  const [isBackendAvailable, setIsBackendAvailable] = useState<boolean | null>(null)
-  const [isChecking, setIsChecking] = useState(false)
+  const [status, setStatus] = useState<'online' | 'offline' | 'checking'>('checking')
+  const [error, setError] = useState<Error | null>(null)
 
   const checkBackendStatus = async () => {
-    setIsChecking(true)
+    setStatus('checking')
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL
       if (!apiUrl) {
-        setIsBackendAvailable(false)
+        setStatus('offline')
         return
       }
 
@@ -30,11 +30,12 @@ export function BackendStatus({ children, fallback }: BackendStatusProps) {
       })
 
       clearTimeout(timeoutId)
-      setIsBackendAvailable(response.ok)
-    } catch (error: any) {
-      setIsBackendAvailable(false)
+      setStatus(response.ok ? 'online' : 'offline')
+    } catch (error: Error) {
+      setStatus('offline')
+      setError(error)
     } finally {
-      setIsChecking(false)
+      // setIsChecking(false) // This line was removed from the new_code, so it's removed here.
     }
   }
 
@@ -43,7 +44,7 @@ export function BackendStatus({ children, fallback }: BackendStatusProps) {
   }, [])
 
   // Si el backend no está disponible, mostrar fallback o mensaje de error
-  if (isBackendAvailable === false) {
+  if (status === 'offline') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
@@ -62,15 +63,15 @@ export function BackendStatus({ children, fallback }: BackendStatusProps) {
           <div className="flex flex-col space-y-3">
             <button
               onClick={checkBackendStatus}
-              disabled={isChecking}
+              disabled={status === 'checking'}
               className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isChecking ? (
+              {status === 'checking' ? (
                 <RefreshCw className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
               )}
-              {isChecking ? 'Verificando...' : 'Reintentar'}
+              {status === 'checking' ? 'Verificando...' : 'Reintentar'}
             </button>
             
             <button
@@ -100,7 +101,7 @@ export function BackendStatus({ children, fallback }: BackendStatusProps) {
   }
 
   // Si está verificando, mostrar loading
-  if (isBackendAvailable === null || isChecking) {
+  if (status === 'checking') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

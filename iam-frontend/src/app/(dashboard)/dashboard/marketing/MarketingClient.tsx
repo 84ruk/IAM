@@ -55,7 +55,7 @@ export default function MarketingClient() {
               <div className="flex gap-2 items-start">
                 <div className="w-8 h-8 bg-[#8E94F2] rounded-full flex items-center justify-center text-white font-bold">IA</div>
                 <div className="bg-white rounded-lg px-3 py-2 shadow text-sm text-gray-700 max-w-[220px]">
-                  Ve a la sección de análisis y haz clic en "Ver productos con baja rotación". ¿Te gustaría que te muestre un ejemplo?
+                  Ve a la sección de análisis y haz clic en &quot;Ver productos con baja rotación&quot;. ¿Te gustaría que te muestre un ejemplo?
                 </div>
               </div>
             </div>

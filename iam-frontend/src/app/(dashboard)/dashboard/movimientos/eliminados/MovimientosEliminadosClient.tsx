@@ -22,7 +22,6 @@ import { Movimiento } from '@/types/movimiento'
 import { cn } from '@/lib/utils'
 import VolverAtras from '@/components/ui/VolverAtras'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { pluralizarUnidad } from '@/lib/pluralization'
 
 const fetcher = (url: string) =>

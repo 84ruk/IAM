@@ -10,8 +10,8 @@ interface ProductFiltersProps {
   setFiltroEtiqueta: (value: string) => void
   filtroTipoProducto: string
   setFiltroTipoProducto: (value: string) => void
-  filtroEstado: 'ACTIVO' | 'INACTIVO' | ''
-  setFiltroEstado: (value: 'ACTIVO' | 'INACTIVO' | '') => void
+  filtroEstado: 'ACTIVO' | 'INACTIVO' | 'ELIMINADO' | ''
+  setFiltroEstado: (value: 'ACTIVO' | 'INACTIVO' | 'ELIMINADO' | '') => void
   mostrarAgotados: boolean
   setMostrarAgotados: (value: boolean) => void
   mostrarFiltros: boolean
@@ -141,11 +141,12 @@ export default function ProductFilters({
             <Select
               label="Estado"
               value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value as 'ACTIVO' | 'INACTIVO' | '')}
+              onChange={(e) => setFiltroEstado(e.target.value as 'ACTIVO' | 'INACTIVO' | 'ELIMINADO' | '')}
               options={[
-                { value: '', label: 'Todos los estados' },
                 { value: 'ACTIVO', label: 'Activos' },
-                { value: 'INACTIVO', label: 'Inactivos' }
+                { value: 'INACTIVO', label: 'Inactivos' },
+                { value: 'ELIMINADO', label: 'Eliminados' },
+                { value: '', label: 'Todos los estados' }
               ]}
               className="mb-0"
             />

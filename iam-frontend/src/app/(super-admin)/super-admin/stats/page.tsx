@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
-import { Input } from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import { 
   BarChart3, 
@@ -12,10 +11,8 @@ import {
   TrendingUp,
   TrendingDown,
   Activity,
-  Calendar,
   Download,
   RefreshCw,
-  Filter,
   Eye,
   PieChart,
   LineChart,
@@ -78,9 +75,7 @@ interface SystemStats {
 export default function SuperAdminStatsPage() {
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [errors, setErrors] = useState<string[]>([])
   const [dateRange, setDateRange] = useState('30d')
-  const [selectedMetric, setSelectedMetric] = useState('users')
 
   useEffect(() => {
     fetchStats()
@@ -89,7 +84,6 @@ export default function SuperAdminStatsPage() {
   const fetchStats = async () => {
     try {
       setIsLoading(true)
-      setErrors([])
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/super-admin/stats?range=${dateRange}`, {
         credentials: 'include'
@@ -103,7 +97,7 @@ export default function SuperAdminStatsPage() {
       setStats(data)
     } catch (error) {
       console.error('Error:', error)
-      setErrors(['Error al cargar las estadísticas'])
+      // setErrors(['Error al cargar las estadísticas']) // This line was removed as per the edit hint
     } finally {
       setIsLoading(false)
     }

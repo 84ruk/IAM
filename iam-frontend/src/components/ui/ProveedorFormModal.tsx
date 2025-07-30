@@ -35,33 +35,52 @@ export default function ProveedorFormModal({ isOpen, onClose, onSuccess, proveed
     setError(null)
   }, [proveedor, isOpen])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+  const onSubmit = async (data: Record<string, unknown>) => {
     try {
-      const method = proveedor ? 'PUT' : 'POST'
-      const url = proveedor
-        ? `${process.env.NEXT_PUBLIC_API_URL}/proveedores/${proveedor.id}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/proveedores`
-      
-      // Limpiar valores vacíos antes de enviar usando la función utilitaria
-      const formData = { nombre, email, telefono }
-      const cleanedData = cleanFormData(formData)
-      
-      const res = await fetch(url, {
-        method,
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cleanedData)
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.message || 'Error al guardar proveedor')
+      setLoading(true)
+      setError(null)
+
+      if (proveedor) {
+        const method = 'PUT'
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/proveedores/${proveedor.id}`
+        const cleanedData = cleanFormData(data as Record<string, string>)
+
+        const res = await fetch(url, {
+          method,
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cleanedData)
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.message || 'Error al guardar proveedor')
+        }
+        toast.success('Proveedor actualizado exitosamente')
+      } else {
+        const method = 'POST'
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/proveedores`
+        const cleanedData = cleanFormData(data as Record<string, string>)
+
+        const res = await fetch(url, {
+          method,
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cleanedData)
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.message || 'Error al guardar proveedor')
+        }
+        toast.success('Proveedor creado exitosamente')
       }
-      onSuccess()
-    } catch (err: any) {
-      setError(err.message)
+      
+      onSuccess?.()
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+        setError(err.message)
+      } else {
+        setError('Error inesperado al guardar proveedor')
+      }
     } finally {
       setLoading(false)
     }

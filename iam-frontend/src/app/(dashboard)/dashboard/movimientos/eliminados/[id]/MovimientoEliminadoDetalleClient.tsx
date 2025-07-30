@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { FormErrorAlert } from '@/components/ui/FormErrorAlert';
 import VolverAtras from '@/components/ui/VolverAtras';
 import { Movimiento } from '@/types/movimiento';
-import { Package, Calendar, MessageCircle, FileText, Eye, CheckCircle, XCircle, Mail, Phone, RotateCcw, Trash2 } from 'lucide-react';
+import { Package, Calendar, MessageCircle, FileText, CheckCircle, XCircle, Mail, Phone, RotateCcw, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function MovimientoEliminadoDetalleClient() {

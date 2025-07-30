@@ -16,18 +16,13 @@ import {
   Shield,
   Calendar,
   Building,
-  Eye,
-  Edit,
-  Trash2,
   CheckCircle,
   XCircle,
-  AlertTriangle,
-  MoreVertical
+  Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminUser, RoleOption } from '@/types/admin'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 
 interface UserWithEmpresa extends Omit<AdminUser, 'empresa'> {
   empresa?: {

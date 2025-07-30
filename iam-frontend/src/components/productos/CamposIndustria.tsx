@@ -6,22 +6,13 @@ import Select from '@/components/ui/Select'
 import { Thermometer, Droplets, MapPin, Tag, Package, Barcode, Radio } from 'lucide-react'
 
 interface CamposIndustriaProps {
-  camposRelevantes: string[]
-  config: any
-  formData: any
-  updateField: (field: string, value: any) => void
-  handleBlur: (field: string) => void
+  tipoIndustria: string
+  formData: Record<string, unknown>
+  setFormData: (data: Record<string, unknown>) => void
   errors: Record<string, string>
 }
 
-export default function CamposIndustria({ 
-  camposRelevantes,
-  config,
-  formData,
-  updateField,
-  handleBlur,
-  errors
-}: CamposIndustriaProps) {
+export function CamposIndustria({ tipoIndustria, formData, setFormData, errors }: CamposIndustriaProps) {
   const { config: industriaConfig, tipoIndustria } = useIndustriaConfig()
   const mostrarTemperaturaHumedad = industriaConfig.mostrarTemperaturaHumedad || false
 

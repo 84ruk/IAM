@@ -98,6 +98,13 @@ export class ProductoController {
     return this.productoService.findDeleted(user.empresaId);
   }
 
+  @Get('papelera')
+  getTrash(@Request() req) {
+    const user = req.user as JwtUser;
+    // EmpresaGuard ya valida que empresaId existe
+    return this.productoService.findTrash(user.empresaId);
+  }
+
   @Get('sin-proveedor')
   getWithoutProvider(@Request() req) {
     const user = req.user as JwtUser;

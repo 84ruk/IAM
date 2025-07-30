@@ -27,7 +27,7 @@ export interface FinancialKPIs {
 // KPIs de industria - GET /dashboard-cqrs/industry-kpis
 export interface IndustryKPIs {
   industria: string;
-  configuracion: any;
+  configuracion: Record<string, unknown>;
   kpisDisponibles: string[];
   alertasActivas: string[];
   sensoresConfigurados: string[];
@@ -81,7 +81,7 @@ export interface DashboardData {
 export interface KPICardData {
   title: string;
   value: string | number;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   iconColor: string;
   valueColor?: string;
   subtitle?: string;
@@ -119,7 +119,7 @@ export interface ProductDetail {
 
 export interface Recommendation {
   type: 'stockout' | 'low-rotation' | 'reorder' | 'marketing';
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
   color: string;
@@ -233,6 +233,6 @@ export interface DailyMovementsResponse {
       inicio: string;
       fin: string;
     };
-    filtrosAplicados?: any;
+    filtrosAplicados?: Record<string, unknown>;
   };
 } 

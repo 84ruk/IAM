@@ -5,7 +5,7 @@ import { AppError } from '@/lib/errorHandler';
 interface UseGlobalErrorReturn {
   error: AppError | null;
   setError: (error: AppError | null) => void;
-  handleError: (error: any) => void;
+  handleError: (error: unknown) => void;
   clearError: () => void;
   isEmpresaRequiredError: boolean;
   isAuthError: boolean;
@@ -25,25 +25,27 @@ export function useGlobalError(): UseGlobalErrorReturn {
   // Detectar si es un error de autenticación
   const isAuthError = error?.statusCode === 401;
 
-  const handleError = useCallback((error: any) => {
+  const handleError = useCallback((error: unknown) => {
     let appError: AppError;
 
     // Convertir diferentes tipos de error a AppError
     if (error instanceof AppError) {
       appError = error;
-    } else if (error && typeof error === 'object' && error.response?.data) {
+    } else if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) {
       // Error de axios/fetch con respuesta
+      const responseData = error.response.data as { message?: string; status?: number };
       appError = new AppError(
-        error.response.data.message || 'Error de servidor',
-        error.response.status || 500
+        responseData.message || 'Error de servidor',
+        responseData.status || 500
       );
-    } else if (error && typeof error === 'object' && error.response?.status) {
+    } else if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'status' in error.response) {
       // Error de axios/fetch sin datos pero con status
+      const response = error.response as { status: number };
       appError = new AppError(
         'Error de servidor',
-        error.response.status
+        response.status
       );
-    } else if (error?.message) {
+    } else if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
       // Error genérico
       appError = new AppError(error.message, 500);
     } else {
@@ -68,16 +70,6 @@ export function useGlobalError(): UseGlobalErrorReturn {
   const clearError = useCallback(() => {
     setError(null);
   }, []);
-
-  const handleSetupRequired = useCallback(() => {
-    // Redirigir a setup de empresa
-    router.push('/setup-empresa')
-  }, [router])
-
-  const handleAuthRequired = useCallback(() => {
-    // Redirigir a login
-    router.push('/login')
-  }, [router])
 
   return {
     error,

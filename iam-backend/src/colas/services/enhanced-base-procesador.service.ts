@@ -151,7 +151,16 @@ export abstract class EnhancedBaseProcesadorService implements BaseProcesadorInt
         resultado.estadisticas.errores = erroresValidacion.length;
         resultado.estado = EstadoTrabajo.ERROR;
 
-        this.progressTracker.marcarEtapaConError(trabajo.id, 'validacion', 'Errores de validación encontrados', erroresValidacion);
+        // Crear un error de validación unificado
+        const errorValidacion: ErrorImportacion = {
+          fila: 0,
+          columna: 'estructura',
+          valor: 'archivo',
+          mensaje: 'Errores de validación encontrados',
+          tipo: 'validacion'
+        };
+        
+        this.progressTracker.marcarEtapaConError(trabajo.id, 'validacion', errorValidacion);
         
         // Emitir error de validación
         this.websocketService.emitErrorValidacion(

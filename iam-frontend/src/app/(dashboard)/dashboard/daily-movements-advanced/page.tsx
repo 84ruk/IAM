@@ -37,8 +37,8 @@ export default function DailyMovementsAdvancedPage() {
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Manejar cambios de filtros
-  const handleFiltersChange = useCallback((filters: FiltersType) => {
-    setCurrentFilters(filters)
+  const handleFiltersChange = useCallback((filters: Record<string, unknown>) => {
+    setCurrentFilters(filters as unknown as FiltersType)
   }, [])
 
   // Exportar datos

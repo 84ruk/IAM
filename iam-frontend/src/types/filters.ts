@@ -57,7 +57,7 @@ export interface FilterGroup {
 }
 
 export interface AppliedFilters {
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface FilterPreset {
@@ -123,7 +123,7 @@ export const DEFAULT_FILTER_PRESETS: FilterPreset[] = [
 
 // Tipos para respuestas filtradas
 export interface FilteredDailyMovementsResponse {
-  data: any[]
+  data: unknown[]
   summary: {
     totalMovements: number
     totalValue: number
@@ -147,7 +147,6 @@ export interface FilteredDailyMovementsResponse {
   meta: {
     appliedFilters: string[]
     totalRecords: number
-    filteredRecords: number
     processingTime: number
   }
 }

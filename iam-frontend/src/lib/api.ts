@@ -333,10 +333,10 @@ export const api = {
     getById: (id: number) => 
       apiClient.get(`/productos/${id}`),
     
-    create: (data: any) => 
+    create: (data: Record<string, unknown>) => 
       apiClient.post('/productos', data),
     
-    update: (id: number, data: any) => 
+    update: (id: number, data: Record<string, unknown>) => 
       apiClient.put(`/productos/${id}`, data),
     
     delete: (id: number) => 
@@ -364,10 +364,10 @@ export const api = {
     getById: (id: number) => 
       apiClient.get(`/proveedores/${id}`),
     
-    create: (data: any) => 
+    create: (data: Record<string, unknown>) => 
       apiClient.post('/proveedores', data),
     
-    update: (id: number, data: any) => 
+    update: (id: number, data: Record<string, unknown>) => 
       apiClient.put(`/proveedores/${id}`, data),
     
     delete: (id: number) => 
@@ -398,10 +398,10 @@ export const api = {
     getById: (id: number) => 
       apiClient.get(`/movimientos/${id}`),
     
-    create: (data: any) => 
+    create: (data: Record<string, unknown>) => 
       apiClient.post('/movimientos', data),
     
-    createByBarcode: (data: any) => 
+    createByBarcode: (data: Record<string, unknown>) => 
       apiClient.post('/movimientos/codigo-barras', data),
     
     delete: (id: number) => 
@@ -429,65 +429,204 @@ export const api = {
       return normalizeApiResponse(response)
     },
     
-    getStockChart: async () => {
-      const response = await apiClient.get('/dashboard/stock-chart')
+    getKPIs: async () => {
+      const response = await apiClient.get('/dashboard-cqrs/kpis')
       return normalizeApiResponse(response)
     },
     
-    getMovementsChart: async () => {
-      const response = await apiClient.get('/dashboard/movements-chart')
+    getFinancialKPIs: async () => {
+      const response = await apiClient.get('/dashboard-cqrs/financial-kpis')
       return normalizeApiResponse(response)
     },
     
-    getLowStock: async () => {
-      const response = await apiClient.get('/dashboard/low-stock')
+    getIndustryKPIs: async () => {
+      const response = await apiClient.get('/dashboard-cqrs/industry-kpis')
       return normalizeApiResponse(response)
     },
+    
+    getPredictiveKPIs: async () => {
+      const response = await apiClient.get('/dashboard-cqrs/predictive-kpis')
+      return normalizeApiResponse(response)
+    },
+    
+    getDailyMovements: async (filters?: Record<string, unknown>) => {
+      const params = filters ? new URLSearchParams() : undefined
+      if (filters && params) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            params.append(key, String(value))
+          }
+        })
+      }
+      
+      const response = await apiClient.get(`/dashboard-cqrs/daily-movements${params ? `?${params}` : ''}`)
+      return normalizeApiResponse(response)
+    },
+    
+    getData: async (filters?: Record<string, unknown>) => {
+      const params = filters ? new URLSearchParams() : undefined
+      if (filters && params) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            params.append(key, String(value))
+          }
+        })
+      }
+      
+      const response = await apiClient.get(`/dashboard-cqrs/data${params ? `?${params}` : ''}`)
+      return normalizeApiResponse(response)
+    }
+  },
+
+  // Usuarios
+  usuarios: {
+    getProfile: () => 
+      apiClient.get('/auth/me'),
+    
+    updateProfile: (data: Record<string, unknown>) => 
+      apiClient.put('/auth/profile', data),
+    
+    changePassword: (data: Record<string, unknown>) => 
+      apiClient.post('/auth/change-password', data),
+    
+    getAll: async (params?: URLSearchParams) => {
+      const response = await apiClient.get(`/usuarios${params ? `?${params}` : ''}`)
+      return normalizeApiResponse(response)
+    },
+    
+    getById: (id: number) => 
+      apiClient.get(`/usuarios/${id}`),
+    
+    create: (data: Record<string, unknown>) => 
+      apiClient.post('/usuarios', data),
+    
+    update: (id: number, data: Record<string, unknown>) => 
+      apiClient.put(`/usuarios/${id}`, data),
+    
+    delete: (id: number) => 
+      apiClient.delete(`/usuarios/${id}`),
+  },
+
+  // Empresa
+  empresa: {
+    getCurrent: () => 
+      apiClient.get('/empresa/current'),
+    
+    update: (data: Record<string, unknown>) => 
+      apiClient.put('/empresa', data),
+    
+    setup: (data: Record<string, unknown>) => 
+      apiClient.post('/empresa/setup', data),
   },
 
   // Autenticación
   auth: {
-    login: (data: { email: string; password: string }) => 
-      apiClient.post('/auth/login', data),
+    login: (credentials: Record<string, unknown>) => 
+      apiClient.post('/auth/login', credentials),
     
-    register: (data: any) => 
-      apiClient.post('/auth/register', data),
-    
-    me: () => 
-      apiClient.get('/auth/me'),
+    register: (userData: Record<string, unknown>) => 
+      apiClient.post('/auth/register', userData),
     
     logout: () => 
       apiClient.post('/auth/logout'),
+    
+    refresh: () => 
+      apiClient.post('/auth/refresh'),
+    
+    forgotPassword: (email: string) => 
+      apiClient.post('/auth/forgot-password', { email }),
+    
+    resetPassword: (token: string, password: string) => 
+      apiClient.post('/auth/reset-password', { token, password }),
   },
 
-  // Admin
-  admin: {
-    getUsers: async () => {
-      const response = await apiClient.get('/admin/users')
-      return normalizeApiResponse(response)
+  // Importación
+  importacion: {
+    importarProductos: (file: File, opciones: Record<string, unknown>) => {
+      const formData = new FormData()
+      formData.append('archivo', file)
+      Object.entries(opciones).forEach(([key, value]) => {
+        formData.append(key, String(value))
+      })
+      return apiClient.post('/importacion/productos', formData)
     },
     
-    createUser: (data: any) => 
-      apiClient.post('/admin/users', data),
+    importarProveedores: (file: File, opciones: Record<string, unknown>) => {
+      const formData = new FormData()
+      formData.append('archivo', file)
+      Object.entries(opciones).forEach(([key, value]) => {
+        formData.append(key, String(value))
+      })
+      return apiClient.post('/importacion/proveedores', formData)
+    },
     
-    updateUser: (id: string, data: any) => 
-      apiClient.put(`/admin/users/${id}`, data),
+    importarMovimientos: (file: File, opciones: Record<string, unknown>) => {
+      const formData = new FormData()
+      formData.append('archivo', file)
+      Object.entries(opciones).forEach(([key, value]) => {
+        formData.append(key, String(value))
+      })
+      return apiClient.post('/importacion/movimientos', formData)
+    },
     
-    changeRole: (id: string, data: { rol: string }) => 
-      apiClient.patch(`/admin/users/${id}/role`, data),
+    importarUnificada: (file: File, opciones: Record<string, unknown>) => {
+      const formData = new FormData()
+      formData.append('archivo', file)
+      Object.entries(opciones).forEach(([key, value]) => {
+        formData.append(key, String(value))
+      })
+      return apiClient.post('/importacion/unificada', formData)
+    },
     
-    deleteUser: (id: string) => 
-      apiClient.delete(`/admin/users/${id}`),
-  },
+    importarAuto: (file: File, opciones: Record<string, unknown>) => {
+      const formData = new FormData()
+      formData.append('archivo', file)
+      Object.entries(opciones).forEach(([key, value]) => {
+        formData.append(key, String(value))
+      })
+      return apiClient.post('/importacion/auto', formData)
+    },
+    
+    validarAuto: (file: File, opciones?: Record<string, unknown>) => {
+      const formData = new FormData()
+      formData.append('archivo', file)
+      if (opciones) {
+        Object.entries(opciones).forEach(([key, value]) => {
+          formData.append(key, String(value))
+        })
+      }
+      return apiClient.post('/importacion/auto/validar', formData)
+    },
+    
+    confirmarAuto: (trabajoId: string, opciones: Record<string, unknown>) => {
+      return apiClient.post(`/importacion/auto/${trabajoId}/confirmar`, opciones)
+    },
+    
+    obtenerEstadoTrabajo: (trabajoId: string) => 
+      apiClient.get(`/importacion/trabajos/${trabajoId}`),
+    
+    listarTrabajos: (limit = 50, offset = 0) => 
+      apiClient.get(`/importacion/trabajos?limit=${limit}&offset=${offset}`),
+    
+    cancelarTrabajo: (trabajoId: string) => 
+      apiClient.delete(`/importacion/trabajos/${trabajoId}`),
+    
+    descargarReporteErrores: (trabajoId: string) => 
+      apiClient.get(`/importacion/trabajos/${trabajoId}/reporte-errores`, { responseType: 'blob' }),
+    
+    descargarPlantilla: (tipo: string) => 
+      apiClient.get(`/importacion/plantillas/${tipo}`, { responseType: 'blob' }),
+    
+    obtenerTiposSoportados: () => 
+      apiClient.get('/importacion/tipos-soportados'),
+  }
 }
 
 import { useAuth } from '@/hooks/useAuth'
 import axios, { AxiosError, AxiosInstance } from 'axios'
 
-// Hook personalizado para usar la API con manejo de errores y autenticación
+// Hook para usar la API con manejo de errores
 export function useApi(client: ApiClient = apiClient) {
-  const { getAuthHeaders, validateAuth, validateAuthAsync } = useAuth()
-
   const handleApiCall = async <T>(
     apiCall: () => Promise<T>,
     options?: {
@@ -498,92 +637,27 @@ export function useApi(client: ApiClient = apiClient) {
     }
   ): Promise<T | null> => {
     try {
-      // Verificar autenticación si es requerida
-      if (options?.requireAuth !== false) {
-        const isValid = options?.requireAuth === 'async' 
-          ? await validateAuthAsync() 
-          : validateAuth()
-        
-        if (!isValid) {
-          const authError = new AppError('Usuario no autenticado', 401)
-          options?.onError?.(authError)
-          return null
-        }
-      }
-
       const result = await apiCall()
-      options?.onSuccess?.(result)
+      
+      if (options?.onSuccess) {
+        options.onSuccess(result)
+      }
+      
       return result
     } catch (error) {
-      let appError: AppError
+      const appError = error instanceof AppError ? error : new AppError('Error desconocido')
       
-      // Manejar diferentes tipos de errores
-      if (error instanceof AppError) {
-        appError = error
-      } else if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError
-        const status = axiosError.response?.status || 500
-        const message = (axiosError.response?.data as any)?.message || axiosError.message || 'Error en la solicitud'
-        appError = new AppError(message, status)
-      } else if (error instanceof Error) {
-        appError = new AppError(error.message, 500)
-      } else {
-        appError = new AppError('Error desconocido', 500)
+      if (options?.onError) {
+        options.onError(appError)
       }
       
-      options?.onError?.(appError)
-      
       if (options?.showError !== false) {
-        console.error('API Error:', appError.message)
+        console.error('API Error:', appError)
       }
       
       return null
     }
   }
 
-  // API con autenticación automática usando cookies
-  const authenticatedApi = {
-    get: async <T>(url: string, config?: any): Promise<T> => {
-      const headers = getAuthHeaders()
-      return client.get<T>(url, { 
-        ...config, 
-        headers: { ...config?.headers, ...headers },
-        withCredentials: true // Enviar cookies automáticamente
-      })
-    },
-    post: async <T>(url: string, data?: any, config?: any): Promise<T> => {
-      const headers = getAuthHeaders()
-      return client.post<T>(url, data, { 
-        ...config, 
-        headers: { ...config?.headers, ...headers },
-        withCredentials: true // Enviar cookies automáticamente
-      })
-    },
-    put: async <T>(url: string, data?: any, config?: any): Promise<T> => {
-      const headers = getAuthHeaders()
-      return client.put<T>(url, data, { 
-        ...config, 
-        headers: { ...config?.headers, ...headers },
-        withCredentials: true // Enviar cookies automáticamente
-      })
-    },
-    delete: async <T>(url: string, config?: any): Promise<T> => {
-      const headers = getAuthHeaders()
-      return client.delete<T>(url, { 
-        ...config, 
-        headers: { ...config?.headers, ...headers },
-        withCredentials: true // Enviar cookies automáticamente
-      })
-    }
-  }
-
-  return {
-    handleApiCall,
-    api,
-    apiClient,
-    authenticatedApi,
-    getAuthHeaders,
-    validateAuth,
-    validateAuthAsync
-  }
+  return { handleApiCall }
 } 

@@ -63,9 +63,9 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
   const config = INDUSTRIAS[tipoIndustria]
 
   const camposIndustria = config.camposRelevantes.reduce((acc, campo) => {
-    acc[campo] = z.any().optional()
+    acc[campo] = z.unknown().optional()
     return acc
-  }, {} as any)
+  }, {} as Record<string, unknown>)
 
   const schema = baseSchema
   .extend(camposIndustria)
@@ -104,8 +104,8 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
         })
         const data = await res.json()
         if (res.ok) setProveedores(data)
-      } catch (err) {
-        console.error('Error cargando proveedores')
+      } catch (err: unknown) {
+        console.error('Error cargando proveedores:', err)
       }
     }
     fetchProveedores()
@@ -120,9 +120,9 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
         })
         const data = await res.json()
         if (res.ok) {
-          Object.entries(data).forEach(([key, value]) => {
-            setValue(key as any, value)
-          })
+                  Object.entries(data).forEach(([key, value]) => {
+          setValue(key as string, value)
+        })
           // Inicializar etiquetas como array (nuevo modelo)
           const etiquetasProducto = Array.isArray(data.etiquetas) ? data.etiquetas : []
           setEtiquetas(etiquetasProducto)
@@ -140,7 +140,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
     setValue('etiquetas', etiquetas)
   }, [etiquetas, setValue])
 
-  const onSubmit = async (values: any) => {
+  const onSubmit = async (values: Record<string, unknown>) => {
     setServerErrors([])
     
     // Debug: mostrar valores antes de limpiar
@@ -185,7 +185,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
 
           onSuccess?.()
           router.push('/dashboard/productos')
-    } catch (err: any) {
+    } catch (err: unknown) {
       setServerErrors(['Hubo un error inesperado.'])
         }
   }
@@ -219,7 +219,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
       
       // Redirigir a la lista de productos después de eliminar
             router.push('/dashboard/productos')
-    } catch (err: any) {
+    } catch (err: unknown) {
       setServerErrors(['Error de conexión. Verifica tu conexión a internet.'])
     } finally {
       setEliminandoProducto(false)
@@ -266,6 +266,9 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
   console.log('Render - Estado de etiquetas:', etiquetas)
 
   const renderCampo = (campo: string, label: string, type: string = 'text', optional = true) => {
+    const value = watch(campo as keyof RegisterFormData)
+    const error = errors[campo as keyof RegisterFormData]
+    const hasError = !!error
     // Caso especial para descripción - usar textarea
     if (campo === 'descripcion') {
       return (
@@ -546,7 +549,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm transition-all"
                   />
                   {errors.etiquetas && (
-                    <p className="mt-1 text-sm text-red-600">{(errors.etiquetas as any)?.message}</p>
+                    <p className="mt-1 text-sm text-red-600">{(errors.etiquetas as { message?: string })?.message}</p>
                   )}
                 </div>
                 <div>

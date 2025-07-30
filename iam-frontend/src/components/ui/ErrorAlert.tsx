@@ -88,7 +88,7 @@ export default function ErrorAlert({
       setIsVisible(false)
       setValidationErrors([])
     }
-  }, [error, autoClose, autoCloseDelay])
+  }, [error, autoClose, autoCloseDelay, handleClose])
 
   const handleClose = () => {
     setIsVisible(false)

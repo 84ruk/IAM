@@ -22,7 +22,7 @@ interface UseDailyMovementsFiltersOptions {
 interface UseDailyMovementsFiltersReturn {
   // Estado de filtros
   filters: DailyMovementsFilters
-  appliedFilters: Record<string, any>
+  appliedFilters: Record<string, unknown>
   
   // Opciones de filtro
   filterOptions: FilterOptionsResponse | null
@@ -74,6 +74,9 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
   const [activePreset, setActivePreset] = useState<FilterPreset | null>(
     DEFAULT_FILTER_PRESETS.find(p => p.isDefault) || null
   )
+
+  // Estado de filtros aplicados
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, unknown>>({})
 
   // Cargar opciones de filtro
   const loadFilterOptions = useCallback(async () => {
@@ -232,29 +235,29 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
 
   // Exportar filtros
   const exportFilters = useCallback(() => {
-    return JSON.stringify({
+    const filtersData = {
       filters,
-      activePreset: activePreset?.id,
+      appliedFilters: getAppliedFilters(),
       timestamp: new Date().toISOString()
-    })
-  }, [filters, activePreset])
+    }
+    
+    const blob = new Blob([JSON.stringify(filtersData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `filtros-movimientos-${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [filters])
 
   // Importar filtros
-  const importFilters = useCallback((filtersString: string) => {
-    try {
-      const data = JSON.parse(filtersString)
-      if (data.filters) {
-        setFilters(data.filters)
-        if (data.activePreset) {
-          const preset = presets.find(p => p.id === data.activePreset)
-          setActivePreset(preset || null)
-        }
-        onFiltersChange?.(data.filters)
-      }
-    } catch (error) {
-      console.error('Error importing filters:', error)
+  const importFilters = useCallback((filtersData: Record<string, unknown>) => {
+    if (filtersData.filters && typeof filtersData.filters === 'object') {
+      setFilters(filtersData.filters as Record<string, unknown>)
     }
-  }, [presets, onFiltersChange])
+  }, [])
 
   // Cargar presets guardados al inicializar
   useEffect(() => {
@@ -276,8 +279,8 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
   }, [autoLoadOptions, loadFilterOptions])
 
   // Filtros aplicados para la API
-  const appliedFilters = useMemo(() => {
-    const applied: Record<string, any> = {}
+  const getAppliedFilters = useCallback(() => {
+          const applied: Record<string, unknown> = {}
     
     // Solo incluir filtros que tengan valor
     Object.entries(filters).forEach(([key, value]) => {
@@ -292,6 +295,21 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
     
     return applied
   }, [filters])
+
+  const handleFilterChange = (filterName: string, value: unknown) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }))
+  }
+
+  const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined }) => {
+    setFilters(prev => ({
+      ...prev,
+      startDate: range.from?.toISOString().split('T')[0],
+      endDate: range.to?.toISOString().split('T')[0]
+    }))
+  }
 
   return {
     // Estado
@@ -318,6 +336,8 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
     hasActiveFilters,
     getFilterSummary,
     exportFilters,
-    importFilters
+    importFilters,
+    handleFilterChange,
+    handleDateRangeChange
   }
 } 

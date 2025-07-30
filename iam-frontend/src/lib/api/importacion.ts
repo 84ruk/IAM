@@ -63,7 +63,7 @@ export interface ImportacionUnificadaDto {
   validarSolo: boolean
   notificarEmail: boolean
   emailNotificacion?: string
-  configuracionEspecifica?: any
+  configuracionEspecifica?: Record<string, unknown>
 }
 
 export interface ImportacionAutoDto {
@@ -71,11 +71,11 @@ export interface ImportacionAutoDto {
   validarSolo: boolean
   notificarEmail: boolean
   emailNotificacion?: string
-  configuracionEspecifica?: any
+  configuracionEspecifica?: Record<string, unknown>
 }
 
 export interface ValidacionAutoDto {
-  configuracionEspecifica?: any
+  configuracionEspecifica?: Record<string, unknown>
 }
 
 export interface ConfirmacionAutoDto {
@@ -84,7 +84,7 @@ export interface ConfirmacionAutoDto {
   validarSolo: boolean
   notificarEmail: boolean
   emailNotificacion?: string
-  configuracionEspecifica?: any
+  configuracionEspecifica?: Record<string, unknown>
 }
 
 export interface TipoSoportado {
@@ -336,18 +336,18 @@ class ImportacionAPI {
   }
 
   // Nuevos métodos para plantillas automáticas
-  async obtenerTodasLasPlantillas(): Promise<any> {
-    const response = await apiClient.get<any>('/plantillas-auto')
+  async obtenerTodasLasPlantillas(): Promise<Record<string, unknown>> {
+    const response = await apiClient.get<Record<string, unknown>>('/plantillas-auto')
     return response
   }
 
-  async obtenerPlantillasPorTipo(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<any> {
-    const response = await apiClient.get<any>(`/plantillas-auto/${tipo}`)
+  async obtenerPlantillasPorTipo(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<Record<string, unknown>> {
+    const response = await apiClient.get<Record<string, unknown>>(`/plantillas-auto/${tipo}`)
     return response
   }
 
-  async obtenerMejorPlantilla(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<any> {
-    const response = await apiClient.get<any>(`/plantillas-auto/${tipo}/mejor`)
+  async obtenerMejorPlantilla(tipo: 'productos' | 'proveedores' | 'movimientos'): Promise<Record<string, unknown>> {
+    const response = await apiClient.get<Record<string, unknown>>(`/plantillas-auto/${tipo}/mejor`)
     return response
   }
 
@@ -358,8 +358,8 @@ class ImportacionAPI {
     return response
   }
 
-  async obtenerEstadisticasPlantillas(): Promise<any> {
-    const response = await apiClient.get<any>('/plantillas-auto/estadisticas')
+  async obtenerEstadisticasPlantillas(): Promise<Record<string, unknown>> {
+    const response = await apiClient.get<Record<string, unknown>>('/plantillas-auto/estadisticas')
     return response
   }
 
@@ -368,24 +368,24 @@ class ImportacionAPI {
     nombre?: string;
     incluirAvanzadas?: boolean;
     incluirMejoradas?: boolean;
-  }): Promise<any> {
+  }): Promise<Record<string, unknown>> {
     const params = new URLSearchParams()
     if (criterios.tipo) params.append('tipo', criterios.tipo)
     if (criterios.nombre) params.append('nombre', criterios.nombre)
     if (criterios.incluirAvanzadas !== undefined) params.append('incluirAvanzadas', criterios.incluirAvanzadas.toString())
     if (criterios.incluirMejoradas !== undefined) params.append('incluirMejoradas', criterios.incluirMejoradas.toString())
     
-    const response = await apiClient.get<any>(`/plantillas-auto/buscar?${params.toString()}`)
+    const response = await apiClient.get<Record<string, unknown>>(`/plantillas-auto/buscar?${params.toString()}`)
     return response
   }
 
-  async obtenerInfoPlantilla(nombre: string): Promise<any> {
-    const response = await apiClient.get<any>(`/plantillas-auto/info/${nombre}`)
+  async obtenerInfoPlantilla(nombre: string): Promise<Record<string, unknown>> {
+    const response = await apiClient.get<Record<string, unknown>>(`/plantillas-auto/info/${nombre}`)
     return response
   }
 
-  async actualizarPlantillas(): Promise<any> {
-    const response = await apiClient.get<any>('/plantillas-auto/actualizar')
+  async actualizarPlantillas(): Promise<Record<string, unknown>> {
+    const response = await apiClient.get<Record<string, unknown>>('/plantillas-auto/actualizar')
     return response
   }
 }

@@ -28,9 +28,24 @@ export interface IndustriaConfig {
     tallas?: string[]
     colores?: string[]
   }
+  configuracionEspecifica: Record<string, unknown>
 }
 
-export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
+export const INDUSTRIAS: Record<string, IndustriaConfig> = {
+  GENERICA: {
+    nombre: 'Genérica',
+    descripcion: 'Configuración estándar para cualquier tipo de negocio',
+    icono: '🏢',
+    color: '#6B7280',
+    camposRelevantes: [],
+    mostrarTemperaturaHumedad: false,
+    mostrarTallaColor: false,
+    mostrarSKU: true,
+    mostrarCodigoBarras: true,
+    mostrarRFID: false,
+    mostrarEtiquetas: true,
+    configuracionEspecifica: {}
+  },
   ALIMENTOS: {
     label: 'Restaurante',
     camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion'],
@@ -55,18 +70,6 @@ export const INDUSTRIAS: Record<TipoIndustria, IndustriaConfig> = {
     label: 'Electrónica',
     camposRelevantes: ['sku', 'codigoBarras', 'rfid'],
   },
-  GENERICA: {
-    label: 'Genérica',
-    camposRelevantes: [
-      'temperaturaOptima', 'humedadOptima', 'ubicacion',
-      'talla', 'color',
-      'sku', 'codigoBarras', 'rfid'
-    ],
-    opciones: {
-      tallas: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
-      colores: ['Negro', 'Blanco', 'Rojo', 'Azul', 'Verde', 'Amarillo', 'Gris', 'Marrón']
-    }
-  },
   FARMACIA: {
     label: 'Farmacia',
     camposRelevantes: ['temperaturaOptima', 'humedadOptima', 'ubicacion', 'codigoBarras', 'rfid'],
@@ -89,7 +92,7 @@ export function getIndustriaConfig(tipo: TipoIndustria): IndustriaConfig {
 // Función helper para validar campos por industria
 export function validarCampoPorIndustria(
   campo: CampoProducto, 
-  valor: any, 
+  valor: unknown, 
   tipoIndustria: TipoIndustria
 ): string | null {
   const config = getIndustriaConfig(tipoIndustria)
