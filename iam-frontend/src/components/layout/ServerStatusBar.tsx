@@ -1,10 +1,11 @@
 'use client'
 
-import { useServerStatusContext } from '@/context/ServerStatusContext'
+import { memo } from 'react'
+import { useServerState } from '@/context/ServerStatusContext'
 import { AlertTriangle, CheckCircle, Clock, WifiOff } from 'lucide-react'
 
-export default function ServerStatusBar() {
-  const { status, responseTime, isWarmingUp } = useServerStatusContext()
+const ServerStatusBar = memo(() => {
+  const { status, responseTime, isWarmingUp } = useServerState()
 
   // Solo mostrar cuando hay problemas o cold start
   if (status === 'online' && !isWarmingUp) {
@@ -63,4 +64,8 @@ export default function ServerStatusBar() {
       </div>
     </div>
   )
-} 
+})
+
+ServerStatusBar.displayName = 'ServerStatusBar'
+
+export default ServerStatusBar 

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { AlertCircle, Loader2, CheckCircle, ArrowLeft } from 'lucide-react';
 import { AppError } from '@/lib/errorHandler';
 import { Input } from '@/components/ui/Input'
 import Button from '@/components/ui/Button';
-
+import Link from 'next/link';
 
 interface LoginFormData {
   email: string;
@@ -47,8 +47,6 @@ export default function LoginForm() {
   }
 
   const handleBackendError = useCallback((error: AppError) => {
-    console.error('Error de backend:', error)
-    
     if (isValidationAppError(error)) {
       const errs = error.errors;
       const fieldErrors: FieldErrors = {};
@@ -117,7 +115,6 @@ export default function LoginForm() {
         handleBackendError(result)
       }
     } catch (error) {
-      console.error('Error en login:', error)
       setGeneralError('Error de conexión. Verifica tu conexión a internet.')
     } finally {
       setIsLoading(false)
@@ -157,6 +154,17 @@ export default function LoginForm() {
 
   return (
     <div className="form-container">
+      {/* Botón para regresar al landing page */}
+      <div className="mb-4">
+        <Link
+          href="/"
+          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Volver al inicio
+        </Link>
+      </div>
+
       <form onSubmit={handleSubmit} className="form-container">
         <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">Iniciar sesión</h1>
         

@@ -51,7 +51,7 @@ Estilos que se repiten en muchas pantallas (login, registro, formularios)
 }
 
 .form-container {
-  @apply max-w-md w-full mx-auto mt-16 bg-white p-6 rounded-lg shadow-md;
+  @apply max-w-md w-full mx-auto bg-white p-6 rounded-lg shadow-md;
 }
 
 .title-main {

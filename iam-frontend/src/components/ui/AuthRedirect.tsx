@@ -1,0 +1,33 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+interface AuthRedirectProps {
+  isAuthenticated: boolean
+  redirectTo: string
+  children?: React.ReactNode
+}
+
+export default function AuthRedirect({ isAuthenticated, redirectTo, children }: AuthRedirectProps) {
+  const router = useRouter()
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push(redirectTo)
+    }
+  }, [isAuthenticated, redirectTo, router])
+
+  if (isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirigiendo al dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return <>{children}</>
+} 

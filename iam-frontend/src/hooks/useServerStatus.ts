@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 export type ServerStatus = 'checking' | 'online' | 'cold-start' | 'offline' | 'error'
 
@@ -18,6 +18,15 @@ export function useServerStatus() {
     retryCount: 0,
     isWarmingUp: false
   })
+
+  // ✅ NUEVO: Usar refs para evitar dependencias problemáticas
+  const stateRef = useRef(state)
+  const checkServerStatusRef = useRef<(() => Promise<ServerStatus>) | null>(null)
+
+  // Actualizar ref cuando state cambie
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
   const checkServerStatus = useCallback(async (): Promise<ServerStatus> => {
     const startTime = Date.now()
@@ -112,6 +121,11 @@ export function useServerStatus() {
     }
   }, [])
 
+  // Guardar referencia de la función
+  useEffect(() => {
+    checkServerStatusRef.current = checkServerStatus
+  }, [checkServerStatus])
+
   const warmUpServer = useCallback(async (): Promise<void> => {
     try {
       setState(prev => ({ ...prev, isWarmingUp: true }))
@@ -127,32 +141,38 @@ export function useServerStatus() {
       await Promise.all(promises)
       
       // Verificar estado después del warm-up
-      await checkServerStatus()
+      if (checkServerStatusRef.current) {
+        await checkServerStatusRef.current()
+      }
     } catch (error) {
       console.warn('Error warming up server:', error)
     } finally {
       setState(prev => ({ ...prev, isWarmingUp: false }))
     }
-  }, [checkServerStatus])
+  }, [])
 
+  // ✅ CORREGIDO: useEffect sin dependencias problemáticas
   useEffect(() => {
     // Verificación inicial
     checkServerStatus()
     
     // Polling optimizado - solo si el servidor está offline o con error
     const interval = setInterval(() => {
+      const currentState = stateRef.current
       const now = Date.now()
-      const lastCheckTime = state.lastCheck?.getTime() || 0
+      const lastCheckTime = currentState.lastCheck?.getTime() || 0
       
       // Solo verificar si el servidor está offline o con error Y han pasado al menos 30 segundos
-      if ((state.status === 'offline' || state.status === 'error') && 
+      if ((currentState.status === 'offline' || currentState.status === 'error') && 
           (now - lastCheckTime > 30000)) {
-        checkServerStatus()
+        if (checkServerStatusRef.current) {
+          checkServerStatusRef.current()
+        }
       }
     }, 60000) // Verificar cada 60 segundos
 
     return () => clearInterval(interval)
-  }, [checkServerStatus, state.status, state.lastCheck])
+  }, []) // ✅ Sin dependencias problemáticas
 
   return {
     ...state,

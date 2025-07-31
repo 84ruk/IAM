@@ -10,7 +10,6 @@ export default async function LoginPage() {
     }
   } catch (error) {
     // Si hay error de conexión, continuar sin autenticación
-    console.warn('Backend no disponible, mostrando página de login sin verificación de autenticación');
   }
 
   return (

@@ -2,7 +2,6 @@
 import './globals.css'
 import { montserrat } from './fonts'
 import { ReactNode } from 'react'
-import { Toaster } from 'sonner'
 import { ErrorBoundary } from '@/lib/error-boundary'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -19,12 +18,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
-        <Toaster 
-          position="top-right"
-          richColors
-          closeButton
-          duration={4000}
-        />
       </body>
     </html>
   )

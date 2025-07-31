@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 import { requireAuth } from '@/lib/ssrAuth';
 import LandingPage from '@/components/landing/LandingPage';
+import AuthRedirect from '@/components/ui/AuthRedirect';
 
 export const metadata: Metadata = {
   title: 'IAM - ERP Inteligente para Gestión de Inventario | PYMEs',
@@ -58,19 +58,25 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
+  let isAuthenticated = false;
+  let user = null;
+
   try {
-    // Verificar autenticación en el servidor solo si el backend está disponible
-    const user = await requireAuth();
+    // Verificar autenticación en el servidor
+    user = await requireAuth();
     
-    // Si el usuario está autenticado, redirigir al dashboard
-    if (user) {
-      redirect('/dashboard');
-    }
+    // Verificar si el usuario está autenticado
+    isAuthenticated = !!(user && user.id && user.email);
+    
   } catch (error) {
     // Si hay error de conexión, continuar sin autenticación
-    console.warn('Backend no disponible, mostrando landing page sin verificación de autenticación');
+    isAuthenticated = false;
   }
 
-  // Mostrar la landing page
-  return <LandingPage />;
+  // Usar el componente AuthRedirect para manejar la redirección del lado del cliente
+  return (
+    <AuthRedirect isAuthenticated={isAuthenticated} redirectTo="/dashboard">
+      <LandingPage />
+    </AuthRedirect>
+  );
 }
