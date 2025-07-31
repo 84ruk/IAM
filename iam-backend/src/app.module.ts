@@ -85,8 +85,12 @@ export class AppModule {
         { path: 'dashboard/*', method: RequestMethod.ALL },
         { path: 'dashboard-cqrs/*', method: RequestMethod.ALL }
       )
-      // 🔒 MIDDLEWARE DE SEGURIDAD (global)
+      // 🔒 MIDDLEWARE DE SEGURIDAD (excluyendo health checks)
       .apply(SecurityMiddleware)
+      .exclude(
+        { path: 'health', method: RequestMethod.ALL },
+        { path: 'health/(.*)', method: RequestMethod.ALL }
+      )
       .forRoutes({ path: '*', method: RequestMethod.ALL });
   }
 }

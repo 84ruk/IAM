@@ -135,6 +135,7 @@ export class ImportacionRapidaService {
     const errores: any[] = [];
     let registrosExitosos = 0;
     const todasLasCorrecciones: any[] = [];
+    const registrosExitososDetalle: any[] = []; // Nueva lista para detalles
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -196,7 +197,7 @@ export class ImportacionRapidaService {
         }
 
         // Guardar producto
-        await this.prisma.producto.create({
+        const productoGuardado = await this.prisma.producto.create({
           data: {
             ...productoData,
             empresaId: user.empresaId,
@@ -204,7 +205,41 @@ export class ImportacionRapidaService {
           },
         });
 
+        // Registrar el registro exitoso con detalles
+        registrosExitososDetalle.push({
+          fila: rowNumber,
+          tipo: 'productos',
+          datos: {
+            id: productoGuardado.id,
+            nombre: productoGuardado.nombre,
+            descripcion: productoGuardado.descripcion,
+            stock: productoGuardado.stock,
+            precioCompra: productoGuardado.precioCompra,
+            precioVenta: productoGuardado.precioVenta,
+            stockMinimo: productoGuardado.stockMinimo,
+            codigoBarras: productoGuardado.codigoBarras,
+            sku: productoGuardado.sku,
+            tipoProducto: productoGuardado.tipoProducto,
+            unidad: productoGuardado.unidad,
+            estado: productoGuardado.estado,
+            etiquetas: productoGuardado.etiquetas,
+            color: productoGuardado.color,
+            talla: productoGuardado.talla,
+            ubicacion: productoGuardado.ubicacion,
+            temperaturaOptima: productoGuardado.temperaturaOptima,
+            humedadOptima: productoGuardado.humedadOptima,
+            rfid: productoGuardado.rfid
+          },
+          identificador: productoGuardado.nombre,
+          correccionesAplicadas: correcciones.length > 0 ? correcciones : undefined,
+          timestamp: new Date()
+        });
+
         registrosExitosos++;
+        
+        // Log individual de cada registro exitoso
+        this.logger.log(`✅ Producto importado exitosamente - Fila ${rowNumber}: "${productoGuardado.nombre}" (ID: ${productoGuardado.id})`);
+        
       } catch (error) {
         let productoData: any = {};
         try {
@@ -237,12 +272,16 @@ export class ImportacionRapidaService {
       this.logger.debug('Correcciones aplicadas:', todasLasCorrecciones);
     }
 
+    // Log resumen final
+    this.logger.log(`📊 Resumen importación productos: ${registrosExitosos} exitosos, ${errores.length} errores de ${rows.length} total`);
+
     return {
       registrosProcesados: rows.length,
       registrosExitosos,
       registrosConError: errores.length,
       errores,
       correcciones: todasLasCorrecciones, // Incluir correcciones en el resultado
+      registrosExitososDetalle, // Incluir detalles de registros exitosos
       resumen: {
         tipo: 'productos',
         empresaId: user.empresaId?.toString() || '',
@@ -260,6 +299,7 @@ export class ImportacionRapidaService {
   ): Promise<ResultadoImportacionRapida> {
     const errores: any[] = [];
     let registrosExitosos = 0;
+    const registrosExitososDetalle: any[] = []; // Nueva lista para detalles
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -306,7 +346,7 @@ export class ImportacionRapidaService {
           }
         }
 
-        await this.prisma.proveedor.create({
+        const proveedorGuardado = await this.prisma.proveedor.create({
           data: {
             ...proveedorData,
             empresaId: user.empresaId,
@@ -314,7 +354,27 @@ export class ImportacionRapidaService {
           },
         });
 
+        // Registrar el registro exitoso con detalles
+        registrosExitososDetalle.push({
+          fila: rowNumber,
+          tipo: 'proveedores',
+          datos: {
+            id: proveedorGuardado.id,
+            nombre: proveedorGuardado.nombre,
+            email: proveedorGuardado.email,
+            telefono: proveedorGuardado.telefono,
+            estado: proveedorGuardado.estado,
+            empresaId: proveedorGuardado.empresaId
+          },
+          identificador: proveedorGuardado.nombre,
+          timestamp: new Date()
+        });
+
         registrosExitosos++;
+        
+        // Log individual de cada registro exitoso
+        this.logger.log(`✅ Proveedor importado exitosamente - Fila ${rowNumber}: "${proveedorGuardado.nombre}" (ID: ${proveedorGuardado.id})`);
+        
       } catch (error) {
         const errorMessage = this.interpretarErrorPrisma(error, proveedorData || {});
         errores.push({
@@ -333,11 +393,15 @@ export class ImportacionRapidaService {
       }
     }
 
+    // Log resumen final
+    this.logger.log(`📊 Resumen importación proveedores: ${registrosExitosos} exitosos, ${errores.length} errores de ${rows.length} total`);
+
     return {
       registrosProcesados: rows.length,
       registrosExitosos,
       registrosConError: errores.length,
       errores,
+      registrosExitososDetalle, // Incluir detalles de registros exitosos
       resumen: {
         tipo: 'proveedores',
         empresaId: user.empresaId?.toString() || '',
@@ -354,6 +418,7 @@ export class ImportacionRapidaService {
   ): Promise<ResultadoImportacionRapida> {
     const errores: any[] = [];
     let registrosExitosos = 0;
+    const registrosExitososDetalle: any[] = []; // Nueva lista para detalles
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -383,6 +448,7 @@ export class ImportacionRapidaService {
         // Resolver productoId - verificar si existe el producto
         let productoIdFinal = movimientoData.productoId;
         let productoEncontrado = false;
+        let productoNombre = '';
 
         try {
           // Si es un string que no es un número, buscar por nombre
@@ -402,6 +468,7 @@ export class ImportacionRapidaService {
             if (producto) {
               productoIdFinal = producto.id;
               productoEncontrado = true;
+              productoNombre = producto.nombre;
               this.logger.debug(`Producto encontrado por nombre: "${movimientoData.productoId}" -> ID: ${producto.id}`);
             } else {
               throw new Error(`Producto no encontrado: ${movimientoData.productoId}`);
@@ -422,6 +489,7 @@ export class ImportacionRapidaService {
               if (producto) {
                 productoIdFinal = producto.id;
                 productoEncontrado = true;
+                productoNombre = producto.nombre;
                 this.logger.debug(`Producto encontrado por ID: ${productoId} -> ${producto.nombre}`);
               } else {
                 throw new Error(`Producto con ID ${productoId} no encontrado`);
@@ -463,7 +531,7 @@ export class ImportacionRapidaService {
         }
 
         // Crear el movimiento con el productoId resuelto
-        await this.prisma.movimientoInventario.create({
+        const movimientoGuardado = await this.prisma.movimientoInventario.create({
           data: {
             ...movimientoData,
             productoId: productoIdFinal,
@@ -472,7 +540,29 @@ export class ImportacionRapidaService {
           },
         });
 
+        // Registrar el registro exitoso con detalles
+        registrosExitososDetalle.push({
+          fila: rowNumber,
+          tipo: 'movimientos',
+          datos: {
+            id: movimientoGuardado.id,
+            tipo: movimientoGuardado.tipo,
+            cantidad: movimientoGuardado.cantidad,
+            descripcion: movimientoGuardado.descripcion,
+            fecha: movimientoGuardado.fecha,
+            estado: movimientoGuardado.estado,
+            productoId: movimientoGuardado.productoId,
+            productoNombre: productoNombre
+          },
+          identificador: `${movimientoGuardado.tipo} - ${productoNombre} (${movimientoGuardado.cantidad})`,
+          timestamp: new Date()
+        });
+
         registrosExitosos++;
+        
+        // Log individual de cada registro exitoso
+        this.logger.log(`✅ Movimiento importado exitosamente - Fila ${rowNumber}: ${movimientoGuardado.tipo} de ${movimientoGuardado.cantidad} unidades de "${productoNombre}" (ID: ${movimientoGuardado.id})`);
+        
       } catch (error) {
         let movimientoData: any = {};
         try {
@@ -498,11 +588,15 @@ export class ImportacionRapidaService {
       }
     }
 
+    // Log resumen final
+    this.logger.log(`📊 Resumen importación movimientos: ${registrosExitosos} exitosos, ${errores.length} errores de ${rows.length} total`);
+
     return {
       registrosProcesados: rows.length,
       registrosExitosos,
       registrosConError: errores.length,
       errores,
+      registrosExitososDetalle, // Incluir detalles de registros exitosos
       resumen: {
         tipo: 'movimientos',
         empresaId: user.empresaId?.toString() || '',

@@ -268,6 +268,14 @@ export class SecurityMiddleware implements NestMiddleware {
   }
 
   use(req: Request, res: Response, next: NextFunction) {
+    // NUEVO: Excluir endpoints de health check del rate limiting
+    if (req.path === '/health' || req.path.startsWith('/health/')) {
+      // Solo aplicar headers de seguridad para health checks
+      this.addSecurityHeaders(res);
+      this.logger.debug(`Health check excluido del rate limiting: ${req.path}`);
+      return next();
+    }
+    
     // NUEVO: Rate limiting obligatorio en producción
     if (securityConfig.rateLimit.mandatory) {
       // Log de seguridad para peticiones sospechosas

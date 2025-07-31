@@ -52,6 +52,16 @@ export interface CorreccionImportacion {
   datosOriginales?: any;
 }
 
+// Nueva interfaz para registrar detalles de registros exitosos
+export interface RegistroExitoso {
+  fila: number;
+  tipo: string;
+  datos: Record<string, any>;
+  identificador: string; // nombre, código, etc.
+  correccionesAplicadas?: CorreccionImportacion[];
+  timestamp: Date;
+}
+
 export interface ResumenImportacion {
   tipo: string;
   empresaId: string;
@@ -69,6 +79,7 @@ export interface ResultadoImportacionRapida {
   registrosActualizados?: number;
   errores: ErrorImportacion[];
   correcciones?: CorreccionImportacion[];
+  registrosExitososDetalle?: RegistroExitoso[]; // Nueva propiedad para detalles
   archivoErrores?: string;
   resumen: ResumenImportacion;
   tiempoProcesamiento?: number;

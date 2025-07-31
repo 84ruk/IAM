@@ -114,32 +114,39 @@ export class ImportacionRapidaController {
         
         this.logger.log(`🔍 Tipo detectado automáticamente: ${tipoDetectado} (confianza: ${confianzaDetectada}%)`);
         
-        // Comparar tipo detectado con tipo seleccionado
-        const tipoSeleccionado = importacionDto.tipo;
-        const tiposCoinciden = this.compararTipos(tipoDetectado, tipoSeleccionado);
-        
-        if (!tiposCoinciden) {
-          this.logger.warn(`⚠️ Discrepancia de tipos: Seleccionado: ${tipoSeleccionado}, Detectado: ${tipoDetectado}`);
-          // En importación inteligente, usar automáticamente el tipo detectado si tiene buena confianza
-          if (confianzaDetectada >= 70) {
-            tipoFinal = tipoDetectado;
-            mensajeDeteccion = `Tipo automáticamente corregido: ${tipoDetectado} (detectado con ${confianzaDetectada}% de confianza)`;
-            this.logger.log(`✅ Usando tipo detectado automáticamente: ${tipoFinal}`);
-          } else {
-            // Si la confianza es baja, usar el tipo seleccionado
+        // Si el tipo seleccionado es 'auto', usar directamente el detectado
+        if (importacionDto.tipo.toLowerCase() === 'auto') {
+          tipoFinal = tipoDetectado;
+          mensajeDeteccion = `Tipo detectado automáticamente: ${tipoDetectado} (confianza: ${confianzaDetectada}%)`;
+          this.logger.log(`✅ Usando tipo detectado automáticamente: ${tipoFinal}`);
+        } else {
+          // Comparar tipo detectado con tipo seleccionado
+          const tipoSeleccionado = importacionDto.tipo;
+          const tiposCoinciden = this.compararTipos(tipoDetectado, tipoSeleccionado);
+          
+          if (!tiposCoinciden) {
+            this.logger.warn(`⚠️ Discrepancia de tipos: Seleccionado: ${tipoSeleccionado}, Detectado: ${tipoDetectado}`);
+            // En importación inteligente, usar automáticamente el tipo detectado si tiene buena confianza
+            if (confianzaDetectada >= 70) {
+              tipoFinal = tipoDetectado;
+              mensajeDeteccion = `Tipo automáticamente corregido: ${tipoDetectado} (detectado con ${confianzaDetectada}% de confianza)`;
+              this.logger.log(`✅ Usando tipo detectado automáticamente: ${tipoFinal}`);
+            } else {
+              // Si la confianza es baja, usar el tipo seleccionado
+              tipoFinal = tipoSeleccionado;
+              mensajeDeteccion = `Usando tipo seleccionado: ${tipoSeleccionado} (detección con baja confianza: ${confianzaDetectada}%)`;
+              this.logger.log(`⚠️ Usando tipo seleccionado por baja confianza: ${tipoFinal}`);
+            }
+          } else if (confianzaDetectada < 70) {
+            this.logger.warn(`⚠️ Baja confianza en detección: ${confianzaDetectada}%`);
             tipoFinal = tipoSeleccionado;
             mensajeDeteccion = `Usando tipo seleccionado: ${tipoSeleccionado} (detección con baja confianza: ${confianzaDetectada}%)`;
             this.logger.log(`⚠️ Usando tipo seleccionado por baja confianza: ${tipoFinal}`);
+          } else {
+            this.logger.log(`✅ Tipos coinciden: ${tipoSeleccionado} (confianza: ${confianzaDetectada}%)`);
+            tipoFinal = tipoSeleccionado;
+            mensajeDeteccion = `Tipo confirmado: ${tipoSeleccionado} (detectado automáticamente con ${confianzaDetectada}% de confianza)`;
           }
-        } else if (confianzaDetectada < 70) {
-          this.logger.warn(`⚠️ Baja confianza en detección: ${confianzaDetectada}%`);
-          tipoFinal = tipoSeleccionado;
-          mensajeDeteccion = `Usando tipo seleccionado: ${tipoSeleccionado} (detección con baja confianza: ${confianzaDetectada}%)`;
-          this.logger.log(`⚠️ Usando tipo seleccionado por baja confianza: ${tipoFinal}`);
-        } else {
-          this.logger.log(`✅ Tipos coinciden: ${tipoSeleccionado} (confianza: ${confianzaDetectada}%)`);
-          tipoFinal = tipoSeleccionado;
-          mensajeDeteccion = `Tipo confirmado: ${tipoSeleccionado} (detectado automáticamente con ${confianzaDetectada}% de confianza)`;
         }
         
       } catch (error) {
@@ -202,6 +209,11 @@ export class ImportacionRapidaController {
         tipoUsado: tipoFinal,
         confianzaDetectada: confianzaDetectada,
         mensajeDeteccion: mensajeDeteccion,
+        // Agregar errores explícitamente para el frontend
+        errores: result.errores || [],
+        registrosProcesados: result.registrosProcesados,
+        registrosExitosos: result.registrosExitosos,
+        registrosConError: result.registrosConError,
       };
     } catch (error) {
       this.logger.error(
@@ -341,6 +353,11 @@ export class ImportacionRapidaController {
 
     const tipoDetectadoNormalizado = normalizarTipo(tipoDetectado);
     const tipoSeleccionadoNormalizado = normalizarTipo(tipoSeleccionado);
+
+    // Si el tipo seleccionado es 'auto', siempre usar el detectado
+    if (tipoSeleccionadoNormalizado === 'auto') {
+      return true; // Indicar que no hay discrepancia para usar el detectado
+    }
 
     return tipoDetectadoNormalizado === tipoSeleccionadoNormalizado;
   }
