@@ -22,6 +22,23 @@ export function useServerStatus() {
   const checkServerStatus = useCallback(async (): Promise<ServerStatus> => {
     const startTime = Date.now()
     
+    // Verificar cache primero
+    const cachedHealth = sessionStorage.getItem('serverHealthCache')
+    if (cachedHealth) {
+      const parsed = JSON.parse(cachedHealth)
+      const now = Date.now()
+      if (now - parsed.timestamp < 30000) { // 30 segundos de cache
+        setState(prev => ({
+          ...prev,
+          status: parsed.status,
+          lastCheck: new Date(parsed.timestamp),
+          responseTime: parsed.responseTime,
+          retryCount: 0
+        }))
+        return parsed.status
+      }
+    }
+    
     try {
       setState(prev => ({ ...prev, status: 'checking' }))
       
@@ -41,17 +58,25 @@ export function useServerStatus() {
       
       if (response.ok) {
         const isColdStart = responseTime > 3000 // Si tarda más de 3 segundos, probablemente es cold start
+        const status = isColdStart ? 'cold-start' : 'online'
+        
+        // Guardar en cache
+        sessionStorage.setItem('serverHealthCache', JSON.stringify({
+          status,
+          responseTime,
+          timestamp: Date.now()
+        }))
         
         setState(prev => ({
           ...prev,
-          status: isColdStart ? 'cold-start' : 'online',
+          status,
           lastCheck: new Date(),
           responseTime,
           retryCount: 0,
           isWarmingUp: isColdStart
         }))
         
-        return isColdStart ? 'cold-start' : 'online'
+        return status
       } else {
         setState(prev => ({
           ...prev,
@@ -114,15 +139,21 @@ export function useServerStatus() {
     // Verificar estado inicial
     checkServerStatus()
     
-    // Configurar verificación periódica cada 30 segundos
+    // Configurar verificación periódica cada 60 segundos (reducido de 30)
     const interval = setInterval(() => {
-      if (state.status === 'offline' || state.status === 'error') {
+      // Solo verificar si el servidor está offline o con error
+      // Y solo si han pasado al menos 30 segundos desde la última verificación
+      const now = Date.now()
+      const lastCheckTime = state.lastCheck ? state.lastCheck.getTime() : 0
+      
+      if ((state.status === 'offline' || state.status === 'error') && 
+          (now - lastCheckTime > 30000)) {
         checkServerStatus()
       }
-    }, 30000)
+    }, 60000) // 60 segundos
     
     return () => clearInterval(interval)
-  }, [checkServerStatus, state.status])
+  }, [checkServerStatus, state.status, state.lastCheck])
 
   return {
     ...state,
