@@ -15,11 +15,7 @@ export default function AppInitializer({ children }: AppInitializerProps) {
       try {
         // Inicializar configuración de la aplicación
         initializeAppConfig()
-        
-        // Marcar como inicializado después de un breve delay
-        setTimeout(() => {
-          setIsInitialized(true)
-        }, 100)
+        setIsInitialized(true)
       } catch (error) {
         console.error('Error initializing app:', error)
         // Aún así marcar como inicializado para no bloquear la app
@@ -30,16 +26,18 @@ export default function AppInitializer({ children }: AppInitializerProps) {
     initializeApp()
   }, [])
 
-  if (!isInitialized) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Inicializando aplicación...</p>
-        </div>
-      </div>
-    )
+  // Mostrar contenido inmediatamente si ya está inicializado
+  if (isInitialized) {
+    return <>{children}</>
   }
 
-  return <>{children}</>
+  // Loading state optimizado - solo se muestra brevemente
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+        <p className="text-sm text-gray-600">Cargando...</p>
+      </div>
+    </div>
+  )
 } 

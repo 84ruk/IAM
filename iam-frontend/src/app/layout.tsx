@@ -2,21 +2,10 @@
 import './globals.css'
 import { montserrat } from './fonts'
 import { ReactNode } from 'react'
-
-import { BackendStatus } from '@/components/ui/BackendStatus'
 import { Toaster } from 'sonner'
 import { ErrorBoundary } from '@/lib/error-boundary'
-import { initializeAppConfig } from '@/lib/app-config'
-import AppInitializer from '@/components/ui/AppInitializer'
-import { ServerStatusProvider } from '@/context/ServerStatusContext'
-import ServerStatusBar from '@/components/layout/ServerStatusBar'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  // Inicializar configuración de la aplicación
-  if (typeof window !== 'undefined') {
-    initializeAppConfig()
-  }
-  
   return (
     <html lang="es">
       <head>
@@ -28,14 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className={`${montserrat.className} bg-gray-50 antialiased text-gray-800`}>
         <ErrorBoundary>
-          <ServerStatusProvider>
-            <AppInitializer>
-              <BackendStatus>
-                {children}
-                <ServerStatusBar />
-              </BackendStatus>
-            </AppInitializer>
-          </ServerStatusProvider>
+          {children}
         </ErrorBoundary>
         <Toaster 
           position="top-right"

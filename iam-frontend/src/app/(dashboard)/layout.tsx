@@ -3,10 +3,11 @@ import { redirect } from 'next/navigation'
 import { requireAuth, mapUserFromBackend } from '@/lib/ssrAuth'
 import { UserContextProvider } from '@/context/ServerUserContext'
 import { SetupProvider } from '@/context/SetupContext'
-
-// import { WebSocketProvider } from '@/context/WebSocketContext'
+import { ServerStatusProvider } from '@/context/ServerStatusContext'
 import { ToastProvider } from '@/components/ui/Toast'
 import DashboardShell from '@/components/layout/DashboardShell'
+import AppInitializer from '@/components/ui/AppInitializer'
+import ServerStatusBar from '@/components/layout/ServerStatusBar'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const userFromBackend = await requireAuth();
@@ -19,14 +20,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = mapUserFromBackend(userFromBackend);
 
   return (
-    <UserContextProvider user={user}>
-      <SetupProvider>
-          <ToastProvider>
-            <DashboardShell user={user}>
-              {children}
-            </DashboardShell>
-          </ToastProvider>
-      </SetupProvider>
-    </UserContextProvider>
+    <ServerStatusProvider>
+      <AppInitializer>
+        <UserContextProvider user={user}>
+          <SetupProvider>
+            <ToastProvider>
+              <DashboardShell user={user}>
+                {children}
+              </DashboardShell>
+              <ServerStatusBar />
+            </ToastProvider>
+          </SetupProvider>
+        </UserContextProvider>
+      </AppInitializer>
+    </ServerStatusProvider>
   );
 }

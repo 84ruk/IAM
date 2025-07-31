@@ -112,46 +112,45 @@ export function useServerStatus() {
     }
   }, [])
 
-  const warmUpServer = useCallback(async () => {
-    setState(prev => ({ ...prev, isWarmingUp: true }))
-    
+  const warmUpServer = useCallback(async (): Promise<void> => {
     try {
-      // Hacer una petición ligera para calentar el servidor
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/health`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        }
-      })
+      setState(prev => ({ ...prev, isWarmingUp: true }))
       
-      // Esperar un poco y verificar el estado
-      setTimeout(async () => {
-        await checkServerStatus()
-        setState(prev => ({ ...prev, isWarmingUp: false }))
-      }, 2000)
+      // Hacer múltiples peticiones para calentar el servidor
+      const promises = Array.from({ length: 3 }, () => 
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/health`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        })
+      )
       
-    } catch {
+      await Promise.all(promises)
+      
+      // Verificar estado después del warm-up
+      await checkServerStatus()
+    } catch (error) {
+      console.warn('Error warming up server:', error)
+    } finally {
       setState(prev => ({ ...prev, isWarmingUp: false }))
     }
   }, [checkServerStatus])
 
   useEffect(() => {
-    // Verificar estado inicial
+    // Verificación inicial
     checkServerStatus()
     
-    // Configurar verificación periódica cada 60 segundos (reducido de 30)
+    // Polling optimizado - solo si el servidor está offline o con error
     const interval = setInterval(() => {
-      // Solo verificar si el servidor está offline o con error
-      // Y solo si han pasado al menos 30 segundos desde la última verificación
       const now = Date.now()
-      const lastCheckTime = state.lastCheck ? state.lastCheck.getTime() : 0
+      const lastCheckTime = state.lastCheck?.getTime() || 0
       
+      // Solo verificar si el servidor está offline o con error Y han pasado al menos 30 segundos
       if ((state.status === 'offline' || state.status === 'error') && 
           (now - lastCheckTime > 30000)) {
         checkServerStatus()
       }
-    }, 60000) // 60 segundos
-    
+    }, 60000) // Verificar cada 60 segundos
+
     return () => clearInterval(interval)
   }, [checkServerStatus, state.status, state.lastCheck])
 
