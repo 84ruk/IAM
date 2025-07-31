@@ -33,9 +33,11 @@ import {
 } from 'lucide-react'
 import { useImportacionUnified } from '@/hooks/useImportacionUnified'
 import SmartImportModal from '@/components/importacion/SmartImportModal'
+import TipoImportacionModal from '@/components/importacion/TipoImportacionModal'
 import ImportacionProgress from '@/components/importacion/ImportacionProgress'
 import { TipoImportacion, ImportacionResultado } from '@/types/importacion'
 import { format } from 'date-fns'
+import { useToast } from '@/components/ui/Toast'
 
 interface ImportacionLog {
   id: string
@@ -62,9 +64,13 @@ interface SmartTemplate {
 export default function ImportacionPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [showSmartModal, setShowSmartModal] = useState(false)
+  const [showTipoModal, setShowTipoModal] = useState(false)
   const [showAdvancedMode, setShowAdvancedMode] = useState(false)
   const [logs, setLogs] = useState<ImportacionLog[]>([])
   const [smartTemplates, setSmartTemplates] = useState<SmartTemplate[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<SmartTemplate | null>(null)
+  const [selectedTipo, setSelectedTipo] = useState<TipoImportacion | null>(null)
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
 
   const [logFilters, setLogFilters] = useState({
     level: 'all',
@@ -74,8 +80,11 @@ export default function ImportacionPage() {
 
   const {
     state,
-    cancelarTrabajo
+    cancelarTrabajo,
+    descargarPlantilla
   } = useImportacionUnified()
+
+  const { addToast } = useToast()
 
   const {
     currentTrabajo,
@@ -199,8 +208,61 @@ export default function ImportacionPage() {
     return true
   })
 
-  const handleTemplateSelect = () => {
+  const handleTemplateSelect = (template: SmartTemplate) => {
+    setSelectedTemplate(template)
+    setSelectedTipo(template.tipo)
     setShowSmartModal(true)
+  }
+
+  const handleTipoSelect = (tipo: TipoImportacion) => {
+    setSelectedTipo(tipo)
+    setSelectedTemplate(null)
+    setShowSmartModal(true)
+  }
+
+  const handleDownloadTemplate = async (template: SmartTemplate) => {
+    try {
+      setIsDownloadingTemplate(true)
+      await descargarPlantilla(template.tipo)
+      addToast({
+        type: 'success',
+        title: 'Plantilla descargada',
+        message: `Plantilla de ${template.tipo} descargada exitosamente`
+      })
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Error al descargar',
+        message: 'No se pudo descargar la plantilla'
+      })
+    } finally {
+      setIsDownloadingTemplate(false)
+    }
+  }
+
+  const handleDownloadAllTemplates = async () => {
+    try {
+      setIsDownloadingTemplate(true)
+      const tipos = ['productos', 'proveedores', 'movimientos'] as const
+      
+      for (const tipo of tipos) {
+        await descargarPlantilla(tipo)
+      }
+      
+      addToast({
+        type: 'success',
+        title: 'Plantillas descargadas',
+        message: 'Todas las plantillas han sido descargadas exitosamente'
+      })
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Error al descargar',
+        message: 'No se pudieron descargar todas las plantillas'
+      })
+    } finally {
+      setIsDownloadingTemplate(false)
+    }
   }
 
   const handleAdvancedModeToggle = () => {
@@ -209,7 +271,18 @@ export default function ImportacionPage() {
 
   const handleImportSuccess = (result: ImportacionResultado) => {
     // Aquí puedes agregar lógica adicional después de una importación exitosa
-            // Importación exitosa
+    addToast({
+      type: 'success',
+      title: 'Importación exitosa',
+      message: `Se importaron ${result.registrosExitosos} registros correctamente`
+    })
+  }
+
+  const handleCloseModals = () => {
+    setShowSmartModal(false)
+    setShowTipoModal(false)
+    setSelectedTemplate(null)
+    setSelectedTipo(null)
   }
 
   return (
@@ -399,7 +472,7 @@ export default function ImportacionPage() {
                   </div>
                 </div>
                 <Button
-                  onClick={() => setShowSmartModal(true)}
+                  onClick={() => setShowTipoModal(true)}
                   className="w-full"
                   size="lg"
                 >
@@ -491,15 +564,24 @@ export default function ImportacionPage() {
               <h3 className="text-lg font-semibold">Plantillas Inteligentes</h3>
               <p className="text-gray-600">Plantillas optimizadas basadas en tus datos históricos</p>
             </div>
-            <Button variant="outline" size="sm">
-              <Download className="w-4 h-4 mr-2" />
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleDownloadAllTemplates}
+              disabled={isDownloadingTemplate}
+            >
+              {isDownloadingTemplate ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
               Descargar Todas
             </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {smartTemplates.map((template) => (
-              <Card key={template.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+              <Card key={template.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{template.name}</CardTitle>
@@ -531,14 +613,28 @@ export default function ImportacionPage() {
                     </span>
                   </div>
 
-                  <Button
-                    onClick={() => handleTemplateSelect()}
-                    className="w-full"
-                    size="sm"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Usar Plantilla
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleTemplateSelect(template)}
+                      className="flex-1"
+                      size="sm"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Usar Plantilla
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadTemplate(template)}
+                      disabled={isDownloadingTemplate}
+                    >
+                      {isDownloadingTemplate ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -612,11 +708,21 @@ export default function ImportacionPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Modal de Selección de Tipo */}
+      <TipoImportacionModal
+        isOpen={showTipoModal}
+        onClose={() => setShowTipoModal(false)}
+        onSelectTipo={handleTipoSelect}
+        onDownloadTemplate={descargarPlantilla}
+      />
+
       {/* Modal de Importación Inteligente */}
       <SmartImportModal
         isOpen={showSmartModal}
-        onClose={() => setShowSmartModal(false)}
+        onClose={handleCloseModals}
         onSuccess={handleImportSuccess}
+        selectedTemplate={selectedTemplate}
+        selectedTipo={selectedTipo}
       />
     </div>
   )

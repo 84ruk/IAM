@@ -72,6 +72,15 @@ export class AuthController {
       path: '/',
     };
 
+    // Log para debugging de cookies
+    console.log('🍪 Configuración de cookies:', {
+      domain: cookieDomain,
+      secure: cookieOptions.secure,
+      sameSite: cookieOptions.sameSite,
+      httpOnly: cookieOptions.httpOnly,
+      isProduction
+    });
+
     res.cookie('jwt', token, cookieOptions);
 
     return {
