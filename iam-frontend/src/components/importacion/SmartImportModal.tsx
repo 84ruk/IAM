@@ -53,7 +53,8 @@ export default function SmartImportModal({
   onClose,
   onSuccess,
   onError,
-  selectedTemplate
+  selectedTemplate,
+  selectedTipo
 }: SmartImportModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
