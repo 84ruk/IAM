@@ -46,7 +46,9 @@
     "plantillas:generate": "node scripts/generate-plantillas-auto.js",
     "plantillas:docker": "node scripts/generate-plantillas-docker.js",
     "plantillas:init": "node scripts/init-plantillas.js",
-    "plantillas:simple": "node scripts/simple-init-plantillas.js"
+    "plantillas:simple": "node scripts/simple-init-plantillas.js",
+    "keep-alive": "node scripts/keep-alive.js",
+    "keep-alive:verbose": "VERBOSE=true node scripts/keep-alive.js"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^2.0.2",
