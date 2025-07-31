@@ -8,10 +8,10 @@ const nextConfig: NextConfig = {
   },
   // ✅ NUEVO: Configuración de Turbopack estable
   turbopack: {
-    rules: {
-      '*.svg': {
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
       },
     },
   },

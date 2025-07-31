@@ -41,14 +41,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <AppProvider user={user}>
       <Suspense fallback={<DashboardSkeleton />}>
-        <AppInitializer>
-          <DashboardShell user={user}>
-            {children}
-          </DashboardShell>
+      <AppInitializer>
+              <DashboardShell user={user}>
+                {children}
+              </DashboardShell>
         </AppInitializer>
       </Suspense>
       <Suspense fallback={null}>
-        <ServerStatusBar />
+              <ServerStatusBar />
       </Suspense>
     </AppProvider>
   );
