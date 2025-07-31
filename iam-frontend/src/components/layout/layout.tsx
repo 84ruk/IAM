@@ -9,13 +9,13 @@ import { User } from '@/types/user'
 // Definir navegación con control de acceso
 const getNavItems = (user: User | null) => {
   const baseItems = [
-    { href: '/dashboard', label: 'Inicio', icon: <Home size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
-    { href: '/dashboard/productos', label: 'Productos', icon: <Package size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
-    { href: '/dashboard/movimientos', label: 'Movimientos', icon: <BarChart2 size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
-    { href: '/dashboard/daily-movements', label: 'Movimientos Diarios', icon: <Activity size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
-    { href: '/dashboard/proveedores', label: 'Proveedores', icon: <Truck size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
-    { href: '/dashboard/kpis', label: 'KPIs', icon: <TrendingUp size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'] },
-    { href: '/dashboard/importacion-avanzada', label: 'Importación de Datos', icon: <Upload size={18} />, roles: ['SUPERADMIN', 'ADMIN'] },
+    { href: '/dashboard', label: 'Inicio', icon: <Home size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
+    { href: '/dashboard/productos', label: 'Productos', icon: <Package size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
+    { href: '/dashboard/movimientos', label: 'Movimientos', icon: <BarChart2 size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
+    { href: '/dashboard/daily-movements', label: 'Movimientos Diarios', icon: <Activity size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
+    { href: '/dashboard/proveedores', label: 'Proveedores', icon: <Truck size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
+    { href: '/dashboard/kpis', label: 'KPIs', icon: <TrendingUp size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
+    { href: '/dashboard/importacion-avanzada', label: 'Importación de Datos', icon: <Upload size={18} />, roles: ['SUPERADMIN', 'ADMIN'], disabled: true },
   ]
 
   // Agregar enlaces de admin solo para usuarios autorizados
@@ -24,7 +24,8 @@ const getNavItems = (user: User | null) => {
       href: '/admin/users',
       label: 'Administración',
       icon: <Shield size={18} />,
-      roles: ['SUPERADMIN', 'ADMIN']
+      roles: ['SUPERADMIN', 'ADMIN'],
+      disabled: true
     })
   }
 
@@ -57,21 +58,32 @@ export default function Sidebar({ isOpen = false, onClose, user }: SidebarProps)
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-[#8E94F2]">IAM</h2>
       <nav className="space-y-1">
-        {navItems.map(({ href, label, icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition
-              text-sm font-medium
-              ${mounted && pathname === href
-                ? 'bg-[#8E94F2] text-white'
-                : 'text-gray-700 hover:bg-gray-100'}
-            `}
-            onClick={onClose}
-          >
-            {icon}
-            {label}
-          </Link>
+        {navItems.map(({ href, label, icon, disabled }) => (
+          <div key={href}>
+            {disabled ? (
+              <div className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 cursor-not-allowed">
+                {icon}
+                <div className="flex-1">
+                  <div>{label}</div>
+                  <div className="text-xs text-gray-300">Próximamente</div>
+                </div>
+              </div>
+            ) : (
+              <Link
+                href={href}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition
+                  text-sm font-medium
+                  ${mounted && pathname === href
+                    ? 'bg-[#8E94F2] text-white'
+                    : 'text-gray-700 hover:bg-gray-100'}
+                `}
+                onClick={onClose}
+              >
+                {icon}
+                {label}
+              </Link>
+            )}
+          </div>
         ))}
       </nav>
     </div>

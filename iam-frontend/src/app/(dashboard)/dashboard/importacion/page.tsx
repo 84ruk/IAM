@@ -199,7 +199,7 @@ export default function ImportacionPage() {
     return true
   })
 
-  const handleTemplateSelect = (_template: SmartTemplate) => {
+  const handleTemplateSelect = () => {
     setShowSmartModal(true)
   }
 
@@ -500,7 +500,7 @@ export default function ImportacionPage() {
                   </div>
 
                   <Button
-                    onClick={() => handleTemplateSelect(template)}
+                    onClick={() => handleTemplateSelect()}
                     className="w-full"
                     size="sm"
                   >

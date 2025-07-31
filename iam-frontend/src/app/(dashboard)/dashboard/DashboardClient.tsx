@@ -1,7 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from '@/components/ui/RechartsWrapper'
 import { useMemo, useState, useCallback, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { useAutoRefresh } from '@/lib/useAutoRefresh'

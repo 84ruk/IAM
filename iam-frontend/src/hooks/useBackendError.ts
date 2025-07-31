@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useGlobalError } from './useGlobalError'
 import { AppError } from '@/lib/errorHandler'
 
 export interface BackendError {

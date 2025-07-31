@@ -2,31 +2,23 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { z } from 'zod'
 import { INDUSTRIAS } from '@/config/industrias.config'
 import { Building, MapPin, FileText, CheckCircle, ArrowRight, ArrowLeft, LogOut, Loader2 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import Select from '@/components/ui/Select'
 import ContextualMessage from '@/components/ui/ContextualMessage'
 import { Card } from '@/components/ui/Card'
 import StepTransition from '@/components/ui/StepTransition'
 import ProgressSteps from '@/components/ui/ProgressSteps'
 import { cleanFormData } from '@/lib/form-utils'
 
-// Schema de validación
-const setupEmpresaSchema = z.object({
-  nombreEmpresa: z.string()
-    .min(2, 'El nombre de la empresa debe tener al menos 2 caracteres')
-    .max(100, 'El nombre de la empresa no puede exceder 100 caracteres')
-    .regex(/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()]+$/, 'El nombre contiene caracteres no permitidos'),
-  tipoIndustria: z.enum(['ALIMENTOS', 'ROPA', 'ELECTRONICA', 'GENERICA', 'FARMACIA'] as const),
-  rfc: z.string().optional(),
-  direccion: z.string().optional(),
-  telefono: z.string().optional()
-})
-
-type SetupEmpresaForm = z.infer<typeof setupEmpresaSchema>
+type SetupEmpresaForm = {
+  nombreEmpresa: string
+  tipoIndustria: 'ALIMENTOS' | 'ROPA' | 'ELECTRONICA' | 'GENERICA' | 'FARMACIA'
+  rfc: string
+  direccion: string
+  telefono: string
+}
 
 const STEPS = [
   {
@@ -114,7 +106,7 @@ export default function SetupEmpresaPage() {
       }
       setErrors({})
       return true
-    } catch (error) {
+    } catch {
       return false
     }
   }

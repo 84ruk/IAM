@@ -28,7 +28,7 @@ export default function LoginForm() {
   const [generalError, setGeneralError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [showSuccess, setShowSuccess] = useState(false);
-  const { error, isRetrying, handleError, clearError, retryOperation } = useBackendError()
+  const { error, isRetrying, clearError } = useBackendError()
 
   
   // Configuración de validación

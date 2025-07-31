@@ -19,7 +19,7 @@ import {
   Target,
   Activity
 } from 'lucide-react'
-import { ResponsiveContainer, XAxis, YAxis, Tooltip, Cell, LineChart, Line, PieChart, Pie } from 'recharts';
+import { ResponsiveContainer, XAxis, YAxis, Tooltip, Cell, LineChart, Line, PieChart, Pie } from '@/components/ui/RechartsWrapper';
 
 const KPIS = [
   { 

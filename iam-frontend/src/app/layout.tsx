@@ -5,8 +5,16 @@ import { ReactNode } from 'react'
 
 import { BackendStatus } from '@/components/ui/BackendStatus'
 import { Toaster } from 'sonner'
+import { ErrorBoundary } from '@/lib/error-boundary'
+import { initializeAppConfig } from '@/lib/app-config'
+import AppInitializer from '@/components/ui/AppInitializer'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // Inicializar configuración de la aplicación
+  if (typeof window !== 'undefined') {
+    initializeAppConfig()
+  }
+  
   return (
     <html lang="es">
       <head>
@@ -17,9 +25,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="apple-touch-icon" href="/favicon.ico" />
       </head>
       <body className={`${montserrat.className} bg-gray-50 antialiased text-gray-800`}>
-        <BackendStatus>
-          {children}
-        </BackendStatus>
+        <ErrorBoundary>
+          <AppInitializer>
+            <BackendStatus>
+              {children}
+            </BackendStatus>
+          </AppInitializer>
+        </ErrorBoundary>
         <Toaster 
           position="top-right"
           richColors

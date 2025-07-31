@@ -90,7 +90,7 @@ export default function ProveedoresClient() {
     try {
       const errorData = await response.json()
       mostrarError(`Error al ${accion}: ${errorData.message || 'Error desconocido'}`)
-    } catch (parseError) {
+    } catch {
       mostrarError(`Error al ${accion}. Código de estado: ${response.status}`)
     }
   }
@@ -117,7 +117,7 @@ export default function ProveedoresClient() {
 
       mostrarError('Proveedor eliminado correctamente. Puedes restaurarlo desde la papelera.')
       mutate(buildUrl())
-    } catch (error) {
+    } catch {
       mostrarError('Error al eliminar el proveedor. Intenta nuevamente.')
     } finally {
       setEliminandoId(null)

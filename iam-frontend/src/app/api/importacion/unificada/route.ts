@@ -125,8 +125,8 @@ export async function POST(request: NextRequest) {
       message: 'Importación unificada iniciada correctamente'
     })
 
-  } catch (error) {
-    console.error('Error en importación unificada:', error)
+  } catch {
+    console.error('Error en importación unificada:')
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

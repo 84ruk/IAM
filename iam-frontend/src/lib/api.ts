@@ -27,7 +27,7 @@ export interface PaginatedResponse<T> {
 }
 
 // Validación de entrada
-function validateInput(data: unknown, schema?: Record<string, unknown>): void {
+function validateInput(data: unknown): void {
   if (!data) return
 
   // Validación básica de tipos
@@ -223,7 +223,7 @@ export class ApiClient {
       }
     }
     
-    const { params, ...requestOptions } = options || {}
+    const { ...requestOptions } = options || {}
     return this.makeRequest<T>('GET', url, undefined, requestOptions)
   }
 
@@ -623,7 +623,7 @@ export const api = {
 }
 
 // Hook para usar la API con manejo de errores
-export function useApi(client: ApiClient = apiClient) {
+export function useApi() {
   const handleApiCall = async <T>(
     apiCall: () => Promise<T>,
     options?: {

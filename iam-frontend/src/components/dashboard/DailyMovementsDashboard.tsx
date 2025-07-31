@@ -40,15 +40,14 @@ import {
   BarChart, 
   Bar, 
   CartesianGrid,
-  Legend,
   Area,
   AreaChart,
   PieChart,
   Pie,
   Cell,
   ComposedChart
-} from 'recharts'
-
+} from '@/components/ui/RechartsWrapper'
+import { Legend } from 'recharts'
 
 
 interface DailyMovementsDashboardProps {
@@ -458,9 +457,9 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
                 />
                 <YAxis />
                 <Tooltip 
-                  formatter={(value: number, name: string) => [
-                    value,
-                    name === 'ventas' ? 'Cantidad Vendida' : name
+                  formatter={(value: unknown, name: unknown) => [
+                    String(value),
+                    String(name) === 'ventas' ? 'Cantidad Vendida' : String(name)
                   ]}
                   labelFormatter={(label) => `Producto: ${label}`}
                 />

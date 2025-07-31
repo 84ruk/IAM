@@ -39,7 +39,7 @@ import {
 import { Card, CardContent } from '@/components/ui/Card'
 import { CardSkeleton } from '@/components/ui/CardSkeleton'
 import Pagination from '@/components/ui/Pagination'
-import { LineChart as RechartsLineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar, AreaChart, Area } from 'recharts'
+import { LineChart as RechartsLineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar, AreaChart, Area } from '@/components/ui/RechartsWrapper'
 import { KPIData, FinancialKPIs, IndustryKPIs, PredictiveKPIs, Recommendation } from '@/types/kpis'
 import { formatCurrency, formatPercentage } from '@/lib/kpi-utils'
 import { usePagination } from '@/hooks/usePagination'
@@ -676,820 +676,822 @@ export default function KPIsClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-        {/* Header con navegación */}
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-                <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#8E94F2]" />
-                Análisis de Inventario
-              </h1>
-              <p className="text-gray-600 mt-1 text-sm sm:text-base">
-                KPIs en tiempo real basados en datos del sistema
-              </p>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <button
-                onClick={() => setVistaDetallada(!vistaDetallada)}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-all duration-200 border border-gray-200 text-sm"
-              >
-                {vistaDetallada ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                <span className="hidden sm:inline">{vistaDetallada ? 'Vista Simple' : 'Vista Detallada'}</span>
-                <span className="sm:hidden">{vistaDetallada ? 'Simple' : 'Detallada'}</span>
-              </button>
-              <button
-                onClick={handleExport}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-all duration-200 border border-gray-200 text-sm"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Exportar</span>
-                <span className="sm:hidden">📥</span>
-              </button>
-              <button
-                onClick={handleRefresh}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#8E94F2] text-white rounded-xl hover:bg-[#7278e0] transition-all duration-200 shadow-sm hover:shadow-md text-sm"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span className="hidden sm:inline">Actualizar</span>
-                <span className="sm:hidden">🔄</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Información de última actualización */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-500 mb-4 gap-2">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Última actualización: {format(lastRefresh, 'dd/MM/yyyy HH:mm')}
-            </div>
-            <div className="flex items-center gap-2">
-              <Info className="w-4 h-4" />
-              <span className="hidden sm:inline">Los datos se actualizan automáticamente cada 5 minutos</span>
-              <span className="sm:hidden">Auto-actualización cada 5 min</span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPIs Principales - Grid de 6 tarjetas */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
-          {/* Total Productos */}
-          <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between mb-2">
-                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                <select 
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="text-xs border border-gray-200 rounded px-1 sm:px-2 py-1 bg-gray-50"
-                >
-                  {availableMonths.map(month => (
-                    <option key={month} value={month}>{month}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                {kpisData?.totalProductos !== undefined ? kpisData.totalProductos : '--'}
-              </div>
-              <div className="text-xs text-gray-500">
-                {kpisData?.totalProductos !== undefined ? 'Total Productos' : 'Datos insuficientes'}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Productos Stock Bajo */}
-          <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between mb-2">
-                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-red-600">
-                {kpisData?.productosStockBajo !== undefined ? kpisData.productosStockBajo : '--'}
-              </div>
-              <div className="text-xs text-gray-500">
-                {kpisData?.productosStockBajo !== undefined ? 'Stock Crítico' : 'Datos insuficientes'}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Movimientos Último Mes */}
-          <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between mb-2">
-                <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                {kpisData?.movimientosUltimoMes !== undefined ? kpisData.movimientosUltimoMes : '--'}
-              </div>
-              <div className="text-xs text-gray-500">
-                {kpisData?.movimientosUltimoMes !== undefined ? 'Movimientos del Mes' : 'Datos insuficientes'}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Valor Total Inventario */}
-          <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between mb-2">
-                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                {kpisData?.valorTotalInventario !== undefined ? formatCurrency(kpisData.valorTotalInventario) : '--'}
-              </div>
-              <div className="text-xs text-gray-500">
-                {kpisData?.valorTotalInventario !== undefined ? 'Valor Inventario' : 'Datos insuficientes'}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Rotación Inventario */}
-          <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between mb-2">
-                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                {kpisData?.rotacionInventario !== undefined ? kpisData.rotacionInventario.toFixed(2) : '--'}
-              </div>
-              <div className="text-xs text-gray-500">
-                {kpisData?.rotacionInventario !== undefined ? 'Rotación' : 'Datos insuficientes'}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Margen Promedio */}
-          <Card className="bg-white shadow-sm border-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between mb-2">
-                <Percent className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                {kpisData?.margenPromedio !== undefined ? kpisData.margenPromedio.toFixed(2) : '--'}
-              </div>
-              <div className="text-xs text-gray-500">
-                {kpisData?.margenPromedio !== undefined ? 'Margen Promedio' : 'Datos insuficientes'}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* KPIs Financieros */}
-        {mostrarFinancieros && financialData && (
-          <div className="mb-8">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-              Indicadores Financieros
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-              <Card className="bg-white shadow-sm border-0">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                  </div>
-                  <div className="text-lg sm:text-xl font-bold text-green-600">
-                    {formatPercentage(financialData.margenBruto)}
-                  </div>
-                  <div className="text-xs text-gray-500">Margen Bruto</div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white shadow-sm border-0">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                  </div>
-                  <div className="text-lg sm:text-xl font-bold text-blue-600">
-                    {formatPercentage(financialData.margenNeto)}
-                  </div>
-                  <div className="text-xs text-gray-500">Margen Neto</div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white shadow-sm border-0">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-                  </div>
-                  <div className="text-lg sm:text-xl font-bold text-purple-600">
-                    {formatPercentage(financialData.roiInventario)}
-                  </div>
-                  <div className="text-xs text-gray-500">ROI Inventario</div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white shadow-sm border-0">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Gauge className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
-                  </div>
-                  <div className="text-lg sm:text-xl font-bold text-orange-600">
-                    {financialData.eficienciaOperativa.toFixed(1)}%
-                  </div>
-                  <div className="text-xs text-gray-500">Eficiencia Operativa</div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {/* Gráfica Universal: Entradas vs Salidas */}
-        <Card className="bg-white shadow-sm border-0 mb-8">
-          <CardContent className="p-4 sm:p-6">
+    <>
+      <div className="min-h-screen bg-gray-50">
+        <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+          {/* Header con navegación */}
+          <div className="mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
               <div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Flujo de Inventario: Entradas vs Salidas</h3>
-                <p className="text-sm text-gray-600">Movimientos diarios del mes seleccionado</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
+                  <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#8E94F2]" />
+                  Análisis de Inventario
+                </h1>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base">
+                  KPIs en tiempo real basados en datos del sistema
+                </p>
               </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-500" />
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  onClick={() => setVistaDetallada(!vistaDetallada)}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-all duration-200 border border-gray-200 text-sm"
+                >
+                  {vistaDetallada ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <span className="hidden sm:inline">{vistaDetallada ? 'Vista Simple' : 'Vista Detallada'}</span>
+                  <span className="sm:hidden">{vistaDetallada ? 'Simple' : 'Detallada'}</span>
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-all duration-200 border border-gray-200 text-sm"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Exportar</span>
+                  <span className="sm:hidden">📥</span>
+                </button>
+                <button
+                  onClick={handleRefresh}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#8E94F2] text-white rounded-xl hover:bg-[#7278e0] transition-all duration-200 shadow-sm hover:shadow-md text-sm"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="hidden sm:inline">Actualizar</span>
+                  <span className="sm:hidden">🔄</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Información de última actualización */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-500 mb-4 gap-2">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Última actualización: {format(lastRefresh, 'dd/MM/yyyy HH:mm')}
+              </div>
+              <div className="flex items-center gap-2">
+                <Info className="w-4 h-4" />
+                <span className="hidden sm:inline">Los datos se actualizan automáticamente cada 5 minutos</span>
+                <span className="sm:hidden">Auto-actualización cada 5 min</span>
+              </div>
+            </div>
+          </div>
+
+          {/* KPIs Principales - Grid de 6 tarjetas */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-8">
+            {/* Total Productos */}
+            <Card className="bg-white shadow-sm border-0">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Package className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   <select 
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="text-sm border border-gray-200 rounded px-2 sm:px-3 py-1 bg-gray-50"
+                    className="text-xs border border-gray-200 rounded px-1 sm:px-2 py-1 bg-gray-50"
                   >
                     {availableMonths.map(month => (
                       <option key={month} value={month}>{month}</option>
                     ))}
                   </select>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setVistaGrafico('line')}
-                    className={`p-2 rounded ${vistaGrafico === 'line' ? 'bg-[#8E94F2] text-white' : 'bg-gray-100 text-gray-600'}`}
-                    title="Gráfica de líneas"
-                  >
-                    <LineChart className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setVistaGrafico('bar')}
-                    className={`p-2 rounded ${vistaGrafico === 'bar' ? 'bg-[#8E94F2] text-white' : 'bg-gray-100 text-gray-600'}`}
-                    title="Gráfica de barras"
-                  >
-                    <BarChart className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setVistaGrafico('area')}
-                    className={`p-2 rounded ${vistaGrafico === 'area' ? 'bg-[#8E94F2] text-white' : 'bg-gray-100 text-gray-600'}`}
-                    title="Gráfica de áreas"
-                  >
-                    <PieChart className="w-4 h-4" />
-                  </button>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {kpisData?.totalProductos !== undefined ? kpisData.totalProductos : '--'}
                 </div>
+                <div className="text-xs text-gray-500">
+                  {kpisData?.totalProductos !== undefined ? 'Total Productos' : 'Datos insuficientes'}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Productos Stock Bajo */}
+            <Card className="bg-white shadow-sm border-0">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-red-600">
+                  {kpisData?.productosStockBajo !== undefined ? kpisData.productosStockBajo : '--'}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {kpisData?.productosStockBajo !== undefined ? 'Stock Crítico' : 'Datos insuficientes'}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Movimientos Último Mes */}
+            <Card className="bg-white shadow-sm border-0">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {kpisData?.movimientosUltimoMes !== undefined ? kpisData.movimientosUltimoMes : '--'}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {kpisData?.movimientosUltimoMes !== undefined ? 'Movimientos del Mes' : 'Datos insuficientes'}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Valor Total Inventario */}
+            <Card className="bg-white shadow-sm border-0">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {kpisData?.valorTotalInventario !== undefined ? formatCurrency(kpisData.valorTotalInventario) : '--'}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {kpisData?.valorTotalInventario !== undefined ? 'Valor Inventario' : 'Datos insuficientes'}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Rotación Inventario */}
+            <Card className="bg-white shadow-sm border-0">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {kpisData?.rotacionInventario !== undefined ? kpisData.rotacionInventario.toFixed(2) : '--'}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {kpisData?.rotacionInventario !== undefined ? 'Rotación' : 'Datos insuficientes'}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Margen Promedio */}
+            <Card className="bg-white shadow-sm border-0">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Percent className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                  {kpisData?.margenPromedio !== undefined ? kpisData.margenPromedio.toFixed(2) : '--'}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {kpisData?.margenPromedio !== undefined ? 'Margen Promedio' : 'Datos insuficientes'}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* KPIs Financieros */}
+          {mostrarFinancieros && financialData && (
+            <div className="mb-8">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                Indicadores Financieros
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                <Card className="bg-white shadow-sm border-0">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-green-600">
+                      {formatPercentage(financialData.margenBruto)}
+                    </div>
+                    <div className="text-xs text-gray-500">Margen Bruto</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-white shadow-sm border-0">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-blue-600">
+                      {formatPercentage(financialData.margenNeto)}
+                    </div>
+                    <div className="text-xs text-gray-500">Margen Neto</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-white shadow-sm border-0">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-purple-600">
+                      {formatPercentage(financialData.roiInventario)}
+                    </div>
+                    <div className="text-xs text-gray-500">ROI Inventario</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-white shadow-sm border-0">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Gauge className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-orange-600">
+                      {financialData.eficienciaOperativa.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-gray-500">Eficiencia Operativa</div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
-            
-            {/* Gráfica */}
-            <div className="h-64 sm:h-80">
-              {chartData.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center text-gray-500">
-                    <BarChart3 className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-base sm:text-lg font-medium mb-2">Sin datos disponibles</p>
-                    <p className="text-sm">No hay movimientos registrados para {selectedMonth}</p>
-                    <p className="text-xs text-gray-400 mt-2">Agrega movimientos de inventario para ver la gráfica</p>
-                  </div>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  {vistaGrafico === 'line' ? (
-                    <RechartsLineChart data={chartData}>
-                      <XAxis 
-                        dataKey="dia" 
-                        tick={{ fontSize: 10 }}
-                        axisLine={false}
-                        tickLine={false}
-                        label={{ value: getGraphLabels().diaDelMes, position: 'insideBottom', offset: -10 }}
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 10 }}
-                        axisLine={false}
-                        tickLine={false}
-                        label={{ value: getGraphLabels().cantidad, angle: -90, position: 'insideLeft' }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'white', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                        }}
-                        formatter={(value: unknown, name: string) => [
-                          `${value} ${getGraphLabels().unidades}`, 
-                          name === 'entradas' ? getGraphTooltips().entradas : 
-                          name === 'salidas' ? getGraphTooltips().salidas : 
-                          getGraphTooltips().balance
-                        ]}
-                        labelFormatter={(label) => `Día ${label}`}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="entradas" 
-                        stroke={getGraphColors().entradas} 
-                        strokeWidth={2}
-                        name={getGraphTooltips().entradas}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="salidas" 
-                        stroke={getGraphColors().salidas} 
-                        strokeWidth={2}
-                        name={getGraphTooltips().salidas}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="balance" 
-                        stroke={getGraphColors().balance} 
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        name={getGraphTooltips().balance}
-                      />
-                    </RechartsLineChart>
-                  ) : vistaGrafico === 'bar' ? (
-                    <RechartsBarChart data={chartData}>
-                      <XAxis 
-                        dataKey="dia" 
-                        tick={{ fontSize: 10 }}
-                        axisLine={false}
-                        tickLine={false}
-                        label={{ value: getGraphLabels().diaDelMes, position: 'insideBottom', offset: -10 }}
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 10 }}
-                        axisLine={false}
-                        tickLine={false}
-                        label={{ value: getGraphLabels().cantidad, angle: -90, position: 'insideLeft' }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'white', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                        }}
-                        formatter={(value: unknown, name: string) => [
-                          `${value} ${getGraphLabels().unidades}`, 
-                          name === 'entradas' ? getGraphTooltips().entradas : 
-                          name === 'salidas' ? getGraphTooltips().salidas : 
-                          getGraphTooltips().balance
-                        ]}
-                        labelFormatter={(label) => `Día ${label}`}
-                      />
-                      <Bar dataKey="entradas" fill={getGraphColors().entradas} name={getGraphTooltips().entradas} />
-                      <Bar dataKey="salidas" fill={getGraphColors().salidas} name={getGraphTooltips().salidas} />
-                    </RechartsBarChart>
-                  ) : (
-                    <AreaChart data={chartData}>
-                      <XAxis 
-                        dataKey="dia" 
-                        tick={{ fontSize: 10 }}
-                        axisLine={false}
-                        tickLine={false}
-                        label={{ value: getGraphLabels().diaDelMes, position: 'insideBottom', offset: -10 }}
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 10 }}
-                        axisLine={false}
-                        tickLine={false}
-                        label={{ value: getGraphLabels().cantidad, angle: -90, position: 'insideLeft' }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'white', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                        }}
-                        formatter={(value: unknown, name: string) => [
-                          `${value} ${getGraphLabels().unidades}`, 
-                          name === 'entradas' ? getGraphTooltips().entradas : 
-                          name === 'salidas' ? getGraphTooltips().salidas : 
-                          getGraphTooltips().balance
-                        ]}
-                        labelFormatter={(label) => `Día ${label}`}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="entradas" 
-                        stackId="1"
-                        stroke={getGraphColors().entradas} 
-                        fill={getGraphColors().entradas}
-                        fillOpacity={0.6}
-                        name={getGraphTooltips().entradas}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="salidas" 
-                        stackId="1"
-                        stroke={getGraphColors().salidas} 
-                        fill={getGraphColors().salidas}
-                        fillOpacity={0.6}
-                        name={getGraphTooltips().salidas}
-                      />
-                    </AreaChart>
-                  )}
-                </ResponsiveContainer>
-              )}
-            </div>
-            
-            {/* Indicador de tipo de datos */}
-            {chartData.length > 0 && (
-              <div className="mt-4 text-center">
-                {isRealData ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-xs text-green-600 font-medium">Datos reales del sistema</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                    <span className="text-xs text-yellow-600 font-medium">Datos de demostración</span>
-                  </div>
-                )}
-              </div>
-            )}
+          )}
 
-            {/* Leyenda personalizada */}
-            <div className="flex items-center justify-center gap-8 mt-6 pt-4 border-t border-gray-100">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: getGraphColors().entradas }}></div>
-                <span className="text-sm font-medium text-gray-700">{getGraphLabels().entradas}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: getGraphColors().salidas }}></div>
-                <span className="text-sm font-medium text-gray-700">{getGraphLabels().salidas}</span>
-              </div>
-            </div>
-
-            {/* Resumen de datos */}
-            {chartData.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200">
-                <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: getGraphColors().entradas }}>
-                    {chartData.reduce((sum, day) => sum + day.entradas, 0)}
-                  </div>
-                  <div className="text-sm text-gray-600">Total {getGraphLabels().entradas}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: getGraphColors().salidas }}>
-                    {chartData.reduce((sum, day) => sum + day.salidas, 0)}
-                  </div>
-                  <div className="text-sm text-gray-600">Total {getGraphLabels().salidas}</div>
-                </div>
-                <div className="text-center">
-                  <div className={`text-2xl font-bold ${chartData[chartData.length - 1]?.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {chartData[chartData.length - 1]?.balance || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">{getGraphLabels().balance} Final</div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Detalles de Productos */}
-        <Card className="bg-white shadow-sm border-0 mb-8">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Detalles de Productos</h3>
-                <p className="text-sm text-gray-600">Análisis detallado del inventario por producto</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setMostrarFinancieros(!mostrarFinancieros)}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-                >
-                  <DollarSign className="w-4 h-4" />
-                  <span className="hidden sm:inline">Financieros</span>
-                  <span className="sm:hidden">💰</span>
-                </button>
-                <button
-                  onClick={() => setMostrarPredictivos(!mostrarPredictivos)}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-                >
-                  <Target className="w-4 h-4" />
-                  <span className="hidden sm:inline">Predictivos</span>
-                  <span className="sm:hidden">🎯</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Filtros */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                  <select
-                    value={filtroCategoria}
-                    onChange={(e) => setFiltroCategoria(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm"
-                  >
-                    <option value="">Todas las categorías</option>
-                    {Array.from(new Set(backendProducts.map(p => p.tipoProducto).filter(Boolean))).map(categoria => (
-                      <option key={categoria} value={categoria}>{categoria}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
-                  <select
-                    value={filtroProveedor}
-                    onChange={(e) => setFiltroProveedor(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm"
-                  >
-                    <option value="">Todos los proveedores</option>
-                    {providers.map(provider => (
-                      <option key={provider.id} value={provider.nombre}>{provider.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                  <select
-                    value={filtroEstado}
-                    onChange={(e) => setFiltroEstado(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm"
-                  >
-                    <option value="">Todos los estados</option>
-                    <option value="critical">Crítico</option>
-                    <option value="warning">Advertencia</option>
-                    <option value="optimal">Óptimo</option>
-                  </select>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleApplyFilters}
-                    className="flex-1 px-3 sm:px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors text-sm"
-                  >
-                    Aplicar
-                  </button>
-                  <button
-                    onClick={handleClearFilters}
-                    className="flex-1 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-                  >
-                    Limpiar
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Tabla */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th 
-                      className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort('producto')}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span className="hidden sm:inline">Nombre de producto</span>
-                        <span className="sm:hidden">Producto</span>
-                        {sortField === 'producto' && (
-                          sortDirection === 'asc' ? 
-                            <ArrowUpRight className="w-3 h-3" /> : 
-                            <ArrowDownRight className="w-3 h-3" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort('inicio')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Inicio
-                        {sortField === 'inicio' && (
-                          sortDirection === 'asc' ? 
-                            <ArrowUpRight className="w-3 h-3" /> : 
-                            <ArrowDownRight className="w-3 h-3" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort('movimientos')}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span className="hidden sm:inline">Movimientos</span>
-                        <span className="sm:hidden">Mov.</span>
-                        {sortField === 'movimientos' && (
-                          sortDirection === 'asc' ? 
-                            <ArrowUpRight className="w-3 h-3" /> : 
-                            <ArrowDownRight className="w-3 h-3" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort('final')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Final
-                        {sortField === 'final' && (
-                          sortDirection === 'asc' ? 
-                            <ArrowUpRight className="w-3 h-3" /> : 
-                            <ArrowDownRight className="w-3 h-3" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort('estado')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Estado
-                        {sortField === 'estado' && (
-                          sortDirection === 'asc' ? 
-                            <ArrowUpRight className="w-3 h-3" /> : 
-                            <ArrowDownRight className="w-3 h-3" />
-                        )}
-                      </div>
-                    </th>
-                    <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700">
-                      <span className="hidden sm:inline">Categoría</span>
-                      <span className="sm:hidden">Cat.</span>
-                    </th>
-                    <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700">
-                      <span className="hidden sm:inline">Proveedor</span>
-                      <span className="sm:hidden">Prov.</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentProducts.length !== 0 && (
-                    currentProducts.map((product) => (
-                      <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-900">
-                          <span className="truncate block max-w-[120px] sm:max-w-none">{product.producto}</span>
-                        </td>
-                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">{product.inicio}</td>
-                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">{product.movimientos}</td>
-                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">{product.final}</td>
-                        <td className="py-3 px-2 sm:px-4">
-                          {product.estado === 'critical' && (
-                            <div className="flex items-center gap-1 sm:gap-2">
-                              <XCircle className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
-                              <span className="text-xs text-red-600">Crítico</span>
-                            </div>
-                          )}
-                          {product.estado === 'warning' && (
-                            <div className="flex items-center gap-1 sm:gap-2">
-                              <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
-                              <span className="text-xs text-yellow-600">Advertencia</span>
-                            </div>
-                          )}
-                          {product.estado === 'optimal' && (
-                            <div className="flex items-center gap-1 sm:gap-2">
-                              <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" />
-                              <span className="text-xs text-green-600">Óptimo</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
-                          <span className="truncate block max-w-[80px] sm:max-w-none">{product.categoria}</span>
-                        </td>
-                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
-                          <span className="font-medium truncate block max-w-[100px] sm:max-w-none">{product.proveedor}</span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Paginación */}
-            <div className="mt-6">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                itemsPerPage={itemsPerPage}
-                startIndex={startIndex}
-                endIndex={endIndex}
-                onPageChange={handlePageChange}
-                onItemsPerPageChange={setItemsPerPage}
-                showItemsPerPage={true}
-              />
-            </div>
-
-            {/* Estado vacío */}
-            {currentProducts.length === 0 && (
-              <div className="text-center py-8">
-                <Package className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-sm sm:text-base text-gray-500">No se encontraron productos con los filtros aplicados</p>
-                <button
-                  onClick={handleClearFilters}
-                  className="mt-2 text-[#8E94F2] hover:text-[#7278e0] text-sm"
-                >
-                  Limpiar filtros
-                </button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Agente IAM Recomienda */}
-        {recommendations.length > 0 && (
+          {/* Gráfica Universal: Entradas vs Salidas */}
           <Card className="bg-white shadow-sm border-0 mb-8">
             <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <Cake className="w-5 h-5 sm:w-6 sm:h-6 text-[#8E94F2]" />
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Agente IAM Recomienda</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+                <div>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Flujo de Inventario: Entradas vs Salidas</h3>
+                  <p className="text-sm text-gray-600">Movimientos diarios del mes seleccionado</p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    <select 
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="text-sm border border-gray-200 rounded px-2 sm:px-3 py-1 bg-gray-50"
+                    >
+                      {availableMonths.map(month => (
+                        <option key={month} value={month}>{month}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setVistaGrafico('line')}
+                      className={`p-2 rounded ${vistaGrafico === 'line' ? 'bg-[#8E94F2] text-white' : 'bg-gray-100 text-gray-600'}`}
+                      title="Gráfica de líneas"
+                    >
+                      <LineChart className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setVistaGrafico('bar')}
+                      className={`p-2 rounded ${vistaGrafico === 'bar' ? 'bg-[#8E94F2] text-white' : 'bg-gray-100 text-gray-600'}`}
+                      title="Gráfica de barras"
+                    >
+                      <BarChart className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setVistaGrafico('area')}
+                      className={`p-2 rounded ${vistaGrafico === 'area' ? 'bg-[#8E94F2] text-white' : 'bg-gray-100 text-gray-600'}`}
+                      title="Gráfica de áreas"
+                    >
+                      <PieChart className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                {recommendations.map((recommendation, index) => (
-                  <div key={index} className={`p-3 sm:p-4 rounded-lg border ${recommendation.bgColor}`}>
-                    <div className="flex items-start gap-2 sm:gap-3">
-                      <recommendation.icon className={`w-5 h-5 sm:w-6 sm:h-6 mt-1 ${recommendation.color}`} />
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 mb-1 text-sm sm:text-base">{recommendation.title}</h4>
-                        <p className="text-xs sm:text-sm text-gray-600">{recommendation.description}</p>
-                      </div>
+              {/* Gráfica */}
+              <div className="h-64 sm:h-80">
+                {chartData.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center text-gray-500">
+                      <BarChart3 className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-base sm:text-lg font-medium mb-2">Sin datos disponibles</p>
+                      <p className="text-sm">No hay movimientos registrados para {selectedMonth}</p>
+                      <p className="text-xs text-gray-400 mt-2">Agrega movimientos de inventario para ver la gráfica</p>
                     </div>
                   </div>
-                ))}
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    {vistaGrafico === 'line' ? (
+                      <RechartsLineChart data={chartData}>
+                        <XAxis 
+                          dataKey="dia" 
+                          tick={{ fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                          label={{ value: getGraphLabels().diaDelMes, position: 'insideBottom', offset: -10 }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                          label={{ value: getGraphLabels().cantidad, angle: -90, position: 'insideLeft' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'white', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          }}
+                          formatter={(value: unknown, name: unknown) => [
+                            `${value} ${getGraphLabels().unidades}`, 
+                            String(name) === 'entradas' ? getGraphTooltips().entradas : 
+                            String(name) === 'salidas' ? getGraphTooltips().salidas : 
+                            getGraphTooltips().balance
+                          ]}
+                          labelFormatter={(label) => `Día ${label}`}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="entradas" 
+                          stroke={getGraphColors().entradas} 
+                          strokeWidth={2}
+                          name={getGraphTooltips().entradas}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="salidas" 
+                          stroke={getGraphColors().salidas} 
+                          strokeWidth={2}
+                          name={getGraphTooltips().salidas}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="balance" 
+                          stroke={getGraphColors().balance} 
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          name={getGraphTooltips().balance}
+                        />
+                      </RechartsLineChart>
+                    ) : vistaGrafico === 'bar' ? (
+                      <RechartsBarChart data={chartData}>
+                        <XAxis 
+                          dataKey="dia" 
+                          tick={{ fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                          label={{ value: getGraphLabels().diaDelMes, position: 'insideBottom', offset: -10 }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                          label={{ value: getGraphLabels().cantidad, angle: -90, position: 'insideLeft' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'white', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          }}
+                          formatter={(value: unknown, name: unknown) => [
+                            `${value} ${getGraphLabels().unidades}`, 
+                            String(name) === 'entradas' ? getGraphTooltips().entradas : 
+                            String(name) === 'salidas' ? getGraphTooltips().salidas : 
+                            getGraphTooltips().balance
+                          ]}
+                          labelFormatter={(label) => `Día ${label}`}
+                        />
+                        <Bar dataKey="entradas" fill={getGraphColors().entradas} name={getGraphTooltips().entradas} />
+                        <Bar dataKey="salidas" fill={getGraphColors().salidas} name={getGraphTooltips().salidas} />
+                      </RechartsBarChart>
+                    ) : (
+                      <AreaChart data={chartData}>
+                        <XAxis 
+                          dataKey="dia" 
+                          tick={{ fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                          label={{ value: getGraphLabels().diaDelMes, position: 'insideBottom', offset: -10 }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                          label={{ value: getGraphLabels().cantidad, angle: -90, position: 'insideLeft' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'white', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          }}
+                          formatter={(value: unknown, name: unknown) => [
+                            `${value} ${getGraphLabels().unidades}`, 
+                            String(name) === 'entradas' ? getGraphTooltips().entradas : 
+                            String(name) === 'salidas' ? getGraphTooltips().salidas : 
+                            getGraphTooltips().balance
+                          ]}
+                          labelFormatter={(label) => `Día ${label}`}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="entradas" 
+                          stackId="1"
+                          stroke={getGraphColors().entradas} 
+                          fill={getGraphColors().entradas}
+                          fillOpacity={0.6}
+                          name={getGraphTooltips().entradas}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="salidas" 
+                          stackId="1"
+                          stroke={getGraphColors().salidas} 
+                          fill={getGraphColors().salidas}
+                          fillOpacity={0.6}
+                          name={getGraphTooltips().salidas}
+                        />
+                      </AreaChart>
+                    )}
+                  </ResponsiveContainer>
+                )}
               </div>
+              
+              {/* Indicador de tipo de datos */}
+              {chartData.length > 0 && (
+                <div className="mt-4 text-center">
+                  {isRealData ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-xs text-green-600 font-medium">Datos reales del sistema</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                      <span className="text-xs text-yellow-600 font-medium">Datos de demostración</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Leyenda personalizada */}
+              <div className="flex items-center justify-center gap-8 mt-6 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: getGraphColors().entradas }}></div>
+                  <span className="text-sm font-medium text-gray-700">{getGraphLabels().entradas}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: getGraphColors().salidas }}></div>
+                  <span className="text-sm font-medium text-gray-700">{getGraphLabels().salidas}</span>
+                </div>
+              </div>
+
+              {/* Resumen de datos */}
+              {chartData.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold" style={{ color: getGraphColors().entradas }}>
+                      {chartData.reduce((sum, day) => sum + day.entradas, 0)}
+                    </div>
+                    <div className="text-sm text-gray-600">Total {getGraphLabels().entradas}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold" style={{ color: getGraphColors().salidas }}>
+                      {chartData.reduce((sum, day) => sum + day.salidas, 0)}
+                    </div>
+                    <div className="text-sm text-gray-600">Total {getGraphLabels().salidas}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${chartData[chartData.length - 1]?.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {chartData[chartData.length - 1]?.balance || 0}
+                    </div>
+                    <div className="text-sm text-gray-600">{getGraphLabels().balance} Final</div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
 
-        {/* KPIs Predictivos */}
-        {mostrarPredictivos && predictiveData && (
-          <div className="mb-8">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Target className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-              Análisis Predictivo
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              {predictiveData.prediccionDemanda.length > 0 && (
-                <Card className="bg-white shadow-sm border-0">
-                  <CardContent className="p-4 sm:p-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Predicción de Demanda</h3>
-                    <div className="space-y-3">
-                      {predictiveData.prediccionDemanda.slice(0, 5).map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 text-sm sm:text-base truncate">{item.nombre}</p>
-                            <p className="text-xs sm:text-sm text-gray-600">Demanda estimada: {item.demandaEstimada}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0 ml-2">
-                            <p className="text-sm font-medium text-blue-600">{item.confianza}%</p>
-                            <p className="text-xs text-gray-500">Confianza</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+          {/* Detalles de Productos */}
+          <Card className="bg-white shadow-sm border-0 mb-8">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+                <div>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Detalles de Productos</h3>
+                  <p className="text-sm text-gray-600">Análisis detallado del inventario por producto</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setMostrarFinancieros(!mostrarFinancieros)}
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    <span className="hidden sm:inline">Financieros</span>
+                    <span className="sm:hidden">💰</span>
+                  </button>
+                  <button
+                    onClick={() => setMostrarPredictivos(!mostrarPredictivos)}
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                  >
+                    <Target className="w-4 h-4" />
+                    <span className="hidden sm:inline">Predictivos</span>
+                    <span className="sm:hidden">🎯</span>
+                  </button>
+                </div>
+              </div>
 
-              {predictiveData.prediccionQuiebres.length > 0 && (
-                <Card className="bg-white shadow-sm border-0">
-                  <CardContent className="p-4 sm:p-6">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Riesgo de Quiebre</h3>
-                    <div className="space-y-3">
-                      {predictiveData.prediccionQuiebres.slice(0, 5).map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 text-sm sm:text-base truncate">{item.nombre}</p>
-                            <p className="text-xs sm:text-sm text-gray-600">
-                              {format(new Date(item.fechaPrediccion), 'dd/MM/yyyy')}
-                            </p>
-                          </div>
-                          <div className="text-right flex-shrink-0 ml-2">
-                            <p className="text-sm font-medium text-red-600">{item.probabilidad}%</p>
-                            <p className="text-xs text-gray-500">Probabilidad</p>
-                          </div>
-                        </div>
+              {/* Filtros */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                    <select
+                      value={filtroCategoria}
+                      onChange={(e) => setFiltroCategoria(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm"
+                    >
+                      <option value="">Todas las categorías</option>
+                      {Array.from(new Set(backendProducts.map(p => p.tipoProducto).filter(Boolean))).map(categoria => (
+                        <option key={categoria} value={categoria}>{categoria}</option>
                       ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+                    <select
+                      value={filtroProveedor}
+                      onChange={(e) => setFiltroProveedor(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm"
+                    >
+                      <option value="">Todos los proveedores</option>
+                      {providers.map(provider => (
+                        <option key={provider.id} value={provider.nombre}>{provider.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                    <select
+                      value={filtroEstado}
+                      onChange={(e) => setFiltroEstado(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent text-sm"
+                    >
+                      <option value="">Todos los estados</option>
+                      <option value="critical">Crítico</option>
+                      <option value="warning">Advertencia</option>
+                      <option value="optimal">Óptimo</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleApplyFilters}
+                      className="flex-1 px-3 sm:px-4 py-2 bg-[#8E94F2] text-white rounded-lg hover:bg-[#7278e0] transition-colors text-sm"
+                    >
+                      Aplicar
+                    </button>
+                    <button
+                      onClick={handleClearFilters}
+                      className="flex-1 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabla */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th 
+                        className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleSort('producto')}
+                      >
+                        <div className="flex items-center gap-1">
+                          <span className="hidden sm:inline">Nombre de producto</span>
+                          <span className="sm:hidden">Producto</span>
+                          {sortField === 'producto' && (
+                            sortDirection === 'asc' ? 
+                              <ArrowUpRight className="w-3 h-3" /> : 
+                              <ArrowDownRight className="w-3 h-3" />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleSort('inicio')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Inicio
+                          {sortField === 'inicio' && (
+                            sortDirection === 'asc' ? 
+                              <ArrowUpRight className="w-3 h-3" /> : 
+                              <ArrowDownRight className="w-3 h-3" />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleSort('movimientos')}
+                      >
+                        <div className="flex items-center gap-1">
+                          <span className="hidden sm:inline">Movimientos</span>
+                          <span className="sm:hidden">Mov.</span>
+                          {sortField === 'movimientos' && (
+                            sortDirection === 'asc' ? 
+                              <ArrowUpRight className="w-3 h-3" /> : 
+                              <ArrowDownRight className="w-3 h-3" />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleSort('final')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Final
+                          {sortField === 'final' && (
+                            sortDirection === 'asc' ? 
+                              <ArrowUpRight className="w-3 h-3" /> : 
+                              <ArrowDownRight className="w-3 h-3" />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleSort('estado')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Estado
+                          {sortField === 'estado' && (
+                            sortDirection === 'asc' ? 
+                              <ArrowUpRight className="w-3 h-3" /> : 
+                              <ArrowDownRight className="w-3 h-3" />
+                          )}
+                        </div>
+                      </th>
+                      <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700">
+                        <span className="hidden sm:inline">Categoría</span>
+                        <span className="sm:hidden">Cat.</span>
+                      </th>
+                      <th className="text-left py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-700">
+                        <span className="hidden sm:inline">Proveedor</span>
+                        <span className="sm:hidden">Prov.</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentProducts.length !== 0 && (
+                      currentProducts.map((product) => (
+                        <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                          <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-900">
+                            <span className="truncate block max-w-[120px] sm:max-w-none">{product.producto}</span>
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">{product.inicio}</td>
+                          <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">{product.movimientos}</td>
+                          <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">{product.final}</td>
+                          <td className="py-3 px-2 sm:px-4">
+                            {product.estado === 'critical' && (
+                              <div className="flex items-center gap-1 sm:gap-2">
+                                <XCircle className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
+                                <span className="text-xs text-red-600">Crítico</span>
+                              </div>
+                            )}
+                            {product.estado === 'warning' && (
+                              <div className="flex items-center gap-1 sm:gap-2">
+                                <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
+                                <span className="text-xs text-yellow-600">Advertencia</span>
+                              </div>
+                            )}
+                            {product.estado === 'optimal' && (
+                              <div className="flex items-center gap-1 sm:gap-2">
+                                <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" />
+                                <span className="text-xs text-green-600">Óptimo</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
+                            <span className="truncate block max-w-[80px] sm:max-w-none">{product.categoria}</span>
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
+                            <span className="font-medium truncate block max-w-[100px] sm:max-w-none">{product.proveedor}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Paginación */}
+              <div className="mt-6">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  itemsPerPage={itemsPerPage}
+                  startIndex={startIndex}
+                  endIndex={endIndex}
+                  onPageChange={handlePageChange}
+                  onItemsPerPageChange={setItemsPerPage}
+                  showItemsPerPage={true}
+                />
+              </div>
+
+              {/* Estado vacío */}
+              {currentProducts.length === 0 && (
+                <div className="text-center py-8">
+                  <Package className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-sm sm:text-base text-gray-500">No se encontraron productos con los filtros aplicados</p>
+                  <button
+                    onClick={handleClearFilters}
+                    className="mt-2 text-[#8E94F2] hover:text-[#7278e0] text-sm"
+                  >
+                    Limpiar filtros
+                  </button>
+                </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Agente IAM Recomienda */}
+          {recommendations.length > 0 && (
+            <Card className="bg-white shadow-sm border-0 mb-8">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <Cake className="w-5 h-5 sm:w-6 sm:h-6 text-[#8E94F2]" />
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Agente IAM Recomienda</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                  {recommendations.map((recommendation, index) => (
+                    <div key={index} className={`p-3 sm:p-4 rounded-lg border ${recommendation.bgColor}`}>
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <recommendation.icon className={`w-5 h-5 sm:w-6 sm:h-6 mt-1 ${recommendation.color}`} />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 mb-1 text-sm sm:text-base">{recommendation.title}</h4>
+                          <p className="text-xs sm:text-sm text-gray-600">{recommendation.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* KPIs Predictivos */}
+          {mostrarPredictivos && predictiveData && (
+            <div className="mb-8">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Target className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                Análisis Predictivo
+              </h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                {predictiveData.prediccionDemanda.length > 0 && (
+                  <Card className="bg-white shadow-sm border-0">
+                    <CardContent className="p-4 sm:p-6">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Predicción de Demanda</h3>
+                      <div className="space-y-3">
+                        {predictiveData.prediccionDemanda.slice(0, 5).map((item, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 text-sm sm:text-base truncate">{item.nombre}</p>
+                              <p className="text-xs sm:text-sm text-gray-600">Demanda estimada: {item.demandaEstimada}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0 ml-2">
+                              <p className="text-sm font-medium text-blue-600">{item.confianza}%</p>
+                              <p className="text-xs text-gray-500">Confianza</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {predictiveData.prediccionQuiebres.length > 0 && (
+                  <Card className="bg-white shadow-sm border-0">
+                    <CardContent className="p-4 sm:p-6">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Riesgo de Quiebre</h3>
+                      <div className="space-y-3">
+                        {predictiveData.prediccionQuiebres.slice(0, 5).map((item, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 text-sm sm:text-base truncate">{item.nombre}</p>
+                              <p className="text-xs sm:text-sm text-gray-600">
+                                {format(new Date(item.fechaPrediccion), 'dd/MM/yyyy')}
+                              </p>
+                            </div>
+                            <div className="text-right flex-shrink-0 ml-2">
+                              <p className="text-sm font-medium text-red-600">{item.probabilidad}%</p>
+                              <p className="text-xs text-gray-500">Probabilidad</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Botones de Acción */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <button
-            onClick={handleGenerateReplenishmentPlan}
-            className="flex-1 px-4 sm:px-6 py-3 bg-[#8E94F2] text-white rounded-xl hover:bg-[#7278e0] transition-all duration-200 shadow-sm hover:shadow-md font-medium text-sm sm:text-base"
-          >
-            Generar plan de reabastecimiento
-          </button>
-          <button
-            onClick={handleRecommendPrices}
-            className="flex-1 px-4 sm:px-6 py-3 bg-white text-gray-900 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium text-sm sm:text-base"
-          >
-            Recomendar precios
-          </button>
+          {/* Botones de Acción */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <button
+              onClick={handleGenerateReplenishmentPlan}
+              className="flex-1 px-4 sm:px-6 py-3 bg-[#8E94F2] text-white rounded-xl hover:bg-[#7278e0] transition-all duration-200 shadow-sm hover:shadow-md font-medium text-sm sm:text-base"
+            >
+              Generar plan de reabastecimiento
+            </button>
+            <button
+              onClick={handleRecommendPrices}
+              className="flex-1 px-4 sm:px-6 py-3 bg-white text-gray-900 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium text-sm sm:text-base"
+            >
+              Recomendar precios
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 } 

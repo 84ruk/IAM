@@ -107,7 +107,7 @@ export default function ProductosEliminadosClient() {
       }
       
       mostrarError(errorData.message || `Error al ${accion}: ${response.status} ${response.statusText}`)
-    } catch (parseError) {
+    } catch {
       mostrarError(`Error al ${accion}: ${response.status} ${response.statusText}`)
     }
   }

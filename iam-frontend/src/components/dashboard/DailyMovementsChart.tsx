@@ -14,10 +14,10 @@ import {
   BarChart, 
   Bar, 
   CartesianGrid,
-  Legend,
   Area,
   AreaChart
-} from 'recharts'
+} from '@/components/ui/RechartsWrapper'
+import { Legend } from 'recharts'
 import { 
   RefreshCw, 
   TrendingUp, 
@@ -127,12 +127,12 @@ export default function DailyMovementsChart({
               />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip 
-                formatter={(value: number, name: string) => [
-                  name === 'entradas' || name === 'salidas' ? value : formatCurrency(value),
-                  name === 'entradas' ? 'Entradas' : 
-                  name === 'salidas' ? 'Salidas' : 
-                  name === 'valorEntradas' ? 'Valor Entradas' :
-                  name === 'valorSalidas' ? 'Valor Salidas' : name
+                formatter={(value: unknown, name: unknown) => [
+                  String(name) === 'entradas' || String(name) === 'salidas' ? String(value) : formatCurrency(Number(value)),
+                  String(name) === 'entradas' ? 'Entradas' : 
+                  String(name) === 'salidas' ? 'Salidas' : 
+                  String(name) === 'valorEntradas' ? 'Valor Entradas' :
+                  String(name) === 'valorSalidas' ? 'Valor Salidas' : String(name)
                 ]}
                 labelFormatter={(label) => `Fecha: ${label}`}
               />
@@ -168,9 +168,9 @@ export default function DailyMovementsChart({
               />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip 
-                formatter={(value: number, name: string) => [
-                  value,
-                  name === 'entradas' ? 'Entradas' : 'Salidas'
+                formatter={(value: unknown, name: unknown) => [
+                  String(value),
+                  String(name) === 'entradas' ? 'Entradas' : 'Salidas'
                 ]}
                 labelFormatter={(label) => `Fecha: ${label}`}
               />
@@ -192,12 +192,12 @@ export default function DailyMovementsChart({
               />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip 
-                formatter={(value: number, name: string) => [
-                  name === 'entradas' || name === 'salidas' ? value : formatCurrency(value),
-                  name === 'entradas' ? 'Entradas' : 
-                  name === 'salidas' ? 'Salidas' : 
-                  name === 'valorEntradas' ? 'Valor Entradas' :
-                  name === 'valorSalidas' ? 'Valor Salidas' : name
+                formatter={(value: unknown, name: unknown) => [
+                  String(name) === 'entradas' || String(name) === 'salidas' ? String(value) : formatCurrency(Number(value)),
+                  String(name) === 'entradas' ? 'Entradas' : 
+                  String(name) === 'salidas' ? 'Salidas' : 
+                  String(name) === 'valorEntradas' ? 'Valor Entradas' :
+                  String(name) === 'valorSalidas' ? 'Valor Salidas' : String(name)
                 ]}
                 labelFormatter={(label) => `Fecha: ${label}`}
               />
@@ -237,12 +237,12 @@ export default function DailyMovementsChart({
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
               <Tooltip 
-                formatter={(value: number, name: string) => [
-                  name === 'entradas' || name === 'salidas' ? value : formatCurrency(value),
-                  name === 'entradas' ? 'Entradas' : 
-                  name === 'salidas' ? 'Salidas' : 
-                  name === 'valorEntradas' ? 'Valor Entradas' :
-                  name === 'valorSalidas' ? 'Valor Salidas' : name
+                formatter={(value: unknown, name: unknown) => [
+                  String(name) === 'entradas' || String(name) === 'salidas' ? String(value) : formatCurrency(Number(value)),
+                  String(name) === 'entradas' ? 'Entradas' : 
+                  String(name) === 'salidas' ? 'Salidas' : 
+                  String(name) === 'valorEntradas' ? 'Valor Entradas' :
+                  String(name) === 'valorSalidas' ? 'Valor Salidas' : String(name)
                 ]}
                 labelFormatter={(label) => `Fecha: ${label}`}
               />

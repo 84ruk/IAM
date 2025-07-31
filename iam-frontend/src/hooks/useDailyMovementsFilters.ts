@@ -265,7 +265,7 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
     try {
       const savedPresets = JSON.parse(localStorage.getItem('daily-movements-presets') || '[]')
       if (savedPresets.length > 0) {
-        setPresets(prev => [...DEFAULT_FILTER_PRESETS, ...savedPresets])
+        setPresets(() => [...DEFAULT_FILTER_PRESETS, ...savedPresets])
       }
     } catch (error) {
       console.error('Error loading saved presets:', error)
@@ -305,8 +305,8 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
   }
 
   const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined }) => {
-    setFilters(prev => ({
-      ...prev,
+    setFilters(() => ({
+      ...filters,
       startDate: range.from?.toISOString().split('T')[0],
       endDate: range.to?.toISOString().split('T')[0]
     }))

@@ -413,8 +413,8 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
             // NO mostrar alerts automáticos - el componente manejará la UI
           }
         }
-      } catch (error) {
-        console.error('Error en polling:', error)
+      } catch {
+        console.error('Error en polling:')
       }
     }, 2000) // Polling cada 2 segundos
   }, [])

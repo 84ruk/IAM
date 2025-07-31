@@ -28,9 +28,6 @@ interface DailyMovementsSummaryProps {
 }
 
 export function DailyMovementsSummary({ data, isLoading, error, className = '' }: DailyMovementsSummaryProps) {
-  const summary = data?.summary as Record<string, unknown> | undefined
-
-
   if (isLoading) {
     return (
       <Card className={className}>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Users, Filter, UserPlus } from 'lucide-react'
+import { Users, Filter } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 
 interface AdminEmptyStateProps {

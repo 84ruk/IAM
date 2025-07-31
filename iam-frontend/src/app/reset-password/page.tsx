@@ -40,7 +40,7 @@ function ResetPasswordContent() {
         setTokenValid(true)
         setUserEmail(data.email)
       }
-    } catch (error) {
+    } catch {
       setErrors(['Error al verificar el token'])
       setTokenValid(false)
     } finally {

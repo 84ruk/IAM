@@ -17,7 +17,6 @@ import {
   Save,
   CheckCircle
 } from 'lucide-react'
-import { toast } from 'react-toastify'
 
 interface SystemConfig {
   security: {

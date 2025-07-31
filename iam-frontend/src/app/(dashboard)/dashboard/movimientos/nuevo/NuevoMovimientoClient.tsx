@@ -61,8 +61,6 @@ interface MovimientoFieldsProps {
   setDescripcion: (descripcion: string) => void
   inputRef: React.RefObject<HTMLInputElement | null>
   producto: Producto | null
-  isLoading: boolean
-  cantidadValida: () => boolean
 }
 
 function MovimientoFields({
@@ -75,9 +73,7 @@ function MovimientoFields({
   motivo, setMotivo,
   descripcion, setDescripcion,
   inputRef,
-  producto,
-  isLoading,
-  cantidadValida
+  producto
 }: MovimientoFieldsProps) {
   return (
     <div className="space-y-6">
@@ -543,8 +539,6 @@ export default function NuevoMovimientoClient() {
                 setDescripcion={setDescripcion}
                 inputRef={inputRef}
                 producto={producto}
-                isLoading={isLoading}
-                cantidadValida={cantidadValida}
               />
 
               <Button
@@ -623,8 +617,6 @@ export default function NuevoMovimientoClient() {
               setDescripcion={setDescripcion}
               inputRef={inputRef}
               producto={producto}
-              isLoading={isLoading}
-              cantidadValida={cantidadValida}
             />
 
             <Button

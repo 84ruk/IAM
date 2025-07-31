@@ -16,7 +16,7 @@ import {
   Pie, 
   Cell, 
   CartesianGrid 
-} from 'recharts'
+} from '@/components/ui/RechartsWrapper'
 import { Loader2, AlertCircle, BarChart3 } from 'lucide-react'
 
 
@@ -102,16 +102,16 @@ export function KPIGraph({
               />
               <YAxis />
               <Tooltip 
-                formatter={(value: number) => [
-                  formatValue ? formatValue(value) : value, 
+                formatter={(value: unknown) => [
+                  formatValue ? formatValue(Number(value)) : String(value), 
                   dataKey
                 ]}
                 labelFormatter={(label) => {
                   if (formatLabel) return formatLabel(label)
                   try {
-                    return format(new Date(label), 'dd/MM/yyyy')
+                    return format(new Date(String(label)), 'dd/MM/yyyy')
                   } catch {
-                    return label
+                    return String(label)
                   }
                 }}
               />
@@ -140,8 +140,8 @@ export function KPIGraph({
               />
               <YAxis />
               <Tooltip 
-                formatter={(value: number) => [
-                  formatValue ? formatValue(value) : value, 
+                formatter={(value: unknown) => [
+                  formatValue ? formatValue(Number(value)) : String(value), 
                   dataKey
                 ]}
               />
@@ -171,8 +171,8 @@ export function KPIGraph({
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number) => [
-                  formatValue ? formatValue(value) : value, 
+                formatter={(value: unknown) => [
+                  formatValue ? formatValue(Number(value)) : String(value), 
                   dataKey
                 ]} 
               />

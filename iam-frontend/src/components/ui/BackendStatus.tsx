@@ -10,7 +10,6 @@ interface BackendStatusProps {
 
 export function BackendStatus({ children }: BackendStatusProps) {
   const [status, setStatus] = useState<'online' | 'offline' | 'checking'>('checking')
-  const [error, setError] = useState<Error | null>(null)
 
   const checkBackendStatus = async () => {
     setStatus('checking')
@@ -31,9 +30,8 @@ export function BackendStatus({ children }: BackendStatusProps) {
 
       clearTimeout(timeoutId)
       setStatus(response.ok ? 'online' : 'offline')
-    } catch (error: unknown) {
+    } catch {
       setStatus('offline')
-      setError(error instanceof Error ? error : new Error(String(error)))
     } finally {
       // setIsChecking(false) // This line was removed from the new_code, so it's removed here.
     }
@@ -127,7 +125,7 @@ export function useBackendStatus() {
         cache: 'no-store'
       })
       setIsAvailable(response.ok)
-    } catch (error) {
+    } catch {
       setIsAvailable(false)
     }
   }

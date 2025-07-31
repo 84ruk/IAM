@@ -69,7 +69,7 @@ export default function ProveedoresEliminadosClient() {
     try {
       const errorData = await response.json()
       mostrarError(`Error al ${accion}: ${errorData.message || 'Error desconocido'}`)
-    } catch (parseError) {
+    } catch {
       mostrarError(`Error al ${accion}. Código de estado: ${response.status}`)
     }
   }
@@ -96,7 +96,7 @@ export default function ProveedoresEliminadosClient() {
 
       mostrarError('Proveedor restaurado exitosamente.')
       mutate() // Recargar datos
-    } catch (error) {
+    } catch {
       mostrarError('Error al restaurar el proveedor. Intenta nuevamente.')
     } finally {
       setRestaurandoId(null)
@@ -125,7 +125,7 @@ export default function ProveedoresEliminadosClient() {
 
       mostrarError('Proveedor eliminado permanentemente.')
       mutate() // Recargar datos
-    } catch (error) {
+    } catch {
       mostrarError('Error al eliminar el proveedor. Intenta nuevamente.')
     } finally {
       setEliminandoId(null)
