@@ -9,8 +9,7 @@ import {
   Activity, 
   Brain, 
   Download,
-  X,
-  ArrowLeft
+  X
 } from 'lucide-react'
 import { TipoImportacion } from '@/types/importacion'
 import { useToast } from '@/components/ui/Toast'
@@ -95,7 +94,7 @@ export default function TipoImportacionModal({
     try {
       setIsDownloading(true)
       await onDownloadTemplate(tipo)
-    } catch (error) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Error',
@@ -255,7 +254,7 @@ export default function TipoImportacionModal({
               <div>
                 <h4 className="font-medium text-blue-800 mb-1">Recomendación</h4>
                 <p className="text-sm text-blue-700">
-                  Si no estás seguro del tipo de datos, selecciona "Detección Automática". 
+                  Si no estás seguro del tipo de datos, selecciona &quot;Detección Automática&quot;. 
                   El sistema analizará tu archivo y determinará automáticamente el tipo más apropiado.
                 </p>
               </div>

@@ -114,7 +114,7 @@ export default function LoginForm() {
       } else {
         handleBackendError(result)
       }
-    } catch (error) {
+    } catch {
       setGeneralError('Error de conexión. Verifica tu conexión a internet.')
     } finally {
       setIsLoading(false)

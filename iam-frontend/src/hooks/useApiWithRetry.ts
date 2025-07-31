@@ -159,7 +159,7 @@ export function useSmartApiRequest<T = unknown>(
     if (status === 'offline') {
       try {
         await apiClient.warmUpServer()
-      } catch (error) {
+      } catch {
         console.log('Warm up failed, continuing with request...')
       }
     }

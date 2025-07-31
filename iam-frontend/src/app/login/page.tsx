@@ -8,7 +8,7 @@ export default async function LoginPage() {
     if (user) {
       redirect('/dashboard');
     }
-  } catch (error) {
+  } catch {
     // Si hay error de conexión, continuar sin autenticación
   }
 

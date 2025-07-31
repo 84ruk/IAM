@@ -136,7 +136,7 @@ export default function SmartImportModal({
         title: 'Plantilla descargada',
         message: `Plantilla de ${selectedTemplate.tipo} descargada exitosamente`
       })
-    } catch (error) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Error al descargar',
@@ -637,7 +637,7 @@ export default function SmartImportModal({
               <ImportacionProgress
                 trabajo={state.currentTrabajo}
                 onCancel={cancelarTrabajo}
-                onDownloadReport={(trabajoId) => {
+                onDownloadReport={() => {
                   // Implementar descarga de reporte
                   // Descargar reporte
                 }}

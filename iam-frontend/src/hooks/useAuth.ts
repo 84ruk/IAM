@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import { useServerUser } from '@/context/ServerUserContext'
 
 interface AuthInfo {
@@ -25,7 +24,6 @@ interface UseAuthReturn {
 
 export function useAuth(): UseAuthReturn {
   const user = useServerUser()
-  const router = useRouter()
 
   // Información de autenticación basada en ServerUserContext
   const authInfo = useMemo((): AuthInfo => {

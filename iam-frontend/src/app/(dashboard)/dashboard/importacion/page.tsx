@@ -229,7 +229,7 @@ export default function ImportacionPage() {
         title: 'Plantilla descargada',
         message: `Plantilla de ${template.tipo} descargada exitosamente`
       })
-    } catch (error) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Error al descargar',
@@ -254,7 +254,7 @@ export default function ImportacionPage() {
         title: 'Plantillas descargadas',
         message: 'Todas las plantillas han sido descargadas exitosamente'
       })
-    } catch (error) {
+    } catch {
       addToast({
         type: 'error',
         title: 'Error al descargar',
@@ -400,7 +400,7 @@ export default function ImportacionPage() {
                 <ImportacionProgress
                   trabajo={currentTrabajo}
                   onCancel={cancelarTrabajo}
-                  onDownloadReport={(trabajoId) => {
+                  onDownloadReport={() => {
                     // Implementar descarga de reporte
                     // Descargar reporte
                   }}

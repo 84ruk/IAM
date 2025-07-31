@@ -28,7 +28,7 @@ export function useLoadTime(componentName: string) {
     if (process.env.NODE_ENV === 'development') {
       console.log(`[${componentName}] Tiempo de carga: ${(endTime - startTime.current).toFixed(2)}ms`)
     }
-  }, [])
+  }, [componentName])
 
   return startTime.current
 }

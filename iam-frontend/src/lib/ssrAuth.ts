@@ -44,11 +44,11 @@ export async function requireAuth() {
 
       return userData
       
-    } catch (fetchError: unknown) {
+    } catch {
       clearTimeout(timeoutId)
       return null
     }
-  } catch (error: unknown) {
+  } catch {
     return null
   }
 }

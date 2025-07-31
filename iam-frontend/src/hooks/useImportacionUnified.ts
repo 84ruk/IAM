@@ -391,7 +391,7 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         console.error('Error en polling:')
       }
     }, 2000) // Polling cada 2 segundos
-  }, [])
+  }, [stopPolling])
 
   // Función principal de importación
   const importar = useCallback(async (file: File, tipo: string, opciones?: ImportacionOpciones) => {
@@ -479,9 +479,8 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         const errores = result.errores || result.data?.errores || []
         const correcciones = result.correcciones || result.data?.correcciones || []
         
-        // Determinar si la importación fue exitosa o tuvo errores
-        const tieneErrores = registrosConError > 0 || (Array.isArray(errores) && errores.length > 0)
-        const fueExitosa = registrosProcesados > 0 && registrosExitosos > 0 && !tieneErrores
+        // Determinar si la importación tuvo errores (para lógica futura)
+        // const tieneErrores = registrosConError > 0 || (Array.isArray(errores) && errores.length > 0)
         
         setState(prev => ({
           ...prev,

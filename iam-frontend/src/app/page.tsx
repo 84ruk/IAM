@@ -68,7 +68,7 @@ export default async function Home() {
     // Verificar si el usuario está autenticado
     isAuthenticated = !!(user && user.id && user.email);
     
-  } catch (error) {
+  } catch {
     // Si hay error de conexión, continuar sin autenticación
     isAuthenticated = false;
   }
