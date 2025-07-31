@@ -8,6 +8,8 @@ import { Toaster } from 'sonner'
 import { ErrorBoundary } from '@/lib/error-boundary'
 import { initializeAppConfig } from '@/lib/app-config'
 import AppInitializer from '@/components/ui/AppInitializer'
+import { ServerStatusProvider } from '@/context/ServerStatusContext'
+import ServerStatusBar from '@/components/layout/ServerStatusBar'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   // Inicializar configuración de la aplicación
@@ -26,11 +28,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className={`${montserrat.className} bg-gray-50 antialiased text-gray-800`}>
         <ErrorBoundary>
-          <AppInitializer>
-            <BackendStatus>
-              {children}
-            </BackendStatus>
-          </AppInitializer>
+          <ServerStatusProvider>
+            <AppInitializer>
+              <BackendStatus>
+                {children}
+                <ServerStatusBar />
+              </BackendStatus>
+            </AppInitializer>
+          </ServerStatusProvider>
         </ErrorBoundary>
         <Toaster 
           position="top-right"

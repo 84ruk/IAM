@@ -14,7 +14,22 @@ import { Input } from '../ui/Input'
 import Select from '../ui/Select'
 import { useParams, useRouter } from 'next/navigation'
 import { getErrorMessage, cleanFormDataWithProveedor } from '@/lib/form-utils'
-import { ChevronDownIcon, ChevronUpIcon, Package, DollarSign, Tag, Settings, Barcode, X, User, Thermometer, Droplets, MapPin, Hash, Radio } from 'lucide-react'
+import { 
+  ChevronDownIcon, 
+  ChevronUpIcon, 
+  Package, 
+  DollarSign, 
+  Tag, 
+  Settings, 
+  Barcode, 
+  X, 
+  User, 
+  Thermometer, 
+  Droplets, 
+  MapPin, 
+  Hash, 
+  Radio 
+} from 'lucide-react'
 import { TipoProductoConfig } from '@/types/enums'
 import { Producto } from '@/types/producto'
 

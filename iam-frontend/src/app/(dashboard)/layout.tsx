@@ -21,13 +21,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <UserContextProvider user={user}>
       <SetupProvider>
-        {/* <WebSocketProvider> */}
           <ToastProvider>
             <DashboardShell user={user}>
               {children}
             </DashboardShell>
           </ToastProvider>
-        {/* </WebSocketProvider> */}
       </SetupProvider>
     </UserContextProvider>
   );

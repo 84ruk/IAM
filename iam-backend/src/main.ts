@@ -63,6 +63,10 @@ async function bootstrap() {
         'Accept',
         'X-API-Key',
         'X-Client-Version',
+        'Cache-Control',
+        'X-Client-Type',
+        'X-Request-Type',
+        'X-Warm-Up',
       ],
       exposedHeaders: [
         'Set-Cookie',

@@ -380,9 +380,93 @@ export class ImportacionRapidaService {
           continue;
         }
 
+        // Resolver productoId - verificar si existe el producto
+        let productoIdFinal = movimientoData.productoId;
+        let productoEncontrado = false;
+
+        try {
+          // Si es un string que no es un número, buscar por nombre
+          if (typeof movimientoData.productoId === 'string' && isNaN(parseInt(movimientoData.productoId))) {
+            const producto = await this.prisma.producto.findFirst({
+              where: {
+                nombre: {
+                  contains: movimientoData.productoId,
+                  mode: 'insensitive'
+                },
+                empresaId: user.empresaId,
+                estado: 'ACTIVO'
+              },
+              select: { id: true, nombre: true }
+            });
+
+            if (producto) {
+              productoIdFinal = producto.id;
+              productoEncontrado = true;
+              this.logger.debug(`Producto encontrado por nombre: "${movimientoData.productoId}" -> ID: ${producto.id}`);
+            } else {
+              throw new Error(`Producto no encontrado: ${movimientoData.productoId}`);
+            }
+          } else {
+            // Si es un número o string numérico, verificar que el producto existe
+            const productoId = parseInt(movimientoData.productoId);
+            if (!isNaN(productoId)) {
+              const producto = await this.prisma.producto.findUnique({
+                where: {
+                  id: productoId,
+                  empresaId: user.empresaId,
+                  estado: 'ACTIVO'
+                },
+                select: { id: true, nombre: true }
+              });
+
+              if (producto) {
+                productoIdFinal = producto.id;
+                productoEncontrado = true;
+                this.logger.debug(`Producto encontrado por ID: ${productoId} -> ${producto.nombre}`);
+              } else {
+                throw new Error(`Producto con ID ${productoId} no encontrado`);
+              }
+            } else {
+              throw new Error(`ID de producto inválido: ${movimientoData.productoId}`);
+            }
+          }
+        } catch (busquedaError) {
+          errores.push({
+            fila: rowNumber,
+            columna: 'producto',
+            valor: movimientoData.productoId,
+            mensaje: busquedaError.message,
+            tipo: 'validacion',
+            datosOriginales: row,
+            campoEspecifico: 'producto',
+            valorRecibido: movimientoData.productoId,
+            valorEsperado: 'Nombre de producto existente o ID válido',
+            sugerencia: 'Verifique que el producto existe en el sistema o use el ID numérico correcto'
+          });
+          continue;
+        }
+
+        if (!productoEncontrado) {
+          errores.push({
+            fila: rowNumber,
+            columna: 'producto',
+            valor: movimientoData.productoId,
+            mensaje: 'No se pudo resolver el producto',
+            tipo: 'validacion',
+            datosOriginales: row,
+            campoEspecifico: 'producto',
+            valorRecibido: movimientoData.productoId,
+            valorEsperado: 'Nombre de producto existente o ID válido',
+            sugerencia: 'Verifique que el producto existe en el sistema'
+          });
+          continue;
+        }
+
+        // Crear el movimiento con el productoId resuelto
         await this.prisma.movimientoInventario.create({
           data: {
             ...movimientoData,
+            productoId: productoIdFinal,
             empresaId: user.empresaId,
             // usuarioId no existe en el modelo MovimientoInventario, solo empresaId
           },
@@ -848,42 +932,108 @@ export class ImportacionRapidaService {
   private mapearFilaAMovimiento(row: any[], headers: string[], rowNumber: number) {
     const movimiento: any = {};
     
-    // Campos válidos del modelo MovimientoInventario
-    const camposValidos = ['productoId', 'tipo', 'cantidad', 'motivo', 'descripcion'];
-    
     headers.forEach((header, index) => {
       const value = row[index];
-      const headerLower = header.toLowerCase();
+      const headerLower = header.toLowerCase().trim();
       
-      // Solo mapear campos válidos
       switch (headerLower) {
         case 'producto':
         case 'productoid':
         case 'producto_id':
-          movimiento.productoId = value;
+        case 'producto id':
+        case 'id_producto':
+        case 'idproducto':
+          // Intentar parsear como número, si falla mantener como string para búsqueda posterior
+          const productoId = parseInt(value);
+          movimiento.productoId = isNaN(productoId) ? value : productoId;
           break;
         case 'tipo':
-          movimiento.tipo = value;
+        case 'tipo_movimiento':
+        case 'tipo movimiento':
+        case 'operacion':
+        case 'accion':
+          // Normalizar el tipo de movimiento
+          const tipoNormalizado = this.normalizarTipoMovimiento(value);
+          movimiento.tipo = tipoNormalizado;
           break;
         case 'cantidad':
+        case 'cant':
+        case 'qty':
+        case 'volumen':
+        case 'unidades':
           movimiento.cantidad = parseInt(value) || 0;
           break;
         case 'motivo':
+        case 'razon':
+        case 'causa':
+        case 'justificacion':
+        case 'descripcion_motivo':
           movimiento.motivo = value;
           break;
         case 'descripcion':
+        case 'desc':
+        case 'comentario':
+        case 'notas':
           movimiento.descripcion = value;
           break;
-        // Ignorar campos que no existen en el modelo
+        case 'fecha':
+        case 'fecha_movimiento':
+        case 'fecha_transaccion':
+        case 'fecha movimiento':
+        case 'fecha transaccion':
+        case 'dia':
+        case 'fecha_creacion':
+          // Parsear fecha si es string, si no usar la fecha actual
+          if (value) {
+            const fecha = new Date(value);
+            if (!isNaN(fecha.getTime())) {
+              movimiento.fecha = fecha;
+            }
+          }
+          break;
+        case 'empresa':
+        case 'empresaid':
+        case 'empresa_id':
+        case 'empresa id':
+        case 'id_empresa':
+        case 'idempresa':
+          // El empresaId se asignará automáticamente desde el usuario
+          // No mapear este campo ya que viene del contexto del usuario
+          break;
+        case 'estado':
+        case 'status':
+        case 'estado_movimiento':
+          // Normalizar estado si se proporciona
+          if (value) {
+            movimiento.estado = this.normalizarEstadoMovimiento(value);
+          }
+          break;
+        // Ignorar campos que no existen en el modelo o se manejan automáticamente
         case 'usuario':
         case 'usuario_id':
         case 'user':
         case 'user_id':
-          // Estos campos no existen en el modelo MovimientoInventario, se ignoran
+        case 'id_usuario':
+        case 'idusuario':
+        case 'createdat':
+        case 'created_at':
+        case 'fecha_creacion':
+        case 'fecha_creado':
+        case 'created':
+        case 'updatedat':
+        case 'updated_at':
+        case 'fecha_actualizacion':
+        case 'updated':
+        case 'id':
+        case 'movimiento_id':
+        case 'id_movimiento':
+          // Estos campos se manejan automáticamente por Prisma o no son relevantes
           break;
         default:
-          // Log de campos no reconocidos para debugging
-          console.log(`Campo no reconocido en movimiento: ${header}`);
+          // Log de campos no reconocidos para debugging (solo en desarrollo)
+          if (process.env.NODE_ENV === 'development') {
+            this.logger.debug(`Campo no reconocido en movimiento: ${header} (valor: ${value})`);
+          }
           break;
       }
     });
@@ -1013,18 +1163,18 @@ export class ImportacionRapidaService {
         columna: 'producto', 
         valor: data.productoId, 
         mensaje: 'Producto es requerido',
-        valorEsperado: 'ID de producto válido',
-        sugerencia: 'Asegúrese de que el campo producto tenga un ID válido'
+        valorEsperado: 'ID de producto válido o nombre de producto',
+        sugerencia: 'Asegúrese de que el campo producto tenga un valor válido'
       };
     }
-    if (!data.tipo || !['entrada', 'salida'].includes(data.tipo)) {
+    if (!data.tipo || !['ENTRADA', 'SALIDA'].includes(data.tipo)) {
       return { 
         valido: false, 
         columna: 'tipo', 
         valor: data.tipo, 
-        mensaje: 'Tipo debe ser entrada o salida',
-        valorEsperado: 'entrada o salida',
-        sugerencia: 'El tipo de movimiento debe ser "entrada" o "salida"'
+        mensaje: 'Tipo debe ser ENTRADA o SALIDA',
+        valorEsperado: 'ENTRADA o SALIDA',
+        sugerencia: 'El tipo de movimiento debe ser "ENTRADA" o "SALIDA"'
       };
     }
     if (data.cantidad <= 0) {
@@ -1364,6 +1514,48 @@ export class ImportacionRapidaService {
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0)
       .map(tag => tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase());
+  }
+
+  private normalizarTipoMovimiento(valor: string): string {
+    if (!valor) return 'ENTRADA';
+    
+    const valorUpper = valor.toString().toUpperCase().trim();
+    
+    // Mapeo de tipos de movimiento
+    const mapeoTipos: Record<string, string> = {
+      'ENTRADA': 'ENTRADA',
+      'SALIDA': 'SALIDA',
+      'IN': 'ENTRADA',
+      'OUT': 'SALIDA',
+      'COMPRA': 'ENTRADA',
+      'VENTA': 'SALIDA',
+      'RECEPCION': 'ENTRADA',
+      'DESPACHO': 'SALIDA',
+      'INGRESO': 'ENTRADA',
+      'EGRESO': 'SALIDA',
+      'ADICION': 'ENTRADA',
+      'REDUCCION': 'SALIDA',
+    };
+    
+    return mapeoTipos[valorUpper] || 'ENTRADA';
+  }
+
+  private normalizarEstadoMovimiento(valor: string): string {
+    if (!valor) return 'ACTIVO';
+    
+    const valorUpper = valor.toString().toUpperCase().trim();
+    
+    // Mapeo de estados de movimiento
+    const mapeoEstados: Record<string, string> = {
+      'ACTIVO': 'ACTIVO',
+      'ELIMINADO': 'ELIMINADO',
+      'PENDIENTE': 'ACTIVO',
+      'COMPLETADO': 'ACTIVO',
+      'CANCELADO': 'ELIMINADO',
+      'ANULADO': 'ELIMINADO',
+    };
+    
+    return mapeoEstados[valorUpper] || 'ACTIVO';
   }
 
   private async generarArchivoErrores(

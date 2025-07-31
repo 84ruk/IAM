@@ -938,17 +938,19 @@ export class DashboardService {
       return await this.cacheStrategies.cacheAside(
         `movimientos-producto:${empresaId}`,
         async () => {
+          // Primero obtener movimientos sin include para evitar errores de relaciones
           const movimientos = await this.prisma.movimientoInventario.findMany({
             where: {
               empresaId,
             },
-            include: {
-              producto: {
-                select: {
-                  nombre: true,
-                  etiquetas: true,
-                },
-              },
+            select: {
+              id: true,
+              fecha: true,
+              tipo: true,
+              cantidad: true,
+              motivo: true,
+              descripcion: true,
+              productoId: true,
             },
             orderBy: {
               fecha: 'desc',
@@ -956,18 +958,57 @@ export class DashboardService {
             take: 50,
           });
 
-          return movimientos.map((movimiento) => ({
-            id: movimiento.id,
-            fecha: movimiento.fecha,
-            tipo: movimiento.tipo,
-            cantidad: movimiento.cantidad,
-            motivo: movimiento.motivo,
-            descripcion: movimiento.descripcion,
-            producto: {
-              nombre: movimiento.producto.nombre,
-              etiquetas: movimiento.producto.etiquetas,
-            },
-          }));
+          // Luego obtener los productos correspondientes de forma segura
+          const movimientosConProductos = await Promise.all(
+            movimientos.map(async (movimiento) => {
+              try {
+                const producto = await this.prisma.producto.findUnique({
+                  where: {
+                    id: movimiento.productoId,
+                    empresaId,
+                    estado: 'ACTIVO',
+                  },
+                  select: {
+                    nombre: true,
+                    etiquetas: true,
+                  },
+                });
+
+                return {
+                  id: movimiento.id,
+                  fecha: movimiento.fecha,
+                  tipo: movimiento.tipo,
+                  cantidad: movimiento.cantidad,
+                  motivo: movimiento.motivo,
+                  descripcion: movimiento.descripcion,
+                  producto: producto ? {
+                    nombre: producto.nombre,
+                    etiquetas: producto.etiquetas,
+                  } : {
+                    nombre: `Producto ID ${movimiento.productoId} (no encontrado)`,
+                    etiquetas: [],
+                  },
+                };
+              } catch (error) {
+                // Si hay error al obtener el producto, devolver información básica
+                this.logger.warn(`Error obteniendo producto ${movimiento.productoId} para movimiento ${movimiento.id}: ${error.message}`);
+                return {
+                  id: movimiento.id,
+                  fecha: movimiento.fecha,
+                  tipo: movimiento.tipo,
+                  cantidad: movimiento.cantidad,
+                  motivo: movimiento.motivo,
+                  descripcion: movimiento.descripcion,
+                  producto: {
+                    nombre: `Producto ID ${movimiento.productoId} (error)`,
+                    etiquetas: [],
+                  },
+                };
+              }
+            })
+          );
+
+          return movimientosConProductos;
         },
         'dynamic',
       );
