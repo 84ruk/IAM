@@ -6,12 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "optimize": "node scripts/optimize-frontend.js",
-    "check-duplicates": "node scripts/check-duplicates.js",
-    "optimize-imports": "node scripts/optimize-imports.js",
-    "add-error-boundaries": "node scripts/add-error-boundaries.js",
-    "add-loading-states": "node scripts/add-loading-states.js"
+    "lint": "next lint"
   },
   "dependencies": {
     "@fontsource/montserrat": "^5.2.6",

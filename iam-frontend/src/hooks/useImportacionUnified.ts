@@ -234,18 +234,15 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
     
     // Archivos pequeños (< 1MB) usan importación rápida
     if (fileSizeMB < 1) {
-      console.log(`📁 Archivo pequeño (${fileSizeMB.toFixed(2)}MB) - Usando importación rápida`)
       return 'http'
     }
     
     // Archivos grandes (≥ 1MB) usan WebSocket
-    console.log(`📁 Archivo grande (${fileSizeMB.toFixed(2)}MB) - Usando WebSocket`)
     return 'websocket'
   }, [])
 
   // Función para importación HTTP (archivos pequeños)
   const importarHTTP = useCallback(async (file: File, tipo: string, opciones?: ImportacionOpciones) => {
-    console.log('⚡ Usando importación HTTP rápida')
     
     const formData = new FormData()
     formData.append('archivo', file)
@@ -288,7 +285,8 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
     if (result.success === false) {
       const errorMessage = result.message || result.error || 'Error en importación rápida'
       console.error('Importación falló:', errorMessage)
-      throw new Error(errorMessage)
+      // NO lanzar excepción, retornar el resultado para que el modal maneje los errores
+      return result
     }
 
     // Validar que la respuesta tenga la estructura esperada
@@ -308,31 +306,7 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
       }
     }
 
-    // Log de información de detección automática
-    if (result.tipoDetectado && result.tipoUsado) {
-      console.log('🔍 Información de detección automática:', {
-        tipoDetectado: result.tipoDetectado,
-        tipoUsado: result.tipoUsado,
-        confianza: result.confianzaDetectada,
-        mensaje: result.mensajeDeteccion
-      })
-    }
 
-    // Debug: Log detallado del resultado completo
-    console.log('🔍 Resultado completo de importación HTTP:', {
-      success: result.success,
-      hasErrors: result.hasErrors,
-      registrosProcesados: result.registrosProcesados,
-      registrosExitosos: result.registrosExitosos,
-      registrosConError: result.registrosConError,
-      errores: result.errores,
-      errorCount: result.errorCount,
-      message: result.message,
-      mensaje: result.mensaje,
-      data: result.data
-    })
-
-    console.log('✅ Importación HTTP completada:', result)
     return result
   }, [])
 
@@ -427,13 +401,13 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
       const modo = determinarModo(file)
       setState(prev => ({ ...prev, modo }))
 
-      console.log(`🚀 Iniciando importación - Modo: ${modo}, Archivo: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`)
+      // Iniciando importación
 
       let result: ImportacionResultado
 
       if (modo === 'http') {
         // Importación HTTP (con progreso simulado)
-        console.log('⚡ Usando importación HTTP rápida')
+        // Usando importación HTTP rápida
         
         // Crear trabajo simulado para mostrar progreso
         const trabajoSimulado = {
@@ -512,18 +486,8 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         setState(prev => ({
           ...prev,
           isImporting: false,
-          success: fueExitosa ? 'Importación completada exitosamente' : null,
-          error: tieneErrores ? (result.mensaje || result.message || 'Importación completada con errores') : null,
-          currentTrabajo: prev.currentTrabajo ? {
-            ...prev.currentTrabajo,
-            estado: fueExitosa ? 'completado' : 'error',
-            progreso: 100,
-            registrosProcesados: registrosProcesados,
-            registrosExitosos: registrosExitosos,
-            registrosConError: registrosConError,
-            totalRegistros: registrosProcesados,
-            errores: Array.isArray(errores) ? errores : []
-          } : null
+          // NO establecer success ni error aquí para que el modal maneje la UI
+          currentTrabajo: null // Limpiar el trabajo actual para que el modal pueda mostrar el resultado
         }))
         
         // Asegurar que el resultado tenga todos los datos necesarios
@@ -537,17 +501,21 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         
         // Limpiar estado del WebSocket para archivos HTTP
         disconnectWebSocket()
+        
+        // Retornar el resultado incluso si hay errores
+        return result
       } else {
         // Importación WebSocket (con seguimiento)
-        console.log('🔌 Usando importación WebSocket con seguimiento')
+        // Usando importación WebSocket con seguimiento
         result = await importarWebSocket(file, tipo, opciones)
         
-        if (result.trabajoId) {
+        const trabajoId = (result as unknown as Record<string, unknown>).trabajoId as string
+        if (result && typeof result === 'object' && 'trabajoId' in result && trabajoId) {
           // Iniciar seguimiento del trabajo
                   setState(prev => ({
           ...prev,
           currentTrabajo: {
-            id: result.trabajoId || `websocket-${Date.now()}`,
+            id: trabajoId || `websocket-${Date.now()}`,
             estado: 'pendiente',
             progreso: 0,
             registrosProcesados: 0,
@@ -567,7 +535,7 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         }))
           
           // Iniciar polling como respaldo
-          startPolling(result.trabajoId)
+          startPolling(trabajoId)
         }
       }
 

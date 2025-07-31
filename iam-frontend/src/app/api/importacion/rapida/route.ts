@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
         registrosConError: data.data?.registrosConError || 0,
         errores: data.data?.errores || [],
         correcciones: data.data?.correcciones || [],
+        registrosExitososDetalle: data.data?.registrosExitososDetalle || [], // Nueva propiedad
         resumen: data.data?.resumen || {},
         archivoErrores: data.data?.archivoErrores || null,
         tiempoProcesamiento: data.data?.tiempoProcesamiento || 0
@@ -130,10 +131,10 @@ export async function POST(request: NextRequest) {
       errorFile: data.data?.archivoErrores || null,
       
       // Información de detección automática
-      tipoDetectado: data.tipoDetectado,
-      tipoUsado: data.tipoUsado,
-      confianzaDetectada: data.confianzaDetectada,
-      mensajeDeteccion: data.mensajeDeteccion,
+      tipoDetectado: data.tipoDetectado || null,
+      tipoUsado: data.tipoUsado || tipo,
+      confianzaDetectada: data.confianzaDetectada || 0,
+      mensajeDeteccion: data.mensajeDeteccion || '',
       
       // Campos adicionales para compatibilidad
       registrosProcesados: data.data?.registrosProcesados || 0,
@@ -141,6 +142,7 @@ export async function POST(request: NextRequest) {
       registrosConError: data.data?.registrosConError || 0,
       errores: data.data?.errores || [],
       correcciones: data.data?.correcciones || [],
+      registrosExitososDetalle: data.data?.registrosExitososDetalle || [], // Nueva propiedad
       resumen: data.data?.resumen || {},
       archivoErrores: data.data?.archivoErrores || null
     })

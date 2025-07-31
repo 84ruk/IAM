@@ -1,0 +1,3 @@
+tipo,productoid,cantidad,descripcion,empresaid,fecha,createdat
+SALIDA,1,10,Salida por venta,14,2025-07-31 15:00:00,2025-07-31 15:00:00
+ENTRADA,2,5,Entrada por compra,14,2025-07-31 15:30:00,2025-07-31 15:30:00

@@ -1,5 +1,5 @@
 import { Card, CardContent } from "./Card";
-import Skeleton from "./Skeleton";
+import { Skeleton } from "./Skeleton";
 
 
 export function CardSkeleton({ lines = 2 }: { lines?: number }) {

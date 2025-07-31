@@ -6,6 +6,8 @@ import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import ImportacionProgress from './ImportacionProgress'
 import ImportacionErrorDetails from './ImportacionErrorDetails'
+import ImportacionSuccessDetails from './ImportacionSuccessDetails'
+import ImportacionStats from './ImportacionStats'
 import { 
   Upload, 
   FileText, 
@@ -205,19 +207,15 @@ export default function SmartImportModal({
     }
 
     try {
-      const result = await importar(selectedFile, 'productos', opciones) // Hardcodeado a 'productos'
+      // Usar detección automática en lugar de hardcodear 'productos'
+      const result = await importar(selectedFile, 'auto', opciones)
       
-      // Debug: Log del resultado completo
-      console.log('🔍 Resultado de importación:', result)
-      console.log('🔍 Errores recibidos:', result.errores)
-      console.log('🔍 Tipo de errores:', typeof result.errores, Array.isArray(result.errores))
-      
-      // Siempre establecer el resultado y cambiar al step 'result'
+      // Establecer el resultado y cambiar al step 'result'
       setImportacionResult(result)
       setCurrentStep('result')
       
       // Verificar si la importación fue exitosa basándose en los registros procesados
-      if (result.registrosProcesados > 0 && result.registrosExitosos > 0) {
+      if (result?.registrosProcesados > 0 && result?.registrosExitosos > 0) {
         onSuccess?.(result)
         
         // Mostrar información de detección automática si está disponible
@@ -229,15 +227,8 @@ export default function SmartImportModal({
           })
         }
       } else {
-        const errorMessage = result.mensaje || result.message || 'Error desconocido durante la importación'
+        const errorMessage = result?.mensaje || result?.message || 'Error desconocido durante la importación'
         onError?.(errorMessage)
-        
-        // Solo mostrar toast para errores críticos
-        addToast({
-          type: 'error',
-          title: 'Error de importación',
-          message: errorMessage
-        })
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error inesperado'
@@ -490,7 +481,7 @@ export default function SmartImportModal({
                 onCancel={cancelarTrabajo}
                 onDownloadReport={(trabajoId) => {
                   // Implementar descarga de reporte
-                  console.log('Descargar reporte:', trabajoId)
+                  // Descargar reporte
                 }}
               />
             </div>
@@ -499,56 +490,73 @@ export default function SmartImportModal({
           {/* Notificación de errores de importación - solo mostrar en step result */}
           {currentStep === 'result' && importacionResult && (
             <div className="space-y-4">
-              {/* Debug: Mostrar información cruda del resultado */}
-              <div className="bg-gray-50 p-4 rounded-lg border">
-                <h4 className="font-medium text-gray-900 mb-2">Debug Info:</h4>
-                <pre className="text-xs text-gray-600 overflow-auto">
-                  {JSON.stringify({
-                    hasErrors: importacionResult.hasErrors,
-                    registrosConError: importacionResult.registrosConError,
-                    errores: importacionResult.errores,
-                    errorCount: importacionResult.errorCount,
-                    message: importacionResult.message,
-                    mensaje: importacionResult.mensaje
-                  }, null, 2)}
-                </pre>
-              </div>
+
+
+
 
               {/* Mostrar errores detallados si existen */}
-              {Array.isArray(importacionResult.errores) && importacionResult.errores.length > 0 && (
-                <ImportacionErrorDetails
-                  errores={importacionResult.errores as ErrorImportacion[]}
-                  onClose={() => setCurrentStep('upload')}
-                  onRetry={() => {
-                    setCurrentStep('upload')
-                    setImportacionResult(null)
-                  }}
-                  onDownloadReport={() => {
-                    if (importacionResult.errorFile) {
-                      console.log('Descargar archivo de errores:', String(importacionResult.errorFile))
-                    }
-                  }}
-                />
+              {((Array.isArray(importacionResult.errores) && importacionResult.errores.length > 0) || 
+                (importacionResult.registrosConError > 0) || 
+                (importacionResult.hasErrors)) && (
+                <>
+                  <ImportacionErrorDetails
+                    errores={Array.isArray(importacionResult.errores) ? importacionResult.errores as ErrorImportacion[] : []}
+                    onClose={() => setCurrentStep('upload')}
+                    onRetry={() => {
+                      setCurrentStep('upload')
+                      setImportacionResult(null)
+                    }}
+                    onDownloadReport={() => {
+                      if (importacionResult.errorFile) {
+                        // Descargar archivo de errores
+                      }
+                    }}
+                  />
+                </>
               )}
 
-              {/* Mostrar éxito si no hay errores */}
-              {(!importacionResult.errores || importacionResult.errores.length === 0) && importacionResult.registrosExitosos > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-green-800">
-                        Importación Exitosa
-                      </h3>
-                      <p className="text-sm text-green-600">
-                        Se importaron {importacionResult.registrosExitosos} registros correctamente
-                      </p>
+              {/* Mostrar éxito solo si hay registros exitosos Y no hay errores críticos */}
+              {importacionResult.registrosExitosos > 0 && (
+                <div className="space-y-4">
+                  {/* Estadísticas resumidas */}
+                  <ImportacionStats resultado={importacionResult} />
+                  
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-green-800">
+                          Importación Exitosa
+                        </h3>
+                        <p className="text-sm text-green-600">
+                          Se importaron {importacionResult.registrosExitosos} registros correctamente
+                          {importacionResult.registrosConError > 0 && (
+                            <span className="text-yellow-600">
+                              {' '}({importacionResult.registrosConError} con errores)
+                            </span>
+                          )}
+                        </p>
+                        {importacionResult.tipoDetectado && importacionResult.tipoUsado && (
+                          <p className="text-xs text-green-500 mt-1">
+                            Tipo detectado: {importacionResult.tipoDetectado} → Usado: {importacionResult.tipoUsado}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Mostrar detalles de registros exitosos */}
+                  {importacionResult.registrosExitososDetalle && importacionResult.registrosExitososDetalle.length > 0 && (
+                    <ImportacionSuccessDetails
+                      registrosExitosos={importacionResult.registrosExitososDetalle}
+                    />
+                  )}
                 </div>
               )}
+
+
             </div>
           )}
 
@@ -637,7 +645,7 @@ export default function SmartImportModal({
           onDownloadReport={() => {
             if (importacionResult.errorFile) {
               // Implementar descarga del archivo de errores
-              console.log('Descargar archivo de errores:', String(importacionResult.errorFile))
+                                    // Descargar archivo de errores
             }
           }}
         />

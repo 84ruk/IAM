@@ -1,4 +1,4 @@
-export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos'
+export type TipoImportacion = 'productos' | 'proveedores' | 'movimientos' | 'auto'
 
 export interface ErrorImportacion {
   fila: number
@@ -32,6 +32,12 @@ export interface ImportacionTrabajo {
   errores: unknown[]
   opciones: ImportacionOpciones
   modo?: 'http' | 'websocket'
+  
+  // Información de detección automática
+  tipoDetectado?: string | null
+  tipoUsado?: string
+  confianzaDetectada?: number
+  mensajeDeteccion?: string
 }
 
 export interface ImportacionOpciones {
@@ -52,44 +58,51 @@ export interface CorreccionImportacion {
   datosOriginales?: unknown
 }
 
+// Nueva interfaz para registrar detalles de registros exitosos
+export interface RegistroExitoso {
+  fila: number
+  tipo: string
+  datos: Record<string, unknown>
+  identificador: string // nombre, código, etc.
+  correccionesAplicadas?: CorreccionImportacion[]
+  timestamp: Date
+}
+
 export interface ImportacionResultado {
-  trabajoId?: string
+  success?: boolean
+  hasErrors?: boolean
   registrosProcesados: number
   registrosExitosos: number
   registrosConError: number
-  mensaje?: string
-  message?: string
-  errores?: unknown[]
+  errores: ErrorImportacion[]
   correcciones?: CorreccionImportacion[]
-  hasErrors?: boolean
+  registrosExitososDetalle?: RegistroExitoso[] // Nueva propiedad para detalles
+  resumen?: Record<string, unknown>
+  archivoErrores?: string | null
+  errorFile?: string | null
+  message?: string
+  mensaje?: string
   errorCount?: number
   successCount?: number
-  errorFile?: string
-  processingTime?: number
-  modo?: 'http' | 'websocket'
-  usuarioId?: number
-  empresaId?: number
-  data?: {
-    correcciones?: CorreccionImportacion[]
-    [key: string]: unknown
-  }
-  // Propiedades para detección automática de tipo
-  tipoDetectado?: string
+  
+  // Información de detección automática
+  tipoDetectado?: string | null
   tipoUsado?: string
   confianzaDetectada?: number
   mensajeDeteccion?: string
-  // Propiedades para confirmación de tipo (legacy)
-  necesitaConfirmacion?: boolean
-  tipoSeleccionado?: string
-  archivoTemporal?: string
-  opcionesDisponibles?: Array<{
-    tipo: string
-    nombre: string
-    descripcion: string
-    columnasRequeridas: string[]
-    columnasOpcionales: string[]
-    ejemplos: string[]
-  }>
+  
+  // Campos adicionales para compatibilidad
+  data?: {
+    registrosProcesados: number
+    registrosExitosos: number
+    registrosConError: number
+    errores: ErrorImportacion[]
+    correcciones?: CorreccionImportacion[]
+    registrosExitososDetalle?: RegistroExitoso[] // Nueva propiedad para detalles
+    resumen?: Record<string, unknown>
+    archivoErrores?: string | null
+    tiempoProcesamiento?: number
+  }
 }
 
 export interface ImportacionEstado {

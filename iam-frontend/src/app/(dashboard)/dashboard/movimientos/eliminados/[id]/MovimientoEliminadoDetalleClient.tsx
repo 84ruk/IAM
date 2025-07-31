@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { FormErrorAlert } from '@/components/ui/FormErrorAlert';
 import VolverAtras from '@/components/ui/VolverAtras';
 import { Movimiento } from '@/types/movimiento';

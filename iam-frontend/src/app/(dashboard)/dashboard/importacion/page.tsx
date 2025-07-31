@@ -5,11 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
-import ErrorBoundary from '@/components/ui/ErrorBoundary'
-import Skeleton from '@/components/ui/Skeleton'
-import ServerAwareLoader from '@/components/ui/ServerAwareLoader'
-import { useServerActions } from '@/context/ServerStatusContext'
-import ServerStatusDebug from '@/components/debug/ServerStatusDebug'
 import { 
   Upload,
   Download,
@@ -87,9 +82,6 @@ export default function ImportacionPage() {
     isConnected,
     trabajos
   } = state
-
-  // Estado del servidor
-  const { checkServerStatus, warmUpServer } = useServerActions()
 
   // Generar logs de ejemplo
   useEffect(() => {
@@ -217,44 +209,31 @@ export default function ImportacionPage() {
 
   const handleImportSuccess = (result: ImportacionResultado) => {
     // Aquí puedes agregar lógica adicional después de una importación exitosa
-    console.log('Importación exitosa:', result)
-  }
-
-  const handleRetryConnection = () => {
-    checkServerStatus()
-  }
-
-  const handleWarmUpServer = () => {
-    warmUpServer()
+            // Importación exitosa
   }
 
   return (
-    <ServerAwareLoader
-      showServerStatus={true}
-      onRetry={handleRetryConnection}
-      onWarmUp={handleWarmUpServer}
-    >
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Importación Inteligente</h1>
-            <p className="text-gray-600 mt-1">
-              Sistema que detecta automáticamente el mejor método de importación
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleAdvancedModeToggle}
-              variant={showAdvancedMode ? "default" : "outline"}
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Zap className="w-4 h-4" />
-              {showAdvancedMode ? 'Modo Avanzado' : 'Modo Simple'}
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Importación Inteligente</h1>
+          <p className="text-gray-600 mt-1">
+            Sistema que detecta automáticamente el mejor método de importación
+          </p>
         </div>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleAdvancedModeToggle}
+            variant={showAdvancedMode ? "default" : "outline"}
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Zap className="w-4 h-4" />
+            {showAdvancedMode ? 'Modo Avanzado' : 'Modo Simple'}
+          </Button>
+        </div>
+      </div>
 
       {/* Tabs principales */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -285,9 +264,7 @@ export default function ImportacionPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Importaciones</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {trabajos ? trabajos.length : <Skeleton className="h-8 w-12" />}
-                    </p>
+                    <p className="text-2xl font-bold text-gray-900">{trabajos.length}</p>
                   </div>
                   <Database className="w-8 h-8 text-blue-500" />
                 </div>
@@ -300,7 +277,7 @@ export default function ImportacionPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Exitosas</p>
                     <p className="text-2xl font-bold text-green-600">
-                      {trabajos ? trabajos.filter(t => t.estado === 'completado').length : <Skeleton className="h-8 w-12" />}
+                      {trabajos.filter(t => t.estado === 'completado').length}
                     </p>
                   </div>
                   <CheckCircle className="w-8 h-8 text-green-500" />
@@ -314,7 +291,7 @@ export default function ImportacionPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">En Progreso</p>
                     <p className="text-2xl font-bold text-blue-600">
-                      {trabajos ? trabajos.filter(t => t.estado === 'procesando').length : <Skeleton className="h-8 w-12" />}
+                      {trabajos.filter(t => t.estado === 'procesando').length}
                     </p>
                   </div>
                   <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
@@ -328,7 +305,7 @@ export default function ImportacionPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Con Errores</p>
                     <p className="text-2xl font-bold text-red-600">
-                      {trabajos ? trabajos.filter(t => t.estado === 'error').length : <Skeleton className="h-8 w-12" />}
+                      {trabajos.filter(t => t.estado === 'error').length}
                     </p>
                   </div>
                   <XCircle className="w-8 h-8 text-red-500" />
@@ -339,26 +316,56 @@ export default function ImportacionPage() {
 
           {/* Mostrar progreso de importación activa */}
           {currentTrabajo && (
-            <ErrorBoundary>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Importación en Progreso
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ImportacionProgress
-                    trabajo={currentTrabajo}
-                    onCancel={cancelarTrabajo}
-                    onDownloadReport={(trabajoId) => {
-                      // Implementar descarga de reporte
-                      console.log('Descargar reporte:', trabajoId)
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            </ErrorBoundary>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Importación en Progreso
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ImportacionProgress
+                  trabajo={currentTrabajo}
+                  onCancel={cancelarTrabajo}
+                  onDownloadReport={(trabajoId) => {
+                    // Implementar descarga de reporte
+                    // Descargar reporte
+                  }}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Información de detección automática si está disponible */}
+          {currentTrabajo && currentTrabajo.tipoDetectado && currentTrabajo.tipoUsado && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="w-5 h-5" />
+                  Detección Automática
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Tipo detectado:</span>
+                    <Badge variant="outline">{currentTrabajo.tipoDetectado}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Tipo usado:</span>
+                    <Badge variant="default">{currentTrabajo.tipoUsado}</Badge>
+                  </div>
+                  {currentTrabajo.confianzaDetectada && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Confianza:</span>
+                      <Badge variant={currentTrabajo.confianzaDetectada >= 70 ? "default" : "secondary"}>
+                        {currentTrabajo.confianzaDetectada}%
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
@@ -440,54 +447,41 @@ export default function ImportacionPage() {
           </div>
 
           {/* Trabajos Recientes */}
-          <ErrorBoundary>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <History className="w-5 h-5" />
-                  Trabajos Recientes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {trabajos ? (
-                    trabajos.slice(0, 5).map((trabajo) => (
-                      <div key={trabajo.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-2">
-                            {trabajo.tipo === 'productos' && <Package className="w-4 h-4 text-blue-500" />}
-                            {trabajo.tipo === 'proveedores' && <ShoppingCart className="w-4 h-4 text-orange-500" />}
-                            {trabajo.tipo === 'movimientos' && <Activity className="w-4 h-4 text-purple-500" />}
-                            <span className="font-medium capitalize">{trabajo.tipo}</span>
-                          </div>
-                          <Badge variant={trabajo.estado === 'completado' ? 'default' : 'secondary'}>
-                            {trabajo.estado}
-                          </Badge>
-                          {trabajo.modo && (
-                            <Badge variant="outline" className="text-xs">
-                              {trabajo.modo}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {format(new Date(trabajo.fechaCreacion), 'dd/MM/yyyy HH:mm')}
-                        </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Trabajos Recientes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {trabajos.slice(0, 5).map((trabajo) => (
+                  <div key={trabajo.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        {trabajo.tipo === 'productos' && <Package className="w-4 h-4 text-blue-500" />}
+                        {trabajo.tipo === 'proveedores' && <ShoppingCart className="w-4 h-4 text-orange-500" />}
+                        {trabajo.tipo === 'movimientos' && <Activity className="w-4 h-4 text-purple-500" />}
+                        <span className="font-medium capitalize">{trabajo.tipo}</span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="space-y-3">
-                      {Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-4 w-20" />
-                        </div>
-                      ))}
+                      <Badge variant={trabajo.estado === 'completado' ? 'default' : 'secondary'}>
+                        {trabajo.estado}
+                      </Badge>
+                      {trabajo.modo && (
+                        <Badge variant="outline" className="text-xs">
+                          {trabajo.modo}
+                        </Badge>
+                      )}
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </ErrorBoundary>
+                    <div className="text-sm text-gray-500">
+                      {format(new Date(trabajo.fechaCreacion), 'dd/MM/yyyy HH:mm')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Tab: Plantillas */}
@@ -504,62 +498,50 @@ export default function ImportacionPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {smartTemplates.length > 0 ? (
-              smartTemplates.map((template) => (
-                <ErrorBoundary key={template.id}>
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">{template.name}</CardTitle>
-                        <Badge variant={template.autoGenerated ? 'default' : 'secondary'}>
-                          {template.autoGenerated ? 'Auto' : 'Manual'}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <p className="text-sm text-gray-600">{template.description}</p>
-                      
-                      <div className="flex items-center gap-2 text-sm">
-                        <Target className="w-4 h-4 text-blue-500" />
-                        <span className="capitalize">{template.tipo}</span>
-                      </div>
+            {smartTemplates.map((template) => (
+              <Card key={template.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{template.name}</CardTitle>
+                    <Badge variant={template.autoGenerated ? 'default' : 'secondary'}>
+                      {template.autoGenerated ? 'Auto' : 'Manual'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-gray-600">{template.description}</p>
+                  
+                  <div className="flex items-center gap-2 text-sm">
+                    <Target className="w-4 h-4 text-blue-500" />
+                    <span className="capitalize">{template.tipo}</span>
+                  </div>
 
-                      <div className="flex items-center gap-2 text-sm">
-                        <TrendingUp className="w-4 h-4 text-green-500" />
-                        <span>{template.successRate}% éxito</span>
-                      </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <TrendingUp className="w-4 h-4 text-green-500" />
+                    <span>{template.successRate}% éxito</span>
+                  </div>
 
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 text-gray-500" />
-                        <span>
-                          {template.lastUsed 
-                            ? format(template.lastUsed, 'dd/MM/yyyy')
-                            : 'Nunca usado'
-                          }
-                        </span>
-                      </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    <span>
+                      {template.lastUsed 
+                        ? format(template.lastUsed, 'dd/MM/yyyy')
+                        : 'Nunca usado'
+                      }
+                    </span>
+                  </div>
 
-                      <Button
-                        onClick={() => handleTemplateSelect()}
-                        className="w-full"
-                        size="sm"
-                      >
-                        <Play className="w-4 h-4 mr-2" />
-                        Usar Plantilla
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </ErrorBoundary>
-              ))
-            ) : (
-              <div className="col-span-full">
-                <div className="text-center py-8">
-                  <Skeleton className="h-32 w-full max-w-md mx-auto" />
-                  <Skeleton className="h-4 w-48 mx-auto mt-4" />
-                  <Skeleton className="h-4 w-32 mx-auto mt-2" />
-                </div>
-              </div>
-            )}
+                  <Button
+                    onClick={() => handleTemplateSelect()}
+                    className="w-full"
+                    size="sm"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Usar Plantilla
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </TabsContent>
 
@@ -599,43 +581,34 @@ export default function ImportacionPage() {
             </div>
           </div>
 
-          <ErrorBoundary>
-            <Card>
-              <CardContent className="p-0">
-                <div className="max-h-96 overflow-y-auto">
-                  {filteredLogs.length > 0 ? (
-                    filteredLogs.map((log) => (
-                      <div key={log.id} className="p-4 border-b border-gray-100 hover:bg-gray-50">
-                        <div className="flex items-start gap-3">
-                          <div className={`p-1 rounded ${getLogLevelColor(log.level)}`}>
-                            {getLogLevelIcon(log.level)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-medium text-gray-900">{log.message}</p>
-                              <span className="text-xs text-gray-500">
-                                {format(log.timestamp, 'HH:mm:ss')}
-                              </span>
-                            </div>
-                            {log.details ? (
-                              <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                                <pre className="whitespace-pre-wrap">{String(JSON.stringify(log.details as Record<string, unknown>, null, 2))}</pre>
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="max-h-96 overflow-y-auto">
+                {filteredLogs.map((log) => (
+                  <div key={log.id} className="p-4 border-b border-gray-100 hover:bg-gray-50">
+                    <div className="flex items-start gap-3">
+                      <div className={`p-1 rounded ${getLogLevelColor(log.level)}`}>
+                        {getLogLevelIcon(log.level)}
                       </div>
-                    ))
-                  ) : (
-                    <div className="p-8 text-center">
-                      <Skeleton className="h-4 w-48 mx-auto mb-2" />
-                      <Skeleton className="h-4 w-32 mx-auto" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-gray-900">{log.message}</p>
+                          <span className="text-xs text-gray-500">
+                            {format(log.timestamp, 'HH:mm:ss')}
+                          </span>
+                        </div>
+                        {log.details ? (
+                          <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                            <pre className="whitespace-pre-wrap">{String(JSON.stringify(log.details as Record<string, unknown>, null, 2))}</pre>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </ErrorBoundary>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
@@ -645,10 +618,6 @@ export default function ImportacionPage() {
         onClose={() => setShowSmartModal(false)}
         onSuccess={handleImportSuccess}
       />
-
-      {/* Debug del estado del servidor - TEMPORAL */}
-      <ServerStatusDebug />
     </div>
-    </ServerAwareLoader>
   )
 } 

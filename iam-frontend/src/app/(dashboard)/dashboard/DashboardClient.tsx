@@ -4,7 +4,6 @@ import useSWR from 'swr'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from '@/components/ui/RechartsWrapper'
 import { useMemo, useState, useCallback, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/Card'
-import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { useAutoRefresh } from '@/lib/useAutoRefresh'
 import { useOptimizedKPIs } from '@/hooks/useKPIs'
 import DashboardRequestOptimizer from '@/components/dashboard/DashboardRequestOptimizer'
@@ -435,62 +434,52 @@ export default function DashboardClient() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <ErrorBoundary>
-            <KPICard
-              title="Total Productos"
-              value={advancedKpis?.totalProductos || kpisAdicionales.totalProductos || 0}
-              icon={Package}
-              iconColor="text-blue-600"
-              isLoading={kpisLoading || isLoading}
-              error={!!kpisError || !!error}
-            />
-          </ErrorBoundary>
+          <KPICard
+            title="Total Productos"
+            value={advancedKpis?.totalProductos || kpisAdicionales.totalProductos || 0}
+            icon={Package}
+            iconColor="text-blue-600"
+            isLoading={kpisLoading || isLoading}
+            error={!!kpisError || !!error}
+          />
 
-          <ErrorBoundary>
-            <KPICard
-              title="Stock Crítico"
-              value={advancedKpis?.productosStockBajo || kpisAdicionales.productosCriticos || 0}
-              icon={AlertTriangle}
-              iconColor="text-red-600"
-              valueColor="text-red-600"
-              isLoading={kpisLoading || isLoading}
-              error={!!kpisError || !!error}
-            />
-          </ErrorBoundary>
+          <KPICard
+            title="Stock Crítico"
+            value={advancedKpis?.productosStockBajo || kpisAdicionales.productosCriticos || 0}
+            icon={AlertTriangle}
+            iconColor="text-red-600"
+            valueColor="text-red-600"
+            isLoading={kpisLoading || isLoading}
+            error={!!kpisError || !!error}
+          />
 
-          <ErrorBoundary>
-            <KPICard
-              title="Valor Inventario"
-              value={formatCurrency(advancedKpis?.valorTotalInventario || kpisAdicionales.valorInventario || 0)}
-              icon={DollarSign}
-              iconColor="text-green-600"
-              isLoading={kpisLoading || isLoading}
-              error={!!kpisError || !!error}
-            />
-          </ErrorBoundary>
+          <KPICard
+            title="Valor Inventario"
+            value={formatCurrency(advancedKpis?.valorTotalInventario || kpisAdicionales.valorInventario || 0)}
+            icon={DollarSign}
+            iconColor="text-green-600"
+            isLoading={kpisLoading || isLoading}
+            error={!!kpisError || !!error}
+          />
 
-          <ErrorBoundary>
-            <KPICard
-              title="Ventas del Mes"
-              value={formatCurrency(advancedKpis?.movimientosUltimoMes || kpisAdicionales.valorVentas || 0)}
-              icon={TrendingUp}
-              iconColor="text-blue-600"
-              isLoading={kpisLoading || isLoading}
-              error={!!kpisError || !!error}
-            />
-          </ErrorBoundary>
+          <KPICard
+            title="Ventas del Mes"
+            value={formatCurrency(advancedKpis?.movimientosUltimoMes || kpisAdicionales.valorVentas || 0)}
+            icon={TrendingUp}
+            iconColor="text-blue-600"
+            isLoading={kpisLoading || isLoading}
+            error={!!kpisError || !!error}
+          />
         </div>
 
         <div className="mb-8">
-          <ErrorBoundary>
-            <DailyMovementsChart 
-              initialDays={7}
-              showControls={true}
-              showSummary={true}
-              chartType="combined"
-              height={350}
-            />
-          </ErrorBoundary>
+          <DailyMovementsChart 
+            initialDays={7}
+            showControls={true}
+            showSummary={true}
+            chartType="combined"
+            height={350}
+          />
         </div>
 
         <div className="mb-8">
@@ -511,35 +500,31 @@ export default function DashboardClient() {
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <ErrorBoundary>
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Tendencia de 15 Días</h3>
-                  <DailyMovementsChart 
-                    initialDays={15}
-                    showControls={false}
-                    showSummary={false}
-                    chartType="line"
-                    height={250}
-                  />
-                </CardContent>
-              </Card>
-            </ErrorBoundary>
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Tendencia de 15 Días</h3>
+                <DailyMovementsChart 
+                  initialDays={15}
+                  showControls={false}
+                  showSummary={false}
+                  chartType="line"
+                  height={250}
+                />
+              </CardContent>
+            </Card>
 
-            <ErrorBoundary>
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Análisis de 30 Días</h3>
-                  <DailyMovementsChart 
-                    initialDays={30}
-                    showControls={false}
-                    showSummary={false}
-                    chartType="bar"
-                    height={250}
-                  />
-                </CardContent>
-              </Card>
-            </ErrorBoundary>
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Análisis de 30 Días</h3>
+                <DailyMovementsChart 
+                  initialDays={30}
+                  showControls={false}
+                  showSummary={false}
+                  chartType="bar"
+                  height={250}
+                />
+              </CardContent>
+            </Card>
           </div>
         </div>
 
