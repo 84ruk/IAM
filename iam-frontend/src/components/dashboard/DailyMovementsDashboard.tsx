@@ -47,7 +47,7 @@ import {
   Cell,
   ComposedChart
 } from '@/components/ui/RechartsWrapper'
-import { Legend } from '@/components/ui/RechartsWrapper'
+import { Legend } from 'recharts'
 
 
 interface DailyMovementsDashboardProps {

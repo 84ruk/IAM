@@ -1,14 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { AppError } from '@/lib/errorHandler';
+import { Input } from '@/components/ui/Input'
 import Button from '@/components/ui/Button';
-import { useRouter } from 'next/navigation';
-import { Input } from '../ui/Input';
-import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
-import { useFormValidation, validationPatterns } from '@/hooks/useFormValidation';
-import { parseApiError, AppError, ValidationAppError, AuthError, NetworkError } from '@/lib/errorHandler';
-import { useBackendError } from '@/hooks/useBackendError'
-import { BackendErrorHandler } from '@/components/ui/BackendErrorHandler'
 
 
 interface LoginFormData {
@@ -23,191 +19,118 @@ interface FieldErrors {
 }
 
 export default function LoginForm() {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [generalError, setGeneralError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [showSuccess, setShowSuccess] = useState(false);
-  const { error, isRetrying, clearError } = useBackendError()
+  const [data, setData] = useState<LoginFormData>({
+    email: '',
+    password: ''
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [generalError, setGeneralError] = useState('')
+  const [validationErrors, setValidationErrors] = useState<FieldErrors>({})
+  const [showSuccess, setShowSuccess] = useState(false)
 
-  
-  // Configuración de validación
-  const validationRules = {
-    email: {
-      required: true,
-      pattern: validationPatterns.email,
-      sanitize: true,
-    },
-    password: {
-      required: true,
-      minLength: 1, // Mínimo 1 carácter (no mostrar longitud específica por seguridad)
-      sanitize: true,
-    },
-  };
-
-  const {
-    data,
-    errors: validationErrors,
-    updateField,
-    validateForm,
-    clearErrors,
-  } = useFormValidation<LoginFormData>(
-    { email: '', password: '' },
-    validationRules
-  );
-
-  // Limpiar errores cuando cambian los campos
-  useEffect(() => {
-    if (generalError) {
-      setTimeout(() => setGeneralError(''), 5000)
+  const updateField = (field: keyof FieldErrors, value: string) => {
+    setData(prev => ({ ...prev, [field]: value }))
+    // Limpiar error del campo cuando el usuario empiece a escribir
+    if (validationErrors[field]) {
+      setValidationErrors(prev => ({ ...prev, [field]: undefined }))
     }
-  }, [generalError, fieldErrors])
+  }
 
-  // Función para manejar errores específicos del backend
-  const handleBackendError = (error: AppError) => {
-    if (error instanceof ValidationAppError && error.errors) {
-      // Error de validación con errores específicos por campo
-      const newFieldErrors: FieldErrors = {};
-      error.errors.forEach(err => {
-        if (err.field === 'email' || err.field === 'password') {
-          newFieldErrors[err.field as keyof FieldErrors] = err.message;
+  function isValidationAppError(error: unknown): error is { name: string; errors: { field: string; message: string }[] } {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      (error as { name: string }).name === 'ValidationAppError' &&
+      Array.isArray((error as { errors?: unknown }).errors)
+    );
+  }
+
+  const handleBackendError = useCallback((error: AppError) => {
+    console.error('Error de backend:', error)
+    
+    if (isValidationAppError(error)) {
+      const errs = error.errors;
+      const fieldErrors: FieldErrors = {};
+      errs.forEach(e => {
+        if (e.field === 'email' || e.field === 'password') {
+          fieldErrors[e.field] = e.message;
         }
       });
-      setFieldErrors(newFieldErrors);
-      setGeneralError('');
-    } else if (error instanceof AuthError) {
-      // Error de credenciales
-      setGeneralError('Correo electrónico o contraseña incorrectos');
-      setFieldErrors({});
-    } else if (error.statusCode === 404) {
-      // Usuario no encontrado
-      setGeneralError('Usuario no encontrado');
-      setFieldErrors({});
-    } else if (error.statusCode === 400 && error.message.includes('rol')) {
-      // Error de rol
-      setGeneralError('Tu cuenta no tiene los permisos necesarios');
-      setFieldErrors({});
-    } else if (error.message.includes('Google') || error.message.includes('OAuth')) {
-      // Error específico de Google
-      setGeneralError('Error al conectar con Google. Intenta nuevamente');
-      setFieldErrors({});
-    } else if (error instanceof NetworkError) {
-      // Error de red
-      setGeneralError('Error de conexión. Verifica tu conexión a internet');
-      setFieldErrors({});
-    } else if (error.statusCode >= 500) {
-      // Error del servidor
-      setGeneralError('Error del servidor. Intenta nuevamente más tarde');
-      setFieldErrors({});
+      setValidationErrors(fieldErrors)
     } else {
-      // Error genérico
-      setGeneralError(error.message || 'Error inesperado. Intenta nuevamente');
-      setFieldErrors({});
+      setGeneralError(error.message || 'Error inesperado al iniciar sesión')
     }
-  };
+  }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
     
-    // Limpiar errores previos
-    setGeneralError('');
-    setFieldErrors({});
-    clearErrors();
+    if (isLoading) return
 
-    // Validar formulario en frontend
-    if (!validateForm()) {
-      return;
+    // Validar campos
+    const newValidationErrors: FieldErrors = {}
+    
+    if (!data.email) {
+      newValidationErrors.email = 'El correo electrónico es requerido'
+    } else if (!/\S+@\S+\.\S+/.test(data.email)) {
+      newValidationErrors.email = 'El correo electrónico no es válido'
+    }
+    
+    if (!data.password) {
+      newValidationErrors.password = 'La contraseña es requerida'
+    } else if (data.password.length < 6) {
+      newValidationErrors.password = 'La contraseña debe tener al menos 6 caracteres'
     }
 
-    setIsLoading(true);
+    setValidationErrors(newValidationErrors)
+
+    if (Object.keys(newValidationErrors).length > 0) {
+      return
+    }
+
+    setIsLoading(true)
+    setGeneralError('')
 
     try {
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
-      const res = await fetch(url, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         credentials: 'include',
-        body: JSON.stringify({ 
-          email: data.email.trim(), 
-          password: data.password 
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
         }),
-      });
+      })
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        const parsedError = parseApiError(res, errorData);
-        handleBackendError(parsedError);
-        return;
-      }
+      const result = await response.json()
 
-      // Login exitoso - verificar si necesita setup
-      setShowSuccess(true);
-      
-      // Verificar si necesita setup después del login
-      try {
-        const setupCheckResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/needs-setup`, {
-          credentials: 'include',
-        });
-        
-        if (setupCheckResponse.ok) {
-          const setupData = await setupCheckResponse.json();
-          
-          if (setupData.needsSetup) {
-            // Si necesita setup, redirigir a la página de setup
-            setTimeout(() => {
-              router.push('/setup-empresa');
-            }, 1000);
-          } else {
-            // Si no necesita setup, ir al dashboard
-            setTimeout(() => {
-              router.push('/dashboard');
-            }, 1000);
-          }
-        } else {
-          // Si hay error en la verificación, ir al dashboard por defecto
-          setTimeout(() => {
-            router.push('/dashboard');
-          }, 1000);
-        }
-      } catch (error) {
-        console.error('Error verificando setup:', error);
-        // En caso de error, ir al dashboard por defecto
+      if (response.ok) {
+        setShowSuccess(true)
+        // Redirigir después de un breve delay
         setTimeout(() => {
-          router.push('/dashboard');
-        }, 1000);
-      }
-
-    } catch (err: unknown) {
-      console.error('Error en login:', err)
-      if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
-        setGeneralError(err.message)
+          window.location.href = '/dashboard'
+        }, 1500)
       } else {
-        setGeneralError('Error inesperado al iniciar sesión')
+        handleBackendError(result)
       }
+    } catch (error) {
+      console.error('Error en login:', error)
+      setGeneralError('Error de conexión. Verifica tu conexión a internet.')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }, [data.email, data.password, isLoading, handleBackendError])
 
   const handleGoogleLogin = () => {
-    setGeneralError('');
-    setFieldErrors({});
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
-  };
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`
+  }
 
-  // Determinar errores finales combinando validación frontend y errores del backend
   const getFieldError = (field: keyof FieldErrors) => {
-    return fieldErrors[field] || validationErrors[field] || '';
-  };
-
-  const handleRetry = useCallback(() => {
-    // Reintentar la operación de login
-    if (data.email && data.password) {
-      // Simular el envío del formulario
-      const formEvent = new Event('submit') as unknown as React.FormEvent
-      handleSubmit(formEvent)
-    }
-  }, [data.email, data.password])
+    return validationErrors[field] || ''
+  }
 
   if (isLoading && !showSuccess) {
     return (
@@ -233,12 +156,7 @@ export default function LoginForm() {
   }
 
   return (
-    <BackendErrorHandler
-      error={error}
-      isRetrying={isRetrying}
-      onRetry={handleRetry}
-      onClear={clearError}
-    >
+    <div className="form-container">
       <form onSubmit={handleSubmit} className="form-container">
         <h1 className="text-2xl font-bold text-center mb-6 text-gray-800">Iniciar sesión</h1>
         
@@ -343,7 +261,7 @@ export default function LoginForm() {
           </a>
         </div>
       </form>
-    </BackendErrorHandler>
+    </div>
   );
 }
 

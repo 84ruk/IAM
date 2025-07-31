@@ -1,6 +1,11 @@
 import { useState, useCallback } from 'react'
 import { apiClient } from '@/lib/api/apiClient'
 import { useServerState } from '@/context/ServerStatusContext'
+import { AxiosRequestConfig } from 'axios'
+
+interface ErrorWithCode extends Error {
+  code?: string
+}
 
 interface UseApiWithRetryOptions {
   maxRetries?: number
@@ -58,7 +63,7 @@ export function useApiWithRetry<T = unknown>(options: UseApiWithRetryOptions = {
       const err = error as Error
       
       // Si el servidor está en cold start, usar delays más largos
-      const isColdStart = status === 'cold-start' || err.code === 'COLD_START'
+      const isColdStart = status === 'cold-start' || (err as ErrorWithCode).code === 'COLD_START'
       const currentRetryDelay = isColdStart ? retryDelay * 2 : retryDelay
       
       if (enableRetry && retryCount < maxRetries) {
@@ -109,7 +114,7 @@ export function useGetWithRetry<T = unknown>(
 ) {
   const { executeRequest, ...state } = useApiWithRetry<T>(options)
 
-  const get = useCallback(async (config?: any) => {
+  const get = useCallback(async (config?: AxiosRequestConfig) => {
     return executeRequest(() => apiClient.get<T>(url, config))
   }, [executeRequest, url])
 
@@ -126,7 +131,7 @@ export function usePostWithRetry<T = unknown>(
 ) {
   const { executeRequest, ...state } = useApiWithRetry<T>(options)
 
-  const post = useCallback(async (data?: unknown, config?: any) => {
+  const post = useCallback(async (data?: unknown, config?: AxiosRequestConfig) => {
     return executeRequest(() => apiClient.post<T>(url, data, config))
   }, [executeRequest, url])
 

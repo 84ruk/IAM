@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import Skeleton from '@/components/ui/Skeleton'
 import ServerAwareLoader from '@/components/ui/ServerAwareLoader'
-import { useServerState, useServerActions } from '@/context/ServerStatusContext'
+import { useServerActions } from '@/context/ServerStatusContext'
 import ServerStatusDebug from '@/components/debug/ServerStatusDebug'
 import { 
   Upload,
@@ -89,7 +89,6 @@ export default function ImportacionPage() {
   } = state
 
   // Estado del servidor
-  const { status, responseTime, retryCount, isWarmingUp } = useServerState()
   const { checkServerStatus, warmUpServer } = useServerActions()
 
   // Generar logs de ejemplo

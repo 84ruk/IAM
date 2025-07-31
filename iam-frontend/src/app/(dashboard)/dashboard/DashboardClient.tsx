@@ -5,7 +5,6 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, 
 import { useMemo, useState, useCallback, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/Card'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
-import Skeleton from '@/components/ui/Skeleton'
 import { useAutoRefresh } from '@/lib/useAutoRefresh'
 import { useOptimizedKPIs } from '@/hooks/useKPIs'
 import DashboardRequestOptimizer from '@/components/dashboard/DashboardRequestOptimizer'

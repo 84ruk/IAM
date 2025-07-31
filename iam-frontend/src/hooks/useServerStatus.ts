@@ -105,7 +105,7 @@ export function useServerStatus() {
         setState(prev => ({ ...prev, isWarmingUp: false }))
       }, 2000)
       
-    } catch (error) {
+    } catch {
       setState(prev => ({ ...prev, isWarmingUp: false }))
     }
   }, [checkServerStatus])

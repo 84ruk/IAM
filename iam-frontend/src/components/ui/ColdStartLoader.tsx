@@ -214,7 +214,7 @@ export default function ColdStartLoader({
       {(status === 'cold-start' || status === 'offline') && (
         <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-200">
           <p className="text-xs text-blue-700">
-            💡 <strong>Consejo:</strong> Los servidores en la nube pueden tardar unos segundos en "despertar" después de estar inactivos. 
+            💡 <strong>Consejo:</strong> Los servidores en la nube pueden tardar unos segundos en &quot;despertar&quot; después de estar inactivos. 
             Esto es normal y mejora la experiencia una vez que el servidor esté activo.
           </p>
         </div>

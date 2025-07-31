@@ -47,7 +47,7 @@ export function prefetchCriticalChunks(): void {
 }
 
 // Función para verificar si un chunk está disponible
-export function isChunkAvailable(chunkName: string): boolean {
+export function isChunkAvailable(): boolean {
   if (typeof window === 'undefined') return false
   
   try {

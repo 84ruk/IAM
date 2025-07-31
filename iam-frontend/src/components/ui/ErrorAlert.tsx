@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { AlertTriangle, X, CheckCircle, Info, AlertCircle } from 'lucide-react'
 import { AppError, ValidationAppError } from '@/lib/errorHandler'
 
@@ -65,12 +65,12 @@ export default function ErrorAlert({
   const [isVisible, setIsVisible] = useState(true)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsVisible(false)
     if (onClose) {
       onClose()
     }
-  }
+  }, [onClose])
 
   useEffect(() => {
     if (error && autoClose) {

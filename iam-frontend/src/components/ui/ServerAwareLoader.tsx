@@ -111,8 +111,7 @@ export function useServerAwareLoading<T>(
 
   return {
     shouldShowServerLoader,
-    shouldShowLoading,
-    shouldShowContent: !shouldShowServerLoader && !shouldShowLoading && !error && data !== undefined
+    shouldShowLoading
   }
 }
 
@@ -136,7 +135,7 @@ export function ServerAwareList<T>({
   onRetry?: () => void
   onWarmUp?: () => void
 }) {
-  const { shouldShowServerLoader, shouldShowLoading, shouldShowContent } = useServerAwareLoading(data, error, isLoading)
+  const { shouldShowServerLoader, shouldShowLoading } = useServerAwareLoading(data, error, isLoading)
 
   if (shouldShowServerLoader) {
     return (

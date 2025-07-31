@@ -39,8 +39,6 @@ import {
 import { Card, CardContent } from '@/components/ui/Card'
 import { CardSkeleton } from '@/components/ui/CardSkeleton'
 import Pagination from '@/components/ui/Pagination'
-import ErrorBoundary from '@/components/ui/ErrorBoundary'
-import Skeleton from '@/components/ui/Skeleton'
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar, AreaChart, Area } from '@/components/ui/RechartsWrapper'
 import { KPIData, FinancialKPIs, IndustryKPIs, PredictiveKPIs, Recommendation } from '@/types/kpis'
 import { formatCurrency, formatPercentage } from '@/lib/kpi-utils'

@@ -131,14 +131,6 @@ export const ComposedChart = dynamic(
   }
 )
 
-export const Legend = dynamic(
-  () => import('recharts').then(mod => ({ default: mod.Legend })),
-  { 
-    ssr: false,
-    loading: LoadingSpinner
-  }
-)
-
 // Wrapper principal para componentes que necesitan hidratación
 interface RechartsWrapperProps {
   children: React.ReactNode

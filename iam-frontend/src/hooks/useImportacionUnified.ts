@@ -143,7 +143,7 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
 
   // Escuchar eventos WebSocket
   useEffect(() => {
-    if (!socket || !webSocketConnected.current) return
+    if (!socket) return
 
     const handleProgresoActualizado = (data: unknown) => {
       console.log('📊 Progreso actualizado via WebSocket:', data)
@@ -226,10 +226,10 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
       socket.off('trabajo:completado', handleTrabajoCompletado)
       socket.off('trabajo:error', handleTrabajoError)
     }
-  }, [socket, webSocketConnected.current, currentTrabajoId, addToast, disconnectWebSocket, stopPolling])
+  }, [socket, currentTrabajoId, addToast, disconnectWebSocket, stopPolling])
 
   // Función para determinar el modo de importación basado en el tamaño del archivo
-  const determinarModo = useCallback((file: File, tipo: string): 'http' | 'websocket' => {
+  const determinarModo = useCallback((file: File): 'http' | 'websocket' => {
     const fileSizeMB = file.size / (1024 * 1024)
     
     // Archivos pequeños (< 1MB) usan importación rápida
@@ -424,7 +424,7 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
     setState(prev => ({ ...prev, isImporting: true, error: null, success: null }))
 
     try {
-      const modo = determinarModo(file, tipo)
+      const modo = determinarModo(file)
       setState(prev => ({ ...prev, modo }))
 
       console.log(`🚀 Iniciando importación - Modo: ${modo}, Archivo: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`)
@@ -596,31 +596,12 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
       
       throw error
     }
-  }, [determinarModo, importarHTTP, importarWebSocket, startPolling, disconnectWebSocket, addToast])
+  }, [determinarModo, importarHTTP, importarWebSocket, startPolling, stopPolling, disconnectWebSocket, addToast])
 
   // Función para cancelar trabajo
   const cancelarTrabajo = useCallback(async (trabajoId: string) => {
     try {
-      // Si es una importación rápida (HTTP), no hay trabajo real que cancelar
-      if (trabajoId.startsWith('http-')) {
-        setState(prev => ({
-          ...prev,
-          isImporting: false,
-          currentTrabajo: null,
-          error: 'Importación cancelada por el usuario'
-        }))
-        stopPolling()
-        disconnectWebSocket()
-        addToast({
-          type: 'info',
-          title: 'Cancelado',
-          message: 'Importación cancelada'
-        })
-        return
-      }
-
-      // Para trabajos reales (WebSocket), intentar cancelar en el backend
-      const response = await fetch(`/api/importacion/trabajos/${trabajoId}/cancelar`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/importacion/cancelar/${trabajoId}`, {
         method: 'POST',
         credentials: 'include'
       })
@@ -629,45 +610,18 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
         setState(prev => ({
           ...prev,
           isImporting: false,
-          currentTrabajo: prev.currentTrabajo ? {
-            ...prev.currentTrabajo,
-            estado: 'cancelado'
-          } : null
+          currentTrabajo: null
         }))
         stopPolling()
         disconnectWebSocket()
         addToast({
           type: 'success',
-          title: 'Éxito',
-          message: 'Importación cancelada'
-        })
-      } else {
-        // Si falla la cancelación, limpiar el estado de todas formas
-        setState(prev => ({
-          ...prev,
-          isImporting: false,
-          currentTrabajo: null,
-          error: 'No se pudo cancelar la importación'
-        }))
-        stopPolling()
-        disconnectWebSocket()
-        addToast({
-          type: 'warning',
-          title: 'Advertencia',
-          message: 'Importación detenida (no se pudo cancelar en el servidor)'
+          title: 'Cancelado',
+          message: 'Importación cancelada exitosamente'
         })
       }
     } catch (error) {
-      console.error('Error cancelando trabajo:', error)
-      // En caso de error, limpiar el estado de todas formas
-      setState(prev => ({
-        ...prev,
-        isImporting: false,
-        currentTrabajo: null,
-        error: 'Error al cancelar la importación'
-      }))
-      stopPolling()
-      disconnectWebSocket()
+      console.error('Error al cancelar trabajo:', error)
       addToast({
         type: 'error',
         title: 'Error',
@@ -678,14 +632,22 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
 
   // Función para limpiar estado
   const clearState = useCallback(() => {
-    setState(prev => ({
-      ...prev,
+    setState({
       isImporting: false,
       currentTrabajo: null,
       error: null,
       success: null,
-      modo: null
-    }))
+      modo: 'http',
+      isConnected: false,
+      trabajos: [],
+      estadisticas: {
+        total: 0,
+        completados: 0,
+        conError: 0,
+        enProgreso: 0,
+        porcentajeExito: 0
+      }
+    })
     stopPolling()
     disconnectWebSocket()
   }, [stopPolling, disconnectWebSocket])
@@ -702,19 +664,16 @@ export function useImportacionUnified(): UseImportacionUnifiedReturn {
 
   // Función para suscribirse a un trabajo
   const subscribeToTrabajo = useCallback((trabajoId: string) => {
-    if (socket && webSocketConnected.current) {
-      socket.emit('subscribe:trabajos', { trabajoId })
-      console.log(`🔔 Suscrito al trabajo: ${trabajoId}`)
-    }
-  }, [socket])
+    currentTrabajoId.current = trabajoId
+    startPolling(trabajoId)
+  }, [startPolling])
 
   // Función para desuscribirse de un trabajo
-  const unsubscribeFromTrabajo = useCallback((trabajoId: string) => {
-    if (socket && webSocketConnected.current) {
-      socket.emit('unsubscribe:trabajos', { trabajoId })
-      console.log(`🔕 Desuscrito del trabajo: ${trabajoId}`)
-    }
-  }, [socket])
+  const unsubscribeFromTrabajo = useCallback(() => {
+    currentTrabajoId.current = null
+    stopPolling()
+    disconnectWebSocket()
+  }, [stopPolling, disconnectWebSocket])
 
   // Función para descargar plantilla
   const descargarPlantilla = useCallback(async (tipo: string) => {

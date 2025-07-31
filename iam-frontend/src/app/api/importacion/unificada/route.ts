@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
           // Si es un string JSON, parsearlo y volver a stringificar
           const parsed = typeof valor === 'string' ? JSON.parse(valor) : valor
           backendFormData.append(config, JSON.stringify(parsed))
-        } catch (error) {
+        } catch {
           // Si no es JSON válido, enviarlo como string
           backendFormData.append(config, valor.toString())
         }
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch {
-    console.error('Error en importación unificada:')
+    console.error('Error en importación unificada')
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

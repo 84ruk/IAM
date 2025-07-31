@@ -234,12 +234,30 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
     return parts.join(', ')
   }, [filters])
 
+  // Filtros aplicados para la API
+  const getAppliedFilters = useCallback(() => {
+    const applied: Record<string, unknown> = {}
+    
+    // Solo incluir filtros que tengan valor
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        if (Array.isArray(value) && value.length > 0) {
+          applied[key] = value
+        } else if (!Array.isArray(value)) {
+          applied[key] = value
+        }
+      }
+    })
+    
+    return applied
+  }, [filters])
+
   // Exportar filtros
   const exportFilters = useCallback(() => {
     const filtersData = {
-      filters,
-      appliedFilters: getAppliedFilters(),
-      timestamp: new Date().toISOString()
+      filters: getAppliedFilters(),
+      timestamp: new Date().toISOString(),
+      version: '1.0'
     }
     
     const blob = new Blob([JSON.stringify(filtersData, null, 2)], { type: 'application/json' })
@@ -251,7 +269,7 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-  }, [filters])
+  }, [getAppliedFilters])
 
   // Importar filtros
   const importFilters = useCallback((filtersData: Record<string, unknown>) => {
@@ -278,24 +296,6 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
       loadFilterOptions()
     }
   }, [autoLoadOptions, loadFilterOptions])
-
-  // Filtros aplicados para la API
-  const getAppliedFilters = useCallback(() => {
-          const applied: Record<string, unknown> = {}
-    
-    // Solo incluir filtros que tengan valor
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        if (Array.isArray(value) && value.length > 0) {
-          applied[key] = value
-        } else if (!Array.isArray(value)) {
-          applied[key] = value
-        }
-      }
-    })
-    
-    return applied
-  }, [filters])
 
   const handleFilterChange = (filterName: string, value: unknown) => {
     setFilters(() => ({

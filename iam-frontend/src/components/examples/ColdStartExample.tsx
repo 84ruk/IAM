@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { ServerAwareLoader, ServerAwareList } from '@/components/ui/ServerAwareLoader'
+import ServerAwareLoader, { ServerAwareList } from '@/components/ui/ServerAwareLoader'
 import { useServerState, useServerActions } from '@/context/ServerStatusContext'
 import { useSmartApiRequest } from '@/hooks/useApiWithRetry'
 import { apiClient } from '@/lib/api/apiClient'
@@ -217,10 +217,10 @@ export default function ColdStartExample() {
         </CardHeader>
         <CardContent>
           <ServerAwareList
-            data={exampleData}
+            data={exampleData ?? undefined}
             error={error}
             isLoading={loading}
-            renderItem={(item, index) => (
+            renderItem={(item) => (
               <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2">
                 <div>
                   <div className="font-medium">{item.name}</div>
@@ -244,12 +244,12 @@ export default function ColdStartExample() {
         <CardContent className="space-y-4">
           <div className="prose prose-sm max-w-none">
             <p>
-              Los <strong>cold starts</strong> ocurren cuando un servidor en la nube (como Fly.io) 
+              Los &lt;strong&gt;cold starts&lt;/strong&gt; ocurren cuando un servidor en la nube (como Fly.io) 
               se apaga por inactividad para ahorrar recursos. Cuando vuelves a hacer una petición:
             </p>
             
             <ul className="list-disc pl-5 space-y-2">
-              <li>El servidor tarda varios segundos en "despertar"</li>
+              <li>El servidor tarda varios segundos en &quot;despertar&quot;</li>
               <li>La primera petición puede fallar o tardar mucho</li>
               <li>Las peticiones posteriores son más rápidas</li>
               <li>Es normal en servicios serverless o con auto-scaling</li>

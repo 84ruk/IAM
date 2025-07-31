@@ -102,32 +102,30 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
     return () => clearTimeout(timer)
   }, [])
 
+  const handleRemove = useCallback(() => {
+    setIsVisible(false)
+    setTimeout(() => onRemove(toast.id), 300)
+  }, [onRemove, toast.id])
+
   useEffect(() => {
-    if (toast.duration && toast.duration > 0) {
+    if (toast.duration) {
       const startTime = Date.now()
       const endTime = startTime + toast.duration
 
       const updateProgress = () => {
         const now = Date.now()
-        const remaining = Math.max(0, endTime - now)
-        const newProgress = toast.duration ? (remaining / toast.duration) * 100 : 0
-
-        if (newProgress <= 0) {
-          handleRemove()
-        } else {
-          setProgress(newProgress)
+        const progress = Math.max(0, Math.min(100, ((now - startTime) / (endTime - startTime)) * 100))
+        
+        setProgress(progress)
+        
+        if (now < endTime) {
           requestAnimationFrame(updateProgress)
         }
       }
 
       requestAnimationFrame(updateProgress)
     }
-  }, [toast.duration])
-
-  const handleRemove = () => {
-    setIsVisible(false)
-    setTimeout(() => onRemove(toast.id), 300)
-  }
+  }, [toast.duration, handleRemove])
 
   return (
     <div

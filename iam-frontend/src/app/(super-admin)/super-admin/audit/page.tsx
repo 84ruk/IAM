@@ -77,41 +77,30 @@ export default function SuperAdminAuditPage() {
   })
 
   const fetchAuditData = useCallback(async () => {
+    setIsLoading(true)
+    setErrors([])
+    
     try {
-      setIsLoading(true)
-      setErrors([])
-
-      // Cargar logs
-      const queryParams = new URLSearchParams({
+      const params = new URLSearchParams({
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
-        range: dateRange,
-        ...(searchTerm && { search: searchTerm }),
-        ...(actionFilter && { action: actionFilter }),
-        ...(resourceFilter && { resource: resourceFilter }),
-        ...(userFilter && { user: userFilter })
+        dateRange,
+        search: searchTerm,
+        action: actionFilter,
+        resource: resourceFilter,
+        user: userFilter
       })
 
-      const logsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/super-admin/audit/logs?${queryParams}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/super-admin/audit?${params}`, {
         credentials: 'include'
       })
 
-      if (!logsResponse.ok) {
-        throw new Error('Error al cargar logs de auditoría')
-      }
-
-      const logsData = await logsResponse.json()
-      setLogs(logsData.logs || [])
-      setPagination(logsData.pagination || pagination)
-
-      // Cargar estadísticas
-      const statsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/super-admin/audit/stats?range=${dateRange}`, {
-        credentials: 'include'
-      })
-
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json()
-        setStats(statsData)
+      if (response.ok) {
+        const data = await response.json()
+        setLogs(data.logs || [])
+        setStats(data.stats || null)
+      } else {
+        setErrors(['Error al cargar los datos de auditoría'])
       }
     } catch (error) {
       console.error('Error:', error)
@@ -119,7 +108,7 @@ export default function SuperAdminAuditPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [pagination.page, pagination.limit, dateRange, searchTerm, actionFilter, resourceFilter, userFilter, pagination])
+  }, [dateRange, searchTerm, actionFilter, resourceFilter, userFilter, pagination.page, pagination.limit])
 
   useEffect(() => {
     fetchAuditData()

@@ -17,7 +17,7 @@ import {
   Area,
   AreaChart
 } from '@/components/ui/RechartsWrapper'
-import { Legend } from '@/components/ui/RechartsWrapper'
+import { Legend } from 'recharts'
 import { 
   RefreshCw, 
   TrendingUp, 
