@@ -58,14 +58,19 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  // Verificar autenticación en el servidor
-  const user = await requireAuth();
-  
-  // Si el usuario está autenticado, redirigir al dashboard
-  if (user) {
-    redirect('/dashboard');
+  try {
+    // Verificar autenticación en el servidor solo si el backend está disponible
+    const user = await requireAuth();
+    
+    // Si el usuario está autenticado, redirigir al dashboard
+    if (user) {
+      redirect('/dashboard');
+    }
+  } catch (error) {
+    // Si hay error de conexión, continuar sin autenticación
+    console.warn('Backend no disponible, mostrando landing page sin verificación de autenticación');
   }
 
-  // Si no está autenticado, mostrar la landing page
+  // Mostrar la landing page
   return <LandingPage />;
 }

@@ -2,6 +2,7 @@ import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Public } from '../../auth/decorators/public.decorator';
 
 @ApiTags('Health')
 @Controller('health')
@@ -10,6 +11,7 @@ export class HealthController {
     private readonly prismaService: PrismaService,
   ) {}
 
+  @Public()
   @Get()
   @ApiOperation({ summary: 'Health check básico' })
   @ApiResponse({ status: 200, description: 'Servidor funcionando correctamente' })
@@ -35,6 +37,7 @@ export class HealthController {
     }
   }
 
+  @Public()
   @Get('complete')
   @ApiOperation({ summary: 'Health check completo del sistema' })
   @ApiResponse({ status: 200, description: 'Sistema completamente funcional' })
@@ -100,6 +103,7 @@ export class HealthController {
     }
   }
 
+  @Public()
   @Get('database')
   @ApiOperation({ summary: 'Health check específico de base de datos' })
   @ApiResponse({ status: 200, description: 'Base de datos funcionando' })
@@ -127,6 +131,7 @@ export class HealthController {
     }
   }
 
+  @Public()
   @Get('connections')
   @ApiOperation({ summary: 'Estadísticas del pool de conexiones' })
   @ApiResponse({ status: 200, description: 'Estadísticas del pool' })

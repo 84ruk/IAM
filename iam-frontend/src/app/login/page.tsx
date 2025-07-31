@@ -3,9 +3,14 @@ import { redirect } from 'next/navigation'
 import LoginForm from '@/components/auth/LoginForm'
 
 export default async function LoginPage() {
-  const user = await requireAuth();
-  if (user) {
-    redirect('/dashboard');
+  try {
+    const user = await requireAuth();
+    if (user) {
+      redirect('/dashboard');
+    }
+  } catch (error) {
+    // Si hay error de conexión, continuar sin autenticación
+    console.warn('Backend no disponible, mostrando página de login sin verificación de autenticación');
   }
 
   return (
