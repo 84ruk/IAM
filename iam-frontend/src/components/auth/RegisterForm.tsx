@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { AlertCircle, Loader2, CheckCircle, ArrowLeft, Building2, User, Clock } from 'lucide-react'
 import { AppError } from '@/lib/errorHandler'
 import { Input } from '@/components/ui/Input'
@@ -34,9 +34,11 @@ export default function RegisterForm() {
   const [generalError, setGeneralError] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [isFormValid, setIsFormValid] = useState(false)
 
   const updateField = (field: keyof FieldErrors, value: string) => {
     setData(prev => ({ ...prev, [field]: value }))
+    // Limpiar error del campo cuando el usuario empiece a escribir
     if (validationErrors[field]) {
       setValidationErrors(prev => ({ ...prev, [field]: undefined }))
     }
@@ -82,6 +84,12 @@ export default function RegisterForm() {
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
   }, [data.nombre, data.email, data.password, data.confirmPassword])
+
+  // Validar formulario en tiempo real
+  useEffect(() => {
+    const isValid = validateForm()
+    setIsFormValid(isValid)
+  }, [data.nombre, data.email, data.password, data.confirmPassword, validateForm])
 
   const handleBackendError = useCallback((result: unknown) => {
     if (isValidationAppError(result)) {
@@ -129,6 +137,16 @@ export default function RegisterForm() {
       const result = await response.json()
 
       if (response.ok) {
+        // Guardar el token JWT en las cookies si el backend lo devuelve
+        if (result.token) {
+          // Configurar cookie con el token
+          const isProduction = process.env.NODE_ENV === 'production'
+          const cookieDomain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN || 
+            (isProduction ? '.iaminventario.com.mx' : 'localhost')
+          
+          document.cookie = `jwt=${result.token}; path=/; domain=${cookieDomain}; max-age=${60 * 60 * 24}; ${isProduction ? 'secure; samesite=none' : 'samesite=lax'}`
+        }
+        
         setShowSuccess(true)
         setTimeout(() => {
           window.location.href = '/setup-empresa'
@@ -277,7 +295,7 @@ export default function RegisterForm() {
         
         <Button 
           type="submit" 
-          disabled={isLoading || Object.keys(validationErrors).length > 0}
+          disabled={isLoading || !isFormValid}
           className="w-full"
         >
           {isLoading ? (
