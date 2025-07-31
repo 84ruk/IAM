@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { AlertCircle, Loader2, CheckCircle, ArrowLeft, Building2, User } from 'lucide-react'
+import { AlertCircle, Loader2, CheckCircle, ArrowLeft, Building2, User, Clock } from 'lucide-react'
 import { AppError } from '@/lib/errorHandler'
 import { Input } from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
@@ -12,8 +12,6 @@ interface RegisterFormData {
   email: string
   password: string
   confirmPassword: string
-  nombreEmpresa?: string
-  industria?: string
   [key: string]: unknown
 }
 
@@ -22,29 +20,14 @@ interface FieldErrors {
   email?: string
   password?: string
   confirmPassword?: string
-  nombreEmpresa?: string
-  industria?: string
 }
 
-type RegisterType = 'individual' | 'empresa'
-
-const INDUSTRIAS = [
-  { value: 'ALIMENTOS', label: 'Alimentos y Bebidas' },
-  { value: 'ROPA', label: 'Ropa y Textiles' },
-  { value: 'ELECTRONICA', label: 'Electrónica y Tecnología' },
-  { value: 'GENERICA', label: 'General / Otros' },
-  { value: 'FARMACIA', label: 'Farmacia y Salud' },
-]
-
 export default function RegisterForm() {
-  const [registerType, setRegisterType] = useState<RegisterType>('individual')
   const [data, setData] = useState<RegisterFormData>({
     nombre: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    nombreEmpresa: '',
-    industria: 'GENERICA'
+    confirmPassword: ''
   })
 
   const [validationErrors, setValidationErrors] = useState<FieldErrors>({})
@@ -96,26 +79,9 @@ export default function RegisterForm() {
       errors.confirmPassword = 'Las contraseñas no coinciden'
     }
 
-    // Validaciones específicas para registro con empresa
-    if (registerType === 'empresa') {
-      if (!data.nombreEmpresa?.trim()) {
-        errors.nombreEmpresa = 'El nombre de la empresa es requerido'
-      } else if (data.nombreEmpresa.length < 2) {
-        errors.nombreEmpresa = 'El nombre de la empresa debe tener al menos 2 caracteres'
-      } else if (data.nombreEmpresa.length > 100) {
-        errors.nombreEmpresa = 'El nombre de la empresa no puede exceder 100 caracteres'
-      } else if (!/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-_.,()]+$/.test(data.nombreEmpresa)) {
-        errors.nombreEmpresa = 'El nombre de la empresa contiene caracteres no permitidos'
-      }
-
-      if (!data.industria) {
-        errors.industria = 'Selecciona una industria'
-      }
-    }
-
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
-  }, [data.nombre, data.email, data.password, data.confirmPassword, data.nombreEmpresa, data.industria, registerType])
+  }, [data.nombre, data.email, data.password, data.confirmPassword])
 
   const handleBackendError = useCallback((result: unknown) => {
     if (isValidationAppError(result)) {
@@ -148,27 +114,16 @@ export default function RegisterForm() {
     setGeneralError('')
 
     try {
-      const endpoint = registerType === 'empresa' ? '/auth/register-empresa' : '/auth/register'
-      const payload = registerType === 'empresa' 
-        ? {
-            nombreUsuario: data.nombre,
-            email: data.email,
-            password: data.password,
-            nombreEmpresa: data.nombreEmpresa,
-            industria: data.industria
-          }
-        : {
-            nombre: data.nombre,
-            email: data.email,
-            password: data.password
-          }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          nombre: data.nombre,
+          email: data.email,
+          password: data.password
+        }),
       })
 
       const result = await response.json()
@@ -176,7 +131,7 @@ export default function RegisterForm() {
       if (response.ok) {
         setShowSuccess(true)
         setTimeout(() => {
-          window.location.href = '/login'
+          window.location.href = '/setup-empresa'
         }, 2000)
       } else {
         handleBackendError(result)
@@ -186,7 +141,7 @@ export default function RegisterForm() {
     } finally {
       setIsLoading(false)
     }
-  }, [data, isLoading, handleBackendError, validateForm, registerType])
+  }, [data, isLoading, handleBackendError, validateForm])
 
   const getFieldError = (field: keyof FieldErrors) => {
     return validationErrors[field] || ''
@@ -203,17 +158,17 @@ export default function RegisterForm() {
     );
   }
 
-  if (showSuccess) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <CheckCircle className="h-8 w-8 mx-auto mb-4 text-green-500" />
-          <p className="text-gray-600">¡Cuenta creada exitosamente!</p>
-          <p className="text-sm text-gray-500">Redirigiendo al login...</p>
-        </div>
-      </div>
-    );
-  }
+          if (showSuccess) {
+          return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+              <div className="text-center">
+                <CheckCircle className="h-8 w-8 mx-auto mb-4 text-green-500" />
+                <p className="text-gray-600">¡Cuenta creada exitosamente!</p>
+                <p className="text-sm text-gray-500">Redirigiendo a configuración de empresa...</p>
+              </div>
+            </div>
+          );
+        }
 
   return (
     <div className="form-container">
@@ -238,27 +193,22 @@ export default function RegisterForm() {
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => setRegisterType('individual')}
-              className={`p-3 rounded-lg border-2 transition-all ${
-                registerType === 'individual'
-                  ? 'border-[#8E94F2] bg-[#8E94F2] text-white'
-                  : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-              }`}
+              className="p-3 rounded-lg border-2 border-[#8E94F2] bg-[#8E94F2] text-white cursor-default"
             >
               <User className="w-5 h-5 mx-auto mb-2" />
               <span className="text-sm font-medium">Individual</span>
             </button>
             <button
               type="button"
-              onClick={() => setRegisterType('empresa')}
-              className={`p-3 rounded-lg border-2 transition-all ${
-                registerType === 'empresa'
-                  ? 'border-[#8E94F2] bg-[#8E94F2] text-white'
-                  : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-              }`}
+              disabled
+              className="p-3 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed relative"
             >
               <Building2 className="w-5 h-5 mx-auto mb-2" />
               <span className="text-sm font-medium">Con Empresa</span>
+              <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                <Clock className="w-3 h-3" />
+              </div>
+              <span className="text-xs text-gray-500 mt-1 block">Próximamente</span>
             </button>
           </div>
         </div>
@@ -298,47 +248,6 @@ export default function RegisterForm() {
           placeholder="tu@email.com"
           autoComplete="email"
         />
-
-        {/* Campos específicos para empresa */}
-        {registerType === 'empresa' && (
-          <>
-            <Input
-              label="Nombre de la empresa"
-              name="nombreEmpresa"
-              type="text"
-              value={data.nombreEmpresa || ''}
-              onChange={e => updateField('nombreEmpresa', e.target.value)}
-              error={getFieldError('nombreEmpresa')}
-              required
-              disabled={isLoading}
-              placeholder="Nombre de tu empresa"
-              autoComplete="organization"
-            />
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Industria
-              </label>
-              <select
-                value={data.industria || 'GENERICA'}
-                onChange={e => updateField('industria', e.target.value)}
-                disabled={isLoading}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent ${
-                  getFieldError('industria') ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                {INDUSTRIAS.map(industria => (
-                  <option key={industria.value} value={industria.value}>
-                    {industria.label}
-                  </option>
-                ))}
-              </select>
-              {getFieldError('industria') && (
-                <p className="mt-1 text-sm text-red-600">{getFieldError('industria')}</p>
-              )}
-            </div>
-          </>
-        )}
 
         <Input
           label="Contraseña"
