@@ -23,28 +23,28 @@ export class PlantillasService {
       return cached;
     }
 
-    // Usar la plantilla avanzada si existe
-    const rutaPlantillaAvanzada = path.join(this.directorioPlantillas, 'plantilla-productos-avanzada.xlsx');
+    // Usar la plantilla automática si existe
+    const rutaPlantillaAuto = path.join(this.directorioPlantillas, 'plantilla-productos-auto.xlsx');
     
-    if (fs.existsSync(rutaPlantillaAvanzada)) {
-      this.logger.log('✅ Usando plantilla avanzada de productos');
+    if (fs.existsSync(rutaPlantillaAuto)) {
+      this.logger.log('✅ Usando plantilla automática de productos');
       
       // Guardar en cache
-      await this.cacheService.setPlantillaCache('productos', 'plantilla-productos-avanzada.xlsx');
+      await this.cacheService.setPlantillaCache('productos', 'plantilla-productos-auto.xlsx');
       
-      return 'plantilla-productos-avanzada.xlsx';
+      return 'plantilla-productos-auto.xlsx';
     }
 
-    // Fallback a la plantilla mejorada
-    const rutaPlantillaMejorada = path.join(this.directorioPlantillas, 'plantilla-productos-mejorada.xlsx');
+    // Fallback a la plantilla básica
+    const rutaPlantillaBasica = path.join(this.directorioPlantillas, 'plantilla-productos.xlsx');
     
-    if (fs.existsSync(rutaPlantillaMejorada)) {
-      this.logger.log('✅ Usando plantilla mejorada de productos');
+    if (fs.existsSync(rutaPlantillaBasica)) {
+      this.logger.log('✅ Usando plantilla básica de productos');
       
       // Guardar en cache
-      await this.cacheService.setPlantillaCache('productos', 'plantilla-productos-mejorada.xlsx');
+      await this.cacheService.setPlantillaCache('productos', 'plantilla-productos.xlsx');
       
-      return 'plantilla-productos-mejorada.xlsx';
+      return 'plantilla-productos.xlsx';
     }
 
     throw new Error('No se encontraron plantillas de productos');
@@ -61,28 +61,28 @@ export class PlantillasService {
       return cached;
     }
 
-    // Usar la plantilla avanzada si existe
-    const rutaPlantillaAvanzada = path.join(this.directorioPlantillas, 'plantilla-proveedores-avanzada.xlsx');
+    // Usar la plantilla automática si existe
+    const rutaPlantillaAuto = path.join(this.directorioPlantillas, 'plantilla-proveedores-auto.xlsx');
     
-    if (fs.existsSync(rutaPlantillaAvanzada)) {
-      this.logger.log('✅ Usando plantilla avanzada de proveedores');
+    if (fs.existsSync(rutaPlantillaAuto)) {
+      this.logger.log('✅ Usando plantilla automática de proveedores');
       
       // Guardar en cache
-      await this.cacheService.setPlantillaCache('proveedores', 'plantilla-proveedores-avanzada.xlsx');
+      await this.cacheService.setPlantillaCache('proveedores', 'plantilla-proveedores-auto.xlsx');
       
-      return 'plantilla-proveedores-avanzada.xlsx';
+      return 'plantilla-proveedores-auto.xlsx';
     }
 
-    // Fallback a la plantilla mejorada
-    const rutaPlantillaMejorada = path.join(this.directorioPlantillas, 'plantilla-proveedores-mejorada.xlsx');
+    // Fallback a la plantilla básica
+    const rutaPlantillaBasica = path.join(this.directorioPlantillas, 'plantilla-proveedores.xlsx');
     
-    if (fs.existsSync(rutaPlantillaMejorada)) {
-      this.logger.log('✅ Usando plantilla mejorada de proveedores');
+    if (fs.existsSync(rutaPlantillaBasica)) {
+      this.logger.log('✅ Usando plantilla básica de proveedores');
 
       // Guardar en cache
-      await this.cacheService.setPlantillaCache('proveedores', 'plantilla-proveedores-mejorada.xlsx');
+      await this.cacheService.setPlantillaCache('proveedores', 'plantilla-proveedores.xlsx');
     
-      return 'plantilla-proveedores-mejorada.xlsx';
+      return 'plantilla-proveedores.xlsx';
     }
 
     throw new Error('No se encontraron plantillas de proveedores');
@@ -99,28 +99,28 @@ export class PlantillasService {
       return cached;
     }
 
-    // Usar la plantilla avanzada si existe
-    const rutaPlantillaAvanzada = path.join(this.directorioPlantillas, 'plantilla-movimientos-avanzada.xlsx');
+    // Usar la plantilla automática si existe
+    const rutaPlantillaAuto = path.join(this.directorioPlantillas, 'plantilla-movimientos-auto.xlsx');
     
-    if (fs.existsSync(rutaPlantillaAvanzada)) {
-      this.logger.log('✅ Usando plantilla avanzada de movimientos');
+    if (fs.existsSync(rutaPlantillaAuto)) {
+      this.logger.log('✅ Usando plantilla automática de movimientos');
       
       // Guardar en cache
-      await this.cacheService.setPlantillaCache('movimientos', 'plantilla-movimientos-avanzada.xlsx');
+      await this.cacheService.setPlantillaCache('movimientos', 'plantilla-movimientos-auto.xlsx');
       
-      return 'plantilla-movimientos-avanzada.xlsx';
+      return 'plantilla-movimientos-auto.xlsx';
     }
 
-    // Fallback a la plantilla mejorada
-    const rutaPlantillaMejorada = path.join(this.directorioPlantillas, 'plantilla-movimientos-mejorada.xlsx');
+    // Fallback a la plantilla básica
+    const rutaPlantillaBasica = path.join(this.directorioPlantillas, 'plantilla-movimientos.xlsx');
     
-    if (fs.existsSync(rutaPlantillaMejorada)) {
-      this.logger.log('✅ Usando plantilla mejorada de movimientos');
+    if (fs.existsSync(rutaPlantillaBasica)) {
+      this.logger.log('✅ Usando plantilla básica de movimientos');
 
       // Guardar en cache
-      await this.cacheService.setPlantillaCache('movimientos', 'plantilla-movimientos-mejorada.xlsx');
+      await this.cacheService.setPlantillaCache('movimientos', 'plantilla-movimientos.xlsx');
     
-      return 'plantilla-movimientos-mejorada.xlsx';
+      return 'plantilla-movimientos.xlsx';
     }
 
     throw new Error('No se encontraron plantillas de movimientos');
