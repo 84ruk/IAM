@@ -25,6 +25,7 @@ import FormularioProducto from '@/components/productos/FormularioProducto'
 import VolverAtras from '@/components/ui/VolverAtras'
 import ProductTypeIcon from '@/components/ui/ProductTypeIcon'
 import EtiquetaTag from '@/components/ui/EtiquetaTag'
+import { TipoProducto } from '@/types/enums'
 
 // Tipo para los productos en la papelera (inactivos y eliminados)
 interface ProductoPapelera {
@@ -322,7 +323,7 @@ export default function ProductosEliminadosClient() {
                   {/* Icono de tipo de producto en esquina superior derecha */}
                   <div className="absolute top-4 right-4">
                     <ProductTypeIcon 
-                      tipoProducto={producto.tipoProducto || 'GENERICO'} 
+                      tipoProducto={(producto.tipoProducto as TipoProducto) || 'GENERICO'} 
                       size="sm"
                     />
                   </div>

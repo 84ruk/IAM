@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
@@ -71,16 +71,12 @@ export default function SuperAdminAuditPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 50,
+    limit: 20,
     total: 0,
     pages: 0
   })
 
-  useEffect(() => {
-    fetchAuditData()
-  }, [pagination.page, dateRange])
-
-  const fetchAuditData = async () => {
+  const fetchAuditData = useCallback(async () => {
     try {
       setIsLoading(true)
       setErrors([])
@@ -123,7 +119,11 @@ export default function SuperAdminAuditPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [pagination.page, pagination.limit, dateRange, searchTerm, actionFilter, resourceFilter, userFilter, pagination])
+
+  useEffect(() => {
+    fetchAuditData()
+  }, [fetchAuditData])
 
   const getActionColor = (action: string) => {
     switch (action.toLowerCase()) {

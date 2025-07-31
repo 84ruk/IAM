@@ -5,24 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import { 
-  Settings, 
   Shield, 
   Database, 
   Server, 
   Mail, 
   Bell,
-  Lock,
-  Globe,
-  Users,
-  Activity,
-  Save,
-  RefreshCw,
-  AlertTriangle,
-  CheckCircle,
-  Info,
-  Key,
   Eye,
-  EyeOff
+  EyeOff,
+  AlertTriangle,
+  RefreshCw,
+  Save,
+  CheckCircle
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
@@ -141,28 +134,6 @@ export default function SuperAdminConfigPage() {
         [field]: value
       }
     }))
-  }
-
-  const handleConfigUpdate = async (configData: Record<string, unknown>) => {
-    try {
-      setIsLoading(true)
-      const response = await fetch('/api/admin/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configData)
-      })
-      
-      if (!response.ok) {
-        throw new Error('Error al actualizar configuración')
-      }
-      
-      toast.success('Configuración actualizada exitosamente')
-    } catch (error) {
-      console.error('Error:', error)
-      toast.error('Error al actualizar configuración')
-    } finally {
-      setIsLoading(false)
-    }
   }
 
   const testEmailConfig = async () => {

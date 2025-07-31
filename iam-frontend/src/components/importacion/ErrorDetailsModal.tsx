@@ -21,7 +21,7 @@ interface ErrorDetail {
   tipo: 'validacion' | 'duplicado' | 'error_db' | 'formato';
   sugerencia?: string;
   codigoError?: string;
-  datosOriginales?: unknown;
+  datosOriginales?: Record<string, unknown>;
   campoEspecifico?: string;
   valorEsperado?: string;
   valorRecibido?: string;
@@ -150,12 +150,10 @@ const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({
                         </span>
                       </div>
 
-                      {/* Mensaje principal */}
-                      <div className="text-sm font-medium text-gray-900">
+                      <div>
                         {error.mensaje}
                       </div>
 
-                      {/* Detalles específicos */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         {error.valorRecibido && (
                           <div>
@@ -194,19 +192,17 @@ const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({
                         )}
                       </div>
 
-                      {/* Sugerencia */}
                       {error.sugerencia && (
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                           <div className="flex items-start gap-2">
                             <Info className="h-4 w-4 text-yellow-600 mt-0.5" />
                             <div className="text-sm text-yellow-800">
-                              <span className="font-medium">Sugerencia:</span> {error.sugerencia}
+                              <span className="font-medium">Sugerencia:</span> {String(error.sugerencia)}
                             </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Datos originales (colapsable) */}
                       {error.datosOriginales && (
                         <details className="mt-2">
                           <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800">

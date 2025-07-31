@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/SelectAdvanced'
 import { Badge } from '@/components/ui/Badge'
 import { 
@@ -31,7 +30,8 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useDailyMovements } from '@/hooks/useDailyMovements'
-import { DailyMovementsResponse } from '@/types/kpis'
+
+import Button from '@/components/ui/Button'
 
 interface DailyMovementsChartProps {
   className?: string

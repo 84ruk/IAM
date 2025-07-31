@@ -1,9 +1,10 @@
 'use client'
 
-import { LogOut, Settings } from 'lucide-react'
-import Link from 'next/link'
-import { User } from '@/types/user'
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { 
+  LogOut
+} from 'lucide-react'
+import type { User } from '@/types/user'
 
 const ROL_MAP: Record<string, string> = {
   SUPERADMIN: 'Super Admin',
@@ -14,7 +15,6 @@ const ROL_MAP: Record<string, string> = {
 
 export default function Navbar({ user, logout }: { user: User, logout?: () => void }) {
   const [mounted, setMounted] = useState(false)
-  const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN'
   const userName = user?.email?.split('@')[0] || 'Usuario'
 
   // Evitar problemas de hidratación

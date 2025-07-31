@@ -8,6 +8,7 @@ export interface BackendError {
   message: string;
   error?: string;
   details?: unknown;
+  code?: string;
 }
 
 export interface ValidationError {
@@ -52,7 +53,7 @@ export class ErrorHandlerService {
         message: backendError.message || 'Error del servidor',
         type: 'system',
         code: backendError.code || 'BACKEND_ERROR',
-        details: backendError.details || null
+        details: backendError.details ? [String(backendError.details)] : undefined
       }
     }
 

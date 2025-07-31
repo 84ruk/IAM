@@ -128,21 +128,22 @@ function generateChartData(movements: unknown[], selectedMonth: string) {
       processedCount++
       
       // Validar que el movimiento tenga los campos necesarios
-      if (!mov.fecha || !mov.cantidad || typeof mov.cantidad !== 'number') {
+      const movimiento = mov as Record<string, unknown>
+      if (!movimiento.fecha || !movimiento.cantidad || typeof movimiento.cantidad !== 'number') {
         console.log('❌ Movimiento inválido:', mov)
         return
       }
       
       validMovements++
       
-      const date = new Date(mov.fecha)
+      const date = new Date(movimiento.fecha as string)
       const movMonth = date.getMonth()
       const movYear = date.getFullYear()
       
       console.log(`Movimiento ${processedCount}:`, {
-        fecha: mov.fecha,
-        tipo: mov.tipo,
-        cantidad: mov.cantidad,
+        fecha: movimiento.fecha,
+        tipo: movimiento.tipo,
+        cantidad: movimiento.cantidad,
         movMonth,
         movYear,
         monthIndex,
@@ -155,10 +156,10 @@ function generateChartData(movements: unknown[], selectedMonth: string) {
         matchedCount++
         const day = date.getDate() - 1
         if (day >= 0 && day < daysInMonth) {
-          if (mov.tipo === 'ENTRADA') {
-            dailyData[day].entradas += mov.cantidad
-          } else if (mov.tipo === 'SALIDA') {
-            dailyData[day].salidas += mov.cantidad
+          if (movimiento.tipo === 'ENTRADA') {
+            dailyData[day].entradas += movimiento.cantidad as number
+          } else if (movimiento.tipo === 'SALIDA') {
+            dailyData[day].salidas += movimiento.cantidad as number
           }
         }
       }
@@ -231,15 +232,17 @@ function getAvailableMonths(movements: unknown[], products: unknown[]) {
   monthsSet.add(currentMonth)
   
   movements.forEach(m => {
-    if (m.fecha) {
-      const date = new Date(m.fecha)
+    const movimiento = m as Record<string, unknown>
+    if (movimiento.fecha) {
+      const date = new Date(movimiento.fecha as string)
       monthsSet.add(format(date, 'MMMM yyyy'))
     }
   })
   
   products.forEach(p => {
-    if (p.creadoEn) {
-      const date = new Date(p.creadoEn)
+    const producto = p as Record<string, unknown>
+    if (producto.creadoEn) {
+      const date = new Date(producto.creadoEn as string)
       monthsSet.add(format(date, 'MMMM yyyy'))
     }
   })
@@ -456,9 +459,9 @@ export default function KPIsClient() {
       }
       
       if (sortDirection === 'asc') {
-        return aValue > bValue ? 1 : -1
+        return (aValue as number) > (bValue as number) ? 1 : -1
       } else {
-        return aValue < bValue ? 1 : -1
+        return (aValue as number) < (bValue as number) ? 1 : -1
       }
     })
   }, [productDetails, sortField, sortDirection])

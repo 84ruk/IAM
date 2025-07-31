@@ -10,9 +10,8 @@ import {
   RotateCcw
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
-import { pluralizarUnidad, formatearCantidadConUnidad } from '@/lib/pluralization'
+import { formatearCantidadConUnidad } from '@/lib/pluralization'
 import { Producto } from '@/types/producto'
-import { TipoProducto } from '@/types/enums'
 import ProductTypeIcon from '@/components/ui/ProductTypeIcon'
 import EtiquetaTag from '@/components/ui/EtiquetaTag'
 
@@ -59,10 +58,6 @@ export default function ProductCard({
   const getMargen = (producto: Producto) => {
     if (producto.precioCompra === 0) return 0
     return ((producto.precioVenta - producto.precioCompra) / producto.precioCompra) * 100
-  }
-
-  const getCodigoBarras = (producto: Producto) => {
-    return producto.codigoBarras || producto.sku || producto.rfid || 'Sin código'
   }
 
   const stockStatus = getStockStatus(producto)

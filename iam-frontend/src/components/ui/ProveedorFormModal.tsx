@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { cleanFormData } from '@/lib/form-utils'
 
 interface ProveedorFormModalProps {
   isOpen: boolean
@@ -35,52 +34,40 @@ export default function ProveedorFormModal({ isOpen, onClose, onSuccess, proveed
     setError(null)
   }, [proveedor, isOpen])
 
-  const onSubmit = async (data: Record<string, unknown>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
     try {
-      setLoading(true)
-      setError(null)
-
-      if (proveedor) {
-        const method = 'PUT'
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/proveedores/${proveedor.id}`
-        const cleanedData = cleanFormData(data as Record<string, string>)
-
-        const res = await fetch(url, {
-          method,
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(cleanedData)
-        })
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          throw new Error(data.message || 'Error al guardar proveedor')
-        }
-        toast.success('Proveedor actualizado exitosamente')
-      } else {
-        const method = 'POST'
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/proveedores`
-        const cleanedData = cleanFormData(data as Record<string, string>)
-
-        const res = await fetch(url, {
-          method,
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(cleanedData)
-        })
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          throw new Error(data.message || 'Error al guardar proveedor')
-        }
-        toast.success('Proveedor creado exitosamente')
+      const formData = new FormData(e.target as HTMLFormElement)
+      const data = {
+        nombre: formData.get('nombre') as string,
+        email: formData.get('email') as string,
+        telefono: formData.get('telefono') as string,
+        direccion: formData.get('direccion') as string,
+        estado: 'ACTIVO'
       }
-      
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/proveedores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Error al crear el proveedor')
+      }
+
       onSuccess?.()
+      onClose()
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
-        setError(err.message)
-      } else {
-        setError('Error inesperado al guardar proveedor')
-      }
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }

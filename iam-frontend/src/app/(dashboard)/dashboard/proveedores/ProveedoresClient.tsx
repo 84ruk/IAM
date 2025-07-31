@@ -124,56 +124,6 @@ export default function ProveedoresClient() {
     }
   }
 
-  const activarProveedor = async (id: number) => {
-    try {
-      setEliminandoId(id)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/proveedores/${id}/reactivar`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        await manejarErrorBackend(response, 'activar')
-        return
-      }
-
-      mostrarError('Proveedor activado correctamente.')
-      mutate(buildUrl())
-    } catch (error) {
-      mostrarError('Error al activar el proveedor. Intenta nuevamente.')
-    } finally {
-      setEliminandoId(null)
-    }
-  }
-
-  const desactivarProveedor = async (id: number) => {
-    try {
-      setEliminandoId(id)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/proveedores/${id}/desactivar`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        await manejarErrorBackend(response, 'desactivar')
-        return
-      }
-
-      mostrarError('Proveedor desactivado correctamente.')
-      mutate(buildUrl())
-    } catch (error) {
-      mostrarError('Error al desactivar el proveedor. Intenta nuevamente.')
-    } finally {
-      setEliminandoId(null)
-    }
-  }
-
   const handleSuccess = () => {
     setShowModal(false)
     setProveedorEdit(null)

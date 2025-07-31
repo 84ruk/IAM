@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { Activity, AlertTriangle, CheckCircle, Clock, RefreshCw, XCircle, Zap, Database, TrendingUp } from 'lucide-react'
+import { AlertTriangle, RefreshCw, Zap, Database } from 'lucide-react'
 
 interface DashboardRequestStats {
   total: number

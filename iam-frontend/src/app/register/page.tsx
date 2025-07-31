@@ -18,6 +18,7 @@ interface RegisterFormData {
   email: string;
   password: string;
   confirmPassword: string;
+  [key: string]: unknown;
 }
 
 interface FieldErrors {
@@ -41,24 +42,25 @@ export default function RegisterPage() {
       minLength: 2,
       maxLength: 100,
       sanitize: true,
-      custom: (value: string) => {
+      custom: (value: unknown) => {
+        const stringValue = String(value)
         // Validar que solo contenga letras, espacios y caracteres acentuados
-        if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(value)) {
+        if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(stringValue)) {
           return 'El nombre solo puede contener letras, espacios y acentos'
         }
         
         // Validar que no tenga espacios múltiples consecutivos
-        if (/\s{2,}/.test(value)) {
+        if (/\s{2,}/.test(stringValue)) {
           return 'El nombre no puede tener espacios múltiples consecutivos'
         }
         
         // Validar que no empiece o termine con espacio
-        if (value.startsWith(' ') || value.endsWith(' ')) {
+        if (stringValue.startsWith(' ') || stringValue.endsWith(' ')) {
           return 'El nombre no puede empezar o terminar con espacios'
         }
         
         // Validar que no tenga solo espacios
-        if (/^\s+$/.test(value)) {
+        if (/^\s+$/.test(stringValue)) {
           return 'El nombre no puede contener solo espacios'
         }
         
@@ -69,14 +71,15 @@ export default function RegisterPage() {
       required: true,
       pattern: validationPatterns.email,
       sanitize: true,
-      custom: (value: string) => {
+      custom: (value: unknown) => {
+        const stringValue = String(value)
         // Validar que no contenga caracteres especiales peligrosos
-        if (/[<>\"'&]/.test(value)) {
+        if (/[<>\"'&]/.test(stringValue)) {
           return 'El email no puede contener caracteres especiales'
         }
         
         // Validar que no tenga espacios
-        if (/\s/.test(value)) {
+        if (/\s/.test(stringValue)) {
           return 'El email no puede contener espacios'
         }
         
@@ -88,29 +91,30 @@ export default function RegisterPage() {
       minLength: 12,
       maxLength: 128,
       sanitize: true,
-      custom: (value: string) => {
+      custom: (value: unknown) => {
+        const stringValue = String(value)
         // Validar caracteres permitidos en contraseña
-        if (!/^[a-zA-Z0-9@$!%*?&]+$/.test(value)) {
+        if (!/^[a-zA-Z0-9@$!%*?&]+$/.test(stringValue)) {
           return 'La contraseña contiene caracteres no permitidos'
         }
         
-        if (!/(?=.*[a-z])/.test(value)) {
+        if (!/(?=.*[a-z])/.test(stringValue)) {
           return 'La contraseña debe contener al menos una letra minúscula'
         }
-        if (!/(?=.*[A-Z])/.test(value)) {
+        if (!/(?=.*[A-Z])/.test(stringValue)) {
           return 'La contraseña debe contener al menos una letra mayúscula'
         }
-        if (!/(?=.*\d)/.test(value)) {
+        if (!/(?=.*\d)/.test(stringValue)) {
           return 'La contraseña debe contener al menos un número'
         }
         
         // Validar símbolos
-        if (!/(?=.*[@$!%*?&])/.test(value)) {
+        if (!/(?=.*[@$!%*?&])/.test(stringValue)) {
           return 'La contraseña debe contener al menos un símbolo (@$!%*?&)'
         }
         
         // Validar que no tenga espacios
-        if (/\s/.test(value)) {
+        if (/\s/.test(stringValue)) {
           return 'La contraseña no puede contener espacios'
         }
         
@@ -120,12 +124,11 @@ export default function RegisterPage() {
     confirmPassword: {
       required: true,
       sanitize: true,
-      custom: (value: string) => {
-        // Validar que no tenga espacios
-        if (/\s/.test(value)) {
-          return 'La confirmación de contraseña no puede contener espacios'
+      custom: (value: unknown) => {
+        const stringValue = String(value)
+        if (stringValue !== data.password) {
+          return 'Las contraseñas no coinciden'
         }
-        
         return true
       }
     }

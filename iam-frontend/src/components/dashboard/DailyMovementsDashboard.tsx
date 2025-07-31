@@ -3,8 +3,33 @@
 import React, { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/SelectAdvanced'
 import { Badge } from '@/components/ui/Badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/SelectAdvanced'
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Minus,
+  DollarSign,
+  Activity,
+  RefreshCw,
+  BarChart3,
+  PieChart as PieChartIcon,
+  LineChart as LineChartIcon,
+  AreaChart as AreaChartIcon,
+  AlertTriangle,
+  Info,
+  Eye,
+  EyeOff,
+  Target,
+  PercentCircle,
+  Truck
+} from 'lucide-react'
+import { useDailyMovements } from '@/hooks/useDailyMovements'
+import KPICard from '@/components/dashboard/KPICard'
+import { formatCurrency, formatPercentage, getValueColor } from '@/lib/kpi-utils'
+import DailyMovementsTable from '@/components/dashboard/DailyMovementsTable'
+import DailyMovementsFilters from '@/components/dashboard/DailyMovementsFilters'
+import { DailyMovementsSummary } from '@/components/dashboard/DailyMovementsSummary'
 import { 
   LineChart, 
   Line, 
@@ -23,54 +48,8 @@ import {
   Cell,
   ComposedChart
 } from 'recharts'
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Minus,
-  Calendar,
-  Package,
-  DollarSign,
-  Activity,
-  RefreshCw,
-  BarChart3,
-  PieChart as PieChartIcon,
-  LineChart as LineChartIcon,
-  AreaChart as AreaChartIcon,
-  AlertTriangle,
-  CheckCircle,
-  Info,
-  Download,
-  Filter,
-  Eye,
-  EyeOff,
-  Target,
-  PercentCircle,
-  ShoppingCart,
-  Truck,
-  Warehouse,
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
-  ArrowUpRight,
-  ArrowDownRight,
-  ArrowRight,
-  Clock,
-  Zap,
-  Shield,
-  Users,
-  Thermometer,
-  Droplets,
-  Gauge
-} from 'lucide-react'
-import { format } from 'date-fns'
-import { useDailyMovements } from '@/hooks/useDailyMovements'
-import { DailyMovementsResponse } from '@/types/kpis'
-import KPICard from '@/components/dashboard/KPICard'
-import { formatCurrency, formatPercentage, getValueColor } from '@/lib/kpi-utils'
-import DailyMovementsTable from '@/components/dashboard/DailyMovementsTable'
-import DailyMovementsFilters from '@/components/dashboard/DailyMovementsFilters'
-import { DailyMovementsSummary } from '@/components/dashboard/DailyMovementsSummary'
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B']
+
 
 interface DailyMovementsDashboardProps {
   className?: string
@@ -81,11 +60,7 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
   const [selectedChartType, setSelectedChartType] = useState<'line' | 'bar' | 'area' | 'combined'>('combined')
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false)
   const [showComparatives, setShowComparatives] = useState(false)
-  const [filters, setFilters] = useState<Record<string, unknown>>({})
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [data, setData] = useState<Record<string, unknown> | null>(null)
-  const [summary, setSummary] = useState<Record<string, unknown> | null>(null)
+
 
   const { data: apiData, isLoading: apiIsLoading, error: apiError, refetch, forceRefresh } = useDailyMovements({
     days: selectedDays,
@@ -100,7 +75,7 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
     try {
       return apiData.data.map(item => ({
         ...item,
-        fecha: format(new Date(item.fecha), 'dd/MM'),
+        fecha: item.fecha,
         fechaCompleta: item.fecha,
         totalMovimientos: (item.entradas || 0) + (item.salidas || 0),
         valorTotal: (item.valorEntradas || 0) + (item.valorSalidas || 0),
@@ -244,20 +219,17 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
 
   // Manejar cambios de filtros
   const handleFiltersChange = (newFilters: Record<string, unknown>) => {
-    setFilters(newFilters)
-    
     // Aplicar filtros a los controles principales
-    if (newFilters.days) {
+    if (newFilters.days && typeof newFilters.days === 'string') {
       setSelectedDays(parseInt(newFilters.days))
     }
-    if (newFilters.chartType) {
-      setSelectedChartType(newFilters.chartType)
+    if (newFilters.chartType && typeof newFilters.chartType === 'string') {
+      setSelectedChartType(newFilters.chartType as 'line' | 'bar' | 'area' | 'combined')
     }
   }
 
   // Resetear filtros
   const handleFiltersReset = () => {
-    setFilters({})
     setSelectedDays(7)
     setSelectedChartType('combined')
   }
@@ -328,7 +300,7 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
                 </SelectContent>
               </Select>
 
-              <Select value={selectedChartType} onValueChange={(value: string) => setSelectedChartType(value)}>
+              <Select value={selectedChartType} onValueChange={(value: string) => setSelectedChartType(value as 'line' | 'bar' | 'area' | 'combined')}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -396,14 +368,13 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
                     </Badge>
                   )}
                 </div>
-                {(apiData?.summary?.tendencia === 'CRECIENTE' ? TrendingUp : apiData?.summary?.tendencia === 'DECRECIENTE' ? TrendingDown : Minus) && 
-                  React.createElement(
-                    apiData?.summary?.tendencia === 'CRECIENTE' ? TrendingUp : apiData?.summary?.tendencia === 'DECRECIENTE' ? TrendingDown : Minus,
-                    { 
-                      className: `w-8 h-8 ${apiData?.summary?.tendencia === 'CRECIENTE' ? 'text-green-600' : apiData?.summary?.tendencia === 'DECRECIENTE' ? 'text-red-600' : 'text-yellow-600'}` 
-                    }
-                  )
-                }
+                {apiData?.summary?.tendencia === 'CRECIENTE' ? (
+                  <TrendingUp className="w-8 h-8 text-green-600" />
+                ) : apiData?.summary?.tendencia === 'DECRECIENTE' ? (
+                  <TrendingDown className="w-8 h-8 text-red-600" />
+                ) : (
+                  <Minus className="w-8 h-8 text-yellow-600" />
+                )}
               </div>
             </CardContent>
           </Card>
@@ -694,7 +665,7 @@ export default function DailyMovementsDashboard({ className = '' }: DailyMovemen
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUpIcon className="w-5 h-5" />
+                  <TrendingUp className="w-5 h-5" />
                   Evolución de Métricas
                 </CardTitle>
               </CardHeader>

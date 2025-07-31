@@ -1,4 +1,4 @@
-import { TipoImportacion } from '@/hooks/useImportacion'
+
 
 export interface ImportacionConfig {
   title: string

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { 
@@ -77,31 +77,27 @@ export default function SuperAdminStatsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [dateRange, setDateRange] = useState('30d')
 
-  useEffect(() => {
-    fetchStats()
-  }, [dateRange])
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setIsLoading(true)
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/super-admin/stats?range=${dateRange}`, {
         credentials: 'include'
       })
-
       if (!response.ok) {
         throw new Error('Error al cargar estadísticas')
       }
-
       const data = await response.json()
       setStats(data)
     } catch (error) {
       console.error('Error:', error)
-      // setErrors(['Error al cargar las estadísticas']) // This line was removed as per the edit hint
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [dateRange])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
 
   const getGrowthIcon = (growth: number) => {
     return growth >= 0 ? TrendingUp : TrendingDown

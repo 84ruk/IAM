@@ -2,20 +2,21 @@
 
 import { Card, CardContent } from '@/components/ui/Card'
 import { 
-  Loader2, 
-  AlertCircle, 
   BarChart3,
+  AlertCircle,
   TrendingUp
 } from 'lucide-react'
 
 interface TopProduct {
+  id: number
   nombre: string
   cantidad: number
   porcentaje: number
+  tipo: string
 }
 
 interface TopProductsListProps {
-  data: Array<Record<string, unknown>>
+  products: TopProduct[]
   title: string
   isLoading?: boolean
   error?: Error | null

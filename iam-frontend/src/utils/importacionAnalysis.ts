@@ -100,11 +100,11 @@ function estimateRecordsFromFile(file: File, extension: string): number {
  */
 function determineComplexity(tipo: string, estimatedRecords: number): 'simple' | 'medium' | 'complex' {
   // Por tipo de importación
-  if (WEBSOCKET_THRESHOLDS.COMPLEXITY_LEVELS.SIMPLE.includes(tipo as 'productos' | 'proveedores' | 'movimientos')) {
+  if (WEBSOCKET_THRESHOLDS.COMPLEXITY_LEVELS.SIMPLE.includes(tipo as 'proveedores' | 'categorias')) {
     return 'simple'
   }
   
-  if (WEBSOCKET_THRESHOLDS.COMPLEXITY_LEVELS.COMPLEX.includes(tipo as 'productos' | 'proveedores' | 'movimientos')) {
+  if (WEBSOCKET_THRESHOLDS.COMPLEXITY_LEVELS.COMPLEX.includes(tipo as 'inventario_completo' | 'datos_historicos')) {
     return 'complex'
   }
   

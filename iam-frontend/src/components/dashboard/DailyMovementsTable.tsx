@@ -1,29 +1,28 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { format } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { 
   Search, 
-  Download, 
-  Filter, 
-  SortAsc, 
-  SortDesc,
+  TrendingUp, 
+  TrendingDown, 
   Eye,
-  EyeOff,
-  RefreshCw,
-  TrendingUp,
-  TrendingDown,
   Minus,
-  DollarSign,
-  Package,
-  Activity
+  SortAsc,
+  SortDesc,
+  RefreshCw,
+  Activity,
+  EyeOff,
+  Download,
+  Filter,
+  DollarSign
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { formatCurrency } from '@/lib/kpi-utils'
 import { useDailyMovements } from '@/hooks/useDailyMovements'
-import { formatCurrency, formatPercentage } from '@/lib/kpi-utils'
 
 interface DailyMovementsTableProps {
   initialDays?: number

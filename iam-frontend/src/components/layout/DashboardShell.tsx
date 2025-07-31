@@ -8,16 +8,14 @@ import { useRouter } from 'next/navigation'
 import { User } from '@/types/user'
 import { useSetupCheck } from '@/hooks/useSetupCheck'
 import SetupRequired from '@/components/setup/SetupRequired'
-import { useSetup } from '@/context/SetupContext'
-import { usePathname } from 'next/navigation'
+
 
 export default function DashboardShell({ children, user }: { children: React.ReactNode, user: User }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
-  const pathname = usePathname()
   const { needsSetup, isLoading, error } = useSetupCheck()
-  const { redirectToSetup } = useSetup()
+
 
   // Evitar problemas de hidratación
   useEffect(() => {

@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   },
   // Mejorar el manejo de hidratación
   reactStrictMode: true,
+  // Configuración adicional para estabilidad
+  poweredByHeader: false,
 };
 
 export default nextConfig;

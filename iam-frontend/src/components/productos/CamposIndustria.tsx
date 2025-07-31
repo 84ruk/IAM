@@ -12,9 +12,38 @@ interface CamposIndustriaProps {
   errors: Record<string, string>
 }
 
-export function CamposIndustria({ tipoIndustria, formData, setFormData, errors }: CamposIndustriaProps) {
-  const { config: industriaConfig, tipoIndustria } = useIndustriaConfig()
+export function CamposIndustria({ formData, setFormData, errors }: CamposIndustriaProps) {
+  const { config: industriaConfig } = useIndustriaConfig()
   const mostrarTemperaturaHumedad = industriaConfig.mostrarTemperaturaHumedad || false
+
+  // Definir campos relevantes basados en la industria
+  const camposRelevantes = [
+    'temperaturaOptima',
+    'humedadOptima', 
+    'ubicacion',
+    'talla',
+    'color',
+    'sku',
+    'codigoBarras',
+    'rfid'
+  ]
+
+  // Configuración de opciones
+  const config = {
+    opciones: {
+      tallas: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+      colores: ['Negro', 'Blanco', 'Rojo', 'Azul', 'Verde', 'Amarillo', 'Gris', 'Marrón']
+    }
+  }
+
+  // Funciones de actualización
+  const updateField = (field: string, value: unknown) => {
+    setFormData({ ...formData, [field]: value })
+  }
+
+  const handleBlur = () => {
+    // Implementar validación si es necesario
+  }
 
   const renderCampo = (campo: string, label: string, type: string = 'text', icon?: React.ReactNode, optional = true) => {
     if (!camposRelevantes.includes(campo)) return null
@@ -44,9 +73,9 @@ export function CamposIndustria({ tipoIndustria, formData, setFormData, errors }
         {type === 'select' ? (
           <Select
             options={getOpciones()}
-            value={formData[campo] || ''}
+            value={String(formData[campo] || '')}
             onChange={(e) => updateField(campo, e.target.value)}
-            onBlur={() => handleBlur(campo)}
+            onBlur={() => handleBlur()}
             error={error}
             optional={optional}
           />
@@ -54,9 +83,9 @@ export function CamposIndustria({ tipoIndustria, formData, setFormData, errors }
           <Input
             name={campo}
             type={type}
-            value={formData[campo] || ''}
+            value={String(formData[campo] || '')}
             onChange={(e) => updateField(campo, type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)}
-            onBlur={() => handleBlur(campo)}
+            onBlur={() => handleBlur()}
             error={error}
             optional={optional}
             placeholder={`Ingresa ${label.toLowerCase()}`}

@@ -1,5 +1,4 @@
-import React from 'react';
-import { CheckCircle, XCircle, Lock } from 'lucide-react';
+import { AlertCircle, CheckCircle } from 'lucide-react'
 
 interface PasswordConfirmationProps {
   password: string;
@@ -19,7 +18,7 @@ export const PasswordConfirmation: React.FC<PasswordConfirmationProps> = ({
       {passwordsMatch ? (
         <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
       ) : (
-        <XCircle className="h-3 w-3 text-red-500 flex-shrink-0" />
+        <AlertCircle className="h-3 w-3 text-red-500 flex-shrink-0" />
       )}
       <span className={passwordsMatch ? 'text-green-700' : 'text-red-700'}>
         {passwordsMatch ? 'Las contraseñas coinciden' : 'Las contraseñas no coinciden'}

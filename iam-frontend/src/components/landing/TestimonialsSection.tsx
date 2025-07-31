@@ -1,6 +1,6 @@
 "use client";
 
-import { Star, Quote, GraduationCap, Award, Users, BookOpen } from 'lucide-react';
+import { Star, Quote, GraduationCap, Award, BookOpen } from 'lucide-react';
 
 const testimonials = [
   {

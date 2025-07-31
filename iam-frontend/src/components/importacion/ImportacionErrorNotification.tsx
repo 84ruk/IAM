@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { AlertTriangle, X, FileText, Info, CheckCircle } from 'lucide-react'
+import { AlertTriangle, X, FileText, Info } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 

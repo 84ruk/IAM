@@ -1,9 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { AlertCircle, Building, Settings, ArrowRight } from 'lucide-react';
-import Button from './Button';
+import { useEffect } from 'react';
 import { useGlobalError } from '@/hooks/useGlobalError';
 
 interface GlobalErrorHandlerProps {

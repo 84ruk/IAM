@@ -1,8 +1,8 @@
 'use client'
 
+import React from 'react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { 
   LineChart, 
   Line, 
@@ -19,19 +19,36 @@ import {
 } from 'recharts'
 import { Loader2, AlertCircle, BarChart3 } from 'lucide-react'
 
+
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B']
 
 interface KPIGraphProps {
-  data: Record<string, unknown>
+  data: Record<string, unknown>[]
   title: string
-  type: 'line' | 'bar' | 'area'
+  type: 'line' | 'bar' | 'area' | 'pie'
   height?: number
   className?: string
+  error?: Error | null
+  isLoading?: boolean
+  xAxisDataKey?: string
+  dataKey?: string
+  formatLabel?: (value: unknown) => string
+  formatValue?: (value: number) => string
 }
 
-export function KPIGraph({ data, title, type, height = 300, className }: KPIGraphProps) {
-  const chartData = data as Array<Record<string, unknown>>
-
+export function KPIGraph({ 
+  data, 
+  title, 
+  type, 
+  height = 300, 
+  className, 
+  error, 
+  isLoading,
+  xAxisDataKey = 'fecha',
+  dataKey = 'valor',
+  formatLabel,
+  formatValue
+}: KPIGraphProps) {
   const NoData = () => (
     <div className="flex flex-col items-center justify-center p-8 text-gray-500">
       <BarChart3 className="w-12 h-12 mb-4 opacity-50" />

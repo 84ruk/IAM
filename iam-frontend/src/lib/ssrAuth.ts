@@ -48,14 +48,14 @@ export async function requireAuth() {
       
       if (fetchError && typeof fetchError === 'object' && 'code' in fetchError && 
           (fetchError.code === 'ECONNREFUSED' || 
-           (fetchError.message && typeof fetchError.message === 'string' && fetchError.message.includes('ECONNREFUSED')))) {
+           ('message' in fetchError && fetchError.message && typeof fetchError.message === 'string' && fetchError.message.includes('ECONNREFUSED')))) {
         console.warn('Backend no disponible - conexión rechazada')
         return null
       }
       
       if (fetchError && typeof fetchError === 'object' && 'code' in fetchError && 
           (fetchError.code === 'ENOTFOUND' || 
-           (fetchError.message && typeof fetchError.message === 'string' && fetchError.message.includes('ENOTFOUND')))) {
+           ('message' in fetchError && fetchError.message && typeof fetchError.message === 'string' && fetchError.message.includes('ENOTFOUND')))) {
         console.warn('No se puede resolver el host del backend')
         return null
       }
@@ -90,7 +90,7 @@ export function mapUserFromBackend(userFromBackend: Record<string, unknown>): Us
   return {
     sub: userFromBackend.id as number, // Mapear id a sub
     email: userFromBackend.email as string,
-    rol: userFromBackend.rol as string,
+    rol: userFromBackend.rol as "SUPERADMIN" | "ADMIN" | "EMPLEADO" | "PROVEEDOR",
     empresaId: userFromBackend.empresaId as number,
     tipoIndustria: userFromBackend.tipoIndustria as string,
     setupCompletado: userFromBackend.setupCompletado as boolean

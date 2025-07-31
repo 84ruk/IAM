@@ -320,8 +320,8 @@ export async function validateApiResponse(response: Response): Promise<unknown> 
 
   try {
     return await response.json()
-  } catch (error) {
-    throw new AppError('Error al procesar la respuesta del servidor')
+  } catch {
+    return false
   }
 }
 

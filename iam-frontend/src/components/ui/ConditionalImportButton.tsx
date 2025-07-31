@@ -1,9 +1,5 @@
 'use client'
 
-import { useState } from 'react'
-import { usePathname } from 'next/navigation'
-import Button from '@/components/ui/Button'
-import { Upload, Plus, Sparkles, Brain } from 'lucide-react'
 import ImportButton from './ImportButton'
 
 interface ConditionalImportButtonProps {
@@ -23,9 +19,6 @@ export default function ConditionalImportButton({
   children,
   mode = 'both'
 }: ConditionalImportButtonProps) {
-  const pathname = usePathname()
-  
-  // Usar el ImportButton directamente ya que el contexto está disponible en DashboardShell
   return (
     <ImportButton
       variant={variant}

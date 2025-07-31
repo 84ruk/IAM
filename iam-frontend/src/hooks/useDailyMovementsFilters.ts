@@ -4,10 +4,9 @@ import { useState, useCallback, useMemo, useEffect } from 'react'
 import { ApiClient } from '@/lib/api'
 import { 
   DailyMovementsFilters, 
-  FilterOption, 
-  FilterOptionsResponse,
   FilterPreset,
-  DEFAULT_FILTER_PRESETS 
+  DEFAULT_FILTER_PRESETS,
+  FilterOptionsResponse
 } from '@/types/filters'
 import { AppError } from '@/lib/errorHandler'
 
@@ -43,8 +42,10 @@ interface UseDailyMovementsFiltersReturn {
   // Utilidades
   hasActiveFilters: boolean
   getFilterSummary: () => string
-  exportFilters: () => string
-  importFilters: (filtersString: string) => void
+  exportFilters: () => void
+  importFilters: (filtersData: Record<string, unknown>) => void
+  handleFilterChange: (filterName: string, value: unknown) => void
+  handleDateRangeChange: (range: { from: Date | undefined; to: Date | undefined }) => void
 }
 
 export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOptions = {}): UseDailyMovementsFiltersReturn {
@@ -76,7 +77,7 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
   )
 
   // Estado de filtros aplicados
-  const [appliedFilters, setAppliedFilters] = useState<Record<string, unknown>>({})
+  const [appliedFilters] = useState<Record<string, unknown>>({})
 
   // Cargar opciones de filtro
   const loadFilterOptions = useCallback(async () => {
@@ -255,7 +256,7 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
   // Importar filtros
   const importFilters = useCallback((filtersData: Record<string, unknown>) => {
     if (filtersData.filters && typeof filtersData.filters === 'object') {
-      setFilters(filtersData.filters as Record<string, unknown>)
+      setFilters(filtersData.filters as DailyMovementsFilters)
     }
   }, [])
 
@@ -297,8 +298,8 @@ export function useDailyMovementsFilters(options: UseDailyMovementsFiltersOption
   }, [filters])
 
   const handleFilterChange = (filterName: string, value: unknown) => {
-    setFilters(prev => ({
-      ...prev,
+    setFilters(() => ({
+      ...filters,
       [filterName]: value
     }))
   }

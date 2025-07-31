@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useGlobalError } from './useGlobalError'
+import { AppError } from '@/lib/errorHandler'
 
 export interface BackendError {
   name: string
@@ -13,7 +14,6 @@ export interface BackendError {
 export function useBackendError() {
   const [error, setError] = useState<BackendError | null>(null)
   const [isRetrying, setIsRetrying] = useState(false)
-  const router = useRouter()
 
   const handleError = useCallback((error: unknown) => {
     let appError: AppError

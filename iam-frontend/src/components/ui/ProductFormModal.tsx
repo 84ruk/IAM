@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Package, DollarSign, Tag, Settings, Barcode } from 'lucide-react'
+import { Package, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ProductFormModalProps {

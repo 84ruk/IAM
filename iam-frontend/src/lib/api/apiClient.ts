@@ -1,7 +1,7 @@
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, AxiosInstance } from 'axios'
 
 class ApiClient {
-  private instance: axios.AxiosInstance
+  private instance: AxiosInstance
   private requestQueue: Array<() => Promise<unknown>> = []
   private isProcessing = false
   private lastRequestTime = 0
@@ -80,11 +80,11 @@ class ApiClient {
 
   private async handleServerError(error: AxiosError): Promise<AxiosResponse> {
     const config = error.config!
-    const retryCount = (config as Record<string, unknown>).retryCount || 0
+    const retryCount = Number(((config as unknown) as Record<string, unknown>).retryCount) || 0
     const maxRetries = 3
 
     if (retryCount < maxRetries) {
-      ;(config as Record<string, unknown>).retryCount = retryCount + 1
+      ((config as unknown) as Record<string, unknown>).retryCount = retryCount + 1
       const delay = Math.pow(2, retryCount) * 1000 // Exponential backoff
       
       await this.delay(delay)

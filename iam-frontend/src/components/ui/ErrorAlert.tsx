@@ -62,38 +62,31 @@ export default function ErrorAlert({
   className = '',
   showCloseButton = true
 }: ErrorAlertProps) {
-  const [isVisible, setIsVisible] = useState(false)
+  const [isVisible, setIsVisible] = useState(true)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
-
-  useEffect(() => {
-    if (error) {
-      setIsVisible(true)
-      
-      // Extraer errores de validación si es un ValidationAppError
-      if (error instanceof ValidationAppError && error.errors) {
-        setValidationErrors(error.errors.map(err => err.message))
-      } else {
-        setValidationErrors([])
-      }
-
-      // Auto-close si está habilitado
-      if (autoClose) {
-        const timer = setTimeout(() => {
-          handleClose()
-        }, autoCloseDelay)
-
-        return () => clearTimeout(timer)
-      }
-    } else {
-      setIsVisible(false)
-      setValidationErrors([])
-    }
-  }, [error, autoClose, autoCloseDelay, handleClose])
 
   const handleClose = () => {
     setIsVisible(false)
-    onClose?.()
+    if (onClose) {
+      onClose()
+    }
   }
+
+  useEffect(() => {
+    if (error && autoClose) {
+      const timer = setTimeout(() => {
+        handleClose()
+      }, autoCloseDelay)
+
+      return () => clearTimeout(timer)
+    }
+
+    if (error && 'validationErrors' in error && error.validationErrors) {
+      setValidationErrors(Array.isArray(error.validationErrors) ? error.validationErrors : [])
+    } else {
+      setValidationErrors([])
+    }
+  }, [error, autoClose, autoCloseDelay, handleClose])
 
   if (!error || !isVisible) return null
 
@@ -132,16 +125,9 @@ export default function ErrorAlert({
                    error.name === 'NetworkError' ? 'Error de Conexión' :
                    'Error'}
                 </h3>
-                <p className={`text-sm mt-1 ${config.textColor}`}>
+                <p className={`text-sm ${config.textColor}`}>
                   {error.message}
                 </p>
-                
-                {/* Mostrar sugerencias si están disponibles */}
-                {error.details?.suggestion && (
-                  <p className={`text-xs mt-2 ${config.textColor} opacity-80`}>
-                    💡 {error.details.suggestion}
-                  </p>
-                )}
                 
                 {/* Mostrar errores de validación específicos */}
                 {validationErrors.length > 0 && (

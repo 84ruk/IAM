@@ -3,7 +3,7 @@
 import { useIndustriaConfig } from '@/hooks/useIndustriaConfig'
 import { Input } from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
-import { Thermometer, Droplets, Tag, Package } from 'lucide-react'
+import { Thermometer, Tag, Package } from 'lucide-react'
 
 interface FiltrosIndustriaProps {
   filtros: {

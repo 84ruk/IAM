@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { AlertTriangle, Wifi, WifiOff, RefreshCw } from 'lucide-react'
+import { AlertTriangle, RefreshCw, WifiOff } from 'lucide-react'
 
 interface BackendStatusProps {
   children: React.ReactNode
   fallback?: React.ReactNode
 }
 
-export function BackendStatus({ children, fallback }: BackendStatusProps) {
+export function BackendStatus({ children }: BackendStatusProps) {
   const [status, setStatus] = useState<'online' | 'offline' | 'checking'>('checking')
   const [error, setError] = useState<Error | null>(null)
 
@@ -31,9 +31,9 @@ export function BackendStatus({ children, fallback }: BackendStatusProps) {
 
       clearTimeout(timeoutId)
       setStatus(response.ok ? 'online' : 'offline')
-    } catch (error: Error) {
+    } catch (error: unknown) {
       setStatus('offline')
-      setError(error)
+      setError(error instanceof Error ? error : new Error(String(error)))
     } finally {
       // setIsChecking(false) // This line was removed from the new_code, so it's removed here.
     }
@@ -63,15 +63,10 @@ export function BackendStatus({ children, fallback }: BackendStatusProps) {
           <div className="flex flex-col space-y-3">
             <button
               onClick={checkBackendStatus}
-              disabled={status === 'checking'}
-              className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
-              {status === 'checking' ? (
-                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              {status === 'checking' ? 'Verificando...' : 'Reintentar'}
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reintentar
             </button>
             
             <button

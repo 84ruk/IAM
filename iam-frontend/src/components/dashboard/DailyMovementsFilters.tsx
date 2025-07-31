@@ -26,7 +26,6 @@ interface DailyMovementsFiltersProps {
 }
 
 export default function DailyMovementsFilters({
-  onFiltersChange,
   onReset,
   className = ''
 }: DailyMovementsFiltersProps) {
@@ -49,13 +48,7 @@ export default function DailyMovementsFilters({
     }))
   }
 
-  const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined }) => {
-    setFilters(prev => ({
-      ...prev,
-      startDate: range.from?.toISOString().split('T')[0],
-      endDate: range.to?.toISOString().split('T')[0]
-    }))
-  }
+
 
   const handleReset = () => {
     const defaultFilters = {

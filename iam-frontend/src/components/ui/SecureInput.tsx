@@ -169,8 +169,8 @@ export const SecureInput = forwardRef<HTMLInputElement, SecureInputProps>(
               "w-full px-3 py-2 border rounded-lg transition-colors duration-200",
               "focus:outline-none focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent",
               "disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed",
-              leftIcon && "pl-10",
-              (rightIcon || showPasswordToggle) && "pr-10",
+              leftIcon ? "pl-10" : "",
+              (rightIcon || showPasswordToggle) ? "pr-10" : "",
               hasError
                 ? "border-red-300 focus:ring-red-500"
                 : isFocused

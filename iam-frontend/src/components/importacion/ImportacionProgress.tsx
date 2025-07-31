@@ -310,7 +310,9 @@ export default function ImportacionProgress({
             <div className="max-h-32 overflow-y-auto space-y-1">
               {trabajo.errores.slice(0, 5).map((error, index) => (
                 <div key={index} className="text-xs text-red-600 bg-red-50 p-2 rounded">
-                  {error.mensaje || error}
+                  {typeof error === 'object' && error !== null && 'mensaje' in error 
+                    ? String((error as { mensaje: string }).mensaje) 
+                    : String(error)}
                 </div>
               ))}
               {trabajo.errores.length > 5 && (

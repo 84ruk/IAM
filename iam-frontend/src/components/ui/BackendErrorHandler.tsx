@@ -2,7 +2,7 @@
 
 import { ReactNode } from 'react'
 import { AlertTriangle, WifiOff, RefreshCw, Shield, Server } from 'lucide-react'
-import { useBackendError, BackendError } from '@/hooks/useBackendError'
+import { BackendError } from '@/hooks/useBackendError'
 
 interface BackendErrorHandlerProps {
   children: ReactNode
@@ -36,22 +36,6 @@ export function BackendErrorHandler({
         return <Server className="h-6 w-6 text-orange-500" />
       default:
         return <AlertTriangle className="h-6 w-6 text-red-500" />
-    }
-  }
-
-  const getErrorColor = () => {
-    switch (error.name) {
-      case 'BackendUnavailable':
-      case 'HostNotFound':
-      case 'NetworkError':
-        return 'border-red-200 bg-red-50 text-red-800'
-      case 'Unauthorized':
-      case 'Forbidden':
-        return 'border-yellow-200 bg-yellow-50 text-yellow-800'
-      case 'ServerError':
-        return 'border-orange-200 bg-orange-50 text-orange-800'
-      default:
-        return 'border-red-200 bg-red-50 text-red-800'
     }
   }
 

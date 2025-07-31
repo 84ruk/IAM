@@ -1,4 +1,4 @@
-import { safeFetch, validateApiResponse, AppError } from './errorHandler'
+import { AppError, validateApiResponse } from './errorHandler'
 
 // Configuración base de la API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -158,7 +158,7 @@ export class ApiClient {
         return response.blob() as T
       }
 
-      return await validateApiResponse(response)
+      return await validateApiResponse(response) as T
     } catch (error) {
       // Manejar errores específicos antes de reintentos
       if (error instanceof AppError) {
@@ -256,13 +256,13 @@ export function normalizeApiResponse<T>(response: unknown): T {
   }
   
   // Si la respuesta tiene una propiedad 'data' que es un array
-  if (response && typeof response === 'object' && Array.isArray(response.data)) {
-    return response.data as T
+  if (response && typeof response === 'object' && 'data' in response && Array.isArray((response as Record<string, unknown>).data)) {
+    return (response as Record<string, unknown>).data as T
   }
   
   // Si la respuesta tiene una propiedad 'data' que no es un array
   if (response && typeof response === 'object' && 'data' in response) {
-    return response.data as T
+    return (response as Record<string, unknown>).data as T
   }
   
   // Si no hay datos, retornar array vacío para arrays, o el valor original
@@ -621,9 +621,6 @@ export const api = {
       apiClient.get('/importacion/tipos-soportados'),
   }
 }
-
-import { useAuth } from '@/hooks/useAuth'
-import axios, { AxiosError, AxiosInstance } from 'axios'
 
 // Hook para usar la API con manejo de errores
 export function useApi(client: ApiClient = apiClient) {

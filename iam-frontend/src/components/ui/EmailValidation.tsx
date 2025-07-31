@@ -1,5 +1,4 @@
-import React from 'react';
-import { CheckCircle, XCircle, Mail } from 'lucide-react';
+import { AlertCircle, CheckCircle } from 'lucide-react'
 
 interface EmailValidationProps {
   email: string;
@@ -22,7 +21,7 @@ export const EmailValidation: React.FC<EmailValidationProps> = ({
         {isEmailValid ? (
           <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
         ) : (
-          <XCircle className="h-3 w-3 text-red-500 flex-shrink-0" />
+          <AlertCircle className="h-3 w-3 text-red-500 flex-shrink-0" />
         )}
         <span className={isEmailValid ? 'text-green-700' : 'text-red-700'}>
           {isEmailValid ? 'Formato de email válido' : 'Formato de email inválido'}

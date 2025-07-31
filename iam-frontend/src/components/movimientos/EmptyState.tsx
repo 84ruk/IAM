@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeftRight, Filter, Plus } from 'lucide-react'
+import { ArrowLeftRight, Filter } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 
 interface EmptyStateProps {

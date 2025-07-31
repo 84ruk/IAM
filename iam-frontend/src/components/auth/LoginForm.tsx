@@ -10,9 +10,11 @@ import { parseApiError, AppError, ValidationAppError, AuthError, NetworkError } 
 import { useBackendError } from '@/hooks/useBackendError'
 import { BackendErrorHandler } from '@/components/ui/BackendErrorHandler'
 
+
 interface LoginFormData {
   email: string;
   password: string;
+  [key: string]: unknown;
 }
 
 interface FieldErrors {
@@ -27,6 +29,7 @@ export default function LoginForm() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [showSuccess, setShowSuccess] = useState(false);
   const { error, isRetrying, handleError, clearError, retryOperation } = useBackendError()
+
   
   // Configuración de validación
   const validationRules = {
@@ -197,24 +200,14 @@ export default function LoginForm() {
     return fieldErrors[field] || validationErrors[field] || '';
   };
 
-  // Determinar si el campo tiene error
-  const hasFieldError = (field: keyof FieldErrors) => {
-    return !!(fieldErrors[field] || validationErrors[field]);
-  };
-
   const handleRetry = useCallback(() => {
     // Reintentar la operación de login
     if (data.email && data.password) {
-      handleSubmit(new Event('submit') as React.FormEvent)
+      // Simular el envío del formulario
+      const formEvent = new Event('submit') as unknown as React.FormEvent
+      handleSubmit(formEvent)
     }
-  }, [data.email, data.password, handleSubmit])
-
-  const handleFieldError = (field: string, error: unknown) => {
-    setFieldErrors(prev => ({
-      ...prev,
-      [field]: typeof error === 'string' ? error : 'Error de validación'
-    }))
-  }
+  }, [data.email, data.password])
 
   if (isLoading && !showSuccess) {
     return (

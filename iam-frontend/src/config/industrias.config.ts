@@ -15,9 +15,18 @@ type CampoProducto =
 
 export interface IndustriaConfig {
   label: string
+  nombre?: string
+  descripcion?: string
+  icono?: string
+  color?: string
   camposRelevantes: CampoProducto[]
   sensoresActivos?: boolean
   mostrarTemperaturaHumedad?: boolean
+  mostrarTallaColor?: boolean
+  mostrarSKU?: boolean
+  mostrarCodigoBarras?: boolean
+  mostrarRFID?: boolean
+  mostrarEtiquetas?: boolean
   validaciones?: {
     temperaturaMin?: number
     temperaturaMax?: number
@@ -33,6 +42,7 @@ export interface IndustriaConfig {
 
 export const INDUSTRIAS: Record<string, IndustriaConfig> = {
   GENERICA: {
+    label: 'Genérica',
     nombre: 'Genérica',
     descripcion: 'Configuración estándar para cualquier tipo de negocio',
     icono: '🏢',
@@ -56,7 +66,8 @@ export const INDUSTRIAS: Record<string, IndustriaConfig> = {
       temperaturaMax: 50,
       humedadMin: 0,
       humedadMax: 100
-    }
+    },
+    configuracionEspecifica: {}
   },
   ROPA: {
     label: 'Ropa',
@@ -64,11 +75,13 @@ export const INDUSTRIAS: Record<string, IndustriaConfig> = {
     opciones: {
       tallas: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
       colores: ['Negro', 'Blanco', 'Rojo', 'Azul', 'Verde', 'Amarillo', 'Gris', 'Marrón']
-    }
+    },
+    configuracionEspecifica: {}
   },
   ELECTRONICA: {
     label: 'Electrónica',
     camposRelevantes: ['sku', 'codigoBarras', 'rfid'],
+    configuracionEspecifica: {}
   },
   FARMACIA: {
     label: 'Farmacia',
@@ -80,7 +93,8 @@ export const INDUSTRIAS: Record<string, IndustriaConfig> = {
       temperaturaMax: 25,
       humedadMin: 30,
       humedadMax: 70
-    }
+    },
+    configuracionEspecifica: {}
   }
 }
 
@@ -101,6 +115,7 @@ export function validarCampoPorIndustria(
   
   switch (campo) {
     case 'temperaturaOptima':
+      if (typeof valor !== 'number') return null;
       if (config.validaciones.temperaturaMin !== undefined && valor < config.validaciones.temperaturaMin) {
         return `La temperatura mínima para ${config.label} es ${config.validaciones.temperaturaMin}°C`
       }
@@ -109,6 +124,7 @@ export function validarCampoPorIndustria(
       }
       break
     case 'humedadOptima':
+      if (typeof valor !== 'number') return null;
       if (config.validaciones.humedadMin !== undefined && valor < config.validaciones.humedadMin) {
         return `La humedad mínima para ${config.label} es ${config.validaciones.humedadMin}%`
       }

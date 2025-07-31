@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, Suspense, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
@@ -28,11 +28,7 @@ function ResetPasswordContent() {
   const [tokenValid, setTokenValid] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
-  useEffect(() => {
-    verifyToken()
-  }, [verifyToken])
-
-  const verifyToken = async () => {
+  const verifyToken = useCallback(async () => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/reset-password/${token}`)
       const data = await response.json()
@@ -50,7 +46,13 @@ function ResetPasswordContent() {
     } finally {
       setIsVerifying(false)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    if (token) {
+      verifyToken()
+    }
+  }, [token, verifyToken])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))

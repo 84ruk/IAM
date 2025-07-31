@@ -111,7 +111,7 @@ export default function SuperAdminUsersPage() {
     }
 
     cargarDatos()
-  }, [pagination.page, pagination.limit, searchTerm, roleFilter, statusFilter, empresaFilter])
+  }, [pagination, searchTerm, roleFilter, statusFilter, empresaFilter])
 
   const handleDeleteUser = async (userId: number, userName: string) => {
     if (!confirm(`¿Estás seguro de que deseas eliminar al usuario "${userName}"? Esta acción no se puede deshacer.`)) {

@@ -199,7 +199,7 @@ export default function ImportacionPage() {
     return true
   })
 
-  const handleTemplateSelect = (template: SmartTemplate) => {
+  const handleTemplateSelect = (_template: SmartTemplate) => {
     setShowSmartModal(true)
   }
 

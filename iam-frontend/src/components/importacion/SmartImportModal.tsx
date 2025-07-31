@@ -5,7 +5,6 @@ import { useImportacionUnified } from '@/hooks/useImportacionUnified'
 import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import ImportacionProgress from './ImportacionProgress'
-import ImportacionErrorNotification from './ImportacionErrorNotification'
 import ImportacionErrorDetails from './ImportacionErrorDetails'
 import { 
   Upload, 
@@ -20,7 +19,7 @@ import {
   X
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
-import { TipoImportacion, ImportacionResultado, ErrorImportacion } from '@/types/importacion'
+import { ImportacionResultado, ErrorImportacion } from '@/types/importacion'
 
 interface SmartImportModalProps {
   isOpen: boolean

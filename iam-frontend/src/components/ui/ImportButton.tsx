@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Button from '@/components/ui/Button'
-import { Upload, Plus, Sparkles, Brain } from 'lucide-react'
+import { Upload, Plus, Sparkles } from 'lucide-react'
 import SmartImportModal from '@/components/importacion/SmartImportModal'
 
 interface ImportButtonProps {

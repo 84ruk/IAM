@@ -1,36 +1,25 @@
 "use client";
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { 
-  Package, 
-  Box, 
-  AlertTriangle, 
   TrendingUp, 
-  PercentCircle, 
+  TrendingDown,
+  Package, 
+  DollarSign,
   RefreshCw,
   BarChart3,
-  BarChartHorizontal,
-  ArrowRight,
-  Filter,
-  TrendingDown,
-  TrendingUp as TrendingUpIcon,
+  AlertTriangle,
   Eye,
-  Settings,
-  Bell,
-  Search,
-  Calendar,
-  DollarSign,
-  Users,
-  Activity,
-  Zap,
-  Target,
-  CheckCircle,
-  Clock,
-  Star,
   Wifi,
-  WifiOff
-} from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar, Cell, LineChart, Line, PieChart, Pie, ComposedChart } from 'recharts';
+  WifiOff,
+  Zap,
+  Clock,
+  ArrowRight,
+  PercentCircle,
+  Target,
+  Activity
+} from 'lucide-react'
+import { ResponsiveContainer, XAxis, YAxis, Tooltip, Cell, LineChart, Line, PieChart, Pie } from 'recharts';
 
 const KPIS = [
   { 
@@ -152,7 +141,7 @@ export default function DemoDashboard() {
   const [selectedIndustry, setSelectedIndustry] = useState('helados');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline] = useState(true);
 
   const industries = [
     { id: 'helados', name: 'Helados', icon: '🍦' },

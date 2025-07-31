@@ -65,7 +65,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
   const camposIndustria = config.camposRelevantes.reduce((acc, campo) => {
     acc[campo] = z.unknown().optional()
     return acc
-  }, {} as Record<string, unknown>)
+  }, {} as Record<string, z.ZodTypeAny>)
 
   const schema = baseSchema
   .extend(camposIndustria)
@@ -128,7 +128,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
           setEtiquetas(etiquetasProducto)
           setValue('etiquetas', etiquetasProducto)
         }
-      } catch (error) {
+      } catch {
         console.error('Error cargando producto')
     }
   }
@@ -185,7 +185,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
 
           onSuccess?.()
           router.push('/dashboard/productos')
-    } catch (err: unknown) {
+    } catch {
       setServerErrors(['Hubo un error inesperado.'])
         }
   }
@@ -219,7 +219,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
       
       // Redirigir a la lista de productos después de eliminar
             router.push('/dashboard/productos')
-    } catch (err: unknown) {
+    } catch {
       setServerErrors(['Error de conexión. Verifica tu conexión a internet.'])
     } finally {
       setEliminandoProducto(false)
@@ -266,9 +266,7 @@ export default function FormularioProducto({ onSuccess, producto }: { onSuccess?
   console.log('Render - Estado de etiquetas:', etiquetas)
 
   const renderCampo = (campo: string, label: string, type: string = 'text', optional = true) => {
-    const value = watch(campo as keyof RegisterFormData)
-    const error = errors[campo as keyof RegisterFormData]
-    const hasError = !!error
+    // const error = errors[campo] // Eliminar esta línea
     // Caso especial para descripción - usar textarea
     if (campo === 'descripcion') {
       return (

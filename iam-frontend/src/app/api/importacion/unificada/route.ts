@@ -55,8 +55,9 @@ export async function POST(request: NextRequest) {
     propiedadesBooleanas.forEach(propiedad => {
       const valor = formData.get(propiedad)
       if (valor !== null) {
-        // Convertir a string boolean
-        const boolValue = valor === 'true' || valor === true || valor === '1'
+        // Convertir a string boolean - FormDataEntryValue puede ser string o File
+        const stringValue = valor.toString()
+        const boolValue = stringValue === 'true' || stringValue === '1'
         backendFormData.append(propiedad, boolValue.toString())
       }
     })

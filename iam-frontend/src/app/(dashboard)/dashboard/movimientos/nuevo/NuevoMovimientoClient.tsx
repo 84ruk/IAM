@@ -45,7 +45,7 @@ interface Producto {
 // Subcomponente: Campos del formulario
 interface MovimientoFieldsProps {
   tipo: string
-  setTipo: (tipo: string) => void
+  setTipo: (tipo: 'ENTRADA' | 'SALIDA') => void
   productoId: string
   setProductoId: (id: string) => void
   productosActivos: Producto[]
@@ -59,7 +59,7 @@ interface MovimientoFieldsProps {
   setMotivo: (motivo: string) => void
   descripcion: string
   setDescripcion: (descripcion: string) => void
-  inputRef: React.RefObject<HTMLInputElement>
+  inputRef: React.RefObject<HTMLInputElement | null>
   producto: Producto | null
   isLoading: boolean
   cantidadValida: () => boolean
@@ -182,7 +182,7 @@ function MovimientoFields({
 // Subcomponente: Información del producto seleccionado
 interface ProductoInfoCardProps {
   producto: Producto | null
-  getStockStatus: (producto: Producto) => string
+  getStockStatus: (producto: Producto) => { status: string; color: string; bg: string }
 }
 
 function ProductoInfoCard({ producto, getStockStatus }: ProductoInfoCardProps) {

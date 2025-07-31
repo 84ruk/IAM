@@ -1,7 +1,7 @@
 import React from 'react'
-import { Package, Plus, Filter } from 'lucide-react'
+import { Package, Filter } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
-import Button from '@/components/ui/Button'
+
 
 interface EmptyStateProps {
   hayFiltrosActivos: boolean
