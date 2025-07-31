@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { AlertCircle, Loader2, CheckCircle, ArrowLeft, Building2, User, Clock } from 'lucide-react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { AlertCircle, Loader2, CheckCircle, ArrowLeft, Building2, User, Clock, Check, X } from 'lucide-react'
 import { AppError } from '@/lib/errorHandler'
 import { Input } from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
@@ -22,6 +22,40 @@ interface FieldErrors {
   confirmPassword?: string
 }
 
+interface PasswordRequirement {
+  id: string
+  label: string
+  validator: (password: string) => boolean
+}
+
+const PASSWORD_REQUIREMENTS: PasswordRequirement[] = [
+  {
+    id: 'length',
+    label: 'Al menos 12 caracteres',
+    validator: (password: string) => password.length >= 12
+  },
+  {
+    id: 'lowercase',
+    label: 'Al menos una minúscula',
+    validator: (password: string) => /[a-z]/.test(password)
+  },
+  {
+    id: 'uppercase',
+    label: 'Al menos una mayúscula',
+    validator: (password: string) => /[A-Z]/.test(password)
+  },
+  {
+    id: 'number',
+    label: 'Al menos un número',
+    validator: (password: string) => /\d/.test(password)
+  },
+  {
+    id: 'symbol',
+    label: 'Al menos un símbolo (@$!%*?&)',
+    validator: (password: string) => /[@$!%*?&]/.test(password)
+  }
+]
+
 export default function RegisterForm() {
   const [data, setData] = useState<RegisterFormData>({
     nombre: '',
@@ -36,13 +70,13 @@ export default function RegisterForm() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [isFormValid, setIsFormValid] = useState(false)
 
-  const updateField = (field: keyof FieldErrors, value: string) => {
+  const updateField = useCallback((field: keyof FieldErrors, value: string) => {
     setData(prev => ({ ...prev, [field]: value }))
     // Limpiar error del campo cuando el usuario empiece a escribir
     if (validationErrors[field]) {
       setValidationErrors(prev => ({ ...prev, [field]: undefined }))
     }
-  }
+  }, [validationErrors])
 
   const isValidationAppError = useCallback((error: unknown): error is { name: string; errors: { field: string; message: string }[] } => {
     return typeof error === 'object' && error !== null && (error as Record<string, unknown>).name === 'ValidationAppError' && 'errors' in error
@@ -85,10 +119,14 @@ export default function RegisterForm() {
     return Object.keys(errors).length === 0
   }, [data.nombre, data.email, data.password, data.confirmPassword])
 
-  // Validar formulario en tiempo real
+  // Validar formulario en tiempo real con debounce
   useEffect(() => {
-    const isValid = validateForm()
-    setIsFormValid(isValid)
+    const timeoutId = setTimeout(() => {
+      const isValid = validateForm()
+      setIsFormValid(isValid)
+    }, 300) // Debounce de 300ms
+
+    return () => clearTimeout(timeoutId)
   }, [data.nombre, data.email, data.password, data.confirmPassword, validateForm])
 
   const handleBackendError = useCallback((result: unknown) => {
@@ -161,9 +199,63 @@ export default function RegisterForm() {
     }
   }, [data, isLoading, handleBackendError, validateForm])
 
-  const getFieldError = (field: keyof FieldErrors) => {
+  const getFieldError = useCallback((field: keyof FieldErrors) => {
     return validationErrors[field] || ''
-  }
+  }, [validationErrors])
+
+  // Handlers optimizados para evitar re-renderizaciones
+  const handleNombreChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    updateField('nombre', e.target.value)
+  }, [updateField])
+
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    updateField('email', e.target.value)
+  }, [updateField])
+
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    updateField('password', e.target.value)
+  }, [updateField])
+
+  const handleConfirmPasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    updateField('confirmPassword', e.target.value)
+  }, [updateField])
+
+  // Componente de requisitos de contraseña optimizado
+  const PasswordRequirements = useMemo(() => {
+    if (!data.password) return null
+
+    const requirements = PASSWORD_REQUIREMENTS.map(req => ({
+      ...req,
+      isValid: req.validator(data.password)
+    }))
+
+    const allValid = requirements.every(req => req.isValid)
+
+    return (
+      <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <p className="text-sm font-medium text-gray-700 mb-2">Requisitos de contraseña:</p>
+        <div className="space-y-1">
+          {requirements.map(req => (
+            <div key={req.id} className="flex items-center gap-2">
+              {req.isValid ? (
+                <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+              ) : (
+                <X className="w-4 h-4 text-red-500 flex-shrink-0" />
+              )}
+              <span className={`text-xs ${req.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                {req.label}
+              </span>
+            </div>
+          ))}
+        </div>
+        {allValid && (
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+            <p className="text-xs text-green-700 font-medium">✓ Contraseña cumple todos los requisitos</p>
+          </div>
+        )}
+      </div>
+    )
+  }, [data.password])
 
   if (isLoading && !showSuccess) {
     return (
@@ -246,7 +338,7 @@ export default function RegisterForm() {
           name="nombre"
           type="text"
           value={data.nombre}
-          onChange={e => updateField('nombre', e.target.value)}
+          onChange={handleNombreChange}
           error={getFieldError('nombre')}
           required
           disabled={isLoading}
@@ -259,7 +351,7 @@ export default function RegisterForm() {
           name="email"
           type="email"
           value={data.email}
-          onChange={e => updateField('email', e.target.value)}
+          onChange={handleEmailChange}
           error={getFieldError('email')}
           required
           disabled={isLoading}
@@ -272,20 +364,23 @@ export default function RegisterForm() {
           name="password"
           type="password"
           value={data.password}
-          onChange={e => updateField('password', e.target.value)}
+          onChange={handlePasswordChange}
           error={getFieldError('password')}
           required
           disabled={isLoading}
           placeholder="••••••••••••"
           autoComplete="new-password"
         />
+        
+        {/* Componente de requisitos de contraseña */}
+        {PasswordRequirements}
 
         <Input
           label="Confirmar contraseña"
           name="confirmPassword"
           type="password"
           value={data.confirmPassword}
-          onChange={e => updateField('confirmPassword', e.target.value)}
+          onChange={handleConfirmPasswordChange}
           error={getFieldError('confirmPassword')}
           required
           disabled={isLoading}
