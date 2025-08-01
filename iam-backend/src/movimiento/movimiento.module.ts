@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MovimientoController } from './movimiento.controller';
 import { MovimientoService } from './movimiento.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CommonModule } from '../common/common.module';
+import { AuthModule } from '../auth/auth.module';
 
 // Command Handlers
 import { CrearMovimientoHandler } from './handlers/crear-movimiento.handler';
@@ -22,12 +23,8 @@ import { ObtenerMovimientoEliminadoHandler } from './handlers/obtener-movimiento
 // ✅ NUEVO: Servicio de estadísticas financieras
 import { EstadisticasFinancierasService } from './services/estadisticas-financieras.service';
 
-// ✅ Servicios de auditoría necesarios para UnifiedEmpresaGuard
-import { JwtAuditService } from '../auth/jwt-audit.service';
-import { EmpresaCacheService } from '../auth/empresa-cache.service';
-
 @Module({
-  imports: [PrismaModule, CommonModule],
+  imports: [PrismaModule, CommonModule, forwardRef(() => AuthModule)],
   controllers: [MovimientoController],
   providers: [
     MovimientoService,
@@ -46,9 +43,6 @@ import { EmpresaCacheService } from '../auth/empresa-cache.service';
     ObtenerMovimientoEliminadoHandler,
     // ✅ NUEVO: Servicio de estadísticas financieras
     EstadisticasFinancierasService,
-    // ✅ Servicios de auditoría
-    JwtAuditService,
-    EmpresaCacheService,
   ],
   exports: [MovimientoService, EstadisticasFinancierasService],
 })
