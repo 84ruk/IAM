@@ -108,6 +108,12 @@ model MovimientoInventario {
   descripcion String?
   empresaId   Int
   estado      EstadoMovimiento @default(ACTIVO)
+  
+  // ✅ NUEVO: Campos de precio para tracking financiero
+  precioUnitario Float?        // Precio por unidad en el momento del movimiento
+  precioTotal    Float?        // Precio total del movimiento (cantidad * precioUnitario)
+  tipoPrecio     TipoPrecioMovimiento? // Tipo de precio (COMPRA, VENTA, AJUSTE)
+  
   empresa     Empresa          @relation(fields: [empresaId], references: [id])
   producto    Producto         @relation(fields: [productoId], references: [id])
 
@@ -115,6 +121,7 @@ model MovimientoInventario {
   @@index([productoId, fecha(sort: Desc)])
   @@index([empresaId, estado])
   @@index([tipo, fecha(sort: Desc)])
+  @@index([tipoPrecio, fecha(sort: Desc)])
 }
 
 model Proveedor {
@@ -417,6 +424,13 @@ enum EstadoPedido {
   ENVIADO
   RECIBIDO
   CANCELADO
+}
+
+enum TipoPrecioMovimiento {
+  COMPRA    // Precio de compra al proveedor
+  VENTA     // Precio de venta al cliente
+  AJUSTE    // Ajuste de inventario
+  TRANSFERENCIA // Transferencia entre almacenes
 }
 
 enum SensorTipo {

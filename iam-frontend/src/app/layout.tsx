@@ -3,6 +3,7 @@ import './globals.css'
 import { montserrat } from './fonts'
 import { ReactNode } from 'react'
 import { ErrorBoundary } from '@/lib/error-boundary'
+import { SetupProvider } from '@/context/SetupContext'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -16,7 +17,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className={`${montserrat.className} bg-gray-50 antialiased text-gray-800`}>
         <ErrorBoundary>
-          {children}
+          <SetupProvider>
+            {children}
+          </SetupProvider>
         </ErrorBoundary>
       </body>
     </html>

@@ -37,6 +37,8 @@ export class CrearMovimientoHandler {
             version: true,
             estado: true,
             nombre: true,
+            precioCompra: true,
+            precioVenta: true,
           },
         });
 
@@ -59,6 +61,51 @@ export class CrearMovimientoHandler {
             throw new NotFoundException('Proveedor no encontrado o inactivo');
           }
         }
+
+        // ✅ NUEVO: Lógica de precios mejorada (comentada temporalmente hasta migración)
+        /*
+        let precioUnitario = command.precioUnitario;
+        let precioTotal = command.precioTotal;
+        let tipoPrecio = command.tipoPrecio;
+
+        // Si no se proporciona precioUnitario, usar precios del producto según el tipo
+        if (!precioUnitario) {
+          if (command.tipo === 'ENTRADA') {
+            precioUnitario = producto.precioCompra;
+            tipoPrecio = 'COMPRA';
+          } else {
+            precioUnitario = producto.precioVenta;
+            tipoPrecio = 'VENTA';
+          }
+        }
+
+        // Si no se proporciona precioTotal, calcularlo
+        if (!precioTotal && precioUnitario) {
+          precioTotal = precioUnitario * command.cantidad;
+        }
+
+        // Validar que el precioTotal sea coherente si se proporcionan ambos
+        if (precioUnitario && precioTotal) {
+          const precioCalculado = precioUnitario * command.cantidad;
+          const diferencia = Math.abs(precioCalculado - precioTotal);
+          
+          // Permitir pequeñas diferencias por redondeo (máximo 0.01)
+          if (diferencia > 0.01) {
+            throw new BadRequestException(
+              'El precio total no coincide con el precio unitario por la cantidad',
+            );
+          }
+        }
+
+        // Determinar tipoPrecio si no se proporciona
+        if (!tipoPrecio) {
+          if (command.tipo === 'ENTRADA') {
+            tipoPrecio = 'COMPRA';
+          } else {
+            tipoPrecio = 'VENTA';
+          }
+        }
+        */
 
         const nuevoStock =
           command.tipo === 'ENTRADA'
@@ -90,6 +137,10 @@ export class CrearMovimientoHandler {
             motivo: command.motivo,
             descripcion: command.descripcion,
             fecha: fechaMovimiento,
+            // ✅ NUEVO: Campos de precio (comentados temporalmente)
+            // precioUnitario,
+            // precioTotal,
+            // tipoPrecio,
           },
         });
 
@@ -124,6 +175,9 @@ export class CrearMovimientoHandler {
             stockNuevo: nuevoStock,
             versionAnterior: producto.version,
             versionNueva: producto.version + 1,
+            // precioUnitario, // Comentado temporalmente
+            // precioTotal, // Comentado temporalmente
+            // tipoPrecio, // Comentado temporalmente
           },
         );
 

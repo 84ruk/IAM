@@ -107,10 +107,42 @@ export default function LoginForm() {
 
       if (response.ok) {
         setShowSuccess(true)
-        // Redirigir después de un breve delay
-        setTimeout(() => {
-          window.location.href = '/dashboard'
-        }, 1500)
+        
+        // ✅ NUEVO: Verificar si el usuario necesita configurar empresa
+        try {
+          const setupResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/needs-setup`, {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+
+          if (setupResponse.ok) {
+            const setupData = await setupResponse.json()
+            
+            // Redirigir según el estado de setup
+            setTimeout(() => {
+              if (setupData.needsSetup) {
+                console.log('🔄 Login: Usuario necesita configurar empresa, redirigiendo a setup-empresa')
+                window.location.href = '/setup-empresa'
+              } else {
+                console.log('🔄 Login: Usuario ya tiene empresa configurada, redirigiendo a dashboard')
+                window.location.href = '/dashboard'
+              }
+            }, 1500)
+          } else {
+            // Si no se puede verificar setup, redirigir al dashboard por defecto
+            setTimeout(() => {
+              window.location.href = '/dashboard'
+            }, 1500)
+          }
+        } catch (setupError) {
+          console.error('Error verificando setup después del login:', setupError)
+          // En caso de error, redirigir al dashboard por defecto
+          setTimeout(() => {
+            window.location.href = '/dashboard'
+          }, 1500)
+        }
       } else {
         handleBackendError(result)
       }

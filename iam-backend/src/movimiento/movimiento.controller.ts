@@ -9,6 +9,7 @@ import {
   Query,
   Patch,
   Delete,
+  BadRequestException,
 } from '@nestjs/common';
 import { MovimientoService } from './movimiento.service';
 import { CrearMovimientoDto } from './dto/crear-movimiento.dto';
@@ -20,12 +21,16 @@ import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { UnifiedEmpresaGuard } from 'src/auth/guards/unified-empresa.guard';
 import { EmpresaRequired } from 'src/auth/decorators/empresa-required.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { EstadisticasFinancierasService } from './services/estadisticas-financieras.service';
 
 @UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
 @EmpresaRequired()
 @Controller('movimientos')
 export class MovimientoController {
-  constructor(private readonly movimientoService: MovimientoService) {}
+  constructor(
+    private readonly movimientoService: MovimientoService,
+    private readonly estadisticasFinancierasService: EstadisticasFinancierasService,
+  ) {}
 
   @Get()
   async listar(
@@ -56,6 +61,65 @@ export class MovimientoController {
     return this.movimientoService.obtenerPorProducto(
       Number(id),
       user.empresaId,
+    );
+  }
+
+  // ✅ NUEVO: Endpoints para estadísticas financieras
+  @Get('estadisticas/financieras')
+  async obtenerEstadisticasFinancieras(@CurrentUser() user: JwtUser) {
+    if (!user.empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada');
+    }
+    return this.estadisticasFinancierasService.calcularEstadisticasFinancieras(user.empresaId);
+  }
+
+  @Get('estadisticas/financieras/periodo')
+  async obtenerEstadisticasPorPeriodo(
+    @CurrentUser() user: JwtUser,
+    @Query('fechaInicio') fechaInicio: string,
+    @Query('fechaFin') fechaFin: string,
+  ) {
+    if (!user.empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada');
+    }
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    return this.estadisticasFinancierasService.calcularEstadisticasPorPeriodo(
+      user.empresaId,
+      inicio,
+      fin,
+    );
+  }
+
+  @Get('estadisticas/financieras/producto/:id')
+  async obtenerEstadisticasPorProducto(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    if (!user.empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada');
+    }
+    return this.estadisticasFinancierasService.calcularEstadisticasPorProducto(
+      user.empresaId,
+      Number(id),
+    );
+  }
+
+  @Get('reporte/financiero')
+  async obtenerReporteFinanciero(
+    @CurrentUser() user: JwtUser,
+    @Query('fechaInicio') fechaInicio?: string,
+    @Query('fechaFin') fechaFin?: string,
+  ) {
+    if (!user.empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada');
+    }
+    const inicio = fechaInicio ? new Date(fechaInicio) : undefined;
+    const fin = fechaFin ? new Date(fechaFin) : undefined;
+    return this.estadisticasFinancierasService.obtenerReporteMovimientos(
+      user.empresaId,
+      inicio,
+      fin,
     );
   }
 

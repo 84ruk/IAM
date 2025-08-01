@@ -12,6 +12,12 @@ export interface Movimiento {
   fecha: string
   createdAt: string
   updatedAt: string
+  
+  // ✅ NUEVO: Campos de precio para tracking financiero
+  precioUnitario?: number
+  precioTotal?: number
+  tipoPrecio?: 'COMPRA' | 'VENTA' | 'AJUSTE' | 'TRANSFERENCIA'
+  
   producto?: {
     id: number
     nombre: string
@@ -44,6 +50,11 @@ export interface CreateMovimientoDto {
   proveedorId?: number
   motivo?: string
   descripcion?: string
+  
+  // ✅ NUEVO: Campos de precio opcionales
+  precioUnitario?: number
+  precioTotal?: number
+  tipoPrecio?: 'COMPRA' | 'VENTA' | 'AJUSTE' | 'TRANSFERENCIA'
 }
 
 export interface UpdateMovimientoDto {
@@ -59,6 +70,12 @@ export type MovimientoDetalle = {
   motivo?: string | null
   descripcion?: string | null
   estado: 'ACTIVO' | 'ELIMINADO'
+  
+  // ✅ NUEVO: Campos de precio
+  precioUnitario?: number | null
+  precioTotal?: number | null
+  tipoPrecio?: 'COMPRA' | 'VENTA' | 'AJUSTE' | 'TRANSFERENCIA' | null
+  
   producto: {
     id: number
     nombre: string
@@ -89,6 +106,17 @@ export type EstadisticasMovimientos = {
   entradas: number
   salidas: number
   hoy: number
+}
+
+// ✅ NUEVO: Tipo para estadísticas financieras
+export type EstadisticasFinancieras = {
+  valorInventario: number
+  valorEntradas: number
+  valorSalidas: number
+  margenPromedio: number
+  costoPromedio: number
+  ingresosTotales: number
+  costosTotales: number
 }
 
 export type MovimientosResponse = {

@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { apiClient } from '@/lib/api'
 
 interface SetupCheckResponse {
   needsSetup: boolean
+  user?: Record<string, unknown>
+  empresa?: Record<string, unknown>
+  setupStatus?: Record<string, unknown>
 }
 
 interface UseSetupCheckReturn {
@@ -19,13 +22,15 @@ let globalSetupCache: {
   needsSetup: boolean | null
   timestamp: number
   checking: boolean
+  error: string | null
 } = {
   needsSetup: null,
   timestamp: 0,
-  checking: false
+  checking: false,
+  error: null
 }
 
-const CACHE_DURATION = 5 * 60 * 1000 // 5 minutos
+const CACHE_DURATION = 2 * 60 * 1000 // 2 minutos (reducido para mayor responsividad)
 
 export function useSetupCheck(): UseSetupCheckReturn {
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
@@ -39,11 +44,13 @@ export function useSetupCheck(): UseSetupCheckReturn {
       return
     }
 
-    // Usar cache si es válido
+    // Usar cache si es válido y no hay error
     const now = Date.now()
     if (globalSetupCache.needsSetup !== null && 
+        globalSetupCache.error === null &&
         (now - globalSetupCache.timestamp) < CACHE_DURATION) {
       setNeedsSetup(globalSetupCache.needsSetup)
+      setError(null)
       hasCheckedRef.current = true
       return
     }
@@ -52,6 +59,8 @@ export function useSetupCheck(): UseSetupCheckReturn {
       globalSetupCache.checking = true
       setIsLoading(true)
       setError(null)
+      
+      console.log('🔍 useSetupCheck: Verificando estado de setup...')
       
       const response = await apiClient.get<SetupCheckResponse>('/auth/needs-setup')
       
@@ -65,17 +74,21 @@ export function useSetupCheck(): UseSetupCheckReturn {
         throw new Error('Formato de respuesta inválido')
       }
       
+      console.log('✅ useSetupCheck: Setup verificado:', response.needsSetup ? 'necesita setup' : 'setup completo')
+      
       // Actualizar cache global
       globalSetupCache = {
         needsSetup: response.needsSetup,
         timestamp: now,
-        checking: false
+        checking: false,
+        error: null
       }
       
       setNeedsSetup(response.needsSetup)
+      setError(null)
       hasCheckedRef.current = true
     } catch (err) {
-      console.error('Error verificando setup:', err)
+      console.error('❌ useSetupCheck: Error verificando setup:', err)
       
       // Manejar diferentes tipos de errores
       let errorMessage = 'Error al verificar configuración'
@@ -87,13 +100,14 @@ export function useSetupCheck(): UseSetupCheckReturn {
       
       setError(errorMessage)
       
-      // Por defecto, asumir que necesita setup si hay error
+      // Actualizar cache con error
       globalSetupCache = {
-        needsSetup: true,
+        needsSetup: null,
         timestamp: now,
-        checking: false
+        checking: false,
+        error: errorMessage
       }
-      setNeedsSetup(true)
+      
       hasCheckedRef.current = true
     } finally {
       setIsLoading(false)
@@ -113,12 +127,16 @@ export function useSetupCheck(): UseSetupCheckReturn {
 
   // Función para invalidar cache (útil después de completar setup)
   const invalidateCache = useCallback(() => {
+    console.log('🔄 useSetupCheck: Invalidando cache...')
     globalSetupCache = {
       needsSetup: null,
       timestamp: 0,
-      checking: false
+      checking: false,
+      error: null
     }
     hasCheckedRef.current = false
+    setNeedsSetup(null)
+    setError(null)
   }, [])
 
   return {

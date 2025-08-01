@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
-import { MovimientoService } from './movimiento.service';
 import { MovimientoController } from './movimiento.controller';
-import { PrismaModule } from 'src/prisma/prisma.module';
-import { AuthModule } from 'src/auth/auth.module';
+import { MovimientoService } from './movimiento.service';
+import { PrismaModule } from '../prisma/prisma.module';
 import { CommonModule } from '../common/common.module';
 
 // Command Handlers
@@ -20,8 +19,12 @@ import { ObtenerMovimientosPorProductoHandler } from './handlers/obtener-movimie
 import { ObtenerMovimientosEliminadosHandler } from './handlers/obtener-movimientos-eliminados.handler';
 import { ObtenerMovimientoEliminadoHandler } from './handlers/obtener-movimiento-eliminado.handler';
 
+// ✅ NUEVO: Servicio de estadísticas financieras
+import { EstadisticasFinancierasService } from './services/estadisticas-financieras.service';
+
 @Module({
-  imports: [PrismaModule, AuthModule, CommonModule],
+  imports: [PrismaModule, CommonModule],
+  controllers: [MovimientoController],
   providers: [
     MovimientoService,
     // Command Handlers
@@ -37,8 +40,9 @@ import { ObtenerMovimientoEliminadoHandler } from './handlers/obtener-movimiento
     ObtenerMovimientosPorProductoHandler,
     ObtenerMovimientosEliminadosHandler,
     ObtenerMovimientoEliminadoHandler,
+    // ✅ NUEVO: Servicio de estadísticas financieras
+    EstadisticasFinancierasService,
   ],
-  controllers: [MovimientoController],
-  exports: [MovimientoService],
+  exports: [MovimientoService, EstadisticasFinancierasService],
 })
 export class MovimientoModule {}

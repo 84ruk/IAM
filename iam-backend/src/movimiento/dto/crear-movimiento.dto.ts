@@ -10,6 +10,7 @@ import {
   MinLength,
   Matches,
   IsPositive,
+  IsNumber,
 } from 'class-validator';
 import { TipoMovimiento } from '@prisma/client';
 import { Type } from 'class-transformer';
@@ -36,6 +37,29 @@ export class CrearMovimientoDto {
   @IsInt({ message: 'proveedorId debe ser un número entero' })
   @IsPositive({ message: 'proveedorId debe ser un número positivo' })
   proveedorId?: number;
+
+  // ✅ NUEVO: Campos de precio para tracking financiero (comentados temporalmente)
+  /*
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'precioUnitario debe ser un número válido' })
+  @Min(0, { message: 'precioUnitario no puede ser negativo' })
+  @Max(999999.99, { message: 'precioUnitario no puede exceder 999,999.99' })
+  precioUnitario?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'precioTotal debe ser un número válido' })
+  @Min(0, { message: 'precioTotal no puede ser negativo' })
+  @Max(999999999.99, { message: 'precioTotal no puede exceder 999,999,999.99' })
+  precioTotal?: number;
+
+  @IsOptional()
+  @IsEnum(TipoPrecioMovimiento, {
+    message: 'tipoPrecio debe ser COMPRA, VENTA, AJUSTE o TRANSFERENCIA',
+  })
+  tipoPrecio?: TipoPrecioMovimiento;
+  */
 
   @IsOptional()
   @IsString({ message: 'motivo debe ser un texto' })

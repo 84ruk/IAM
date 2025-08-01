@@ -6,6 +6,7 @@ import { Suspense } from 'react'
 import DashboardShell from '@/components/layout/DashboardShell'
 import AppInitializer from '@/components/ui/AppInitializer'
 import ServerStatusBar from '@/components/layout/ServerStatusBar'
+import AutoSetupRedirect from '@/components/ui/AutoSetupRedirect'
 
 // Lazy load components para mejorar el rendimiento
 const DashboardSkeleton = () => (
@@ -41,14 +42,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <AppProvider user={user}>
       <Suspense fallback={<DashboardSkeleton />}>
-      <AppInitializer>
-              <DashboardShell user={user}>
-                {children}
-              </DashboardShell>
+        <AppInitializer>
+          <AutoSetupRedirect>
+            <DashboardShell user={user}>
+              {children}
+            </DashboardShell>
+          </AutoSetupRedirect>
         </AppInitializer>
       </Suspense>
       <Suspense fallback={null}>
-              <ServerStatusBar />
+        <ServerStatusBar />
       </Suspense>
     </AppProvider>
   );

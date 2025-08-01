@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card'
 import StepTransition from '@/components/ui/StepTransition'
 import ProgressSteps from '@/components/ui/ProgressSteps'
 import { cleanFormData } from '@/lib/form-utils'
+import { useSetup } from '@/context/SetupContext'
 
 type SetupEmpresaForm = {
   nombreEmpresa: string
@@ -49,6 +50,7 @@ const STEPS = [
 
 export default function SetupEmpresaPage() {
   const router = useRouter()
+  const { onSetupComplete } = useSetup()
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<SetupEmpresaForm>({
     nombreEmpresa: '',
@@ -170,21 +172,31 @@ export default function SetupEmpresaPage() {
         console.log('✅ Empresa configurada exitosamente:', result.empresa.nombre)
         setShowSuccess(true)
         
-        // Redirigir después de mostrar el éxito
-        setTimeout(() => {
-          router.push('/dashboard')
+        // ✅ MEJORADO: Usar el contexto para manejar la redirección
+        setTimeout(async () => {
+          try {
+            await onSetupComplete()
+          } catch (error) {
+            console.error('Error en redirección después del setup:', error)
+            // Fallback: redirección manual
+            router.push('/dashboard')
+          }
         }, 2000)
       } else {
-        router.push('/dashboard')
+        // Fallback si no hay datos de empresa
+        setTimeout(async () => {
+          try {
+            await onSetupComplete()
+          } catch (error) {
+            console.error('Error en redirección después del setup:', error)
+            router.push('/dashboard')
+          }
+        }, 1000)
       }
       
     } catch (err: unknown) {
       console.error('Error al configurar empresa:', err)
-      if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
-        setApiError(err.message)
-      } else {
-        setApiError('Error inesperado al configurar empresa')
-      }
+      setApiError(err instanceof Error ? err.message : 'Error inesperado al configurar empresa')
     } finally {
       setIsSubmitting(false)
     }

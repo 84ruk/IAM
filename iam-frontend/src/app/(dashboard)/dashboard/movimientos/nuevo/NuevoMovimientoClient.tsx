@@ -34,6 +34,7 @@ interface Producto {
   estado?: string
   unidad: string
   precioVenta: number
+  precioCompra?: number
   proveedor?: {
     id: number
     nombre: string
@@ -61,6 +62,14 @@ interface MovimientoFieldsProps {
   setDescripcion: (descripcion: string) => void
   inputRef: React.RefObject<HTMLInputElement | null>
   producto: Producto | null
+  
+  // ✅ NUEVO: Campos de precio
+  precioUnitario: string
+  setPrecioUnitario: (precio: string) => void
+  precioTotal: string
+  setPrecioTotal: (precio: string) => void
+  tipoPrecio: string
+  setTipoPrecio: (tipo: string) => void
 }
 
 function MovimientoFields({
@@ -73,8 +82,40 @@ function MovimientoFields({
   motivo, setMotivo,
   descripcion, setDescripcion,
   inputRef,
-  producto
+  producto,
+  // ✅ NUEVO: Campos de precio
+  precioUnitario, setPrecioUnitario,
+  precioTotal, setPrecioTotal,
+  tipoPrecio, setTipoPrecio
 }: MovimientoFieldsProps) {
+  
+  // ✅ NUEVO: Actualizar precio total cuando cambien cantidad o precio unitario
+  useEffect(() => {
+    const calcularPrecioTotal = () => {
+      if (precioUnitario && cantidad) {
+        const unitario = parseFloat(precioUnitario)
+        const cant = parseInt(cantidad)
+        if (!isNaN(unitario) && !isNaN(cant)) {
+          setPrecioTotal((unitario * cant).toFixed(2))
+        }
+      }
+    }
+    calcularPrecioTotal()
+  }, [precioUnitario, cantidad])
+
+  // ✅ NUEVO: Establecer precio unitario por defecto según tipo de movimiento
+  useEffect(() => {
+    if (producto && !precioUnitario) {
+      if (tipo === 'ENTRADA') {
+        setPrecioUnitario(producto.precioCompra?.toString() || '0')
+        setTipoPrecio('COMPRA')
+      } else {
+        setPrecioUnitario(producto.precioVenta?.toString() || '0')
+        setTipoPrecio('VENTA')
+      }
+    }
+  }, [producto, tipo, precioUnitario, setPrecioUnitario, setTipoPrecio])
+
   return (
     <div className="space-y-6">
       {/* Tipo de movimiento */}
@@ -109,6 +150,7 @@ function MovimientoFields({
           </button>
         </div>
       </div>
+      
       <Select
         label="Producto *"
         name="productoId"
@@ -126,6 +168,7 @@ function MovimientoFields({
           }))
         ]}
       />
+      
       <Input
         label="Cantidad *"
         name="cantidad"
@@ -137,11 +180,62 @@ function MovimientoFields({
         required
         ref={inputRef}
       />
+      
       {producto && tipo === 'SALIDA' && parseInt(cantidad) > producto.stock && (
         <p className="text-red-600 text-sm mt-1">
           Stock insuficiente. Stock actual: {producto.stock} {producto.unidad}
         </p>
       )}
+
+      {/* ✅ NUEVO: Campos de precio */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Precio Unitario
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={precioUnitario}
+            onChange={(e) => setPrecioUnitario(e.target.value)}
+            placeholder="0.00"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Precio Total
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={precioTotal}
+            onChange={(e) => setPrecioTotal(e.target.value)}
+            placeholder="0.00"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Tipo de Precio
+          </label>
+          <select
+            value={tipoPrecio}
+            onChange={(e) => setTipoPrecio(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8E94F2] focus:border-transparent transition-all duration-200"
+          >
+            <option value="COMPRA">Compra</option>
+            <option value="VENTA">Venta</option>
+            <option value="AJUSTE">Ajuste</option>
+            <option value="TRANSFERENCIA">Transferencia</option>
+          </select>
+        </div>
+      </div>
+      
       <Select
         label="Proveedor (opcional)"
         name="proveedorId"
@@ -155,6 +249,7 @@ function MovimientoFields({
           }))
         ]}
       />
+      
       <Input
         label="Motivo"
         name="motivo"
@@ -163,6 +258,7 @@ function MovimientoFields({
         onChange={(e) => setMotivo(e.target.value)}
         placeholder="Ej: Compra, Venta, Ajuste de inventario..."
       />
+      
       <Input
         label="Descripción (opcional)"
         name="descripcion"
@@ -248,10 +344,18 @@ interface MovimientoResumenProps {
   producto: Producto | null
   cantidad: string
   tipo: string
+  precioUnitario: string
+  precioTotal: string
+  tipoPrecio: string
 }
 
-function MovimientoResumen({ producto, cantidad, tipo }: MovimientoResumenProps) {
+function MovimientoResumen({ producto, cantidad, tipo, precioUnitario, precioTotal, tipoPrecio }: MovimientoResumenProps) {
   if (!producto || !cantidad) return null
+  
+  const precioUnitarioNum = parseFloat(precioUnitario) || 0
+  const precioTotalNum = parseFloat(precioTotal) || 0
+  const cantidadNum = parseInt(cantidad) || 0
+  
   return (
     <Card>
       <CardContent className="p-6">
@@ -275,15 +379,42 @@ function MovimientoResumen({ producto, cantidad, tipo }: MovimientoResumenProps)
               {cantidad} {producto.unidad}
             </span>
           </div>
+          
+          {/* ✅ NUEVO: Información de precios */}
+          {precioUnitarioNum > 0 && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Precio Unitario:</span>
+                <span className="font-medium text-gray-900">
+                  ${precioUnitarioNum.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Precio Total:</span>
+                <span className="font-medium text-gray-900">
+                  ${precioTotalNum.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Tipo de Precio:</span>
+                <span className="font-medium text-gray-900">
+                  {tipoPrecio === 'COMPRA' ? 'Compra' : 
+                   tipoPrecio === 'VENTA' ? 'Venta' : 
+                   tipoPrecio === 'AJUSTE' ? 'Ajuste' : 'Transferencia'}
+                </span>
+              </div>
+            </>
+          )}
+          
           {tipo === 'SALIDA' && (
             <div className="flex justify-between">
               <span className="text-gray-600">Stock después:</span>
               <span className={`font-medium ${
-                producto.stock - parseInt(cantidad) <= producto.stockMinimo 
+                producto.stock - cantidadNum <= producto.stockMinimo 
                   ? 'text-red-600' 
                   : 'text-gray-900'
               }`}>
-                {producto.stock - parseInt(cantidad)} {producto.unidad}
+                {producto.stock - cantidadNum} {producto.unidad}
               </span>
             </div>
           )}
@@ -291,8 +422,25 @@ function MovimientoResumen({ producto, cantidad, tipo }: MovimientoResumenProps)
             <div className="flex justify-between">
               <span className="text-gray-600">Stock después:</span>
               <span className="font-medium text-gray-900">
-                {producto.stock + parseInt(cantidad)} {producto.unidad}
+                {producto.stock + cantidadNum} {producto.unidad}
               </span>
+            </div>
+          )}
+          
+          {/* ✅ NUEVO: Validación de precios */}
+          {precioUnitarioNum > 0 && precioTotalNum > 0 && (
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex justify-between text-sm">
+                <span className="text-blue-700">Cálculo:</span>
+                <span className="text-blue-700">
+                  ${precioUnitarioNum.toFixed(2)} × {cantidadNum} = ${(precioUnitarioNum * cantidadNum).toFixed(2)}
+                </span>
+              </div>
+              {Math.abs(precioTotalNum - (precioUnitarioNum * cantidadNum)) > 0.01 && (
+                <div className="mt-2 text-sm text-orange-600">
+                  ⚠️ El precio total no coincide con el cálculo
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -322,6 +470,11 @@ export default function NuevoMovimientoClient() {
   const [isLoadingProductos, setIsLoadingProductos] = useState(true)
   const [isLoadingProveedores, setIsLoadingProveedores] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // ✅ NUEVO: Campos de precio
+  const [precioUnitario, setPrecioUnitario] = useState('')
+  const [precioTotal, setPrecioTotal] = useState('')
+  const [tipoPrecio, setTipoPrecio] = useState('COMPRA')
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -409,6 +562,9 @@ export default function NuevoMovimientoClient() {
         motivo?: string
         descripcion?: string
         proveedorId?: number
+        precioUnitario?: number
+        precioTotal?: number
+        tipoPrecio?: string
       } = {
         tipo,
         cantidad: parseInt(cantidad),
@@ -420,6 +576,17 @@ export default function NuevoMovimientoClient() {
       // Agregar proveedorId solo si se seleccionó uno
       if (proveedorId) {
         movimientoData.proveedorId = parseInt(proveedorId)
+      }
+
+      // Agregar precioUnitario y precioTotal solo si son números válidos
+      if (precioUnitario && !isNaN(parseFloat(precioUnitario))) {
+        movimientoData.precioUnitario = parseFloat(precioUnitario)
+      }
+      if (precioTotal && !isNaN(parseFloat(precioTotal))) {
+        movimientoData.precioTotal = parseFloat(precioTotal)
+      }
+      if (tipoPrecio && movimientoData.precioUnitario !== undefined) {
+        movimientoData.tipoPrecio = tipoPrecio
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/movimientos`, {
@@ -539,6 +706,13 @@ export default function NuevoMovimientoClient() {
                 setDescripcion={setDescripcion}
                 inputRef={inputRef}
                 producto={producto}
+                // ✅ NUEVO: Pasar nuevos campos de precio
+                precioUnitario={precioUnitario}
+                setPrecioUnitario={setPrecioUnitario}
+                precioTotal={precioTotal}
+                setPrecioTotal={setPrecioTotal}
+                tipoPrecio={tipoPrecio}
+                setTipoPrecio={setTipoPrecio}
               />
 
               <Button
@@ -568,7 +742,14 @@ export default function NuevoMovimientoClient() {
 
             {/* Resumen del movimiento */}
             {producto && cantidad && (
-              <MovimientoResumen producto={producto} cantidad={cantidad} tipo={tipo} />
+              <MovimientoResumen 
+                producto={producto} 
+                cantidad={cantidad} 
+                tipo={tipo} 
+                precioUnitario={precioUnitario}
+                precioTotal={precioTotal}
+                tipoPrecio={tipoPrecio}
+              />
             )}
           </div>
         </div>
@@ -617,6 +798,13 @@ export default function NuevoMovimientoClient() {
               setDescripcion={setDescripcion}
               inputRef={inputRef}
               producto={producto}
+              // ✅ NUEVO: Pasar nuevos campos de precio
+              precioUnitario={precioUnitario}
+              setPrecioUnitario={setPrecioUnitario}
+              precioTotal={precioTotal}
+              setPrecioTotal={setPrecioTotal}
+              tipoPrecio={tipoPrecio}
+              setTipoPrecio={setTipoPrecio}
             />
 
             <Button

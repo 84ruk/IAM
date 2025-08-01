@@ -1,32 +1,27 @@
 'use client'
 
 import React, { createContext, useContext, ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
-import { useSetupCheck } from '@/hooks/useSetupCheck'
+import { useSetupRedirect } from '@/hooks/useSetupRedirect'
 
 interface SetupContextType {
   redirectToSetup: () => void
   onSetupComplete: () => void
+  checkAndRedirect: () => Promise<void>
 }
 
 const SetupContext = createContext<SetupContextType | undefined>(undefined)
 
 export function SetupProvider({ children }: { children: ReactNode }) {
-  const { refetch } = useSetupCheck()
-  const router = useRouter()
+  const { redirectToSetup, redirectAfterSetup, checkAndRedirect } = useSetupRedirect()
 
   const onSetupComplete = async () => {
-    // Re-verificar el estado de setup sin recargar la página
-    await refetch()
-  }
-
-  const redirectToSetup = () => {
-    router.push('/setup-empresa')
+    await redirectAfterSetup()
   }
 
   const value: SetupContextType = {
     redirectToSetup,
-    onSetupComplete
+    onSetupComplete,
+    checkAndRedirect
   }
 
   return (
