@@ -524,6 +524,19 @@ export class ImportacionRapidaService {
           },
         });
 
+        // Actualizar el stock del producto automáticamente
+        try {
+          await this.productoCreator.actualizarStock(
+            productoIdFinal,
+            movimientoData.cantidad,
+            movimientoData.tipo
+          );
+          this.logger.log(`✅ Stock actualizado automáticamente para producto ${productoNombre}`);
+        } catch (stockError) {
+          this.logger.error(`❌ Error actualizando stock para producto ${productoNombre}:`, stockError);
+          // No fallar la importación por error de stock, solo loggear
+        }
+
         // Registrar el registro exitoso con detalles
         registrosExitososDetalle.push({
           fila: rowNumber,
@@ -1068,9 +1081,39 @@ export class ImportacionRapidaService {
         case 'fecha_creacion':
           // Parsear fecha si es string, si no usar la fecha actual
           if (value) {
-            const fecha = new Date(value);
-            if (!isNaN(fecha.getTime())) {
-              movimiento.fecha = fecha;
+            let fecha: Date;
+            
+            // Intentar diferentes formatos de fecha
+            if (typeof value === 'string') {
+              // Formato YYYY-MM-DD
+              if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                fecha = new Date(value);
+              }
+              // Formato DD/MM/YYYY
+              else if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+                const [day, month, year] = value.split('/');
+                fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+              }
+              // Formato DD-MM-YYYY
+              else if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
+                const [day, month, year] = value.split('-');
+                fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+              }
+              // Formato MM/DD/YYYY
+              else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
+                const [month, day, year] = value.split('/');
+                fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+              }
+              // Formato ISO o timestamp
+              else {
+                fecha = new Date(value);
+              }
+              
+              if (!isNaN(fecha.getTime())) {
+                movimiento.fecha = fecha;
+              }
+            } else if (value instanceof Date) {
+              movimiento.fecha = value;
             }
           }
           break;
@@ -1250,6 +1293,7 @@ export class ImportacionRapidaService {
         sugerencia: 'Asegúrese de que el campo producto tenga un valor válido'
       };
     }
+    
     if (!data.tipo || !['ENTRADA', 'SALIDA'].includes(data.tipo)) {
       return { 
         valido: false, 
@@ -1260,7 +1304,8 @@ export class ImportacionRapidaService {
         sugerencia: 'El tipo de movimiento debe ser "ENTRADA" o "SALIDA"'
       };
     }
-    if (data.cantidad <= 0) {
+    
+    if (!data.cantidad || data.cantidad <= 0) {
       return { 
         valido: false, 
         columna: 'cantidad', 
@@ -1270,6 +1315,50 @@ export class ImportacionRapidaService {
         sugerencia: 'La cantidad debe ser un número positivo mayor a 0'
       };
     }
+
+    // Validar que la cantidad sea un número entero
+    if (!Number.isInteger(data.cantidad)) {
+      return {
+        valido: false,
+        columna: 'cantidad',
+        valor: data.cantidad,
+        mensaje: 'Cantidad debe ser un número entero',
+        valorEsperado: 'Número entero mayor a 0',
+        sugerencia: 'La cantidad debe ser un número entero sin decimales'
+      };
+    }
+
+    // Validar fecha si se proporciona
+    if (data.fecha) {
+      const fecha = new Date(data.fecha);
+      if (isNaN(fecha.getTime())) {
+        return {
+          valido: false,
+          columna: 'fecha',
+          valor: data.fecha,
+          mensaje: 'Fecha inválida',
+          valorEsperado: 'Fecha válida en formato YYYY-MM-DD o DD/MM/YYYY',
+          sugerencia: 'Use un formato de fecha válido como 2024-01-15 o 15/01/2024'
+        };
+      }
+
+      // Validar que la fecha no sea futura (permitir hasta mañana para ajustes de zona horaria)
+      const hoy = new Date();
+      const mañana = new Date(hoy);
+      mañana.setDate(hoy.getDate() + 1);
+      
+      if (fecha > mañana) {
+        return {
+          valido: false,
+          columna: 'fecha',
+          valor: data.fecha,
+          mensaje: 'La fecha no puede ser futura',
+          valorEsperado: 'Fecha actual o pasada',
+          sugerencia: 'Use una fecha actual o pasada para el movimiento'
+        };
+      }
+    }
+
     return { valido: true };
   }
 

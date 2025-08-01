@@ -1,0 +1,37 @@
+# Plantilla de Movimientos - Ejemplo Completo
+
+Esta plantilla muestra todos los formatos soportados para la importación de movimientos.
+
+## Campos Requeridos:
+- producto: Nombre del producto o ID (si no existe, se crea automáticamente)
+- tipo: ENTRADA o SALIDA
+- cantidad: Número entero positivo
+
+## Campos Opcionales:
+- descripcion: Descripción del movimiento
+- fecha: Fecha del movimiento (múltiples formatos soportados)
+- motivo: Motivo del movimiento
+
+## Formatos de Fecha Soportados:
+- YYYY-MM-DD (2024-01-15)
+- DD/MM/YYYY (15/01/2024)
+- DD-MM-YYYY (15-01-2024)
+- MM/DD/YYYY (01/15/2024)
+- ISO (2024-01-15T10:30:00Z)
+
+## Ejemplos de Datos:
+
+| producto | tipo | cantidad | descripcion | fecha | motivo |
+|----------|------|----------|-------------|-------|--------|
+| Laptop HP | ENTRADA | 10 | Compra de inventario | 2024-01-15 | Compra proveedor |
+| Mouse Logitech | SALIDA | 5 | Venta a cliente | 15/01/2024 | Venta directa |
+| Teclado Mecánico | ENTRADA | 20 | Devolución de cliente | 15-01-2024 | Devolución |
+| Monitor 24" | SALIDA | 3 | Transferencia a sucursal | 01/15/2024 | Transferencia interna |
+| Producto Nuevo | ENTRADA | 50 | Producto creado automáticamente | 2024-01-15 | Importación |
+
+## Notas Importantes:
+1. Si el producto no existe, se crea automáticamente con stock inicial 0
+2. El stock se actualiza automáticamente según el tipo de movimiento
+3. Los movimientos de SALIDA verifican que haya stock suficiente
+4. Las fechas futuras no están permitidas
+5. Las cantidades deben ser números enteros positivos 
