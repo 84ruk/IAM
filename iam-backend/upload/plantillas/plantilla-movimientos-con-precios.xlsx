@@ -1,0 +1,53 @@
+# Plantilla de Excel para Movimientos con Precios
+
+Este archivo sería una plantilla de Excel que incluiría las siguientes columnas:
+
+## Columnas de la Plantilla:
+
+| Columna | Descripción | Tipo | Requerido | Ejemplo |
+|---------|-------------|------|-----------|---------|
+| A | tipo | ENTRADA/SALIDA | Sí | ENTRADA |
+| B | cantidad | Número entero | Sí | 100 |
+| C | productoId | ID del producto | Sí | 5 |
+| D | precioUnitario | Precio por unidad | No* | 25.50 |
+| E | precioTotal | Precio total | No* | 2550.00 |
+| F | tipoPrecio | COMPRA/VENTA/AJUSTE/TRANSFERENCIA | No* | COMPRA |
+| G | motivo | Motivo del movimiento | No | Compra mensual |
+| H | descripcion | Descripción adicional | No | Compra de stock regular |
+| I | fecha | Fecha del movimiento (YYYY-MM-DD) | No | 2024-01-15 |
+| J | proveedorId | ID del proveedor | No | 3 |
+
+* Si no se proporcionan, se calculan automáticamente
+
+## Ejemplos de Datos:
+
+### Fila 1 - Entrada por Compra:
+```
+ENTRADA | 100 | 5 | 25.50 | 2550.00 | COMPRA | Compra a proveedor | Compra mensual | 2024-01-15 | 3
+```
+
+### Fila 2 - Salida por Venta:
+```
+SALIDA | 5 | 5 | 35.00 | 175.00 | VENTA | Venta a cliente | Venta al por menor | 2024-01-16 | 
+```
+
+### Fila 3 - Ajuste de Inventario:
+```
+ENTRADA | 2 | 5 | 25.50 | 51.00 | AJUSTE | Ajuste de inventario | Productos encontrados | 2024-01-17 | 
+```
+
+## Notas Importantes:
+
+1. **precioUnitario**: Si no se proporciona, se usa el precioCompra del producto para ENTRADA o precioVenta para SALIDA
+2. **precioTotal**: Si no se proporciona, se calcula como precioUnitario × cantidad
+3. **tipoPrecio**: Si no se proporciona, se determina automáticamente (ENTRADA = COMPRA, SALIDA = VENTA)
+4. **fecha**: Si no se proporciona, se usa la fecha actual
+5. **proveedorId**: Solo relevante para movimientos de ENTRADA
+
+## Validaciones:
+
+- cantidad debe ser mayor a 0
+- precioUnitario y precioTotal deben ser mayores o iguales a 0
+- productoId debe existir en la base de datos
+- proveedorId debe existir si se proporciona
+- fecha no puede ser futura 
