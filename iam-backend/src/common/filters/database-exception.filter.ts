@@ -100,12 +100,24 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
       switch (exception.code) {
         case 'P2002':
           status = HttpStatus.CONFLICT;
-          message = 'Ya existe un registro con estos datos';
-          details = {
-            code: 'DUPLICATE_ENTRY',
-            field: exception.meta?.target,
-            suggestion: 'Verifica que los datos sean únicos',
-          };
+          const targetFields = exception.meta?.target as string[] || [];
+          
+          // Mensaje específico para correo duplicado
+          if (targetFields.includes('email') || targetFields.includes('usuario_email_key')) {
+            message = 'Ya existe un usuario registrado con este correo electrónico';
+            details = {
+              code: 'DUPLICATE_EMAIL',
+              field: 'email',
+              suggestion: 'Utiliza un correo electrónico diferente o inicia sesión si ya tienes una cuenta',
+            };
+          } else {
+            message = 'Ya existe un registro con estos datos';
+            details = {
+              code: 'DUPLICATE_ENTRY',
+              field: exception.meta?.target,
+              suggestion: 'Verifica que los datos sean únicos',
+            };
+          }
           break;
         case 'P2025':
           status = HttpStatus.NOT_FOUND;

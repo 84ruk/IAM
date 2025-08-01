@@ -138,6 +138,39 @@ export default function RegisterForm() {
       setValidationErrors(fieldErrors)
     } else if (result instanceof AppError) {
       setGeneralError(result.message)
+    } else if (typeof result === 'object' && result !== null) {
+      const errorData = result as Record<string, unknown>
+      
+      // Manejar errores específicos del backend
+      if ('message' in errorData && errorData.message) {
+        const message = typeof errorData.message === 'string' ? errorData.message : 'Error de registro'
+        
+        // Manejar errores específicos de correo duplicado
+        if (message.toLowerCase().includes('correo') || message.toLowerCase().includes('email')) {
+          setValidationErrors(prev => ({
+            ...prev,
+            email: message
+          }))
+          return
+        }
+        
+        // Manejar errores de validación de campos específicos
+        if ('details' in errorData && errorData.details && typeof errorData.details === 'object') {
+          const details = errorData.details as Record<string, unknown>
+          if ('field' in details && typeof details.field === 'string') {
+            const field = details.field as keyof FieldErrors
+            setValidationErrors(prev => ({
+              ...prev,
+              [field]: message
+            }))
+            return
+          }
+        }
+        
+        setGeneralError(message)
+      } else {
+        setGeneralError('Error inesperado durante el registro')
+      }
     } else {
       setGeneralError('Error inesperado durante el registro')
     }

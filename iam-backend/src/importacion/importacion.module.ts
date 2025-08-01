@@ -16,6 +16,7 @@ import { ImportacionProgressTrackerService } from './services/importacion-progre
 import { AutocorreccionInteligenteService } from './services/autocorreccion-inteligente.service';
 import { ImportacionRapidaService } from './services/importacion-rapida.service';
 import { ReporteErroresService } from './services/reporte-errores.service';
+import { ProductoCreatorService } from './services/producto-creator.service';
 import { ImportacionConfigService } from './config/importacion.config';
 import { TrabajoImportacionFactory } from './factories/trabajo-importacion.factory';
 import { ColasModule } from '../colas/colas.module';
@@ -46,6 +47,7 @@ import { ImportacionWebSocketService } from './importacion-websocket.service';
     AutocorreccionInteligenteService,
     ImportacionRapidaService,
     ReporteErroresService,
+    ProductoCreatorService,
     ImportacionConfigService,
     TrabajoImportacionFactory,
     ImportacionWebSocketService,
@@ -53,6 +55,7 @@ import { ImportacionWebSocketService } from './importacion-websocket.service';
   exports: [
     ImportacionService,
     ImportacionWebSocketService,
+    ProductoCreatorService,
   ],
 })
 export class ImportacionModule {} 

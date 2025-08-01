@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AutocorreccionInteligenteService } from './autocorreccion-inteligente.service';
 import { SmartErrorResolverService } from './smart-error-resolver.service';
 import { ValidationCacheService } from './validation-cache.service';
+import { ProductoCreatorService } from './producto-creator.service';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -18,6 +19,7 @@ export class ImportacionRapidaService {
     private readonly autocorreccionService: AutocorreccionInteligenteService,
     private readonly smartErrorResolver: SmartErrorResolverService,
     private readonly validationCache: ValidationCacheService,
+    private readonly productoCreator: ProductoCreatorService,
   ) {}
 
   async procesarImportacionRapida(
@@ -416,6 +418,11 @@ export class ImportacionRapidaService {
     headers: string[],
     user: JwtUser,
   ): Promise<ResultadoImportacionRapida> {
+    // Validar que el usuario tenga empresaId
+    if (!user.empresaId) {
+      throw new Error('El usuario debe tener una empresa configurada para importar movimientos');
+    }
+
     const errores: any[] = [];
     let registrosExitosos = 0;
     const registrosExitososDetalle: any[] = []; // Nueva lista para detalles
@@ -449,54 +456,31 @@ export class ImportacionRapidaService {
         let productoIdFinal = movimientoData.productoId;
         let productoEncontrado = false;
         let productoNombre = '';
+        let productoCreado = false;
 
         try {
-          // Si es un string que no es un número, buscar por nombre
-          if (typeof movimientoData.productoId === 'string' && isNaN(parseInt(movimientoData.productoId))) {
-            const producto = await this.prisma.producto.findFirst({
-              where: {
-                nombre: {
-                  contains: movimientoData.productoId,
-                  mode: 'insensitive'
-                },
-                empresaId: user.empresaId,
-                estado: 'ACTIVO'
-              },
-              select: { id: true, nombre: true }
-            });
-
-            if (producto) {
-              productoIdFinal = producto.id;
-              productoEncontrado = true;
-              productoNombre = producto.nombre;
-              this.logger.debug(`Producto encontrado por nombre: "${movimientoData.productoId}" -> ID: ${producto.id}`);
-            } else {
-              throw new Error(`Producto no encontrado: ${movimientoData.productoId}`);
+          // Usar el servicio de creación de productos para buscar o crear automáticamente
+          const resultadoProducto = await this.productoCreator.buscarOCrearProducto(
+            movimientoData.productoId,
+            {
+              empresaId: user.empresaId,
+              etiquetas: ['AUTO-CREADO', 'IMPORTACION-MOVIMIENTOS'],
+              stockInicial: 0,
+              precioCompra: 0,
+              precioVenta: 0,
+              stockMinimo: 10
             }
+          );
+
+          productoIdFinal = resultadoProducto.producto.id;
+          productoEncontrado = true;
+          productoNombre = resultadoProducto.producto.nombre;
+          productoCreado = resultadoProducto.creado;
+
+          if (productoCreado) {
+            this.logger.log(`✅ Producto creado automáticamente: "${movimientoData.productoId}" -> ID: ${productoIdFinal}`);
           } else {
-            // Si es un número o string numérico, verificar que el producto existe
-            const productoId = parseInt(movimientoData.productoId);
-            if (!isNaN(productoId)) {
-              const producto = await this.prisma.producto.findUnique({
-                where: {
-                  id: productoId,
-                  empresaId: user.empresaId,
-                  estado: 'ACTIVO'
-                },
-                select: { id: true, nombre: true }
-              });
-
-              if (producto) {
-                productoIdFinal = producto.id;
-                productoEncontrado = true;
-                productoNombre = producto.nombre;
-                this.logger.debug(`Producto encontrado por ID: ${productoId} -> ${producto.nombre}`);
-              } else {
-                throw new Error(`Producto con ID ${productoId} no encontrado`);
-              }
-            } else {
-              throw new Error(`ID de producto inválido: ${movimientoData.productoId}`);
-            }
+            this.logger.debug(`Producto encontrado: "${movimientoData.productoId}" -> ID: ${productoIdFinal}`);
           }
         } catch (busquedaError) {
           errores.push({
@@ -552,16 +536,21 @@ export class ImportacionRapidaService {
             fecha: movimientoGuardado.fecha,
             estado: movimientoGuardado.estado,
             productoId: movimientoGuardado.productoId,
-            productoNombre: productoNombre
+            productoNombre: productoNombre,
+            productoCreado: productoCreado
           },
-          identificador: `${movimientoGuardado.tipo} - ${productoNombre} (${movimientoGuardado.cantidad})`,
+          identificador: `${movimientoGuardado.tipo} - ${productoNombre} (${movimientoGuardado.cantidad})${productoCreado ? ' [Producto creado]' : ''}`,
           timestamp: new Date()
         });
 
         registrosExitosos++;
         
         // Log individual de cada registro exitoso
-        this.logger.log(`✅ Movimiento importado exitosamente - Fila ${rowNumber}: ${movimientoGuardado.tipo} de ${movimientoGuardado.cantidad} unidades de "${productoNombre}" (ID: ${movimientoGuardado.id})`);
+        const logMessage = productoCreado 
+          ? `✅ Movimiento importado exitosamente - Fila ${rowNumber}: ${movimientoGuardado.tipo} de ${movimientoGuardado.cantidad} unidades de "${productoNombre}" (ID: ${movimientoGuardado.id}) [Producto creado automáticamente]`
+          : `✅ Movimiento importado exitosamente - Fila ${rowNumber}: ${movimientoGuardado.tipo} de ${movimientoGuardado.cantidad} unidades de "${productoNombre}" (ID: ${movimientoGuardado.id})`;
+        
+        this.logger.log(logMessage);
         
       } catch (error) {
         let movimientoData: any = {};

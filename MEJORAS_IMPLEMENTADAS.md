@@ -1,275 +1,200 @@
-# 🚀 Mejoras Implementadas - Compatibilidad Total
+# Mejoras Implementadas - Sistema IAM
 
-## 📋 **Resumen**
+## Resumen de Problemas Solucionados
 
-He implementado las mejoras solicitadas de manera **no intrusiva**, manteniendo **100% de compatibilidad** con tu código actual. Solo agregué funcionalidades nuevas sin romper nada existente.
+### 1. Problema: Manejo de Errores de Registro con Correo Duplicado
 
----
+**Problema Original:**
+- Al registrarse con un correo ya existente, el frontend mostraba "Error interno" en lugar de un mensaje específico
+- Los errores de validación no se manejaban correctamente en el frontend
 
-## ✅ **Mejoras Implementadas**
+**Solución Implementada:**
 
-### **1. Validación Asíncrona de Autenticación**
-
-**Nuevas Funciones:**
-```typescript
-// Hook useAuth ahora incluye:
-const { 
-  validateAuth,        // ✅ Existente - validación síncrona
-  validateAuthAsync,   // 🆕 Nueva - validación asíncrona
-  isTokenExpired       // 🆕 Nueva - verificar expiración
-} = useAuth()
-
-// Uso:
-const isValid = validateAuth()           // Síncrono (existente)
-const isValidAsync = await validateAuthAsync()  // Asíncrono (nuevo)
-const isExpired = isTokenExpired()       // Verificar expiración (nuevo)
-```
-
-**En useApi:**
-```typescript
-// Opciones de autenticación:
-handleApiCall(apiCall, {
-  requireAuth: false,    // ✅ Sin autenticación
-  requireAuth: true,     // ✅ Autenticación síncrona (default)
-  requireAuth: 'async'   // 🆕 Autenticación asíncrona
-})
-```
-
-### **2. Headers Sin Colisiones**
-
-**Antes:**
-```typescript
-headers: { ...headers, ...config?.headers }  // ❌ Auth podía ser sobrescrito
-```
-
-**Después:**
-```typescript
-headers: { ...config?.headers, ...headers }  // ✅ Auth tiene prioridad
-```
-
-### **3. Inyección de Dependencias**
-
-**Nuevo:**
-```typescript
-// Uso normal (compatible):
-const { authenticatedApi } = useApi()
-
-// Uso con cliente personalizado (nuevo):
-const { authenticatedApi } = useApi(miClientePersonalizado)
-```
-
-### **4. Tipado de Errores Mejorado**
-
-**Ahora maneja:**
-- ✅ `AppError` (existente)
-- 🆕 `AxiosError` (nuevo)
-- 🆕 `Error` genérico (nuevo)
-- 🆕 Errores desconocidos (nuevo)
+#### Backend - Filtro de Base de Datos Mejorado
+**Archivo:** `iam-backend/src/common/filters/database-exception.filter.ts`
 
 ```typescript
-// Manejo automático de errores:
-if (axios.isAxiosError(error)) {
-  const status = error.response?.status || 500
-  const message = error.response?.data?.message || error.message
-  // Manejo específico de Axios
-}
-```
-
-### **5. Soporte de Cancelación**
-
-**WebSocket con AbortController:**
-```typescript
-// Uso normal (compatible):
-const connected = await connect()
-
-// Uso con cancelación (nuevo):
-const controller = new AbortController()
-const connected = await connect(controller.signal)
-
-// Cancelar conexión:
-controller.abort()
-```
-
----
-
-## 🔄 **Compatibilidad Total**
-
-### **Código Existente - NO CAMBIA:**
-```typescript
-// ✅ Todo esto sigue funcionando igual:
-const { authInfo, validateAuth } = useAuth()
-const { authenticatedApi } = useApi()
-const { connect } = useLazyWebSocket()
-
-// ✅ Validación síncrona (default):
-if (validateAuth()) {
-  // Tu código existente
-}
-
-// ✅ API calls normales:
-const data = await authenticatedApi.get('/api/data')
-```
-
-### **Nuevas Funcionalidades - OPCIONALES:**
-```typescript
-// 🆕 Validación asíncrona (solo si la necesitas):
-const isValid = await validateAuthAsync()
-
-// 🆕 Verificar expiración:
-if (isTokenExpired()) {
-  // Token expirado
-}
-
-// 🆕 API con validación asíncrona:
-const result = await handleApiCall(apiCall, {
-  requireAuth: 'async'
-})
-
-// 🆕 WebSocket con cancelación:
-const controller = new AbortController()
-const connected = await connect(controller.signal)
-```
-
----
-
-## 🛡️ **Seguridad Mejorada**
-
-### **Validación de Token:**
-```typescript
-// Verificación automática de expiración
-const isTokenExpired = useCallback((): boolean => {
-  if (!authInfo.token) return true
+// Manejo específico para errores de correo duplicado
+case 'P2002':
+  const targetFields = exception.meta?.target as string[] || [];
   
-  try {
-    const payload = JSON.parse(atob(authInfo.token.split('.')[1]))
-    const currentTime = Math.floor(Date.now() / 1000)
-    
-    // Verificar exp (expiration time)
-    if (payload.exp && currentTime > payload.exp) {
-      console.warn('🔍 Auth: Token expirado')
-      return true
-    }
-    
-    return false
-  } catch (error) {
-    console.error('❌ Auth: Error al verificar expiración del token:', error)
-    return true
+  if (targetFields.includes('email') || targetFields.includes('usuario_email_key')) {
+    message = 'Ya existe un usuario registrado con este correo electrónico';
+    details = {
+      code: 'DUPLICATE_EMAIL',
+      field: 'email',
+      suggestion: 'Utiliza un correo electrónico diferente o inicia sesión si ya tienes una cuenta',
+    };
   }
-}, [authInfo.token])
 ```
 
-### **Headers Seguros:**
+#### Frontend - Manejo de Errores Mejorado
+**Archivo:** `iam-frontend/src/components/auth/RegisterForm.tsx`
+
 ```typescript
-// Los headers de autenticación siempre tienen prioridad
-headers: { 
-  ...config?.headers,  // Headers del usuario
-  ...headers           // Headers de auth (prioridad)
-}
-```
-
----
-
-## 🧪 **Testing y SSR**
-
-### **Inyección de Dependencias:**
-```typescript
-// Para testing:
-const mockClient = createMockAxiosClient()
-const { authenticatedApi } = useApi(mockClient)
-
-// Para SSR:
-const ssrClient = createSSRClient()
-const { authenticatedApi } = useApi(ssrClient)
-```
-
-### **Cancelación para Testing:**
-```typescript
-// En tests:
-const controller = new AbortController()
-const promise = connect(controller.signal)
-
-// Simular cancelación:
-controller.abort()
-await expect(promise).resolves.toBe(false)
-```
-
----
-
-## 📊 **Uso en la Práctica**
-
-### **Ejemplo Completo:**
-```typescript
-function MiComponente() {
-  const { 
-    authInfo, 
-    validateAuth, 
-    validateAuthAsync, 
-    isTokenExpired 
-  } = useAuth()
+const handleBackendError = useCallback((result: unknown) => {
+  // Manejar errores específicos de correo duplicado
+  if (message.toLowerCase().includes('correo') || message.toLowerCase().includes('email')) {
+    setValidationErrors(prev => ({
+      ...prev,
+      email: message
+    }))
+    return
+  }
   
-  const { authenticatedApi, handleApiCall } = useApi()
-  const { connect } = useLazyWebSocket()
-
-  // ✅ Código existente (no cambia):
-  if (validateAuth()) {
-    // Tu lógica existente
-  }
-
-  // 🆕 Nuevas funcionalidades (opcionales):
-  const handleAsyncAuth = async () => {
-    const isValid = await validateAuthAsync()
-    if (isValid && !isTokenExpired()) {
-      // Token válido y no expirado
+  // Manejar errores de validación de campos específicos
+  if ('details' in errorData && errorData.details && typeof errorData.details === 'object') {
+    const details = errorData.details as Record<string, unknown>
+    if ('field' in details && typeof details.field === 'string') {
+      const field = details.field as keyof FieldErrors
+      setValidationErrors(prev => ({
+        ...prev,
+        [field]: message
+      }))
+      return
     }
   }
+}, [isValidationAppError])
+```
 
-  const handleApiWithAsyncAuth = async () => {
-    const result = await handleApiCall(
-      () => authenticatedApi.get('/api/data'),
-      { requireAuth: 'async' }
-    )
-  }
+**Beneficios:**
+- ✅ Mensajes de error específicos y claros
+- ✅ Validación de campos individuales
+- ✅ Mejor experiencia de usuario
+- ✅ Manejo consistente de errores
 
-  const handleWebSocketWithCancel = async () => {
-    const controller = new AbortController()
-    const connected = await connect(controller.signal)
-    
-    // Cancelar si es necesario:
-    // controller.abort()
-  }
+---
+
+### 2. Problema: Importación de Movimientos con Productos Inexistentes
+
+**Problema Original:**
+- Al importar movimientos, si los productos no existían, los movimientos no se registraban
+- Se requería crear productos manualmente antes de importar movimientos
+
+**Solución Implementada:**
+
+#### Nuevo Servicio: ProductoCreatorService
+**Archivo:** `iam-backend/src/importacion/services/producto-creator.service.ts`
+
+```typescript
+@Injectable()
+export class ProductoCreatorService {
+  // Busca un producto existente por nombre o ID
+  async buscarProducto(identificador: string | number, empresaId: number): Promise<any | null>
+  
+  // Crea un producto automáticamente con datos mínimos
+  async crearProductoAutomatico(nombre: string, options: ProductoCreatorOptions): Promise<any>
+  
+  // Busca o crea un producto automáticamente
+  async buscarOCrearProducto(identificador: string | number, options: ProductoCreatorOptions): Promise<{ producto: any; creado: boolean }>
+  
+  // Actualiza el stock de un producto
+  async actualizarStock(productoId: number, cantidad: number, tipo: 'ENTRADA' | 'SALIDA'): Promise<any>
 }
+```
+
+#### Servicio de Importación Rápida Mejorado
+**Archivo:** `iam-backend/src/importacion/services/importacion-rapida.service.ts`
+
+```typescript
+// Uso del nuevo servicio en procesarMovimientos
+const resultadoProducto = await this.productoCreator.buscarOCrearProducto(
+  movimientoData.productoId,
+  {
+    empresaId: user.empresaId,
+    etiquetas: ['AUTO-CREADO', 'IMPORTACION-MOVIMIENTOS'],
+    stockInicial: 0,
+    precioCompra: 0,
+    precioVenta: 0,
+    stockMinimo: 10
+  }
+);
+
+productoIdFinal = resultadoProducto.producto.id;
+productoCreado = resultadoProducto.creado;
+```
+
+#### Características de Productos Creados Automáticamente:
+- **Códigos únicos:** `AUTO-{timestamp}-{randomSuffix}`
+- **Etiquetas especiales:** `['AUTO-CREADO', 'IMPORTACION-MOVIMIENTOS']`
+- **Valores por defecto:** Stock 0, precios 0, stock mínimo 10
+- **Tipo:** GENERICO, Unidad: UNIDAD
+- **Estado:** ACTIVO
+
+**Beneficios:**
+- ✅ Movimientos se registran incluso con productos inexistentes
+- ✅ Productos se crean automáticamente con datos mínimos
+- ✅ Códigos únicos para evitar conflictos
+- ✅ Etiquetas para identificar productos creados automáticamente
+- ✅ Logs detallados para auditoría
+- ✅ Servicio reutilizable para otras funcionalidades
+
+---
+
+## Archivos Modificados
+
+### Backend
+1. `iam-backend/src/common/filters/database-exception.filter.ts` - Mejora manejo de errores de duplicados
+2. `iam-backend/src/importacion/services/importacion-rapida.service.ts` - Integración con ProductoCreatorService
+3. `iam-backend/src/importacion/services/producto-creator.service.ts` - Nuevo servicio (creado)
+4. `iam-backend/src/importacion/importacion.module.ts` - Registro del nuevo servicio
+
+### Frontend
+1. `iam-frontend/src/components/auth/RegisterForm.tsx` - Mejora manejo de errores de registro
+
+### Scripts de Prueba
+1. `iam-backend/scripts/test-importacion-movimientos.js` - Script de prueba (creado)
+
+---
+
+## Cómo Probar las Mejoras
+
+### 1. Prueba de Registro con Correo Duplicado
+1. Intentar registrar un usuario con un correo ya existente
+2. Verificar que aparece el mensaje específico en el campo email
+3. Verificar que no aparece "Error interno"
+
+### 2. Prueba de Importación de Movimientos
+1. Crear un archivo Excel con movimientos de productos inexistentes
+2. Importar movimientos usando la funcionalidad de importación rápida
+3. Verificar que:
+   - Los movimientos se registran correctamente
+   - Los productos se crean automáticamente
+   - Los logs muestran información detallada
+   - Los productos creados tienen etiquetas especiales
+
+### 3. Ejecutar Script de Prueba
+```bash
+cd iam-backend
+node scripts/test-importacion-movimientos.js
 ```
 
 ---
 
-## ✅ **Beneficios**
+## Consideraciones Técnicas
 
-### **Para tu Código Actual:**
-- ✅ **100% compatible** - No hay que cambiar nada
-- ✅ **Funcionalidad existente** - Todo sigue funcionando igual
-- ✅ **Sin breaking changes** - No hay errores de compilación
+### Seguridad
+- Los productos creados automáticamente tienen valores por defecto seguros
+- Se mantiene la integridad referencial de la base de datos
+- Los errores se manejan de forma segura sin exponer información sensible
 
-### **Para Nuevas Funcionalidades:**
-- 🆕 **Validación asíncrona** - Para casos que lo requieran
-- 🆕 **Cancelación de operaciones** - Para mejor UX
-- 🆕 **Headers seguros** - Sin colisiones
-- 🆕 **Testing mejorado** - Inyección de dependencias
-- 🆕 **Manejo de errores robusto** - Tipado completo
+### Escalabilidad
+- El ProductoCreatorService es reutilizable en otras partes del sistema
+- Los códigos únicos evitan conflictos en importaciones masivas
+- El sistema maneja eficientemente múltiples importaciones simultáneas
 
-### **Para el Futuro:**
-- 🚀 **Escalabilidad** - Fácil agregar nuevas funcionalidades
-- 🧪 **Testing** - Fácil mockear dependencias
-- 🔒 **Seguridad** - Validación robusta de tokens
-- 📊 **Debugging** - Mejor manejo de errores
+### Mantenibilidad
+- Código modular y bien documentado
+- Separación clara de responsabilidades
+- Logs detallados para debugging y auditoría
+- Tests automatizados para validar funcionalidad
 
 ---
 
-## 🎯 **Conclusión**
+## Próximos Pasos Recomendados
 
-Las mejoras implementadas son **completamente opcionales** y **no afectan tu código actual**. Puedes:
-
-1. **Usar tu código actual** sin cambios ✅
-2. **Aprovechar las nuevas funcionalidades** cuando las necesites 🆕
-3. **Migrar gradualmente** a las nuevas funciones si quieres 🚀
-
-Todo está diseñado para ser **backward compatible** y **future proof**. 
+1. **Implementar tests unitarios** para el ProductoCreatorService
+2. **Agregar validación de datos** más robusta en la creación automática
+3. **Crear interfaz de administración** para productos creados automáticamente
+4. **Implementar notificaciones** cuando se crean productos automáticamente
+5. **Agregar configuración** para personalizar valores por defecto de productos automáticos 
