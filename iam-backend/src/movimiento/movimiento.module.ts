@@ -22,6 +22,10 @@ import { ObtenerMovimientoEliminadoHandler } from './handlers/obtener-movimiento
 // ✅ NUEVO: Servicio de estadísticas financieras
 import { EstadisticasFinancierasService } from './services/estadisticas-financieras.service';
 
+// ✅ Servicios de auditoría necesarios para UnifiedEmpresaGuard
+import { JwtAuditService } from '../auth/jwt-audit.service';
+import { EmpresaCacheService } from '../auth/empresa-cache.service';
+
 @Module({
   imports: [PrismaModule, CommonModule],
   controllers: [MovimientoController],
@@ -42,6 +46,9 @@ import { EstadisticasFinancierasService } from './services/estadisticas-financie
     ObtenerMovimientoEliminadoHandler,
     // ✅ NUEVO: Servicio de estadísticas financieras
     EstadisticasFinancierasService,
+    // ✅ Servicios de auditoría
+    JwtAuditService,
+    EmpresaCacheService,
   ],
   exports: [MovimientoService, EstadisticasFinancierasService],
 })
