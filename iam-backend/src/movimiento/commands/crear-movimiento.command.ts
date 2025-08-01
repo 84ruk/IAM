@@ -10,7 +10,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
-import { TipoMovimiento } from '@prisma/client';
+import { TipoMovimiento, TipoPrecioMovimiento } from '@prisma/client';
 
 export class CrearMovimientoCommand {
   @IsEnum(TipoMovimiento)
@@ -30,8 +30,7 @@ export class CrearMovimientoCommand {
   @IsPositive()
   proveedorId?: number;
 
-  // ✅ NUEVO: Campos de precio para tracking financiero (comentados temporalmente)
-  /*
+  // ✅ NUEVO: Campos de precio para tracking financiero
   @IsOptional()
   @IsNumber({}, { message: 'precioUnitario debe ser un número válido' })
   @Min(0, { message: 'precioUnitario no puede ser negativo' })
@@ -49,7 +48,6 @@ export class CrearMovimientoCommand {
     message: 'tipoPrecio debe ser COMPRA, VENTA, AJUSTE o TRANSFERENCIA',
   })
   tipoPrecio?: TipoPrecioMovimiento;
-  */
 
   @IsOptional()
   @IsString()

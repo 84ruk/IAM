@@ -9,42 +9,40 @@ datasource db {
 }
 
 model Empresa {
-  id                Int                    @id @default(autoincrement())
-  nombre            String
-  rfc               String?                @unique
-  emailContacto     String?
-  direccion         String?
-  fechaCreacion     DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  TipoIndustria     TipoIndustria          @default(GENERICA)
-  auditLogs         AuditLog[]
-  movimientos       MovimientoInventario[]
-  pedidos           PedidoInventario[]
-  productos         Producto[]
-  proveedores       Proveedor[]
-  usuarios          Usuario[]
-  alertHistories    AlertHistory[]
-  alertConfigurations AlertConfiguration[]
+  id            Int           @id @default(autoincrement())
+  nombre        String
+  rfc           String?       @unique
+  emailContacto String?
+  direccion     String?
+  fechaCreacion DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  TipoIndustria TipoIndustria @default(GENERICA)
+  
+  // ✅ Relaciones
+  usuarios      Usuario[]
+  productos     Producto[]
+  movimientos   MovimientoInventario[]
+  proveedores   Proveedor[]
+  pedidos       PedidoInventario[]
+  alertas       AlertHistory[]
 }
 
 model Usuario {
-  id                Int                @id @default(autoincrement())
-  empresaId         Int?
-  nombre            String
-  email             String             @unique
-  password          String?
-  rol               Rol
-  activo            Boolean            @default(true)
-  createdAt         DateTime           @default(now())
-  authProvider      String             @default("local")
-  googleId          String?            @unique
-  setupCompletado   Boolean            @default(false)
-  auditLogs         AuditLog[]
-  blacklistedTokens BlacklistedToken[]
-  refreshTokens     RefreshToken[]
-  securityEvents    SecurityEvent[]
-  twoFactorAuth     TwoFactorAuth?
-  empresa           Empresa?           @relation(fields: [empresaId], references: [id])
+  id              Int      @id @default(autoincrement())
+  empresaId       Int?
+  nombre          String
+  email           String   @unique
+  password        String?
+  rol             Rol
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  authProvider    String   @default("local")
+  googleId        String?  @unique
+  setupCompletado Boolean  @default(false)
+  
+  // ✅ Relaciones
+  empresa         Empresa? @relation(fields: [empresaId], references: [id])
+  refreshTokens   RefreshToken[]
 
   @@index([empresaId, rol])
   @@index([empresaId, activo])
@@ -55,36 +53,38 @@ model Usuario {
 }
 
 model Producto {
-  id                Int                    @id @default(autoincrement())
+  id                Int            @id @default(autoincrement())
   nombre            String
   descripcion       String?
-  stock             Int                    @default(0)
+  stock             Int            @default(0)
   empresaId         Int
-  creadoEn          DateTime               @default(now())
+  creadoEn          DateTime       @default(now())
   proveedorId       Int?
-  actualizadoEn     DateTime               @updatedAt
-  codigoBarras      String?                @unique
+  actualizadoEn     DateTime       @updatedAt
+  codigoBarras      String?        @unique
   humedadOptima     Float?
-  rfid              String?                @unique
-  sku               String?                @unique
+  rfid              String?        @unique
+  sku               String?        @unique
   temperaturaOptima Float?
   ubicacion         String?
   precioCompra      Float
   precioVenta       Float
-  stockMinimo       Int                    @default(10)
+  stockMinimo       Int            @default(10)
   color             String?
   talla             String?
-  tipoProducto      TipoProducto           @default(GENERICO)
-  unidad            UnidadMedida           @default(UNIDAD)
-  estado            EstadoProducto         @default(ACTIVO)
+  tipoProducto      TipoProducto   @default(GENERICO)
+  unidad            UnidadMedida   @default(UNIDAD)
+  estado            EstadoProducto @default(ACTIVO)
   etiquetas         String[]
-  version           Int                    @default(1)
+  version           Int            @default(1)
+
+  // ✅ Relaciones
+  empresa           Empresa              @relation(fields: [empresaId], references: [id])
+  proveedor         Proveedor?           @relation(fields: [proveedorId], references: [id])
   movimientos       MovimientoInventario[]
-  pedidos           PedidoInventario[]
-  empresa           Empresa                @relation(fields: [empresaId], references: [id])
-  proveedor         Proveedor?             @relation(fields: [proveedorId], references: [id])
   sensores          SensorLectura[]
-  alertHistories    AlertHistory[]
+  pedidos           PedidoInventario[]
+  alertas           AlertHistory[]
 
   @@index([empresaId, etiquetas])
   @@index([empresaId, estado])
@@ -98,24 +98,22 @@ model Producto {
 }
 
 model MovimientoInventario {
-  id          Int              @id @default(autoincrement())
-  cantidad    Int
-  productoId  Int
-  fecha       DateTime         @default(now())
-  motivo      String?
-  tipo        TipoMovimiento
-  createdAt   DateTime         @default(now())
-  descripcion String?
-  empresaId   Int
-  estado      EstadoMovimiento @default(ACTIVO)
-  
-  // ✅ NUEVO: Campos de precio para tracking financiero
-  precioUnitario Float?        // Precio por unidad en el momento del movimiento
-  precioTotal    Float?        // Precio total del movimiento (cantidad * precioUnitario)
-  tipoPrecio     TipoPrecioMovimiento? // Tipo de precio (COMPRA, VENTA, AJUSTE)
-  
-  empresa     Empresa          @relation(fields: [empresaId], references: [id])
-  producto    Producto         @relation(fields: [productoId], references: [id])
+  id             Int                   @id @default(autoincrement())
+  cantidad       Int
+  productoId     Int
+  fecha          DateTime              @default(now())
+  motivo         String?
+  tipo           TipoMovimiento
+  createdAt      DateTime              @default(now())
+  descripcion    String?
+  empresaId      Int
+  estado         EstadoMovimiento      @default(ACTIVO)
+  precioTotal    Float?
+  precioUnitario Float?
+  tipoPrecio     TipoPrecioMovimiento?
+
+  empresa        Empresa               @relation(fields: [empresaId], references: [id])
+  producto       Producto              @relation(fields: [productoId], references: [id])
 
   @@index([empresaId, fecha(sort: Desc)])
   @@index([productoId, fecha(sort: Desc)])
@@ -125,15 +123,17 @@ model MovimientoInventario {
 }
 
 model Proveedor {
-  id        Int                @id @default(autoincrement())
+  id        Int             @id @default(autoincrement())
   nombre    String
   email     String?
   telefono  String?
   empresaId Int
-  estado    EstadoProveedor    @default(ACTIVO)
-  pedidos   PedidoInventario[]
-  productos Producto[]
-  empresa   Empresa            @relation(fields: [empresaId], references: [id])
+  estado    EstadoProveedor @default(ACTIVO)
+
+  // ✅ Relaciones
+  empresa    Empresa        @relation(fields: [empresaId], references: [id])
+  productos  Producto[]
+  pedidos    PedidoInventario[]
 
   @@unique([empresaId, nombre])
   @@unique([empresaId, email])
@@ -150,6 +150,8 @@ model PedidoInventario {
   fechaPedido DateTime     @default(now())
   empresaId   Int
   estado      EstadoPedido @default(PENDIENTE)
+
+  // ✅ Relaciones
   empresa     Empresa      @relation(fields: [empresaId], references: [id])
   producto    Producto     @relation(fields: [productoId], references: [id])
   proveedor   Proveedor    @relation(fields: [proveedorId], references: [id])
@@ -177,7 +179,9 @@ model RefreshToken {
   isRevoked Boolean  @default(false)
   jti       String   @unique
   createdAt DateTime @default(now())
-  user      Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // ✅ Relaciones
+  user      Usuario  @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([token])
@@ -193,7 +197,6 @@ model BlacklistedToken {
   reason    String   @default("manual_revocation")
   expiresAt DateTime
   createdAt DateTime @default(now())
-  user      Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([jti])
@@ -215,7 +218,6 @@ model TwoFactorAuth {
   backupCodesRegeneratedAt DateTime?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
-  user                     Usuario   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([isEnabled])
   @@index([setupCompleted])
@@ -231,7 +233,6 @@ model SecurityEvent {
   details   String
   severity  String
   timestamp DateTime @default(now())
-  user      Usuario? @relation(fields: [userId], references: [id])
 
   @@index([type])
   @@index([userId])
@@ -258,6 +259,8 @@ model SensorLectura {
   unidad     String
   productoId Int?
   fecha      DateTime   @default(now())
+
+  // ✅ Relaciones
   producto   Producto?  @relation(fields: [productoId], references: [id])
 
   @@index([productoId, tipo])
@@ -278,8 +281,6 @@ model AuditLog {
   createdAt   DateTime @default(now())
   empresaId   Int?
   empresaName String?
-  empresa     Empresa? @relation(fields: [empresaId], references: [id])
-  user        Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([action])
@@ -289,25 +290,27 @@ model AuditLog {
 }
 
 model AlertHistory {
-  id                   Int      @id @default(autoincrement())
-  empresaId            Int
-  tipo                 String
-  severidad            String
-  titulo               String
-  mensaje              String
-  productoId           Int?
-  productoNombre       String?
-  destinatarios        String[]
-  estado               String   @default("ENVIADA")
-  fechaEnvio           DateTime @default(now())
-  fechaLectura         DateTime?
-  fechaResolucion      DateTime?
-  condicionActivacion  Json?
-  emailEnviado         Boolean  @default(false)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  empresa              Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  producto             Producto? @relation(fields: [productoId], references: [id], onDelete: SetNull)
+  id                  Int       @id @default(autoincrement())
+  empresaId           Int
+  tipo                String
+  severidad           String
+  titulo              String
+  mensaje             String
+  productoId          Int?
+  productoNombre      String?
+  destinatarios       String[]
+  estado              String    @default("ENVIADA")
+  fechaEnvio          DateTime  @default(now())
+  fechaLectura        DateTime?
+  fechaResolucion     DateTime?
+  condicionActivacion Json?
+  emailEnviado        Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // ✅ Relaciones
+  empresa             Empresa   @relation(fields: [empresaId], references: [id])
+  producto            Producto? @relation(fields: [productoId], references: [id])
 
   @@index([empresaId])
   @@index([tipo])
@@ -316,17 +319,16 @@ model AlertHistory {
 }
 
 model AlertConfiguration {
-  id                    Int      @id @default(autoincrement())
-  empresaId             Int
-  tipoAlerta            String
-  activo                Boolean  @default(true)
-  destinatarios         String[]
-  frecuencia            String
-  ventanaEsperaMinutos  Int?
-  umbralCritico         Json?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  empresa               Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  id                   Int      @id @default(autoincrement())
+  empresaId            Int
+  tipoAlerta           String
+  activo               Boolean  @default(true)
+  destinatarios        String[]
+  frecuencia           String
+  ventanaEsperaMinutos Int?
+  umbralCritico        Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@index([empresaId])
   @@index([tipoAlerta])
@@ -381,11 +383,11 @@ enum TipoProducto {
 enum UnidadMedida {
   UNIDAD
   KILO
-  KILOGRAMO
   LITRO
-  LITROS
   CAJA
   PAQUETE
+  KILOGRAMO
+  LITROS
   METRO
   METROS
   GRAMO
@@ -427,10 +429,10 @@ enum EstadoPedido {
 }
 
 enum TipoPrecioMovimiento {
-  COMPRA    // Precio de compra al proveedor
-  VENTA     // Precio de venta al cliente
-  AJUSTE    // Ajuste de inventario
-  TRANSFERENCIA // Transferencia entre almacenes
+  COMPRA
+  VENTA
+  AJUSTE
+  TRANSFERENCIA
 }
 
 enum SensorTipo {

@@ -62,8 +62,7 @@ export class CrearMovimientoHandler {
           }
         }
 
-        // ✅ NUEVO: Lógica de precios mejorada (comentada temporalmente hasta migración)
-        /*
+        // ✅ NUEVO: Lógica de precios mejorada
         let precioUnitario = command.precioUnitario;
         let precioTotal = command.precioTotal;
         let tipoPrecio = command.tipoPrecio;
@@ -105,7 +104,6 @@ export class CrearMovimientoHandler {
             tipoPrecio = 'VENTA';
           }
         }
-        */
 
         const nuevoStock =
           command.tipo === 'ENTRADA'
@@ -137,10 +135,10 @@ export class CrearMovimientoHandler {
             motivo: command.motivo,
             descripcion: command.descripcion,
             fecha: fechaMovimiento,
-            // ✅ NUEVO: Campos de precio (comentados temporalmente)
-            // precioUnitario,
-            // precioTotal,
-            // tipoPrecio,
+            // ✅ NUEVO: Campos de precio
+            precioUnitario,
+            precioTotal,
+            tipoPrecio,
           },
         });
 
@@ -175,9 +173,9 @@ export class CrearMovimientoHandler {
             stockNuevo: nuevoStock,
             versionAnterior: producto.version,
             versionNueva: producto.version + 1,
-            // precioUnitario, // Comentado temporalmente
-            // precioTotal, // Comentado temporalmente
-            // tipoPrecio, // Comentado temporalmente
+            precioUnitario,
+            precioTotal,
+            tipoPrecio,
           },
         );
 
