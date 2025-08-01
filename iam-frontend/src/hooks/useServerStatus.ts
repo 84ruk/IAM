@@ -154,7 +154,7 @@ export function useServerStatus() {
   // ✅ CORREGIDO: useEffect sin dependencias problemáticas
   useEffect(() => {
     // Verificación inicial
-    checkServerStatus()
+    checkServerStatusRef.current?.()
     
     // Polling optimizado - solo si el servidor está offline o con error
     const interval = setInterval(() => {

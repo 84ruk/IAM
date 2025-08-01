@@ -21,11 +21,11 @@ export function ServerStatusProvider({ children }: { children: ReactNode }) {
   // ✅ CORREGIDO: Memoizar funciones para evitar re-renders
   const memoizedCheckServerStatus = useCallback(() => {
     return serverStatus.checkServerStatus()
-  }, [serverStatus.checkServerStatus])
+  }, [serverStatus])
 
   const memoizedWarmUpServer = useCallback(() => {
     return serverStatus.warmUpServer()
-  }, [serverStatus.warmUpServer])
+  }, [serverStatus])
 
   // ✅ CORREGIDO: Memoizar solo los valores que realmente cambian
   const memoizedValue = useMemo(() => ({

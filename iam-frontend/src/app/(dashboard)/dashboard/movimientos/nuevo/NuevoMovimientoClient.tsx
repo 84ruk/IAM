@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Proveedor } from '@/types/proveedor'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import React from 'react'
 import { normalizeApiResponse } from '@/lib/api'
 
@@ -90,18 +90,19 @@ function MovimientoFields({
 }: MovimientoFieldsProps) {
   
   // ✅ NUEVO: Actualizar precio total cuando cambien cantidad o precio unitario
-  useEffect(() => {
-    const calcularPrecioTotal = () => {
-      if (precioUnitario && cantidad) {
-        const unitario = parseFloat(precioUnitario)
-        const cant = parseInt(cantidad)
-        if (!isNaN(unitario) && !isNaN(cant)) {
-          setPrecioTotal((unitario * cant).toFixed(2))
-        }
+  const calcularPrecioTotal = useCallback(() => {
+    if (precioUnitario && cantidad) {
+      const unitario = parseFloat(precioUnitario)
+      const cant = parseInt(cantidad)
+      if (!isNaN(unitario) && !isNaN(cant)) {
+        setPrecioTotal((unitario * cant).toFixed(2))
       }
     }
+  }, [precioUnitario, cantidad, setPrecioTotal])
+
+  useEffect(() => {
     calcularPrecioTotal()
-  }, [precioUnitario, cantidad])
+  }, [calcularPrecioTotal])
 
   // ✅ NUEVO: Establecer precio unitario por defecto según tipo de movimiento
   useEffect(() => {
