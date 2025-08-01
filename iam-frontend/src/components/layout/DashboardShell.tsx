@@ -20,6 +20,20 @@ export default function DashboardShell({ children, user }: { children: React.Rea
     setMounted(true)
   }, [])
 
+  // Prevenir scroll del body cuando el sidebar móvil está abierto
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.classList.add('sidebar-open')
+    } else {
+      document.body.classList.remove('sidebar-open')
+    }
+
+    // Cleanup al desmontar
+    return () => {
+      document.body.classList.remove('sidebar-open')
+    }
+  }, [sidebarOpen])
+
   // ✅ MEJORADO: Función de logout optimizada
   const handleLogout = async () => {
     try {
@@ -137,13 +151,13 @@ export default function DashboardShell({ children, user }: { children: React.Rea
       <div className={sidebarOpen ? 'fixed inset-0 z-50 lg:hidden' : 'hidden'}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
-          <Sidebar user={user} onClose={() => setSidebarOpen(false)} />
+          <Sidebar user={user} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         </div>
       </div>
 
       {/* Sidebar desktop */}
       <div className="hidden lg:flex lg:w-64 lg:flex-col">
-        <Sidebar user={user} />
+        <Sidebar user={user} isOpen={false} />
       </div>
 
       {/* Contenido principal */}
@@ -160,7 +174,8 @@ export default function DashboardShell({ children, user }: { children: React.Rea
       {/* Botón de menú móvil */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="lg:hidden fixed bottom-4 right-4 z-50 p-3 bg-[#8E94F2] text-white rounded-full shadow-lg hover:bg-[#7278e0] transition"
+        className="lg:hidden fixed bottom-4 right-4 z-50 p-3 bg-[#8E94F2] text-white rounded-full shadow-lg hover:bg-[#7278e0] transition menu-button-mobile"
+        aria-label="Abrir menú"
       >
         <Menu size={20} />
       </button>
