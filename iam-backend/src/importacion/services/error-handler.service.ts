@@ -65,7 +65,7 @@ export class ErrorHandlerService {
   private readonly criticalFields: Record<string, string[]> = {
     productos: ['nombre', 'stock', 'precioCompra', 'precioVenta'],
     proveedores: ['nombre'],
-    movimientos: ['productoId', 'tipo', 'cantidad'],
+    movimientos: ['producto', 'tipo', 'cantidad'],
   };
 
   // Patrones de errores comunes y sus soluciones

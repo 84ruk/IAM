@@ -80,7 +80,7 @@ export const CONFIGURACION_IMPORTACION: ConfiguracionImportacion = {
   },
   movimientos: {
     maxRegistros: 10000,
-    columnasRequeridas: ['productoId', 'tipo', 'cantidad'],
+    columnasRequeridas: ['producto', 'tipo', 'cantidad'],
     validarEncabezados: true,
     ignorarFilasVacias: true,
     normalizarEncabezados: true,
