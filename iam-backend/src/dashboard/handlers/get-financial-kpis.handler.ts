@@ -186,24 +186,88 @@ export class GetFinancialKpisHandler {
   }
 
   private async calculateEficienciaOperativa(empresaId: number): Promise<number> {
-    const result = await this.prisma.$queryRaw<[{ eficiencia: number }]>`
-      WITH metricas AS (
+    this.logger.log('🔧 Calculando eficiencia operativa (versión corregida)');
+    try {
+      // Obtener métricas básicas de productos
+      const productosResult = await this.prisma.$queryRaw<[{ 
+        total_productos: bigint;
+        productos_stock_bajo: bigint;
+        productos_sin_stock: bigint;
+      }]>`
         SELECT 
-          COUNT(DISTINCT p.id) as total_productos,
-          COUNT(CASE WHEN p.stock <= p."stockMinimo" THEN 1 END) as productos_stock_bajo,
-          COUNT(CASE WHEN p.stock = 0 THEN 1 END) as productos_sin_stock
+          COUNT(DISTINCT p.id)::integer as total_productos,
+          COUNT(CASE WHEN p.stock <= p."stockMinimo" THEN 1 END)::integer as productos_stock_bajo,
+          COUNT(CASE WHEN p.stock = 0 THEN 1 END)::integer as productos_sin_stock
         FROM "Producto" p
         WHERE p."empresaId" = ${empresaId}
           AND p.estado = 'ACTIVO'
-      )
-      SELECT COALESCE(
-        (total_productos - productos_stock_bajo - productos_sin_stock) / 
-        NULLIF(total_productos, 0) * 100,
-        0
-      ) as eficiencia
-      FROM metricas
-    `;
-    return Number(result[0]?.eficiencia || 0);
+      `;
+
+      // Obtener métricas de movimientos del último mes
+      const movimientosResult = await this.prisma.$queryRaw<[{
+        total_movimientos: bigint;
+        salidas: bigint;
+        rotacion_inventario: number;
+      }]>`
+        WITH movimientos_mes AS (
+          SELECT 
+            COUNT(*)::integer as total_movimientos,
+            COUNT(CASE WHEN tipo = 'SALIDA' THEN 1 END)::integer as salidas,
+            COALESCE(SUM(CASE WHEN tipo = 'SALIDA' THEN cantidad ELSE 0 END), 0) as total_vendido
+          FROM "MovimientoInventario"
+          WHERE "empresaId" = ${empresaId}
+            AND "createdAt" >= NOW() - INTERVAL '30 days'
+        ),
+        stock_total AS (
+          SELECT COALESCE(SUM(stock), 0) as inventario_total
+          FROM "Producto"
+          WHERE "empresaId" = ${empresaId}
+            AND estado = 'ACTIVO'
+        )
+        SELECT 
+          mm.total_movimientos,
+          mm.salidas,
+          CASE 
+            WHEN st.inventario_total > 0 THEN (mm.total_vendido::float / st.inventario_total::float) * 12
+            ELSE 0
+          END as rotacion_inventario
+        FROM movimientos_mes mm, stock_total st
+      `;
+
+      const productos = productosResult[0];
+      const movimientos = movimientosResult[0];
+
+      // Convertir BigInt a number
+      const totalProductos = Number(productos.total_productos);
+      const productosStockBajo = Number(productos.productos_stock_bajo);
+      const productosSinStock = Number(productos.productos_sin_stock);
+      const totalMovimientos = Number(movimientos.total_movimientos);
+      const salidas = Number(movimientos.salidas);
+      const rotacionInventario = Number(movimientos.rotacion_inventario);
+
+      // Si no hay productos, eficiencia es 0
+      if (totalProductos === 0) return 0;
+
+      // Calcular eficiencia operativa mejorada (múltiples factores)
+      
+      // Factor 1: Gestión de stock (40% del peso)
+      const factorStock = ((totalProductos - productosStockBajo - productosSinStock) / totalProductos) * 100;
+      
+      // Factor 2: Actividad de movimientos (30% del peso)
+      const factorActividad = Math.min(totalMovimientos * 1.5, 50); // Max 50%
+      
+      // Factor 3: Rotación de inventario (30% del peso)
+      const factorRotacion = Math.min(rotacionInventario * 8, 50); // Max 50%
+
+      // Eficiencia operativa ponderada
+      const eficienciaOperativa = (factorStock * 0.4) + (factorActividad * 0.3) + (factorRotacion * 0.3);
+
+      return Math.round(eficienciaOperativa * 100) / 100; // Redondear a 2 decimales
+      
+    } catch (error) {
+      this.logger.error(`Error calculating eficiencia operativa for empresa ${empresaId}:`, error);
+      return 0;
+    }
   }
 
   private getBasicFinancialKPIs(): FinancialKPIs {

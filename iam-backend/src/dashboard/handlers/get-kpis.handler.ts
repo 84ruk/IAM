@@ -125,7 +125,15 @@ export class GetKpisHandler {
 
   private async getMargenPromedio(empresaId: number): Promise<number> {
     const result = await this.prisma.$queryRaw<[{ margen: number }]>`
-      SELECT COALESCE(AVG(p."precioVenta" - p."precioCompra"), 0) as margen
+      SELECT COALESCE(
+        AVG(
+          CASE 
+            WHEN p."precioCompra" > 0 THEN 
+              ((p."precioVenta" - p."precioCompra") / p."precioCompra") * 100
+            ELSE 0 
+          END
+        ), 0
+      ) as margen
       FROM "Producto" p
       WHERE p."empresaId" = ${empresaId}
         AND p.estado = 'ACTIVO'

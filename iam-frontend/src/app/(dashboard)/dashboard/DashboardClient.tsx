@@ -17,7 +17,6 @@ import {
   BarChart3,
   RefreshCw,
   Target,
-  TrendingDown,
   ArrowRight,
   Database,
   Activity,
@@ -30,7 +29,9 @@ import Link from 'next/link'
 
 import Select from '@/components/ui/Select'
 import KPICard from '@/components/dashboard/KPICard'
+import EnhancedKPICard from '@/components/dashboard/EnhancedKPICard'
 import DailyMovementsChart from '@/components/dashboard/DailyMovementsChart'
+import PredictiveKPIsPanel from '@/components/dashboard/PredictiveKPIsPanel'
 import { formatCurrency, formatPercentage, getValueColor } from '@/lib/kpi-utils'
 
 
@@ -101,9 +102,17 @@ export default function DashboardClient() {
   const {
     kpis: advancedKpis,
     financial: financialKpis,
+    predictive: predictiveKpis,
     isLoading: kpisLoading,
     error: kpisError
   } = useOptimizedKPIs('mes', 'general', 30)
+  
+  // Debug temporal
+  console.log('🔍 Debug DashboardClient:', {
+    financialKpis,
+    kpisLoading,
+    kpisError
+  })
   
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [lastUpdate, setLastUpdate] = useState(new Date())
@@ -565,15 +574,24 @@ export default function DashboardClient() {
               <KPICard
                 title="Eficiencia Operativa"
                 value={formatPercentage(financialKpis.eficienciaOperativa || 0)}
-                icon={TrendingDown}
-                iconColor="text-red-600"
-                valueColor={getValueColor(financialKpis.eficienciaOperativa || 0, 80)}
+                icon={Activity}
+                iconColor="text-indigo-600"
+                valueColor={getValueColor(financialKpis.eficienciaOperativa || 0, 50)}
                 isLoading={kpisLoading}
                 error={!!kpisError}
+                subtitle="Múltiples factores"
               />
             </div>
           </div>
         )}
+
+        {/* Panel de KPIs Predictivos */}
+        <PredictiveKPIsPanel
+          data={predictiveKpis}
+          isLoading={kpisLoading}
+          error={!!kpisError}
+          className="mb-8"
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <Card>
@@ -654,14 +672,17 @@ export default function DashboardClient() {
               error={!!kpisError || !!error}
             />
 
-            <KPICard
+            <EnhancedKPICard
               title="Margen Promedio"
-              value={`${kpisAdicionales.margenPromedio.toFixed(2)}%`}
+              value={`${(advancedKpis?.margenPromedio || kpisAdicionales.margenPromedio).toFixed(2)}%`}
               icon={PercentCircle}
               iconColor="text-purple-600"
-              valueColor={getValueColor(kpisAdicionales.margenPromedio, 20)}
-              isLoading={isLoading}
-              error={!!error}
+              valueColor={getValueColor(advancedKpis?.margenPromedio || kpisAdicionales.margenPromedio, 20)}
+              isLoading={isLoading || kpisLoading}
+              error={!!error || !!kpisError}
+              subtitle={advancedKpis?.margenPromedio ? "Del backend" : "Calculado localmente"}
+              description="Porcentaje promedio de ganancia sobre el costo de productos"
+              showInfo={true}
             />
 
             <KPICard

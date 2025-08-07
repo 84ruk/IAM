@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ImportacionController } from './importacion.controller';
 import { ImportacionRapidaController } from './importacion-rapida.controller';
+import { PlantillasController } from './controllers/plantillas.controller';
 import { ImportacionService } from './importacion.service';
 import { DetectorTipoImportacionService } from './servicios/detector-tipo-importacion.service';
 import { PlantillasService } from './servicios/plantillas.service';
@@ -24,6 +25,7 @@ import { ColasModule } from '../colas/colas.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { WebSocketsModule } from '../websockets/websockets.module';
 import { ImportacionWebSocketService } from './importacion-websocket.service';
+import { PlantillasGeneradorService } from './services/plantillas-generador.service';
 
 @Module({
   imports: [
@@ -31,7 +33,7 @@ import { ImportacionWebSocketService } from './importacion-websocket.service';
     PrismaModule,
     WebSocketsModule,
   ],
-  controllers: [ImportacionController, ImportacionRapidaController],
+  controllers: [ImportacionController, ImportacionRapidaController, PlantillasController],
   providers: [
     ImportacionService,
     DetectorTipoImportacionService,
@@ -53,6 +55,7 @@ import { ImportacionWebSocketService } from './importacion-websocket.service';
     ImportacionConfigService,
     TrabajoImportacionFactory,
     ImportacionWebSocketService,
+    PlantillasGeneradorService,
   ],
   exports: [
     ImportacionService,

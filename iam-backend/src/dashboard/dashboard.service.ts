@@ -1890,12 +1890,34 @@ export class DashboardService {
             where: { empresaId, estado: 'ACTIVO' }
           });
 
-          const prediccionDemanda = productos.slice(0, 10).map(producto => ({
-            productoId: producto.id,
-            nombre: producto.nombre,
-            demandaEstimada: Math.round(producto.stock * (0.8 + Math.random() * 0.4)), // ±20%
-            confianza: Math.round(75 + Math.random() * 20) // 75-95%
-          }));
+          // Calcular predicción de demanda basada en datos reales
+          const prediccionDemanda = await Promise.all(
+            productos.slice(0, 10).map(async (producto) => {
+              // Obtener movimientos de salida del último mes
+              const movimientos = await this.prisma.movimientoInventario.findMany({
+                where: {
+                  productoId: producto.id,
+                  tipo: 'SALIDA',
+                  createdAt: {
+                    gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                  }
+                }
+              });
+
+              const salidaUltimoMes = movimientos.reduce((sum, m) => sum + m.cantidad, 0);
+              const demandaEstimada = Math.round(salidaUltimoMes * 1.1); // 10% más que el mes pasado
+              
+              // Confianza basada en cantidad de datos históricos
+              const confianza = Math.min(50 + (movimientos.length * 5), 95);
+
+              return {
+                productoId: producto.id,
+                nombre: producto.nombre,
+                demandaEstimada,
+                confianza
+              };
+            })
+          );
 
           const prediccionQuiebres = productos
             .filter(p => p.stock <= p.stockMinimo * 1.5)
@@ -1913,19 +1935,20 @@ export class DashboardService {
             periodo: 'Último mes'
           };
 
+          // Estacionalidad basada en patrones típicos de electrónicos/tecnología
           const estacionalidad = [
-            { mes: 'Enero', factorEstacional: 0.8 },
-            { mes: 'Febrero', factorEstacional: 0.9 },
-            { mes: 'Marzo', factorEstacional: 1.1 },
-            { mes: 'Abril', factorEstacional: 1.2 },
-            { mes: 'Mayo', factorEstacional: 1.0 },
-            { mes: 'Junio', factorEstacional: 0.9 },
-            { mes: 'Julio', factorEstacional: 0.8 },
-            { mes: 'Agosto', factorEstacional: 0.7 },
-            { mes: 'Septiembre', factorEstacional: 0.9 },
-            { mes: 'Octubre', factorEstacional: 1.1 },
-            { mes: 'Noviembre', factorEstacional: 1.3 },
-            { mes: 'Diciembre', factorEstacional: 1.4 }
+            { mes: 'Enero', factorEstacional: 0.85 }, // Post-navidad, baja
+            { mes: 'Febrero', factorEstacional: 0.90 }, // Inicio año
+            { mes: 'Marzo', factorEstacional: 1.05 }, // Primavera
+            { mes: 'Abril', factorEstacional: 1.10 }, // Crecimiento
+            { mes: 'Mayo', factorEstacional: 1.15 }, // Día de la madre/graduaciones
+            { mes: 'Junio', factorEstacional: 1.20 }, // Día del padre/graduaciones
+            { mes: 'Julio', factorEstacional: 1.10 }, // Vacaciones
+            { mes: 'Agosto', factorEstacional: 1.25 }, // Regreso a clases
+            { mes: 'Septiembre', factorEstacional: 1.20 }, // Regreso a clases
+            { mes: 'Octubre', factorEstacional: 1.15 }, // Preparación navideña
+            { mes: 'Noviembre', factorEstacional: 1.45 }, // Black Friday/Buen Fin
+            { mes: 'Diciembre', factorEstacional: 1.60 } // Navidad - pico máximo
           ];
 
           return {

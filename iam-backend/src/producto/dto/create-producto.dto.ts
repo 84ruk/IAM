@@ -201,13 +201,7 @@ export class CreateProductoDto {
   })
   tipoProducto?: TipoProducto;
 
-  // Validaciones de negocio
-  @ValidateIf(
-    (o) => o.precioVenta !== undefined && o.precioCompra !== undefined,
-  )
-  @IsNumber({}, { message: 'precioVenta debe ser mayor al precio de compra' })
-  @Min(0, { message: 'precioVenta debe ser mayor al precio de compra' })
-  get precioVentaValidado(): number {
-    return this.precioVenta >= this.precioCompra ? this.precioVenta : 0;
-  }
+  // Nota: La validación de que precio de venta sea mayor al de compra 
+  // se puede implementar como validación de negocio opcional, pero no es obligatoria
+  // ya que algunos productos pueden venderse al costo o con descuento
 }
