@@ -447,7 +447,7 @@ export default function RegisterForm() {
           disabled={isLoading}
           style={{ boxShadow: '0 1px 2px rgba(60,64,67,.08)' }}
         >
-          <span className="flex items-center justify-center bg-white rounded-full p-1 border border-gray-200">
+          <span className="flex items-center justify-center bg-white rounded-full p-1 border border-gray-200 text-black">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
               <g clipPath="url(#clip0_760_7151)">
                 <path d="M19.6 10.2273C19.6 9.5182 19.5364 8.8364 19.4182 8.1818H10V12.05H15.3818C15.15 13.3 14.4455 14.3591 13.3864 15.0682V17.5773H16.6182C18.5091 15.8364 19.6 13.2727 19.6 10.2273Z" fill="#4285F4"/>
@@ -462,7 +462,7 @@ export default function RegisterForm() {
               </defs>
             </svg>
           </span>
-          <span>Registrarse con Google</span>
+          <span className='text-black'>Registrarse con Google</span>
         </Button>
 
         {/* Botón de login mejorado */}

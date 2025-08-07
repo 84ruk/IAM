@@ -11,6 +11,8 @@ import { MovimientoModule } from './movimiento/movimiento.module';
 import { InventarioModule } from './inventario/inventario.module';
 import { PedidoModule } from './pedido/pedido.module';
 import { ProveedorModule } from './proveedor/proveedor.module';
+import { AlertasAvanzadasModule } from './alertas/alertas-avanzadas.module';
+import { UbicacionesModule } from './ubicaciones/ubicaciones.module';
 // 🎯 DASHBOARD MODULES - Orden crítico para evitar conflictos de routing
 import { DashboardCQRSModule } from './dashboard/dashboard-cqrs.module'; // ✅ PRIORIDAD ALTA - Nuevo sistema CQRS
 import { DashboardModule } from './dashboard/dashboard.module'; // ⚠️ PRIORIDAD BAJA - Sistema legacy (migración en progreso)
@@ -47,6 +49,8 @@ import mqttConfig from './config/mqtt.config';
     InventarioModule,
     PedidoModule,
     ProveedorModule,
+    AlertasAvanzadasModule,
+    UbicacionesModule,
     
     // 📊 MÓDULOS DE DASHBOARD - ORDEN CRÍTICO
     DashboardCQRSModule, // ✅ NUEVO SISTEMA CQRS (alta prioridad)

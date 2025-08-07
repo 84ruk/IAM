@@ -69,6 +69,12 @@ export interface ResumenImportacion {
   fechaProcesamiento: Date;
   estrategiaDuplicados?: EstrategiaDuplicados;
   correccionesAplicadas?: number;
+  // ✅ NUEVO: Estadísticas de proveedores
+  estadisticasProveedores?: {
+    creados: number;
+    existentes: number;
+    total: number;
+  };
 }
 
 export interface ResultadoImportacionRapida {

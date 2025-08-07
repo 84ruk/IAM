@@ -1,0 +1,47 @@
+{
+  "empresa": {
+    "nombre": "IAm",
+    "ubicacion": "refrigerador"
+  },
+  "mqtt": {
+    "username": "esp32_1754351166938",
+    "password": "pass_epc52b0rsd8",
+    "topic": "empresa/sensor/esp32_multi/data"
+  },
+  "sensores": [
+    {
+      "nombre": "ESP32 Multi-Sensor",
+      "tipo": "MULTI",
+      "ubicacion": "refrigerador",
+      "configuracion": {
+        "dht22": {
+          "pin": 4,
+          "tipo": "DHT22",
+          "intervalo_lectura": 5000
+        },
+        "rfid": {
+          "ss_pin": 21,
+          "rst_pin": 22,
+          "tipo": "MFRC522"
+        },
+        "hx711": {
+          "dout_pin": 16,
+          "sck_pin": 17,
+          "capacidad": "undefinedKg",
+          "factor_calibracion": -7050
+        }
+      }
+    }
+  ],
+  "variables_entorno": {
+    "MQTT_ENABLED": "true",
+    "MQTT_HOST": "h02f10fd.ala.us-east-1.emqxsl.com",
+    "MQTT_PORT": "8883",
+    "MQTT_USE_TLS": "true",
+    "MQTT_USERNAME": "esp32_1754351166938",
+    "MQTT_PASSWORD": "pass_epc52b0rsd8",
+    "MQTT_APP_ID": "v2c96220",
+    "MQTT_APP_SECRET": "tu_app_secret_aqui",
+    "MQTT_API_ENDPOINT": "https://h02f10fd.ala.us-east-1.emqxsl.com:8443/api/v5"
+  }
+}

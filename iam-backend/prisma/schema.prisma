@@ -25,6 +25,10 @@ model Empresa {
   proveedores   Proveedor[]
   pedidos       PedidoInventario[]
   alertas       AlertHistory[]
+  ubicaciones   Ubicacion[]
+  sensores      Sensor[]
+  lecturasSensores SensorLectura[]
+  smsDeliveryLogs SMSDeliveryLog[]
 }
 
 model Usuario {
@@ -67,6 +71,7 @@ model Producto {
   sku               String?        @unique
   temperaturaOptima Float?
   ubicacion         String?
+  ubicacionId       Int?           // Nueva relación con Ubicacion
   precioCompra      Float
   precioVenta       Float
   stockMinimo       Int            @default(10)
@@ -81,9 +86,10 @@ model Producto {
   // ✅ Relaciones
   empresa           Empresa              @relation(fields: [empresaId], references: [id])
   proveedor         Proveedor?           @relation(fields: [proveedorId], references: [id])
-  movimientos       MovimientoInventario[]
+  ubicacionRel      Ubicacion?          @relation(fields: [ubicacionId], references: [id])
+  movimientos       MovimientoInventario[] @relation("ProductoMovimientos")
   sensores          SensorLectura[]
-  pedidos           PedidoInventario[]
+  pedidos           PedidoInventario[] @relation("ProductoPedidos")
   alertas           AlertHistory[]
 
   @@index([empresaId, etiquetas])
@@ -91,6 +97,7 @@ model Producto {
   @@index([empresaId, stock])
   @@index([empresaId, tipoProducto])
   @@index([proveedorId])
+  @@index([ubicacionId])
   @@index([codigoBarras])
   @@index([sku])
   @@index([rfid])
@@ -101,6 +108,7 @@ model MovimientoInventario {
   id             Int                   @id @default(autoincrement())
   cantidad       Int
   productoId     Int
+  proveedorId    Int?
   fecha          DateTime              @default(now())
   motivo         String?
   tipo           TipoMovimiento
@@ -113,13 +121,15 @@ model MovimientoInventario {
   tipoPrecio     TipoPrecioMovimiento?
 
   empresa        Empresa               @relation(fields: [empresaId], references: [id])
-  producto       Producto              @relation(fields: [productoId], references: [id])
+  producto       Producto              @relation("ProductoMovimientos", fields: [productoId], references: [id], onDelete: Cascade)
+  proveedor      Proveedor?            @relation(fields: [proveedorId], references: [id])
 
   @@index([empresaId, fecha(sort: Desc)])
   @@index([productoId, fecha(sort: Desc)])
   @@index([empresaId, estado])
   @@index([tipo, fecha(sort: Desc)])
   @@index([tipoPrecio, fecha(sort: Desc)])
+  @@index([proveedorId])
 }
 
 model Proveedor {
@@ -134,6 +144,7 @@ model Proveedor {
   empresa    Empresa        @relation(fields: [empresaId], references: [id])
   productos  Producto[]
   pedidos    PedidoInventario[]
+  movimientos MovimientoInventario[]
 
   @@unique([empresaId, nombre])
   @@unique([empresaId, email])
@@ -153,7 +164,7 @@ model PedidoInventario {
 
   // ✅ Relaciones
   empresa     Empresa      @relation(fields: [empresaId], references: [id])
-  producto    Producto     @relation(fields: [productoId], references: [id])
+  producto    Producto     @relation("ProductoPedidos", fields: [productoId], references: [id], onDelete: Cascade)
   proveedor   Proveedor    @relation(fields: [proveedorId], references: [id])
 
   @@index([empresaId, estado])
@@ -252,19 +263,73 @@ model BlockedIP {
   @@index([expiresAt])
 }
 
+model Ubicacion {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  empresaId   Int
+  activa      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
+  empresa     Empresa  @relation(fields: [empresaId], references: [id])
+  sensores    Sensor[]
+  productos   Producto[]
+  lecturas    SensorLectura[]
+  dispositivosIoT DispositivoIoT[]
+  kpiEventos  KpiEvento[]
+  
+  @@index([empresaId])
+  @@index([empresaId, activa])
+}
+
+model Sensor {
+  id          Int        @id @default(autoincrement())
+  nombre      String
+  tipo        SensorTipo
+  ubicacionId Int
+  empresaId   Int
+  activo      Boolean    @default(true)
+  configuracion Json?    // Configuración específica del sensor
+  dispositivoIoTId Int?  // Nueva relación con DispositivoIoT
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Relaciones
+  ubicacion   Ubicacion @relation(fields: [ubicacionId], references: [id])
+  empresa     Empresa   @relation(fields: [empresaId], references: [id])
+  dispositivoIoT DispositivoIoT? @relation(fields: [dispositivoIoTId], references: [id])
+  lecturas    SensorLectura[]
+  
+  @@index([ubicacionId])
+  @@index([empresaId])
+  @@index([tipo])
+  @@index([dispositivoIoTId])
+  @@unique([nombre, ubicacionId])
+}
+
 model SensorLectura {
   id         Int        @id @default(autoincrement())
   tipo       SensorTipo
   valor      Float
   unidad     String
+  sensorId   Int?       // Nueva relación
   productoId Int?
+  ubicacionId Int?      // Nueva relación
+  empresaId  Int        // Nueva relación
   fecha      DateTime   @default(now())
-
-  // ✅ Relaciones
+  
+  // Relaciones
+  sensor     Sensor?    @relation(fields: [sensorId], references: [id])
   producto   Producto?  @relation(fields: [productoId], references: [id])
-
-  @@index([productoId, tipo])
-  @@index([productoId, fecha])
+  ubicacion  Ubicacion? @relation(fields: [ubicacionId], references: [id])
+  empresa    Empresa    @relation(fields: [empresaId], references: [id])
+  
+  @@index([sensorId, fecha])
+  @@index([ubicacionId, fecha])
+  @@index([empresaId, fecha])
+  @@index([tipo, fecha])
 }
 
 model AuditLog {
@@ -311,6 +376,7 @@ model AlertHistory {
   // ✅ Relaciones
   empresa             Empresa   @relation(fields: [empresaId], references: [id])
   producto            Producto? @relation(fields: [productoId], references: [id])
+  smsDeliveryLogs     SMSDeliveryLog[]
 
   @@index([empresaId])
   @@index([tipo])
@@ -348,6 +414,30 @@ model NotificationTemplate {
 
   @@index([name])
   @@index([tipo])
+}
+
+model SMSDeliveryLog {
+  id          Int      @id @default(autoincrement())
+  messageId   String
+  to          String
+  status      String
+  errorCode   String?
+  errorMessage String?
+  provider    String
+  empresaId   Int
+  alertaId    Int?
+  timestamp   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  empresa     Empresa  @relation(fields: [empresaId], references: [id])
+  alerta      AlertHistory? @relation(fields: [alertaId], references: [id])
+
+  @@index([empresaId])
+  @@index([messageId])
+  @@index([status])
+  @@index([timestamp])
 }
 
 enum TipoIndustria {
@@ -440,4 +530,43 @@ enum SensorTipo {
   HUMEDAD
   PRESION
   PESO
+}
+
+model DispositivoIoT {
+  id                Int      @id @default(autoincrement())
+  deviceId          String   @unique
+  nombre            String
+  tipo              String   @default("ESP32")
+  ubicacionId       Int
+  activo            Boolean  @default(true)
+  configuracion     Json?
+  ultimaActualizacion DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  //  Relaciones
+  ubicacion         Ubicacion @relation(fields: [ubicacionId], references: [id])
+  sensores          Sensor[]
+
+  @@index([deviceId])
+  @@index([ubicacionId])
+  @@index([tipo])
+  @@index([activo])
+}
+
+model KpiEvento {
+  id          Int      @id @default(autoincrement())
+  ubicacionId Int
+  tipo        String   // Tipo de evento (ESP32, Sensor, etc.)
+  evento      String   // Nombre del evento
+  timestamp   DateTime @default(now())
+  metadata    Json?    // Datos adicionales del evento
+
+  // Relaciones
+  ubicacion   Ubicacion @relation(fields: [ubicacionId], references: [id])
+
+  @@index([ubicacionId])
+  @@index([tipo])
+  @@index([evento])
+  @@index([timestamp])
 }

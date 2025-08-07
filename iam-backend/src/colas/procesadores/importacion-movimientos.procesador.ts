@@ -145,9 +145,23 @@ export class ImportacionMovimientosProcesador extends EnhancedBaseProcesadorServ
         normalizado.producto = registro.productoId;
       }
       
+      // Mapear diferentes nombres de columnas para proveedor
+      if (registro.proveedorNombre && !registro.proveedor) {
+        normalizado.proveedor = registro.proveedorNombre;
+      }
+      if (registro.nombreProveedor && !registro.proveedor) {
+        normalizado.proveedor = registro.nombreProveedor;
+      }
+      if (registro.supplier && !registro.proveedor) {
+        normalizado.proveedor = registro.supplier;
+      }
+      
       // Mapear diferentes nombres de columnas para fecha
       if (registro.fechaMovimiento && !registro.fecha) {
         normalizado.fecha = registro.fechaMovimiento;
+      }
+      if (registro.fechaMov && !registro.fecha) {
+        normalizado.fecha = registro.fechaMov;
       }
       
       return normalizado;
@@ -319,17 +333,41 @@ export class ImportacionMovimientosProcesador extends EnhancedBaseProcesadorServ
 
         // Buscar o crear proveedor si se especifica
         let proveedorId = null;
-        if (registro.proveedor && opcionesRelacion.crearProveedorSiNoExiste) {
+        let proveedorInfo = null;
+        
+        if (registro.proveedor && String(registro.proveedor).trim()) {
+          const nombreProveedor = String(registro.proveedor).trim();
+          
+          // Siempre intentar crear el proveedor si no existe (configuración por defecto)
+          const crearProveedor = opcionesRelacion.crearProveedorSiNoExiste ?? true;
+          
           const resultadoProveedor = await this.relacionCreator.buscarOCrearProveedor(
-            String(registro.proveedor),
-            trabajo.empresaId
+            nombreProveedor,
+            trabajo.empresaId,
+            crearProveedor
           );
 
           if (resultadoProveedor.entidad) {
             proveedorId = resultadoProveedor.entidad.id;
+            proveedorInfo = resultadoProveedor.entidad;
+            
             if (resultadoProveedor.creado) {
-              this.logger.log(`✅ Proveedor creado automáticamente: ${resultadoProveedor.entidad.nombre}`);
+              this.logger.log(`✅ Proveedor creado automáticamente: ${resultadoProveedor.entidad.nombre} (ID: ${resultadoProveedor.entidad.id})`);
+            } else {
+              this.logger.debug(`🔍 Proveedor encontrado: ${resultadoProveedor.entidad.nombre} (ID: ${resultadoProveedor.entidad.id})`);
             }
+          } else if (resultadoProveedor.error) {
+            // Log del error pero continuar con el movimiento
+            this.logger.warn(`⚠️ Error procesando proveedor "${nombreProveedor}": ${resultadoProveedor.error}`);
+            
+            // Agregar error al resultado pero no fallar el movimiento
+            resultado.errores.push({
+              fila: registro._filaOriginal,
+              columna: 'proveedor',
+              valor: nombreProveedor,
+              mensaje: `Error procesando proveedor: ${resultadoProveedor.error}`,
+              tipo: 'validacion',
+            });
           }
         }
 
@@ -353,7 +391,7 @@ export class ImportacionMovimientosProcesador extends EnhancedBaseProcesadorServ
         }
 
         // Crear movimiento con información completa
-        await this.guardarMovimiento(registro, trabajo, producto, proveedorId || undefined);
+        await this.guardarMovimiento(registro, trabajo, producto, proveedorId || undefined, proveedorInfo);
         resultado.estadisticas.exitosos++;
 
         // Log de éxito
@@ -434,7 +472,8 @@ export class ImportacionMovimientosProcesador extends EnhancedBaseProcesadorServ
     registro: MovimientoImportacion, 
     trabajo: TrabajoImportacion, 
     producto: any, 
-    proveedorId?: number
+    proveedorId?: number,
+    proveedorInfo?: any
   ): Promise<void> {
     const cantidad = parseInt(String(registro.cantidad));
     const tipo = String(registro.tipo).toUpperCase() as 'ENTRADA' | 'SALIDA';
@@ -487,6 +526,13 @@ export class ImportacionMovimientosProcesador extends EnhancedBaseProcesadorServ
       data: { stock: nuevoStock },
     });
 
-    this.logger.log(`✅ Movimiento creado: ${tipo} ${cantidad} unidades de ${producto.nombre} - Stock actualizado: ${nuevoStock}`);
+    // Log detallado del movimiento creado
+    const logProveedor = proveedorInfo ? ` - Proveedor: ${proveedorInfo.nombre}` : '';
+    this.logger.log(`✅ Movimiento creado: ${tipo} ${cantidad} unidades de ${producto.nombre}${logProveedor} - Stock actualizado: ${nuevoStock}`);
+    
+    // Log adicional si se creó un proveedor
+    if (proveedorInfo && proveedorId) {
+      this.logger.log(`📋 Información del proveedor: ${proveedorInfo.nombre} (ID: ${proveedorId}) - Email: ${proveedorInfo.email || 'No especificado'}`);
+    }
   }
 } 

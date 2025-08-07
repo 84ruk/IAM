@@ -1,7 +1,8 @@
 import { Injectable, Logger, Inject, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { SensoresService, TipoSensor } from '../../sensores/sensores.service';
-import { CreateSensorLecturaDto } from '../../sensores/dto/create-sensor.dto';
+import { CreateSensorLecturaDto } from '../../sensores/dto/create-sensor-lectura.dto';
+import { PrismaService } from '../../prisma/prisma.service';
 import mqttConfig from '../../config/mqtt.config';
 import * as mqtt from 'mqtt';
 
@@ -16,6 +17,7 @@ export class MqttSensorService implements OnModuleDestroy, OnModuleInit {
 
   constructor(
     private readonly sensoresService: SensoresService,
+    private readonly prisma: PrismaService,
     @Inject(mqttConfig.KEY)
     private readonly config: ConfigType<typeof mqttConfig>,
   ) {}
@@ -40,6 +42,16 @@ export class MqttSensorService implements OnModuleDestroy, OnModuleInit {
         reconnectPeriod: 0, // Deshabilitar reconexión automática
         connectTimeout: this.config.connectTimeout,
         clean: true,
+        // Configuración TLS/SSL para EMQX
+        ...(this.config.useTls && {
+          rejectUnauthorized: false, // Para desarrollo, en producción debería ser true
+          protocol: 'mqtts',
+        }),
+        // Configuración de autenticación
+        ...(this.config.username && this.config.password && {
+          username: this.config.username,
+          password: this.config.password,
+        }),
       };
 
       this.client = mqtt.connect(this.config.url, options);
@@ -48,13 +60,8 @@ export class MqttSensorService implements OnModuleDestroy, OnModuleInit {
         this.logger.log('Conectado al broker MQTT');
         this.reconnectAttempts = 0; // Resetear contador de intentos
         
-        this.client!.subscribe('esp32/temperatura_humedad', (err) => {
-          if (err) {
-            this.logger.error('Error al suscribirse al tópico', err);
-          } else {
-            this.logger.log('Suscrito al tópico esp32/temperatura_humedad');
-          }
-        });
+        // Suscribirse a tópicos de sensores
+        this.subscribeToTopics();
       });
 
       this.client.on('message', (topico, mensaje) => {
@@ -80,6 +87,28 @@ export class MqttSensorService implements OnModuleDestroy, OnModuleInit {
       this.logger.error('Error inicializando conexión MQTT:', error);
       this.handleConnectionError();
     }
+  }
+
+  private subscribeToTopics(): void {
+    if (!this.client) return;
+
+    // Tópicos para sensores
+    const topics = [
+      'esp32/temperatura_humedad',
+      'empresa/+/ubicacion/+/sensor/+/lectura',
+      'sensor/+/data',
+      'iot/+/sensor/+/reading'
+    ];
+
+    topics.forEach(topic => {
+      this.client!.subscribe(topic, (err) => {
+        if (err) {
+          this.logger.error(`Error al suscribirse al tópico ${topic}:`, err);
+        } else {
+          this.logger.log(`Suscrito al tópico: ${topic}`);
+        }
+      });
+    });
   }
 
   private isMqttEnabled(): boolean {
@@ -129,44 +158,142 @@ export class MqttSensorService implements OnModuleDestroy, OnModuleInit {
       this.logger.log(`Mensaje recibido en el tópico ${topico}: ${mensaje}`);
       const datos = JSON.parse(mensaje);
 
-      // Validar los datos
-      if (!datos.temperatura || !datos.humedad) {
-        this.logger.error('Formato de datos inválido: se requiere temperatura y humedad');
+      // Extraer información del tópico
+      const topicoInfo = this.extraerInfoTopico(topico);
+      if (!topicoInfo) {
+        this.logger.error('Formato de tópico inválido');
         return;
       }
 
-      if (datos.temperatura < -50 || datos.temperatura > 100) {
-        this.logger.error('Temperatura fuera de rango: -50°C a 100°C');
+      // Validar que la empresa existe
+      const empresa = await this.prisma.empresa.findUnique({
+        where: { id: topicoInfo.empresaId },
+      });
+      if (!empresa) {
+        this.logger.error(`Empresa ${topicoInfo.empresaId} no encontrada`);
         return;
       }
 
-      if (datos.humedad < 0 || datos.humedad > 100) {
-        this.logger.error('Humedad fuera de rango: 0% a 100%');
-        return;
+      // Validar que la ubicación existe y pertenece a la empresa
+      if (topicoInfo.ubicacionId) {
+        const ubicacion = await this.prisma.ubicacion.findFirst({
+          where: { 
+            id: topicoInfo.ubicacionId, 
+            empresaId: topicoInfo.empresaId,
+            activa: true 
+          },
+        });
+        if (!ubicacion) {
+          this.logger.error(`Ubicación ${topicoInfo.ubicacionId} no encontrada para empresa ${topicoInfo.empresaId}`);
+          return;
+        }
       }
 
-      // Crear DTO para la temperatura
-      const lecturaTemperaturaDto: CreateSensorLecturaDto = {
-        tipo: TipoSensor.TEMPERATURA,
-        valor: datos.temperatura,
-        unidad: '°C',
-      };
+      // Validar que el sensor existe y pertenece a la empresa
+      if (topicoInfo.sensorId) {
+        const sensor = await this.prisma.sensor.findFirst({
+          where: { 
+            id: topicoInfo.sensorId, 
+            empresaId: topicoInfo.empresaId,
+            activo: true 
+          },
+        });
+        if (!sensor) {
+          this.logger.error(`Sensor ${topicoInfo.sensorId} no encontrado para empresa ${topicoInfo.empresaId}`);
+          return;
+        }
+      }
 
-      // Crear DTO para la humedad
-      const lecturaHumedadDto: CreateSensorLecturaDto = {
-        tipo: TipoSensor.HUMEDAD,
-        valor: datos.humedad,
-        unidad: '%',
-      };
-
-      // Registrar las lecturas
-      // Asumiendo un empresaId por defecto por ahora, reemplazar con la lógica real para determinar el empresaId
-      const empresaId = 1;
-      await this.sensoresService.registrarLectura(lecturaTemperaturaDto, empresaId);
-      await this.sensoresService.registrarLectura(lecturaHumedadDto, empresaId);
+      // Procesar datos según el tipo de sensor
+      await this.procesarDatosSensor(datos, topicoInfo);
 
     } catch (error) {
       this.logger.error('Error procesando el mensaje MQTT:', error);
+    }
+  }
+
+  private extraerInfoTopico(topico: string): { empresaId: number; ubicacionId?: number; sensorId?: number } | null {
+    // Formato esperado: empresa/{empresaId}/ubicacion/{ubicacionId}/sensor/{sensorId}/lectura
+    const partes = topico.split('/');
+    
+    if (partes.length < 4) {
+      return null;
+    }
+
+    const empresaId = parseInt(partes[1]);
+    if (isNaN(empresaId)) {
+      return null;
+    }
+
+    const info: { empresaId: number; ubicacionId?: number; sensorId?: number } = { empresaId };
+
+    // Buscar ubicacionId
+    const ubicacionIndex = partes.indexOf('ubicacion');
+    if (ubicacionIndex !== -1 && ubicacionIndex + 1 < partes.length) {
+      const ubicacionId = parseInt(partes[ubicacionIndex + 1]);
+      if (!isNaN(ubicacionId)) {
+        info.ubicacionId = ubicacionId;
+      }
+    }
+
+    // Buscar sensorId
+    const sensorIndex = partes.indexOf('sensor');
+    if (sensorIndex !== -1 && sensorIndex + 1 < partes.length) {
+      const sensorId = parseInt(partes[sensorIndex + 1]);
+      if (!isNaN(sensorId)) {
+        info.sensorId = sensorId;
+      }
+    }
+
+    return info;
+  }
+
+  private async procesarDatosSensor(datos: any, topicoInfo: { empresaId: number; ubicacionId?: number; sensorId?: number }) {
+    try {
+      // Procesar temperatura
+      if (datos.temperatura !== undefined) {
+        const lecturaTemperaturaDto: CreateSensorLecturaDto = {
+          tipo: TipoSensor.TEMPERATURA,
+          valor: datos.temperatura,
+          unidad: '°C',
+          sensorId: topicoInfo.sensorId,
+          ubicacionId: topicoInfo.ubicacionId,
+        };
+
+        await this.sensoresService.registrarLectura(lecturaTemperaturaDto, topicoInfo.empresaId);
+        this.logger.log(`Temperatura registrada: ${datos.temperatura}°C para empresa ${topicoInfo.empresaId}`);
+      }
+
+      // Procesar humedad
+      if (datos.humedad !== undefined) {
+        const lecturaHumedadDto: CreateSensorLecturaDto = {
+          tipo: TipoSensor.HUMEDAD,
+          valor: datos.humedad,
+          unidad: '%',
+          sensorId: topicoInfo.sensorId,
+          ubicacionId: topicoInfo.ubicacionId,
+        };
+
+        await this.sensoresService.registrarLectura(lecturaHumedadDto, topicoInfo.empresaId);
+        this.logger.log(`Humedad registrada: ${datos.humedad}% para empresa ${topicoInfo.empresaId}`);
+      }
+
+      // Procesar peso
+      if (datos.peso !== undefined) {
+        const lecturaPesoDto: CreateSensorLecturaDto = {
+          tipo: TipoSensor.PESO,
+          valor: datos.peso,
+          unidad: 'kg',
+          sensorId: topicoInfo.sensorId,
+          ubicacionId: topicoInfo.ubicacionId,
+        };
+
+        await this.sensoresService.registrarLectura(lecturaPesoDto, topicoInfo.empresaId);
+        this.logger.log(`Peso registrado: ${datos.peso}kg para empresa ${topicoInfo.empresaId}`);
+      }
+
+    } catch (error) {
+      this.logger.error('Error procesando datos del sensor:', error);
     }
   }
 

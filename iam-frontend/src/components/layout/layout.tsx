@@ -1,6 +1,6 @@
 'use client'
 
-import { BarChart2, Home, Package, Truck, X, TrendingUp, Shield, Activity, Upload } from 'lucide-react'
+import { BarChart2, Home, Package, Truck, X, TrendingUp, Shield, Activity, Upload, MapPin, Radio, Bell, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -14,6 +14,10 @@ const getNavItems = (user: User | null) => {
     { href: '/dashboard/movimientos', label: 'Movimientos', icon: <BarChart2 size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
     { href: '/dashboard/daily-movements', label: 'Movimientos Diarios', icon: <Activity size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
     { href: '/dashboard/proveedores', label: 'Proveedores', icon: <Truck size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
+    { href: '/dashboard/ubicaciones', label: 'Ubicaciones', icon: <MapPin size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
+    { href: '/dashboard/sensores', label: 'Sensores', icon: <Radio size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
+    { href: '/dashboard/alertas', label: 'Alertas', icon: <Bell size={18} />, roles: ['SUPERADMIN', 'ADMIN'], disabled: false },
+    { href: '/dashboard/sms', label: 'SMS', icon: <MessageSquare size={18} />, roles: ['SUPERADMIN', 'ADMIN'], disabled: false },
     { href: '/dashboard/kpis', label: 'KPIs', icon: <TrendingUp size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
     { href: '/dashboard/importacion-avanzada', label: 'Importación de Datos', icon: <Upload size={18} />, roles: ['SUPERADMIN', 'ADMIN'], disabled: true },
   ]

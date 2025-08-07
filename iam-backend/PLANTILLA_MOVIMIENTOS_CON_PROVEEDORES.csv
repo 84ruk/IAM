@@ -1,0 +1,6 @@
+producto,tipo,cantidad,proveedor,precioUnitario,precioTotal,tipoPrecio,descripcion,fecha
+"Laptop HP EliteBook",ENTRADA,10,"Proveedor ABC",1200.00,12000.00,"COMPRA","Compra mensual de laptops para oficina","2024-01-15"
+"Mouse Gaming RGB",ENTRADA,50,"Nuevo Proveedor XYZ",45.50,2275.00,"COMPRA","Mouse gaming para venta al público","2024-01-15"
+"Teclado Mecánico",ENTRADA,25,"Proveedor ABC",89.99,2249.75,"COMPRA","Teclados mecánicos premium","2024-01-15"
+"Laptop HP EliteBook",SALIDA,3,"","","","VENTA","Venta a cliente corporativo","2024-01-16"
+"Monitor 24 pulgadas",ENTRADA,15,"Proveedor Monitor",299.99,4499.85,"COMPRA","Monitores para renovación de equipos","2024-01-16" 

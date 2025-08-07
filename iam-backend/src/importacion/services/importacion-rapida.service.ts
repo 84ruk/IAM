@@ -423,6 +423,38 @@ export class ImportacionRapidaService {
       throw new Error('El usuario debe tener una empresa configurada para importar movimientos');
     }
 
+    // ✅ NUEVO: Cache de proveedores para mejorar rendimiento
+    const cacheProveedores = new Map<string, any>();
+    const cacheProveedoresPorId = new Map<number, any>();
+    
+    // Cargar todos los proveedores activos de la empresa en cache
+    try {
+      const proveedoresExistentes = await this.prisma.proveedor.findMany({
+        where: {
+          empresaId: user.empresaId,
+          estado: 'ACTIVO'
+        },
+        select: {
+          id: true,
+          nombre: true,
+          email: true,
+          telefono: true
+        }
+      });
+
+      // Llenar cache
+      proveedoresExistentes.forEach(proveedor => {
+        const nombreNormalizado = this.normalizarNombreProveedor(proveedor.nombre);
+        cacheProveedores.set(nombreNormalizado.toLowerCase(), proveedor);
+        cacheProveedores.set(proveedor.nombre.toLowerCase(), proveedor);
+        cacheProveedoresPorId.set(proveedor.id, proveedor);
+      });
+
+      this.logger.debug(`📦 Cache de proveedores cargado: ${proveedoresExistentes.length} proveedores`);
+    } catch (error) {
+      this.logger.warn(`⚠️ Error cargando cache de proveedores: ${error.message}`);
+    }
+
     const errores: any[] = [];
     let registrosExitosos = 0;
     const registrosExitososDetalle: any[] = []; // Nueva lista para detalles
@@ -452,22 +484,58 @@ export class ImportacionRapidaService {
           continue;
         }
 
-        // Resolver productoId - verificar si existe el producto
+        // ✅ MEJORADO: Resolver productoId/productoNombre - verificar si existe el producto
         let productoIdFinal = movimientoData.productoId;
         let productoEncontrado = false;
         let productoNombre = '';
         let productoCreado = false;
 
+        // Determinar el identificador del producto (ID o nombre)
+        const identificadorProducto = movimientoData.productoNombre || movimientoData.productoId;
+        
+        if (!identificadorProducto) {
+          errores.push({
+            fila: rowNumber,
+            columna: 'producto',
+            valor: 'No especificado',
+            mensaje: 'Se requiere productoId o productoNombre',
+            tipo: 'validacion',
+            datosOriginales: row,
+            campoEspecifico: 'producto',
+            valorRecibido: 'No especificado',
+            valorEsperado: 'ID de producto o nombre de producto',
+            sugerencia: 'Agregue una columna con productoId o productoNombre'
+          });
+          continue;
+        }
+
         try {
+          // ✅ MEJORADO: Calcular precios base del producto basado en el movimiento
+          let precioCompraBase = 0;
+          let precioVentaBase = 0;
+          
+          if (movimientoData.precioUnitario && movimientoData.precioUnitario > 0) {
+            // Lógica simplificada: usar el precio unitario directamente
+            if (movimientoData.tipoPrecio === 'VENTA') {
+              // Si es venta, usar como precio de venta
+              precioVentaBase = movimientoData.precioUnitario;
+              precioCompraBase = movimientoData.precioUnitario; // Mismo precio para compra
+            } else {
+              // Si es compra, ajuste, transferencia, usar como precio de compra
+              precioCompraBase = movimientoData.precioUnitario;
+              precioVentaBase = movimientoData.precioUnitario; // Mismo precio para venta
+            }
+          }
+          
           // Usar el servicio de creación de productos para buscar o crear automáticamente
           const resultadoProducto = await this.productoCreator.buscarOCrearProducto(
-            movimientoData.productoId,
+            identificadorProducto,
             {
               empresaId: user.empresaId,
               etiquetas: ['AUTO-CREADO', 'IMPORTACION-MOVIMIENTOS'],
               stockInicial: 0,
-              precioCompra: 0,
-              precioVenta: 0,
+              precioCompra: precioCompraBase,
+              precioVenta: precioVentaBase,
               stockMinimo: 10
             }
           );
@@ -478,9 +546,9 @@ export class ImportacionRapidaService {
           productoCreado = resultadoProducto.creado;
 
           if (productoCreado) {
-            this.logger.log(`✅ Producto creado automáticamente: "${movimientoData.productoId}" -> ID: ${productoIdFinal}`);
+            this.logger.log(`✅ Producto creado automáticamente: "${identificadorProducto}" -> ID: ${productoIdFinal} (Precio Compra: $${precioCompraBase}, Precio Venta: $${precioVentaBase})`);
           } else {
-            this.logger.debug(`Producto encontrado: "${movimientoData.productoId}" -> ID: ${productoIdFinal}`);
+            this.logger.debug(`Producto encontrado: "${identificadorProducto}" -> ID: ${productoIdFinal}`);
           }
         } catch (busquedaError) {
           errores.push({
@@ -514,14 +582,205 @@ export class ImportacionRapidaService {
           continue;
         }
 
-        // Crear el movimiento con el productoId resuelto
+        // ✅ MEJORADO: Resolver proveedorId/proveedorNombre - buscar o crear proveedor automáticamente
+        let proveedorIdFinal = movimientoData.proveedorId;
+        let proveedorEncontrado = false;
+        let proveedorNombre = '';
+        let proveedorCreado = false;
+
+        // Determinar el identificador del proveedor (ID o nombre)
+        const identificadorProveedor = movimientoData.proveedorNombre || movimientoData.proveedorId;
+
+        if (identificadorProveedor) {
+                      try {
+              // Si es un número, buscar por ID en cache primero
+              if (typeof identificadorProveedor === 'number') {
+                let proveedorExistente: any = cacheProveedoresPorId.get(identificadorProveedor);
+                
+                if (!proveedorExistente) {
+                  // Si no está en cache, buscar en base de datos
+                  proveedorExistente = await this.prisma.proveedor.findFirst({
+                    where: {
+                      id: identificadorProveedor,
+                      empresaId: user.empresaId,
+                      estado: 'ACTIVO'
+                    }
+                  });
+                }
+
+                if (proveedorExistente) {
+                  proveedorIdFinal = proveedorExistente.id;
+                  proveedorEncontrado = true;
+                  proveedorNombre = proveedorExistente.nombre;
+                  this.logger.debug(`Proveedor encontrado por ID: "${proveedorExistente.nombre}" (ID: ${proveedorExistente.id})`);
+                } else {
+                  this.logger.warn(`Proveedor con ID ${identificadorProveedor} no encontrado, se omitirá`);
+                  proveedorIdFinal = null;
+                }
+              } else {
+                // Si es un string, buscar por nombre o crear automáticamente
+                const nombreProveedor = String(identificadorProveedor).trim();
+              
+              // ✅ MEJORADO: Búsqueda más flexible de proveedor existente usando cache
+              let proveedorExistente: any = null;
+              
+              // 1. Búsqueda en cache por nombre exacto
+              proveedorExistente = cacheProveedores.get(nombreProveedor.toLowerCase());
+              
+              // 2. Si no se encuentra, buscar por nombre normalizado en cache
+              if (!proveedorExistente) {
+                const nombreNormalizado = this.normalizarNombreProveedor(nombreProveedor);
+                proveedorExistente = cacheProveedores.get(nombreNormalizado.toLowerCase());
+              }
+
+              // 3. Si aún no se encuentra, buscar en base de datos
+              if (!proveedorExistente) {
+                proveedorExistente = await this.prisma.proveedor.findFirst({
+                  where: {
+                    nombre: {
+                      equals: nombreProveedor,
+                      mode: 'insensitive'
+                    },
+                    empresaId: user.empresaId,
+                    estado: 'ACTIVO'
+                  }
+                });
+              }
+
+              // 4. Si no se encuentra, buscar por nombre normalizado en base de datos
+              if (!proveedorExistente) {
+                const nombreNormalizado = this.normalizarNombreProveedor(nombreProveedor);
+                proveedorExistente = await this.prisma.proveedor.findFirst({
+                  where: {
+                    nombre: {
+                      equals: nombreNormalizado,
+                      mode: 'insensitive'
+                    },
+                    empresaId: user.empresaId,
+                    estado: 'ACTIVO'
+                  }
+                });
+              }
+
+              // 5. Si aún no se encuentra, buscar por nombre parcial (contiene)
+              if (!proveedorExistente) {
+                proveedorExistente = await this.prisma.proveedor.findFirst({
+                  where: {
+                    nombre: {
+                      contains: nombreProveedor,
+                      mode: 'insensitive'
+                    },
+                    empresaId: user.empresaId,
+                    estado: 'ACTIVO'
+                  }
+                });
+              }
+
+              if (proveedorExistente) {
+                proveedorIdFinal = proveedorExistente.id;
+                proveedorEncontrado = true;
+                proveedorNombre = proveedorExistente.nombre;
+                this.logger.debug(`Proveedor encontrado por nombre: "${proveedorExistente.nombre}" (ID: ${proveedorExistente.id})`);
+              } else {
+                // ✅ MEJORADO: Crear proveedor automáticamente con mejor manejo
+                try {
+                  // ✅ NUEVO: Validar límites antes de crear proveedor
+                  const totalProveedores = await this.prisma.proveedor.count({
+                    where: {
+                      empresaId: user.empresaId,
+                      estado: 'ACTIVO'
+                    }
+                  });
+
+                  if (totalProveedores >= 1000) {
+                    this.logger.warn(`⚠️ Límite de proveedores alcanzado (${totalProveedores}/1000). No se puede crear más proveedores automáticamente.`);
+                    proveedorIdFinal = null;
+                  } else {
+                    const timestamp = Date.now();
+                    const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+                    const emailTemporal = `proveedor-${timestamp}-${randomSuffix}@auto-created.com`;
+                    
+                    // Normalizar el nombre antes de crear
+                    const nombreNormalizado = this.normalizarNombreProveedor(nombreProveedor);
+                    
+                    const proveedorNuevo = await this.prisma.proveedor.create({
+                      data: {
+                        nombre: nombreNormalizado,
+                        email: emailTemporal,
+                        telefono: 'Sin teléfono',
+                        empresaId: user.empresaId,
+                        estado: 'ACTIVO'
+                      }
+                    });
+
+                    proveedorIdFinal = proveedorNuevo.id;
+                    proveedorEncontrado = true;
+                    proveedorNombre = proveedorNuevo.nombre;
+                    proveedorCreado = true;
+                    
+                    // ✅ NUEVO: Actualizar cache con el nuevo proveedor
+                    cacheProveedores.set(nombreNormalizado.toLowerCase(), proveedorNuevo);
+                    cacheProveedores.set(proveedorNuevo.nombre.toLowerCase(), proveedorNuevo);
+                    cacheProveedoresPorId.set(proveedorNuevo.id, proveedorNuevo);
+                    
+                    this.logger.log(`✅ Proveedor creado automáticamente: "${nombreNormalizado}" (ID: ${proveedorNuevo.id})`);
+                  }
+                } catch (crearError) {
+                  this.logger.error(`❌ Error creando proveedor "${nombreProveedor}": ${crearError.message}`);
+                  // Intentar crear con nombre alternativo si hay conflicto
+                  try {
+                    const timestampAlternativo = Date.now();
+                    const randomSuffixAlternativo = Math.random().toString(36).substring(2, 8).toUpperCase();
+                    const emailTemporalAlternativo = `proveedor-${timestampAlternativo}-${randomSuffixAlternativo}@auto-created.com`;
+                    const nombreAlternativo = `${nombreProveedor} (${timestampAlternativo})`;
+                    const proveedorNuevo = await this.prisma.proveedor.create({
+                      data: {
+                        nombre: nombreAlternativo,
+                        email: emailTemporalAlternativo,
+                        telefono: 'Sin teléfono',
+                        empresaId: user.empresaId,
+                        estado: 'ACTIVO'
+                      }
+                    });
+                    
+                    proveedorIdFinal = proveedorNuevo.id;
+                    proveedorEncontrado = true;
+                    proveedorNombre = proveedorNuevo.nombre;
+                    proveedorCreado = true;
+                    this.logger.log(`✅ Proveedor creado con nombre alternativo: "${nombreAlternativo}" (ID: ${proveedorNuevo.id})`);
+                  } catch (errorAlternativo) {
+                    this.logger.error(`❌ Error creando proveedor alternativo: ${errorAlternativo.message}`);
+                    proveedorIdFinal = null;
+                  }
+                }
+              }
+            }
+          } catch (proveedorError) {
+            this.logger.warn(`⚠️ Error procesando proveedor "${movimientoData.proveedorId}": ${proveedorError.message}`);
+            // No fallar la importación por error de proveedor, solo omitirlo
+            proveedorIdFinal = null;
+          }
+        }
+
+        // Crear el movimiento con el productoId y proveedorId resueltos
+        // ✅ CORREGIDO: Solo incluir campos válidos del modelo MovimientoInventario
+        const datosMovimiento = {
+          tipo: movimientoData.tipo,
+          cantidad: movimientoData.cantidad,
+          motivo: movimientoData.motivo,
+          descripcion: movimientoData.descripcion,
+          fecha: movimientoData.fecha,
+          estado: movimientoData.estado,
+          precioUnitario: movimientoData.precioUnitario,
+          precioTotal: movimientoData.precioTotal,
+          tipoPrecio: movimientoData.tipoPrecio,
+          productoId: productoIdFinal,
+          empresaId: user.empresaId,
+          proveedorId: proveedorIdFinal,
+        };
+
         const movimientoGuardado = await this.prisma.movimientoInventario.create({
-          data: {
-            ...movimientoData,
-            productoId: productoIdFinal,
-            empresaId: user.empresaId,
-            // usuarioId no existe en el modelo MovimientoInventario, solo empresaId
-          },
+          data: datosMovimiento,
         });
 
         // Actualizar el stock del producto automáticamente
@@ -550,9 +809,17 @@ export class ImportacionRapidaService {
             estado: movimientoGuardado.estado,
             productoId: movimientoGuardado.productoId,
             productoNombre: productoNombre,
-            productoCreado: productoCreado
+            productoCreado: productoCreado,
+            // ✅ NUEVO: Información del proveedor
+            proveedorId: movimientoGuardado.proveedorId,
+            proveedorNombre: proveedorNombre,
+            proveedorCreado: proveedorCreado,
+            // ✅ NUEVO: Información de precios
+            precioUnitario: movimientoGuardado.precioUnitario,
+            precioTotal: movimientoGuardado.precioTotal,
+            tipoPrecio: movimientoGuardado.tipoPrecio
           },
-          identificador: `${movimientoGuardado.tipo} - ${productoNombre} (${movimientoGuardado.cantidad})${productoCreado ? ' [Producto creado]' : ''}`,
+          identificador: `${movimientoGuardado.tipo} - ${productoNombre} (${movimientoGuardado.cantidad})${productoCreado ? ' [Producto creado]' : ''}${proveedorCreado ? ' [Proveedor creado]' : ''}`,
           timestamp: new Date()
         });
 
@@ -564,6 +831,11 @@ export class ImportacionRapidaService {
           : `✅ Movimiento importado exitosamente - Fila ${rowNumber}: ${movimientoGuardado.tipo} de ${movimientoGuardado.cantidad} unidades de "${productoNombre}" (ID: ${movimientoGuardado.id})`;
         
         this.logger.log(logMessage);
+        
+        // ✅ NUEVO: Log adicional para proveedor si fue creado
+        if (proveedorCreado) {
+          this.logger.log(`✅ Proveedor creado automáticamente: "${proveedorNombre}" (ID: ${proveedorIdFinal})`);
+        }
         
       } catch (error) {
         let movimientoData: any = {};
@@ -593,6 +865,14 @@ export class ImportacionRapidaService {
     // Log resumen final
     this.logger.log(`📊 Resumen importación movimientos: ${registrosExitosos} exitosos, ${errores.length} errores de ${rows.length} total`);
 
+    // ✅ NUEVO: Estadísticas de proveedores
+    const proveedoresCreados = registrosExitososDetalle.filter(r => r.datos.proveedorCreado).length;
+    const proveedoresExistentes = registrosExitososDetalle.filter(r => r.datos.proveedorId && !r.datos.proveedorCreado).length;
+    
+    if (proveedoresCreados > 0 || proveedoresExistentes > 0) {
+      this.logger.log(`🏢 Estadísticas de proveedores: ${proveedoresCreados} creados automáticamente, ${proveedoresExistentes} existentes utilizados`);
+    }
+
     return {
       registrosProcesados: rows.length,
       registrosExitosos,
@@ -604,6 +884,12 @@ export class ImportacionRapidaService {
         empresaId: user.empresaId?.toString() || '',
         usuarioId: user.id.toString(),
         fechaProcesamiento: new Date(),
+        // ✅ NUEVO: Estadísticas adicionales
+        estadisticasProveedores: {
+          creados: proveedoresCreados,
+          existentes: proveedoresExistentes,
+          total: proveedoresCreados + proveedoresExistentes
+        }
       },
     };
   }
@@ -1039,9 +1325,27 @@ export class ImportacionRapidaService {
         case 'producto id':
         case 'id_producto':
         case 'idproducto':
+        case 'productoId':
+        case 'productoID':
+        case 'ProductoId':
+        case 'ProductoID':
           // Intentar parsear como número, si falla mantener como string para búsqueda posterior
           const productoId = parseInt(value);
           movimiento.productoId = isNaN(productoId) ? value : productoId;
+          break;
+        // ✅ NUEVO: Campo nombre de producto para creación automática
+        case 'productonombre':
+        case 'producto_nombre':
+        case 'producto nombre':
+        case 'nombre_producto':
+        case 'nombreproducto':
+        case 'producto_nom':
+        case 'producto nom':
+        case 'nom_producto':
+        case 'nomproducto':
+        case 'descripcion_producto':
+        case 'descripcionproducto':
+          movimiento.productoNombre = value;
           break;
         case 'tipo':
         case 'tipo_movimiento':
@@ -1071,6 +1375,70 @@ export class ImportacionRapidaService {
         case 'comentario':
         case 'notas':
           movimiento.descripcion = value;
+          break;
+        // ✅ NUEVO: Campos de precio
+        case 'preciounitar':
+        case 'precio_unitar':
+        case 'precio unitar':
+        case 'preciounitario':
+        case 'precio_unitario':
+        case 'precio unitario':
+        case 'precio_por_unidad':
+        case 'precio por unidad':
+        case 'unitario':
+        case 'precio':
+          movimiento.precioUnitario = parseFloat(value) || null;
+          break;
+        case 'preciototal':
+        case 'precio_total':
+        case 'precio total':
+        case 'total':
+        case 'valor_total':
+        case 'valor total':
+        case 'monto_total':
+        case 'monto total':
+          movimiento.precioTotal = parseFloat(value) || null;
+          break;
+        case 'tipoprecio':
+        case 'tipo_precio':
+        case 'tipo precio':
+        case 'tipo_de_precio':
+        case 'tipo de precio':
+        case 'categoria_precio':
+        case 'categoria precio':
+          // Normalizar el tipo de precio
+          if (value) {
+            const tipoPrecioNormalizado = this.normalizarTipoPrecio(value);
+            movimiento.tipoPrecio = tipoPrecioNormalizado;
+          }
+          break;
+        // ✅ NUEVO: Campo proveedor
+        case 'proveedor':
+        case 'proveedorld':
+        case 'proveedor_id':
+        case 'proveedor id':
+        case 'id_proveedor':
+        case 'idproveedor':
+        case 'proveedorid':
+        case 'proveedorId':
+        case 'proveedorID':
+        case 'ProveedorId':
+        case 'ProveedorID':
+          // Intentar parsear como número, si falla mantener como string para búsqueda posterior
+          const proveedorId = parseInt(value);
+          movimiento.proveedorId = isNaN(proveedorId) ? value : proveedorId;
+          break;
+        // ✅ NUEVO: Campo nombre de proveedor para creación automática
+        case 'proveedornombre':
+        case 'proveedor_nombre':
+        case 'proveedor nombre':
+        case 'nombre_proveedor':
+        case 'nombreproveedor':
+        case 'proveedor_nom':
+        case 'proveedor nom':
+        case 'nom_proveedor':
+        case 'nomproveedor':
+          movimiento.proveedorNombre = value;
           break;
         case 'fecha':
         case 'fecha_movimiento':
@@ -1163,6 +1531,83 @@ export class ImportacionRapidaService {
           break;
       }
     });
+
+    // ✅ NUEVO: Mapeo posicional para archivos sin headers o headers no reconocidos
+    // Si no se mapeó ningún campo importante, intentar mapeo posicional
+    if (!movimiento.productoId && !movimiento.productoNombre && !movimiento.tipo && !movimiento.cantidad) {
+      this.logger.debug(`Intentando mapeo posicional para fila ${rowNumber}`);
+      
+      // Mapeo posicional basado en la estructura típica de movimientos
+      // [tipo, cantidad, productoNombre, precioUnitario, precioTotal, tipoPrecio, motivo, descripcion, fecha, proveedorNombre]
+      if (row.length >= 3) {
+        // Posición 0: tipo
+        if (row[0]) {
+          const tipoNormalizado = this.normalizarTipoMovimiento(row[0]);
+          movimiento.tipo = tipoNormalizado;
+        }
+        
+        // Posición 1: cantidad
+        if (row[1]) {
+          movimiento.cantidad = parseInt(row[1]) || 0;
+        }
+        
+        // Posición 2: productoNombre
+        if (row[2]) {
+          movimiento.productoNombre = row[2];
+        }
+        
+        // Posición 3: precioUnitario
+        if (row[3]) {
+          movimiento.precioUnitario = parseFloat(row[3]) || null;
+        }
+        
+        // Posición 4: precioTotal
+        if (row[4]) {
+          movimiento.precioTotal = parseFloat(row[4]) || null;
+        }
+        
+        // Posición 5: tipoPrecio
+        if (row[5]) {
+          const tipoPrecioNormalizado = this.normalizarTipoPrecio(row[5]);
+          movimiento.tipoPrecio = tipoPrecioNormalizado;
+        }
+        
+        // Posición 6: motivo
+        if (row[6]) {
+          movimiento.motivo = row[6];
+        }
+        
+        // Posición 7: descripcion
+        if (row[7]) {
+          movimiento.descripcion = row[7];
+        }
+        
+        // Posición 8: fecha
+        if (row[8]) {
+          let fecha: Date;
+          if (typeof row[8] === 'string') {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(row[8])) {
+              fecha = new Date(row[8]);
+            } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(row[8])) {
+              const [day, month, year] = row[8].split('/');
+              fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            } else {
+              fecha = new Date(row[8]);
+            }
+            if (!isNaN(fecha.getTime())) {
+              movimiento.fecha = fecha;
+            }
+          }
+        }
+        
+        // Posición 9: proveedorNombre
+        if (row[9]) {
+          movimiento.proveedorNombre = row[9];
+        }
+        
+        this.logger.debug(`Mapeo posicional aplicado para fila ${rowNumber}: tipo=${movimiento.tipo}, cantidad=${movimiento.cantidad}, producto=${movimiento.productoNombre}`);
+      }
+    }
 
     return movimiento;
   }
@@ -1283,11 +1728,11 @@ export class ImportacionRapidaService {
   }
 
   private validarMovimiento(data: any) {
-    if (!data.productoId) {
+    if (!data.productoId && !data.productoNombre) {
       return { 
         valido: false, 
         columna: 'producto', 
-        valor: data.productoId, 
+        valor: data.productoId || data.productoNombre, 
         mensaje: 'Producto es requerido',
         valorEsperado: 'ID de producto válido o nombre de producto',
         sugerencia: 'Asegúrese de que el campo producto tenga un valor válido'
@@ -1355,6 +1800,62 @@ export class ImportacionRapidaService {
           mensaje: 'La fecha no puede ser futura',
           valorEsperado: 'Fecha actual o pasada',
           sugerencia: 'Use una fecha actual o pasada para el movimiento'
+        };
+      }
+    }
+
+    // ✅ NUEVO: Validaciones para campos de precio
+    if (data.precioUnitario !== undefined && data.precioUnitario !== null) {
+      if (typeof data.precioUnitario !== 'number' || data.precioUnitario < 0) {
+        return {
+          valido: false,
+          columna: 'precioUnitario',
+          valor: data.precioUnitario,
+          mensaje: 'Precio unitario debe ser un número positivo',
+          valorEsperado: 'Número mayor o igual a 0',
+          sugerencia: 'El precio unitario debe ser un número positivo o 0'
+        };
+      }
+    }
+
+    if (data.precioTotal !== undefined && data.precioTotal !== null) {
+      if (typeof data.precioTotal !== 'number' || data.precioTotal < 0) {
+        return {
+          valido: false,
+          columna: 'precioTotal',
+          valor: data.precioTotal,
+          mensaje: 'Precio total debe ser un número positivo',
+          valorEsperado: 'Número mayor o igual a 0',
+          sugerencia: 'El precio total debe ser un número positivo o 0'
+        };
+      }
+    }
+
+    if (data.tipoPrecio && !['COMPRA', 'VENTA', 'AJUSTE', 'TRANSFERENCIA'].includes(data.tipoPrecio)) {
+      return {
+        valido: false,
+        columna: 'tipoPrecio',
+        valor: data.tipoPrecio,
+        mensaje: 'Tipo de precio debe ser COMPRA, VENTA, AJUSTE o TRANSFERENCIA',
+        valorEsperado: 'COMPRA, VENTA, AJUSTE o TRANSFERENCIA',
+        sugerencia: 'Use uno de los valores válidos para el tipo de precio'
+      };
+    }
+
+    // ✅ NUEVO: Validar coherencia entre precioUnitario, precioTotal y cantidad
+    if (data.precioUnitario && data.precioTotal && data.cantidad) {
+      const precioCalculado = data.precioUnitario * data.cantidad;
+      const diferencia = Math.abs(precioCalculado - data.precioTotal);
+      
+      // Permitir pequeñas diferencias por redondeo (máximo 0.01)
+      if (diferencia > 0.01) {
+        return {
+          valido: false,
+          columna: 'precioTotal',
+          valor: data.precioTotal,
+          mensaje: 'El precio total no coincide con el precio unitario por la cantidad',
+          valorEsperado: `Aproximadamente ${precioCalculado.toFixed(2)}`,
+          sugerencia: 'Verifique que precioTotal = precioUnitario × cantidad'
         };
       }
     }
@@ -1730,6 +2231,31 @@ export class ImportacionRapidaService {
     return mapeoEstados[valorUpper] || 'ACTIVO';
   }
 
+  // ✅ NUEVO: Método para normalizar tipos de precio
+  private normalizarTipoPrecio(valor: string): string {
+    if (!valor) return 'COMPRA';
+    
+    const valorUpper = valor.toString().toUpperCase().trim();
+    
+    // Mapeo de tipos de precio
+    const mapeoTiposPrecio: Record<string, string> = {
+      'COMPRA': 'COMPRA',
+      'VENTA': 'VENTA',
+      'AJUSTE': 'AJUSTE',
+      'TRANSFERENCIA': 'TRANSFERENCIA',
+      'PURCHASE': 'COMPRA',
+      'SALE': 'VENTA',
+      'ADJUSTMENT': 'AJUSTE',
+      'TRANSFER': 'TRANSFERENCIA',
+      'BUY': 'COMPRA',
+      'SELL': 'VENTA',
+      'ADJUST': 'AJUSTE',
+      'MOVE': 'TRANSFERENCIA',
+    };
+    
+    return mapeoTiposPrecio[valorUpper] || 'COMPRA';
+  }
+
   private async generarArchivoErrores(
     errores: any[],
     originalFileName: string,
@@ -1762,5 +2288,25 @@ export class ImportacionRapidaService {
       this.logger.error(`Error generando archivo de errores: ${error.message}`);
       return '';
     }
+  }
+
+  // ✅ NUEVO: Método para normalizar nombres de proveedores
+  private normalizarNombreProveedor(nombre: string): string {
+    if (!nombre) return '';
+
+    // Convertir a minúsculas y remover acentos
+    let normalizado = nombre.toLowerCase();
+    normalizado = normalizado.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Eliminar diacríticos
+
+    // Reemplazar caracteres especiales por un espacio
+    normalizado = normalizado.replace(/[^a-z0-9\s]/g, ' ');
+
+    // Quitar múltiples espacios
+    normalizado = normalizado.replace(/\s+/g, ' ');
+
+    // Limpiar espacios al inicio y final
+    normalizado = normalizado.trim();
+
+    return normalizado;
   }
 } 

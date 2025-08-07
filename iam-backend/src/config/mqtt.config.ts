@@ -7,12 +7,18 @@ export default registerAs('mqtt', () => {
   const password = process.env.MQTT_PASSWORD || '';
   const enabled = process.env.MQTT_ENABLED === 'true';
 
+  // Nuevas configuraciones para EMQX
+  const useTls = process.env.MQTT_USE_TLS === 'true';
+  const appId = process.env.MQTT_APP_ID || '';
+  const appSecret = process.env.MQTT_APP_SECRET || '';
+  const apiEndpoint = process.env.MQTT_API_ENDPOINT || '';
+
   // Solo construir URL si está habilitado y configurado
   let url = '';
   if (enabled && host && port) {
-    url = username && password
-      ? `mqtt://${username}:${password}@${host}:${port}`
-      : `mqtt://${host}:${port}`;
+    const protocol = useTls ? 'mqtts' : 'mqtt';
+    const auth = username && password ? `${username}:${password}@` : '';
+    url = `${protocol}://${auth}${host}:${port}`;
   }
 
   return {
@@ -22,6 +28,10 @@ export default registerAs('mqtt', () => {
     username,
     password,
     url,
+    useTls,
+    appId,
+    appSecret,
+    apiEndpoint,
     // Configuraciones adicionales
     reconnectPeriod: process.env.MQTT_RECONNECT_PERIOD ? parseInt(process.env.MQTT_RECONNECT_PERIOD, 10) : 5000,
     connectTimeout: process.env.MQTT_CONNECT_TIMEOUT ? parseInt(process.env.MQTT_CONNECT_TIMEOUT, 10) : 10000,
