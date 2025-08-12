@@ -3,9 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { Ubicacion } from '@/types/sensor'
 import { Card, CardContent } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
-import Button from '@/components/ui/Button'
-import { Edit, Trash2, MapPin, Radio, Package, Calendar, Hash } from 'lucide-react'
+import { Edit, Trash2, MapPin, Radio, Package } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface UbicacionCardProps {

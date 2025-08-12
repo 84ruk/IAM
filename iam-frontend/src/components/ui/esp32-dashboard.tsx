@@ -64,18 +64,12 @@ interface ESP32Stats {
 }
 
 export function ESP32Dashboard({ ubicacionId }: ESP32DashboardProps) {
-  const { addToast } = useToast();
   const [dispositivos, setDispositivos] = useState<ESP32Device[]>([]);
   const [estadisticas, setEstadisticas] = useState<ESP32Stats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDevice, setSelectedDevice] = useState<ESP32Device | null>(null);
-
-  useEffect(() => {
-    cargarDatos();
-    // Actualizar datos cada 30 segundos
-    const interval = setInterval(cargarDatos, 30000);
-    return () => clearInterval(interval);
-  }, [ubicacionId]);
+  const [error, setError] = useState<string>('')
+  const { addToast } = useToast()
 
   const cargarDatos = async () => {
     try {
@@ -106,6 +100,13 @@ export function ESP32Dashboard({ ubicacionId }: ESP32DashboardProps) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    cargarDatos();
+    // Actualizar datos cada 30 segundos
+    const interval = setInterval(cargarDatos, 30000);
+    return () => clearInterval(interval);
+  }, [ubicacionId]);
 
   const eliminarDispositivo = async (deviceId: string) => {
     if (!confirm('¿Estás seguro de que quieres eliminar este dispositivo? Esta acción no se puede deshacer.')) {

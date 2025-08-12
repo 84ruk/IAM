@@ -2,10 +2,11 @@
 
 import { useCallback, useMemo } from 'react'
 import { useServerUser } from '@/context/ServerUserContext'
+import type { User } from '@/types/user'
 
 interface AuthInfo {
   isAuthenticated: boolean
-  user: unknown | null
+  user: User | null
   token: string | null
   error: string | null
   empresaId: number | null
@@ -107,11 +108,34 @@ export function useAuth(): UseAuthReturn {
         }
       })
 
-      if (!response.ok) {
+      if (response.ok) {
+        return true
+      }
+
+      // Si no está ok, intentar renovación silenciosa vía cookie httpOnly
+      const refresh = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        // No enviamos refreshToken en body (lo toma de cookie 'rt' si existe)
+        body: JSON.stringify({})
+      })
+
+      if (!refresh.ok) {
         return false
       }
 
-      return true
+      // Reintentar getMe tras renovar
+      const meRetry = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store'
+      })
+
+      return meRetry.ok
+
     } catch (error) {
       console.error('❌ Auth: Error en validación remota:', error)
       return false

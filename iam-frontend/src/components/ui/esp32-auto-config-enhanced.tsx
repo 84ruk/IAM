@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -46,8 +46,8 @@ interface SensorConfig {
 
 const SENSOR_OPTIONS = [
   { type: 'TEMPERATURA', name: 'Temperatura (DHT22)', icon: '🌡️', pin: 4, description: 'Sensor de temperatura ambiente' },
-  { type: 'HUMEDAD', name: 'Humedad (DHT22)', icon: '💧', pin: 4, description: 'Sensor de humedad relativa' },
-  { type: 'PESO', name: 'Peso (HX711)', icon: '⚖️', pin: 2, description: 'Celda de carga para medición de peso' },
+  { type: 'HUMEDAD', name: 'Humedad (DHT22)', icon: '💧', pin: 5, description: 'Sensor de humedad relativa' },
+  { type: 'PESO', name: 'Peso (HX711)', icon: '⚖️', pin: 16, description: 'Celda de carga para medición de peso' },
   { type: 'PRESION', name: 'Presión (BMP280)', icon: '🌪️', pin: 21, description: 'Sensor de presión atmosférica' },
 ];
 
@@ -61,14 +61,24 @@ export function ESP32AutoConfigEnhanced({ ubicaciones, onComplete, onCancel }: E
     deviceName: '',
     wifiSSID: '',
     wifiPassword: '',
-    ubicacionId: ubicaciones[0]?.id || 0,
+    ubicacionId: ubicaciones[0]?.id || 1, // Usar 1 en lugar de 0 como fallback
     sensores: [
       { tipo: 'TEMPERATURA', nombre: 'Sensor Temperatura', pin: 4, enabled: true },
-      { tipo: 'HUMEDAD', nombre: 'Sensor Humedad', pin: 4, enabled: true },
-      { tipo: 'PESO', nombre: 'Sensor Peso', pin: 2, enabled: false },
+      { tipo: 'HUMEDAD', nombre: 'Sensor Humedad', pin: 5, enabled: true },
+      { tipo: 'PESO', nombre: 'Sensor Peso', pin: 16, enabled: false },
       { tipo: 'PRESION', nombre: 'Sensor Presión', pin: 21, enabled: false },
     ]
   });
+
+  // Actualizar ubicacionId cuando las ubicaciones se cargan
+  useEffect(() => {
+    if (ubicaciones.length > 0 && config.ubicacionId <= 0) {
+      setConfig(prev => ({
+        ...prev,
+        ubicacionId: ubicaciones[0].id
+      }));
+    }
+  }, [ubicaciones, config.ubicacionId]);
 
   const [resultado, setResultado] = useState<{
     success: boolean;
@@ -113,10 +123,48 @@ export function ESP32AutoConfigEnhanced({ ubicaciones, onComplete, onCancel }: E
   };
 
   const generarConfiguracion = async () => {
-    if (!config.deviceName || !config.wifiSSID || !config.wifiPassword) {
+    // Validar que las ubicaciones estén cargadas
+    if (ubicaciones.length === 0) {
       addToast({
         title: 'Error',
-        message: 'Por favor completa todos los campos requeridos',
+        message: 'No hay ubicaciones disponibles. Por favor, crea al menos una ubicación primero.',
+        type: 'error'
+      });
+      return;
+    }
+
+    // Validaciones más específicas
+    if (!config.deviceName.trim()) {
+      addToast({
+        title: 'Error',
+        message: 'El nombre del dispositivo es requerido',
+        type: 'error'
+      });
+      return;
+    }
+
+    if (!config.wifiSSID.trim()) {
+      addToast({
+        title: 'Error',
+        message: 'El SSID de WiFi es requerido',
+        type: 'error'
+      });
+      return;
+    }
+
+    if (!config.wifiPassword.trim()) {
+      addToast({
+        title: 'Error',
+        message: 'La contraseña de WiFi es requerida',
+        type: 'error'
+      });
+      return;
+    }
+
+    if (!config.ubicacionId || config.ubicacionId <= 0) {
+      addToast({
+        title: 'Error',
+        message: 'Debes seleccionar una ubicación válida',
         type: 'error'
       });
       return;
@@ -135,12 +183,15 @@ export function ESP32AutoConfigEnhanced({ ubicaciones, onComplete, onCancel }: E
     setStep('generating');
 
     try {
+      console.log('🔍 [DEBUG] Frontend Component - Ubicaciones disponibles:', ubicaciones);
       console.log('🔍 [DEBUG] Frontend Component - Sending config:', JSON.stringify(config, null, 2));
+      
       const response = await fetch('/api/mqtt-sensor/esp32/configuracion-automatica', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Usar cookies HTTP-only en lugar de token Bearer
         body: JSON.stringify(config),
       });
 
@@ -488,13 +539,23 @@ export function ESP32AutoConfigEnhanced({ ubicaciones, onComplete, onCancel }: E
                 value={config.ubicacionId}
                 onChange={(e) => handleConfigChange('ubicacionId', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={ubicaciones.length === 0}
               >
-                {ubicaciones.map((ubicacion) => (
-                  <option key={ubicacion.id} value={ubicacion.id}>
-                    {ubicacion.nombre}
-                  </option>
-                ))}
+                {ubicaciones.length === 0 ? (
+                  <option value={0}>Cargando ubicaciones...</option>
+                ) : (
+                  ubicaciones.map((ubicacion) => (
+                    <option key={ubicacion.id} value={ubicacion.id}>
+                      {ubicacion.nombre}
+                    </option>
+                  ))
+                )}
               </select>
+              {ubicaciones.length === 0 && (
+                <p className="text-sm text-yellow-600 mt-1">
+                  ⚠️ No se encontraron ubicaciones. Asegúrate de tener al menos una ubicación creada.
+                </p>
+              )}
             </div>
           </div>
 
@@ -548,6 +609,22 @@ export function ESP32AutoConfigEnhanced({ ubicaciones, onComplete, onCancel }: E
                 );
               })}
             </div>
+
+            {/* Información sobre configuración de pines */}
+            <Alert>
+              <AlertDescription>
+                <strong>📋 Configuración de Pines:</strong>
+                <ul className="mt-2 space-y-1 text-sm">
+                  <li>• <strong>DHT22 (Temperatura):</strong> Pin 4 (Datos), 3.3V (VCC), GND</li>
+                  <li>• <strong>DHT22 (Humedad):</strong> Pin 5 (Datos), 3.3V (VCC), GND</li>
+                  <li>• <strong>HX711 (Peso):</strong> Pin 16 (DOUT), Pin 17 (SCK), 3.3V (VCC), GND</li>
+                  <li>• <strong>BMP280 (Presión):</strong> Pin 21 (SDA), Pin 22 (SCL), 3.3V (VCC), GND</li>
+                </ul>
+                <p className="mt-2 text-xs text-gray-600">
+                  💡 <strong>Nota:</strong> Cada sensor debe usar pines únicos para evitar conflictos.
+                </p>
+              </AlertDescription>
+            </Alert>
           </div>
 
           <div className="flex gap-3 pt-4">

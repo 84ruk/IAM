@@ -20,6 +20,7 @@ const SETUP_REQUIRED_PATHS = [
   '/movimientos',
   '/pedidos',
   '/inventario',
+  '/sensores',
 ]
 
 // Rutas que no requieren setup
@@ -72,6 +73,8 @@ export async function middleware(request: NextRequest) {
           const setupUrl = new URL('/setup-empresa', request.url)
           return NextResponse.redirect(setupUrl)
         }
+      } else {
+        console.error('❌ Middleware: Error en respuesta del backend:', setupResponse.status)
       }
     } catch (error) {
       console.error('❌ Middleware: Error verificando setup:', error)
@@ -100,6 +103,8 @@ export async function middleware(request: NextRequest) {
           const dashboardUrl = new URL('/dashboard', request.url)
           return NextResponse.redirect(dashboardUrl)
         }
+      } else {
+        console.error('❌ Middleware: Error en respuesta del backend para setup:', setupResponse.status)
       }
     } catch (error) {
       console.error('❌ Middleware: Error verificando setup en setup-empresa:', error)

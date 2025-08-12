@@ -64,12 +64,6 @@ export function MqttDashboard() {
   const [error, setError] = useState<string>('')
   const { addToast } = useToast()
 
-  useEffect(() => {
-    loadDashboardData()
-    const interval = setInterval(loadDashboardData, 30000) // Actualizar cada 30 segundos
-    return () => clearInterval(interval)
-  }, [])
-
   const loadDashboardData = async () => {
     try {
       setIsLoading(true)
@@ -108,6 +102,12 @@ export function MqttDashboard() {
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadDashboardData()
+    const interval = setInterval(loadDashboardData, 30000) // Actualizar cada 30 segundos
+    return () => clearInterval(interval)
+  }, [])
 
   const getSensorIcon = (tipo: string) => {
     switch (tipo) {

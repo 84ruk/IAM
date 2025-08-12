@@ -8,6 +8,9 @@ class ApiClient {
   private readonly minRequestInterval = 100 // 100ms entre requests
   private coldStartDetected = false
   private retryDelays = [1000, 2000, 4000] // Delays exponenciales para cold starts
+  private isRefreshing = false
+  private refreshPromise: Promise<void> | null = null
+  private refreshSubscribers: Array<() => void> = []
 
   constructor() {
     this.instance = axios.create({
@@ -60,6 +63,44 @@ class ApiClient {
           customError.name = 'NetworkError'
           customError.code = 'NETWORK_ERROR'
           return Promise.reject(customError)
+        }
+
+        // Manejo centralizado de sesión expirada (401/403) con renovación silenciosa
+        const status = error?.response?.status
+        const originalConfig = error?.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined
+        const requestUrl = originalConfig?.url || ''
+        const isAuthEndpoint = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/refresh') || requestUrl.includes('/auth/logout')
+
+        if ((status === 401 || status === 403) && originalConfig && !originalConfig._retry && !isAuthEndpoint) {
+          originalConfig._retry = true
+
+          try {
+            // Si ya hay un refresh en curso, esperar a que termine
+            if (this.isRefreshing && this.refreshPromise) {
+              await new Promise<void>((resolve) => {
+                this.refreshSubscribers.push(resolve)
+              })
+              return this.instance.request(originalConfig)
+            }
+
+            // Iniciar refresh
+            this.isRefreshing = true
+            this.refreshPromise = this.instance.post('/auth/refresh', {}, { withCredentials: true }).then(() => {
+              // Notificar a los suscriptores
+              this.refreshSubscribers.forEach((cb) => cb())
+              this.refreshSubscribers = []
+            }).finally(() => {
+              this.isRefreshing = false
+              this.refreshPromise = null
+            })
+
+            await this.refreshPromise
+            // Reintentar la petición original con cookies actualizadas
+            return this.instance.request(originalConfig)
+          } catch (refreshError) {
+            // Si la renovación falla, propagar el error original 401/403
+            return Promise.reject(error)
+          }
         }
 
         // Para otros errores, mantener el comportamiento original

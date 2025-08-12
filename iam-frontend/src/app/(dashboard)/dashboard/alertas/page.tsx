@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { AlertaConfiguracion, ConfigurarAlertaDto, Ubicacion } from '@/types/sensor'
 import { alertasService } from '@/lib/services/alertasService'
 import { ubicacionService } from '@/lib/services/sensorService'
+import { SistemaAlertasConfig } from '@/components/ui/sistema-alertas-config'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -30,7 +31,6 @@ import {
   X
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
-import { useServerUser } from '@/context/ServerUserContext'
 
 export default function AlertasPage() {
   // const user = useServerUser() // Comentado temporalmente hasta que se use
@@ -42,6 +42,7 @@ export default function AlertasPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTipo, setSelectedTipo] = useState<string>('')
   const [showForm, setShowForm] = useState(false)
+  const [showSistemaConfig, setShowSistemaConfig] = useState(false)
   const [editingAlerta, setEditingAlerta] = useState<AlertaConfiguracion | null>(null)
   const [error, setError] = useState<string>('')
   const { addToast } = useToast()
@@ -230,10 +231,26 @@ export default function AlertasPage() {
           <h1 className="text-3xl font-bold">Alertas Avanzadas</h1>
           <p className="text-gray-600">Configura y gestiona las alertas de tu sistema</p>
         </div>
-        <Button onClick={handleCreate} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Nueva Alerta
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => window.location.href = '/dashboard/alertas-activas'} 
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+          >
+            <AlertTriangle className="w-4 h-4" />
+            Alertas Activas
+          </Button>
+          <Button 
+            onClick={() => setShowSistemaConfig(true)} 
+            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700"
+          >
+            <Settings className="w-4 h-4" />
+            Configuración del Sistema
+          </Button>
+          <Button onClick={handleCreate} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Nueva Alerta
+          </Button>
+        </div>
       </div>
 
       {/* Estadísticas */}
@@ -532,6 +549,26 @@ export default function AlertasPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de configuración del sistema de alertas */}
+      <Dialog open={showSistemaConfig} onOpenChange={setShowSistemaConfig}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Configuración del Sistema de Alertas</DialogTitle>
+          </DialogHeader>
+          <SistemaAlertasConfig
+            onComplete={() => {
+              setShowSistemaConfig(false)
+              addToast({
+                title: 'Configuración guardada exitosamente',
+                message: 'La configuración del sistema de alertas se ha actualizado',
+                type: 'success'
+              })
+            }}
+            onCancel={() => setShowSistemaConfig(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>

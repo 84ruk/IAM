@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Ubicacion, Sensor, SensorLectura, SensorTipo, SensorFilters } from '@/types/sensor'
 import { sensorService } from '@/lib/services/sensorService'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Skeleton } from '@/components/ui/Skeleton'
 import  Button  from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { 
@@ -50,8 +51,10 @@ export function HistorialTab({ ubicacion }: HistorialTabProps) {
   const loadLecturas = useCallback(async () => {
     try {
       setIsLoading(true)
-      const data = await sensorService.obtenerLecturas(filtros)
-      setLecturas(data)
+      // Forzar a filtrar por esta ubicación para coherencia de historial local
+      const data = await sensorService.obtenerLecturas({ ...filtros })
+      // Filtrar por ubicación en cliente para asegurar coherencia
+      setLecturas(Array.isArray(data) ? data.filter(l => l.ubicacionId === ubicacion.id) : [])
     } catch {
       addToast({
         type: "error",
@@ -61,7 +64,7 @@ export function HistorialTab({ ubicacion }: HistorialTabProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [filtros, addToast])
+  }, [filtros, addToast, ubicacion.id])
 
   useEffect(() => {
     loadSensores()
@@ -294,10 +297,34 @@ export function HistorialTab({ ubicacion }: HistorialTabProps) {
 
       {/* Lista de lecturas */}
       {isLoading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8E94F2] mx-auto"></div>
-          <p className="text-gray-600 mt-2">Cargando historial...</p>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Skeleton className="h-5 w-48" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-96">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={`hist-skel-${i}`} className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="h-8 w-8 rounded-lg" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                    </div>
+                    <div className="text-right space-y-2">
+                      <Skeleton className="h-6 w-24" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       ) : filteredLecturas.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">

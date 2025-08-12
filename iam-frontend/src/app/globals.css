@@ -3,6 +3,69 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Estilos personalizados para sensores */
+@layer components {
+  .sensor-card-pulse {
+    animation: sensorPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .sensor-status-pulse {
+    animation: statusPulse 1.5s ease-in-out infinite;
+  }
+
+  .sensor-hover-lift {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sensor-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+}
+
+@keyframes sensorPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes statusPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Mejoras para el skeleton */
+@layer utilities {
+  .skeleton-pulse {
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes skeletonPulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

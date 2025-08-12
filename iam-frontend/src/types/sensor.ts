@@ -27,6 +27,7 @@ export interface Sensor {
   ubicacionId: number
   empresaId: number
   activo: boolean
+  dispositivoIoTId?: number
   configuracion?: Record<string, string | number | boolean>
   createdAt: string
   updatedAt: string
@@ -202,4 +203,214 @@ export interface AlertaFilters {
   tipo?: string
   desde?: string
   hasta?: string
+}
+
+// ===========================================
+// TIPOS PARA SISTEMA DE LECTURAS PERIÓDICAS
+// ===========================================
+
+export interface SensorReadingDto {
+  nombre: string
+  tipo: 'TEMPERATURA' | 'HUMEDAD' | 'PESO' | 'PRESION'
+  valor: number
+  unidad: string
+  umbralMin?: number
+  umbralMax?: number
+}
+
+export interface CreateSensorLecturaMultipleDto {
+  deviceId: string
+  deviceName: string
+  ubicacionId: number
+  empresaId: number
+  timestamp: number
+  sensors: Record<string, number>
+  sensorDetails?: SensorReadingDto[]
+}
+
+export interface ESP32Configuracion {
+  deviceId: string
+  deviceName: string
+  ubicacionId: number
+  empresaId: number
+  wifi: {
+    ssid: string
+    password: string
+  }
+  api: {
+    baseUrl: string
+    token: string
+    endpoint: string
+  }
+  sensores: Array<{
+    tipo: string
+    nombre: string
+    pin: number
+    pin2: number
+    enabled: boolean
+    umbralMin: number
+    umbralMax: number
+    unidad: string
+    intervalo: number
+  }>
+  intervalo: number
+  timestamp: string
+}
+
+export interface SensorConfiguracion {
+  tipo: string
+  nombre: string
+  pin: number
+  pin2: number
+  enabled: boolean
+  umbralMin: number
+  umbralMax: number
+  unidad: string
+  intervalo: number
+}
+
+export interface LecturasMultiplesResponse {
+  totalLecturas: number
+  alertasGeneradas: number
+  lecturas: Array<{
+    id: number
+    tipo: SensorTipo
+    valor: number
+    unidad: string
+    sensorId?: number
+    fecha: string
+    estado: 'NORMAL' | 'ALERTA' | 'CRITICO'
+    mensaje: string
+  }>
+}
+
+// Tipos para el sistema de alertas avanzado
+export enum SeveridadAlerta {
+  BAJA = 'BAJA',
+  MEDIA = 'MEDIA',
+  ALTA = 'ALTA',
+  CRITICA = 'CRITICA'
+}
+
+export enum EstadoAlerta {
+  ACTIVA = 'ACTIVA',
+  EN_ESCALAMIENTO = 'EN_ESCALAMIENTO',
+  RESUELTA = 'RESUELTA',
+  ESCALADA = 'ESCALADA'
+}
+
+export enum CanalNotificacion {
+  EMAIL = 'EMAIL',
+  SMS = 'SMS',
+  WEBSOCKET = 'WEBSOCKET',
+  PUSH = 'PUSH'
+}
+
+export interface UmbralesSensor {
+  id?: number
+  sensorId: number
+  empresaId: number
+  tipo: SensorTipo
+  umbralMin: number
+  umbralMax: number
+  umbralCriticoMin?: number
+  umbralCriticoMax?: number
+  alertasActivadas: boolean
+  severidad: SeveridadAlerta
+  mensajeAlerta?: string
+  intervaloVerificacion: number
+  canalesNotificacion: CanalNotificacion[]
+  destinatarios: string[]
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ConfiguracionSistemaAlertas {
+  id?: number
+  empresaId: number
+  sistemaActivado: boolean
+  modoDebug: boolean
+  
+  // Escalamiento automático
+  escalamientoAutomatico: boolean
+  tiempoEscalamientoMinutos: number
+  maximoNivelEscalamiento: number
+  
+  // Canales de notificación
+  canalesHabilitados: CanalNotificacion[]
+  
+  // Destinatarios por nivel
+  destinatariosPrincipales: string[]
+  destinatariosSupervisores: string[]
+  destinatariosAdministradores: string[]
+  
+  // Plantillas de notificación
+  plantillaEmailNormal: string
+  plantillaEmailCritica: string
+  plantillaSMSNormal: string
+  plantillaSMSCritica: string
+  
+  // Lógica de reintentos
+  maximoReintentos: number
+  intervaloReintentosMinutos: number
+  
+  // Horarios de blackout
+  horarioBlackout: {
+    horaInicio: string
+    horaFin: string
+    diasSemana: number[]
+  }
+  
+  // Agrupación de alertas
+  agruparAlertas: boolean
+  ventanaAgrupacionMinutos: number
+  
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface AlertaActiva {
+  id: number
+  sensorId: number
+  sensorNombre: string
+  sensorTipo: SensorTipo
+  ubicacionId: number
+  ubicacionNombre: string
+  empresaId: number
+  valorActual: number
+  valorNormal: {
+    min: number
+    max: number
+  }
+  severidad: SeveridadAlerta
+  estado: EstadoAlerta
+  mensaje: string
+  fechaActivacion: string
+  tiempoActiva: string
+  nivelEscalamiento: number
+  destinatariosNotificados: string[]
+  notificaciones: {
+    email: {
+      intentos: number
+      ultimoIntento?: string
+      proximoIntento?: string
+      exitoso: boolean
+    }
+    sms: {
+      intentos: number
+      ultimoIntento?: string
+      proximoIntento?: string
+      exitoso: boolean
+    }
+    websocket: {
+      enviado: boolean
+      fechaEnvio?: string
+    }
+  }
+  historialEscalamiento: Array<{
+    nivel: number
+    fecha: string
+    destinatarios: string[]
+    resultado: string
+  }>
 } 

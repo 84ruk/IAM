@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/Label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/SelectAdvanced'
 import { Textarea } from '@/components/ui/Textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, ChevronLeft, ChevronRight, Check, Wifi, Code, Download } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Check, Code, Download } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { SensorTipo, Ubicacion } from '@/types/sensor'
 

@@ -9,18 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/Textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
-  Loader2, 
-  ChevronLeft, 
-  ChevronRight, 
+  ArrowLeft, 
+  ArrowRight, 
   Check, 
-  Wifi, 
   Code, 
   Download,
-  Cpu,
-  Thermometer,
-  Droplets,
-  Scale,
-  CreditCard
+  Loader2
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { SensorTipo, Ubicacion } from '@/types/sensor'
@@ -905,14 +899,14 @@ void loop() {
           onClick={currentStep === 1 ? onCancel : prevStep}
           disabled={isLoading}
         >
-          <ChevronLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="w-4 h-4 mr-2" />
           {currentStep === 1 ? 'Cancelar' : 'Anterior'}
         </Button>
 
         {currentStep < totalSteps ? (
           <Button onClick={nextStep} disabled={isLoading}>
             Siguiente
-            <ChevronRight className="w-4 h-4 ml-2" />
+            <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         ) : (
           <Button 

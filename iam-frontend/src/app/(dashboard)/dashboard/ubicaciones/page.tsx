@@ -9,7 +9,6 @@ import { UbicacionForm } from '@/components/ui/ubicacion-form'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
-import { Alert } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
 import { 
   Plus, 
@@ -21,7 +20,6 @@ import {
   CheckCircle
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
-import { useServerUser } from '@/context/ServerUserContext'
 
 export default function UbicacionesPage() {
   // const user = useServerUser() // Comentado temporalmente hasta que se use

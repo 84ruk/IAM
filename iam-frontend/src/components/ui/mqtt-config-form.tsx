@@ -52,12 +52,6 @@ export function MqttConfigForm() {
   const [error, setError] = useState<string>('')
   const { addToast } = useToast()
 
-  // Cargar configuración actual
-  useEffect(() => {
-    loadCurrentConfig()
-    loadStatus()
-  }, [])
-
   const loadCurrentConfig = async () => {
     try {
       // Aquí cargarías la configuración actual desde el backend
@@ -93,6 +87,12 @@ export function MqttConfigForm() {
       console.error('Error cargando estado MQTT:', error)
     }
   }
+
+  // Cargar configuración actual
+  useEffect(() => {
+    loadCurrentConfig()
+    loadStatus()
+  }, [])
 
   const handleConfigChange = (field: keyof MqttConfig, value: string | number | boolean) => {
     setConfig(prev => ({

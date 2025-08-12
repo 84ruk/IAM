@@ -28,7 +28,6 @@ import {
   Webhook
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
-import { useServerUser } from '@/context/ServerUserContext'
 
 export default function SMSPage() {
   // const user = useServerUser() // Comentado temporalmente hasta que se use
