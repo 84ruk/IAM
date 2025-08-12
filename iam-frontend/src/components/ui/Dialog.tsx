@@ -26,13 +26,27 @@ export function Dialog({ children, open = true, onOpenChange }: DialogProps) {
   
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      className="fixed inset-0 z-50 bg-black bg-opacity-50"
       onClick={() => onOpenChange?.(false)}
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+      style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0,
+        zIndex: 9999
+      }}
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        style={{ position: 'relative' }}
+        style={{ 
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          maxWidth: '90vw',
+          maxHeight: '90vh'
+        }}
       >
         {children}
       </div>
@@ -46,9 +60,7 @@ export function DialogContent({ children, className = '' }: DialogContentProps) 
       className={`bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 ${className}`}
       style={{ 
         position: 'relative',
-        transform: 'none',
-        top: 'auto',
-        left: 'auto'
+        pointerEvents: 'auto'
       }}
     >
       {children}
