@@ -4,28 +4,25 @@ import { useState, useEffect, useCallback } from 'react'
 import { Ubicacion, Sensor, UpdateSensorDto, SensorTipo } from '@/types/sensor'
 import { sensorService } from '@/lib/services/sensorService'
 import { Card, CardContent } from '@/components/ui/Card'
+import { SensorGridSkeleton } from '@/components/ui/sensor-skeleton'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
 import { 
   Plus, 
   Radio, 
-  Edit, 
   Trash2, 
-  Activity,
   Thermometer,
   Droplets,
   Gauge,
   Scale,
-  CheckCircle,
-  XCircle,
-  Play,
-  Pause,
   Zap,
   Info,
   AlertTriangle
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
+import { SensorCard } from '@/components/ui/sensor-card'
+import { useRouter } from 'next/navigation'
 
 interface SensoresTabProps {
   ubicacion: Ubicacion
@@ -44,6 +41,7 @@ interface ConfiguracionPredefinida {
 }
 
 export function SensoresTab({ ubicacion }: SensoresTabProps) {
+  const router = useRouter()
   const [sensores, setSensores] = useState<Sensor[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -68,12 +66,7 @@ export function SensoresTab({ ubicacion }: SensoresTabProps) {
 
   const { addToast } = useToast()
 
-  useEffect(() => {
-    loadSensores()
-    loadConfiguraciones()
-  }, [ubicacion.id])
-
-  const loadSensores = async () => {
+  const loadSensores = useCallback(async () => {
     try {
       setIsLoading(true)
       const data = await sensorService.obtenerSensores(ubicacion.id)
@@ -87,16 +80,21 @@ export function SensoresTab({ ubicacion }: SensoresTabProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [ubicacion.id, addToast])
 
-  const loadConfiguraciones = async () => {
+  const loadConfiguraciones = useCallback(async () => {
     try {
       const data = await sensorService.obtenerConfiguraciones()
       // setConfiguraciones(data) // Comentado temporalmente
     } catch {
-      console.warn('No se pudieron cargar las configuraciones del backend, usando configuraciones por defecto')
+      // Manejar error silenciosamente
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadSensores()
+    loadConfiguraciones()
+  }, [ubicacion.id, loadSensores, loadConfiguraciones])
 
   const handleAddSensorSimple = async () => {
     try {
@@ -422,10 +420,7 @@ export function SensoresTab({ ubicacion }: SensoresTabProps) {
 
       {/* Lista de Sensores */}
       {isLoading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8E94F2] mx-auto"></div>
-          <p className="text-gray-600 mt-2">Cargando sensores...</p>
-        </div>
+        <SensorGridSkeleton count={6} />
       ) : sensores.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
@@ -457,87 +452,13 @@ export function SensoresTab({ ubicacion }: SensoresTabProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sensores.map((sensor) => (
-            <Card key={sensor.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`p-2 rounded-lg ${getSensorColor(sensor.tipo)}`}>
-                    {getSensorIcon(sensor.tipo)}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {sensor.activo ? (
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-red-600" />
-                    )}
-                  </div>
-                </div>
-                
-                <h3 className="font-semibold text-gray-900 mb-2">{sensor.nombre}</h3>
-                <p className="text-sm text-gray-600 mb-4">{getSensorTypeLabel(sensor.tipo)}</p>
-                
-                {/* Configuración del sensor */}
-                {sensor.configuracion && (
-                  <div className="text-xs text-gray-500 mb-4 space-y-1">
-                    <div>Unidad: {String((sensor.configuracion as Record<string, unknown>)?.unidad || 'N/A')}</div>
-                    <div>Rango: {String((sensor.configuracion as Record<string, unknown>)?.rango_min || 0)} - {String((sensor.configuracion as Record<string, unknown>)?.rango_max || 100)}</div>
-                    <div>Intervalo: {String((sensor.configuracion as Record<string, unknown>)?.intervalo_lectura || 30)}s</div>
-                  </div>
-                )}
-                
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                  <span>ID: #{sensor.id}</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    sensor.activo 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-red-100 text-red-700'
-                  }`}>
-                    {sensor.activo ? 'Activo' : 'Inactivo'}
-                  </span>
-                </div>
-                
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEditSensor(sensor)}
-                    className="flex-1 text-[#8E94F2] hover:text-[#7278e0]"
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleToggleSensorStatus(sensor)}
-                    className={sensor.activo ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
-                  >
-                    {sensor.activo ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteSensor(sensor.id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                {sensor.activo && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSimulateReading()}
-                      className="w-full text-blue-600 hover:text-blue-700"
-                    >
-                      <Activity className="w-4 h-4 mr-1" />
-                      Simular Lectura
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <SensorCard
+              key={sensor.id}
+              sensor={sensor}
+              onViewDetails={(s) => router.push(`/dashboard/sensores/${s.id}`)}
+              onEdit={(s) => handleEditSensor(s)}
+              onDelete={(id) => handleDeleteSensor(id)}
+            />
           ))}
         </div>
       )}

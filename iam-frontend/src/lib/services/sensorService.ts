@@ -9,7 +9,10 @@ import {
   CreateUbicacionDto,
   UpdateUbicacionDto,
   DashboardUbicacionTiempoRealDto,
-  DashboardAlertasDto
+  DashboardAlertasDto,
+  CreateSensorLecturaMultipleDto,
+  ESP32Configuracion,
+  LecturasMultiplesResponse
 } from '@/types/sensor'
 import { apiClient } from '../api/apiClient'
 
@@ -103,9 +106,27 @@ export const sensorService = {
   },
 
   async obtenerSensores(ubicacionId?: number): Promise<Sensor[]> {
-    const params = ubicacionId ? { ubicacionId: ubicacionId.toString() } : {}
-    const response = await apiClient.get('/mqtt-sensor/sensores/listar', { params }) as Sensor[]
-    return response
+    try {
+      const url = ubicacionId 
+        ? `/mqtt-sensor/sensores/listar?ubicacionId=${ubicacionId}`
+        : '/mqtt-sensor/sensores/listar'
+      
+      console.log('[SensorService] Obteniendo sensores:', { url, ubicacionId })
+      console.log('[SensorService] Base URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
+      
+      const response = await apiClient.get(url) as Sensor[]
+      console.log('[SensorService] Sensores obtenidos:', { count: Array.isArray(response) ? response.length : 0, response })
+      return Array.isArray(response) ? response : []
+    } catch (error) {
+      console.error('[SensorService] Error en obtenerSensores:', error)
+      console.error('[SensorService] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        status: (error as { response?: { status?: number; statusText?: string; data?: unknown } })?.response?.status,
+        statusText: (error as { response?: { status?: number; statusText?: string; data?: unknown } })?.response?.statusText,
+        data: (error as { response?: { status?: number; statusText?: string; data?: unknown } })?.response?.data
+      })
+      throw error
+    }
   },
 
   async obtenerSensor(id: number): Promise<Sensor> {
@@ -131,13 +152,14 @@ export const sensorService = {
     return response
   },
 
-  async obtenerLecturas(filtros: SensorFilters): Promise<SensorLectura[]> {
+  async obtenerLecturas(filtros: SensorFilters & { sensorId?: number }): Promise<SensorLectura[]> {
     const params = new URLSearchParams()
     if (filtros.tipo) params.append('tipo', filtros.tipo)
     if (filtros.productoId) params.append('productoId', filtros.productoId.toString())
     if (filtros.desde) params.append('desde', filtros.desde)
     if (filtros.hasta) params.append('hasta', filtros.hasta)
     if (filtros.limite) params.append('limite', filtros.limite.toString())
+    if (filtros.sensorId) params.append('sensorId', filtros.sensorId.toString())
 
     const response = await apiClient.get(`/mqtt-sensor/lecturas/listar?${params.toString()}`) as SensorLectura[]
     return response
@@ -256,6 +278,32 @@ export const sensorService = {
           umbral_critico: 95
         }
     }
+  },
+
+  // ===========================================
+  // MÉTODOS PARA LECTURAS PERIÓDICAS ESP32
+  // ===========================================
+
+  // Registrar múltiples lecturas desde ESP32
+  async registrarLecturasMultiples(data: CreateSensorLecturaMultipleDto): Promise<LecturasMultiplesResponse> {
+    const response = await apiClient.post('/sensores/lecturas-multiples', data) as LecturasMultiplesResponse
+    return response
+  },
+
+  // Generar código Arduino personalizado
+  async generarCodigoArduino(config: ESP32Configuracion): Promise<{
+    success: boolean
+    message: string
+    codigoArduino: string
+    configFile: string
+  }> {
+    const response = await apiClient.post('/sensores/generar-codigo-arduino', config) as {
+      success: boolean
+      message: string
+      codigoArduino: string
+      configFile: string
+    }
+    return response
   }
 }
 
@@ -290,5 +338,65 @@ export const ubicacionService = {
 
   async eliminarUbicacion(id: number): Promise<void> {
     await apiClient.delete(`/ubicaciones/${id}`)
+  },
+
+  // ===========================================
+  // NUEVOS MÉTODOS PARA LECTURAS PERIÓDICAS
+  // ===========================================
+
+  // Registrar múltiples lecturas desde ESP32
+  async registrarLecturasMultiples(data: CreateSensorLecturaMultipleDto): Promise<LecturasMultiplesResponse> {
+    const response = await apiClient.post('/sensores/lecturas-multiples', data) as LecturasMultiplesResponse
+    return response
+  },
+
+  // Configurar ESP32 para lecturas periódicas
+  async configurarESP32LecturasPeriodicas(config: ESP32Configuracion): Promise<{ success: boolean; message: string; configFile: string }> {
+    const response = await apiClient.post('/sensores/configurar-esp32', config) as { success: boolean; message: string; configFile: string }
+    return response
+  },
+
+  // Obtener configuración de ESP32
+  async obtenerConfiguracionESP32(deviceId: string): Promise<ESP32Configuracion> {
+    const response = await apiClient.get(`/sensores/esp32-config/${deviceId}`) as ESP32Configuracion
+    return response
+  },
+
+  // Probar conexión de ESP32
+  async probarConexionESP32(deviceId: string): Promise<{ connected: boolean; lastSeen: string; status: string }> {
+    const response = await apiClient.get(`/sensores/esp32-status/${deviceId}`) as { connected: boolean; lastSeen: string; status: string }
+    return response
+  },
+
+  // Obtener estadísticas de dispositivos ESP32
+  async obtenerEstadisticasESP32(): Promise<{
+    totalDispositivos: number
+    dispositivosConectados: number
+    totalLecturas: number
+    alertasGeneradas: number
+  }> {
+    const response = await apiClient.get('/sensores/esp32-stats') as {
+      totalDispositivos: number
+      dispositivosConectados: number
+      totalLecturas: number
+      alertasGeneradas: number
+    }
+    return response
+  },
+
+  // Generar código Arduino personalizado
+  async generarCodigoArduino(config: ESP32Configuracion): Promise<{
+    success: boolean
+    message: string
+    codigoArduino: string
+    configFile: string
+  }> {
+    const response = await apiClient.post('/sensores/generar-codigo-arduino', config) as {
+      success: boolean
+      message: string
+      codigoArduino: string
+      configFile: string
+    }
+    return response
   }
 } 

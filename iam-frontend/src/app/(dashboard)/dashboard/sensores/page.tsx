@@ -11,7 +11,6 @@ import { ESP32Wizard } from '@/components/ui/esp32-wizard'
 import { ESP32AutoConfig } from '@/components/ui/esp32-auto-config'
 import { ESP32LecturasPeriodicasConfig } from '@/components/ui/esp32-lecturas-periodicas-config'
 import { SensorUmbralesConfig } from '@/components/ui/sensor-umbrales-config'
-import { SensoresTiempoReal } from '@/components/ui/sensores-tiempo-real'
 import { SensorCardSkeleton, SensorGridSkeleton, SensorStatsSkeleton } from '@/components/ui/sensor-skeleton'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -23,7 +22,6 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { 
   Plus, 
   Search, 
-  MapPin, 
   Radio, 
   Thermometer, 
   Droplets, 
@@ -235,8 +233,7 @@ export default function SensoresPage() {
     setShowForm(true)
   }
 
-  const handleConfigurarUmbrales = (sensor: Sensor) => {
-    // setSelectedSensorForUmbrales(sensor) // This variable was removed
+  const handleConfigurarUmbrales = () => {
     setShowUmbralesConfig(true)
   }
 
@@ -555,7 +552,7 @@ export default function SensoresPage() {
           </DialogHeader>
           <ESP32Wizard
             ubicaciones={ubicaciones}
-            onComplete={(result) => {
+            onComplete={() => {
               setShowESP32Wizard(false)
               loadData() // Recargar datos
               addToast({
