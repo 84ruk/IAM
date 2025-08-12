@@ -1,0 +1,159 @@
+# Librerías necesarias para ESP32 IAM
+# Instalar desde Arduino IDE: Herramientas > Administrar Bibliotecas
+
+## Librerías Principales (ESP32)
+- **ESP32 by Espressif Systems** (incluida en Arduino IDE)
+- **WiFi** (incluida)
+- **WebServer** (incluida)
+- **SPI** (incluida)
+- **Wire** (incluida)
+
+## Librerías de Sensores
+- **DHT sensor library by Adafruit** (para DHT22)
+  - Buscar: "DHT sensor library"
+  - Autor: Adafruit
+  - Versión: 1.4.4 o superior
+
+- **HX711 by Bogdan Necula** (para sensor de peso)
+  - Buscar: "HX711"
+  - Autor: Bogdan Necula
+  - Versión: 0.7.4 o superior
+
+- **Adafruit BMP280 Library by Adafruit** (para sensor de presión)
+  - Buscar: "Adafruit BMP280 Library"
+  - Autor: Adafruit
+  - Versión: 2.6.6 o superior
+
+- **Adafruit Unified Sensor by Adafruit** (requerida por BMP280)
+  - Buscar: "Adafruit Unified Sensor"
+  - Autor: Adafruit
+  - Versión: 1.1.9 o superior
+
+## Librerías de Comunicación
+- **PubSubClient by Nick O'Leary** (para MQTT)
+  - Buscar: "PubSubClient"
+  - Autor: Nick O'Leary
+  - Versión: 2.8 o superior
+
+- **ArduinoJson by Benoit Blanchon** (para JSON)
+  - Buscar: "ArduinoJson"
+  - Autor: Benoit Blanchon
+  - Versión: 6.21.3 o superior
+
+## Configuración de Arduino IDE
+
+### 1. Configurar Board
+- Board: "ESP32 Dev Module"
+- Upload Speed: "115200"
+- CPU Frequency: "240MHz (WiFi/BT)"
+- Flash Frequency: "80MHz"
+- Flash Mode: "QIO"
+- Flash Size: "4MB (32Mb)"
+- Partition Scheme: "Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)"
+- Core Debug Level: "None"
+- PSRAM: "Disabled"
+
+### 2. Configurar PubSubClient
+Después de instalar PubSubClient, editar el archivo:
+`~/Arduino/libraries/PubSubClient/src/PubSubClient.h`
+
+Cambiar:
+```cpp
+#define MQTT_MAX_PACKET_SIZE 128
+```
+
+Por:
+```cpp
+#define MQTT_MAX_PACKET_SIZE 512
+```
+
+### 3. Conexiones de Sensores
+
+#### DHT22 (Temperatura y Humedad)
+- VCC → 3.3V
+- GND → GND
+- DATA → GPIO 4
+
+#### HX711 (Peso)
+- VCC → 3.3V
+- GND → GND
+- DOUT → GPIO 16
+- SCK → GPIO 17
+
+#### BMP280 (Presión)
+- VCC → 3.3V
+- GND → GND
+- SDA → GPIO 21
+- SCL → GPIO 22
+
+## Pasos de Instalación
+
+1. **Abrir Arduino IDE**
+2. **Instalar ESP32 Board Manager**:
+   - Archivo > Preferencias
+   - Agregar URL: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
+   - Herramientas > Placa > Administrador de tarjetas
+   - Buscar "ESP32" e instalar
+
+3. **Instalar Librerías**:
+   - Herramientas > Administrar Bibliotecas
+   - Buscar e instalar cada librería de la lista
+
+4. **Configurar Board**:
+   - Herramientas > Placa > ESP32 Arduino > ESP32 Dev Module
+   - Configurar parámetros como se indica arriba
+
+5. **Editar PubSubClient**:
+   - Aumentar MQTT_MAX_PACKET_SIZE a 512
+
+6. **Subir Código**:
+   - Abrir archivo `esp32-complete-code.ino`
+   - Verificar y subir
+
+## Verificación
+
+Después de subir el código, abrir Monitor Serial (115200 baud) y deberías ver:
+
+```
+🚀 Iniciando IAM ESP32...
+==================================
+🆔 Device ID: esp32_1234567890_1234
+📝 Device Name: ESP32 IAM 456
+🔧 Configurando sensores...
+✅ DHT22 inicializado
+✅ HX711 inicializado
+✅ BMP280 inicializado
+📋 Cargando configuración...
+📡 Configurando WiFi...
+✅ AP configurado
+📶 SSID: IAM_ESP32_Config
+🔑 Password: iam-setup-2024
+🌐 IP AP: 192.168.4.1
+🌐 Configurando servidor web...
+✅ Servidor web iniciado
+✅ Setup completado
+==================================
+🌐 Portal de configuración disponible en:
+   http://192.168.4.1
+📱 Conecta tu dispositivo a la red 'IAM_ESP32_Config'
+🔑 Contraseña: iam-setup-2024
+```
+
+## Configuración Inicial
+
+1. **Conectar al WiFi del ESP32**:
+   - SSID: `IAM_ESP32_Config`
+   - Password: `iam-setup-2024`
+
+2. **Abrir navegador**:
+   - URL: `http://192.168.4.1`
+
+3. **Configurar WiFi y MQTT**:
+   - Ingresar credenciales de tu red WiFi
+   - Configurar servidor MQTT (desde tu backend IAM)
+
+4. **Verificar funcionamiento**:
+   - Los datos de sensores deberían aparecer en el portal
+   - Los datos se enviarán por MQTT al backend
+
+

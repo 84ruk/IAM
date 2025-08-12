@@ -80,13 +80,14 @@ export class CreateSensorDto {
   @IsString()
   descripcion?: string;
 
-  @IsOptional()
-  @IsString()
-  modelo?: string;
+  // Remover campos que no existen en el modelo Prisma
+  // @IsOptional()
+  // @IsString()
+  // modelo?: string;
 
-  @IsOptional()
-  @IsString()
-  fabricante?: string;
+  // @IsOptional()
+  // @IsString()
+  // fabricante?: string;
 
   @IsOptional()
   @IsString()
@@ -110,12 +111,4 @@ export class CreateSensorSimpleDto {
   @IsOptional()
   @IsString()
   descripcion?: string;
-
-  @IsOptional()
-  @IsString()
-  modelo?: string;
-
-  @IsOptional()
-  @IsString()
-  fabricante?: string;
 }

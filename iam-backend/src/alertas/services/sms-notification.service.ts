@@ -38,6 +38,10 @@ export class SMSNotificationService {
     };
   }
 
+  getProvider(): string {
+    return this.config.provider || 'unknown';
+  }
+
   async sendSMS(message: SMSMessage): Promise<boolean> {
     try {
       this.logger.log(`Enviando SMS a ${message.to}: ${message.message.substring(0, 50)}...`);

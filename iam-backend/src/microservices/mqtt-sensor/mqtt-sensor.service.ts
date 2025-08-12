@@ -5,6 +5,7 @@ import { CreateSensorLecturaDto } from '../../sensores/dto/create-sensor-lectura
 import { PrismaService } from '../../prisma/prisma.service';
 import mqttConfig from '../../config/mqtt.config';
 import * as mqtt from 'mqtt';
+import { SensorTipo } from '@prisma/client';
 
 @Injectable()
 export class MqttSensorService implements OnModuleDestroy, OnModuleInit {
@@ -253,7 +254,7 @@ export class MqttSensorService implements OnModuleDestroy, OnModuleInit {
       // Procesar temperatura
       if (datos.temperatura !== undefined) {
         const lecturaTemperaturaDto: CreateSensorLecturaDto = {
-          tipo: TipoSensor.TEMPERATURA,
+          tipo: 'TEMPERATURA' as SensorTipo,
           valor: datos.temperatura,
           unidad: '°C',
           sensorId: topicoInfo.sensorId,
@@ -267,7 +268,7 @@ export class MqttSensorService implements OnModuleDestroy, OnModuleInit {
       // Procesar humedad
       if (datos.humedad !== undefined) {
         const lecturaHumedadDto: CreateSensorLecturaDto = {
-          tipo: TipoSensor.HUMEDAD,
+          tipo: 'HUMEDAD' as SensorTipo,
           valor: datos.humedad,
           unidad: '%',
           sensorId: topicoInfo.sensorId,
@@ -281,7 +282,7 @@ export class MqttSensorService implements OnModuleDestroy, OnModuleInit {
       // Procesar peso
       if (datos.peso !== undefined) {
         const lecturaPesoDto: CreateSensorLecturaDto = {
-          tipo: TipoSensor.PESO,
+          tipo: 'PESO' as SensorTipo,
           valor: datos.peso,
           unidad: 'kg',
           sensorId: topicoInfo.sensorId,

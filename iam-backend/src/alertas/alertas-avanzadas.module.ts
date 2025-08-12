@@ -10,9 +10,10 @@ import { SMSTemplateService } from './services/sms-template.service';
 import { NotificationModule } from '../notifications/notification.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { SensorAlertsModule } from './sensor-alerts.module';
 
 @Module({
-  imports: [NotificationModule, PrismaModule, AuthModule],
+  imports: [NotificationModule, PrismaModule, AuthModule, SensorAlertsModule],
   controllers: [
     AlertasAvanzadasController, 
     SMSController, 
@@ -29,7 +30,8 @@ import { AuthModule } from '../auth/auth.module';
     AlertasAvanzadasService, 
     SMSNotificationService, 
     SMSWebhookService, 
-    SMSTemplateService
+    SMSTemplateService,
+    SensorAlertsModule
   ],
 })
 export class AlertasAvanzadasModule {} 

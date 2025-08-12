@@ -1,37 +1,48 @@
 const { PrismaClient } = require('@prisma/client');
 
+const prisma = new PrismaClient();
+
 async function checkEmpresas() {
-  console.log('🔍 Verificando empresas en la base de datos...');
-  
-  const prisma = new PrismaClient();
-  
   try {
+    console.log('🔍 Verificando empresas en la base de datos...\n');
+
+    // Obtener todas las empresas
     const empresas = await prisma.empresa.findMany({
-      select: {
-        id: true,
-        nombre: true,
-        TipoIndustria: true,
-        fechaCreacion: true
+      include: {
+        usuarios: {
+          select: {
+            id: true,
+            email: true,
+            rol: true,
+            empresaId: true
+          }
+        },
+        ubicaciones: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
       }
     });
 
-    console.log('\n📊 Empresas encontradas:');
-    empresas.forEach(empresa => {
-      console.log(`   - ID: ${empresa.id}, Nombre: ${empresa.nombre}, Tipo: ${empresa.TipoIndustria}, Creada: ${empresa.fechaCreacion}`);
+    console.log(`📊 Total de empresas: ${empresas.length}\n`);
+
+    empresas.forEach((empresa, index) => {
+      console.log(`🏢 Empresa ${index + 1}:`);
+      console.log(`   ID: ${empresa.id}`);
+      console.log(`   Nombre: ${empresa.nombre}`);
+      console.log(`   Tipo Industria: ${empresa.TipoIndustria}`);
+      console.log(`   RFC: ${empresa.rfc || 'No especificado'}`);
+      console.log(`   Usuarios: ${empresa.usuarios.length}`);
+      console.log(`   Ubicaciones: ${empresa.ubicaciones.length}`);
+      console.log('');
     });
 
-    if (empresas.length === 0) {
-      console.log('\n⚠️ No hay empresas en la base de datos. Creando una empresa de prueba...');
-      
-      const nuevaEmpresa = await prisma.empresa.create({
-        data: {
-          nombre: 'Empresa de Prueba',
-          TipoIndustria: 'GENERICA'
-        }
-      });
-      
-      console.log(`✅ Empresa creada: ID ${nuevaEmpresa.id} - ${nuevaEmpresa.nombre}`);
-    }
+    // Verificar secuencia de IDs
+    const maxId = empresas.length > 0 ? Math.max(...empresas.map(e => e.id)) : 0;
+    console.log(`🔢 ID máximo encontrado: ${maxId}`);
+    console.log(`📈 Próximo ID disponible: ${maxId + 1}`);
 
   } catch (error) {
     console.error('❌ Error verificando empresas:', error);
@@ -40,4 +51,5 @@ async function checkEmpresas() {
   }
 }
 
+// Ejecutar script
 checkEmpresas(); 

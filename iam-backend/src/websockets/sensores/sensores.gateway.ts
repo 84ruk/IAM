@@ -33,11 +33,28 @@ export class SensoresGateway implements OnGatewayConnection, OnGatewayDisconnect
   private subscriptions = new Map<string, SensorSubscription>();
 
   handleConnection(client: Socket) {
-    this.logger.log(`Cliente conectado: ${client.id}`);
+    this.logger.log(`🔌 Cliente conectado: ${client.id}`);
+    this.logger.debug(`📡 Headers de conexión:`, client.handshake.headers);
+    
+    // Verificar si es un dispositivo ESP32
+    const userAgent = client.handshake.headers['user-agent'] || '';
+    const isESP32 = userAgent.includes('ESP32') || 
+                    userAgent.includes('Arduino') || 
+                    userAgent.includes('IoT') ||
+                    client.handshake.headers['x-esp32-device'] ||
+                    client.handshake.headers['x-device-type'] === 'esp32';
+    
+    if (isESP32) {
+      this.logger.log(`🤖 Dispositivo ESP32 detectado: ${client.id}`);
+      client.data.isESP32 = true;
+    }
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Cliente desconectado: ${client.id}`);
+    this.logger.log(`🔌 Cliente desconectado: ${client.id}`);
+    if (client.data.isESP32) {
+      this.logger.log(`🤖 ESP32 desconectado: ${client.id}`);
+    }
     this.subscriptions.delete(client.id);
   }
 
@@ -139,6 +156,7 @@ export class SensoresGateway implements OnGatewayConnection, OnGatewayDisconnect
       // Emitir específicamente a los suscritos al sensor
       if (lectura.sensorId) {
         this.server.to(`sensor-${lectura.sensorId}`).emit('lectura-sensor', {
+          id: lectura.id,
           sensorId: lectura.sensorId,
           tipo: lectura.tipo,
           valor: lectura.valor,
@@ -151,6 +169,7 @@ export class SensoresGateway implements OnGatewayConnection, OnGatewayDisconnect
       // Emitir a los suscritos a la ubicación
       if (lectura.ubicacionId) {
         this.server.to(`ubicacion-${lectura.ubicacionId}`).emit('lectura-ubicacion', {
+          id: lectura.id,
           ubicacionId: lectura.ubicacionId,
           sensorId: lectura.sensorId,
           tipo: lectura.tipo,

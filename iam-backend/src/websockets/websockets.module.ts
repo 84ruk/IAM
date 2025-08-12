@@ -4,6 +4,7 @@ import { WebSocketAuthGuard } from './common/websocket-auth.guard';
 import { WebSocketEmpresaGuard } from './common/websocket-empresa.guard';
 import { WebSocketRolesGuard } from './common/websocket-roles.guard';
 import { ImportacionGateway } from './importacion/importacion.gateway';
+import { SensoresGateway } from './sensores/sensores.gateway';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ImportacionGateway } from './importacion/importacion.gateway';
     
     // Gateways
     ImportacionGateway,
+    SensoresGateway, // Agregar el gateway de sensores
   ],
   exports: [
     // Exportar guards para uso en otros módulos
@@ -26,6 +28,7 @@ import { ImportacionGateway } from './importacion/importacion.gateway';
     
     // Exportar gateways
     ImportacionGateway,
+    SensoresGateway, // Exportar el gateway de sensores
   ],
 })
 export class WebSocketsModule {} 

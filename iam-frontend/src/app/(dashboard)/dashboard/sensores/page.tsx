@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Sensor, SensorTipo, Ubicacion, CreateSensorDto, UpdateSensorDto } from '@/types/sensor'
 import { sensorService, ubicacionService } from '@/lib/services/sensorService'
 import { SensorCard } from '@/components/ui/sensor-card'
@@ -8,20 +9,25 @@ import { SensorForm } from '@/components/ui/sensor-form'
 import { SensorWizard } from '@/components/ui/sensor-wizard'
 import { ESP32Wizard } from '@/components/ui/esp32-wizard'
 import { ESP32AutoConfig } from '@/components/ui/esp32-auto-config'
+import { ESP32LecturasPeriodicasConfig } from '@/components/ui/esp32-lecturas-periodicas-config'
+import { SensorUmbralesConfig } from '@/components/ui/sensor-umbrales-config'
+import { SensoresTiempoReal } from '@/components/ui/sensores-tiempo-real'
+import { SensorCardSkeleton, SensorGridSkeleton, SensorStatsSkeleton } from '@/components/ui/sensor-skeleton'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/SelectAdvanced'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { 
   Plus, 
   Search, 
+  MapPin, 
   Radio, 
   Thermometer, 
   Droplets, 
   Gauge, 
-  Loader2,
   AlertCircle,
   Activity,
   Wifi,
@@ -29,10 +35,9 @@ import {
   Zap
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
-import { useServerUser } from '@/context/ServerUserContext'
 
 export default function SensoresPage() {
-  // const user = useServerUser() // Comentado temporalmente hasta que se use
+  const router = useRouter()
   const [sensores, setSensores] = useState<Sensor[]>([])
   const [filteredSensores, setFilteredSensores] = useState<Sensor[]>([])
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([])
@@ -41,31 +46,68 @@ export default function SensoresPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTipo, setSelectedTipo] = useState<string>('')
   const [selectedUbicacion, setSelectedUbicacion] = useState<string>('')
+  const [estadoFilter, setEstadoFilter] = useState<'todos' | 'activos' | 'inactivos'>('todos')
   const [showForm, setShowForm] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
   const [showESP32Wizard, setShowESP32Wizard] = useState(false)
   const [showESP32AutoConfig, setShowESP32AutoConfig] = useState(false)
+  const [showESP32LecturasPeriodicas, setShowESP32LecturasPeriodicas] = useState(false)
+  const [showUmbralesConfig, setShowUmbralesConfig] = useState(false)
   const [editingSensor, setEditingSensor] = useState<Sensor | null>(null)
   const [error, setError] = useState<string>('')
   const { addToast } = useToast()
 
+    // Función para determinar si una card debe mostrar pulse
+  const shouldPulse = (value: number) => value > 0
+
+  console.log('🔍 Estado actual del componente:', { 
+    isLoading, 
+    sensoresLength: sensores.length, 
+    filteredLength: filteredSensores.length,
+    ubicacionesLength: ubicaciones.length 
+  })
+
   // Cargar datos
   const loadData = async () => {
     try {
+      console.log('🔄 Iniciando carga de datos...')
       setIsLoading(true)
       setError('')
       
-      const [sensoresData, ubicacionesData] = await Promise.all([
-        sensorService.obtenerSensores(),
-        ubicacionService.obtenerUbicaciones()
-      ])
+      console.log('📡 Llamando a sensorService.obtenerSensores()...')
+      let sensoresData: Sensor[] = []
+      try {
+        sensoresData = await sensorService.obtenerSensores()
+        console.log('✅ sensorService.obtenerSensores() completado:', sensoresData)
+      } catch (error) {
+        console.error('❌ Error en sensorService.obtenerSensores():', error)
+        sensoresData = []
+      }
+      
+      console.log('📡 Llamando a ubicacionService.obtenerUbicaciones()...')
+      let ubicacionesData: Ubicacion[] = []
+      try {
+        ubicacionesData = await ubicacionService.obtenerUbicaciones()
+        console.log('✅ ubicacionService.obtenerUbicaciones() completado:', ubicacionesData)
+      } catch (error) {
+        console.error('❌ Error en ubicacionService.obtenerUbicaciones():', error)
+        ubicacionesData = []
+      }
+      
+      console.log('📊 Datos recibidos:', { 
+        sensores: sensoresData?.length || 0, 
+        ubicaciones: ubicacionesData?.length || 0,
+        sensoresData: sensoresData,
+        ubicacionesData: ubicacionesData
+      })
       
       setSensores(sensoresData || [])
-      setFilteredSensores(sensoresData || [])
       setUbicaciones(ubicacionesData || [])
-    } catch (err) {
-      setError('Error al cargar los datos')
-      console.error('Error loading data:', err)
+      setFilteredSensores(sensoresData || [])
+      
+    } catch (error) {
+      console.error('❌ Error cargando datos:', error)
+      setError('Error cargando datos')
     } finally {
       setIsLoading(false)
     }
@@ -77,6 +119,20 @@ export default function SensoresPage() {
 
   // Filtrar sensores
   useEffect(() => {
+    // Solo ejecutar el filtrado si no estamos cargando y hay sensores
+    if (isLoading || sensores.length === 0) {
+      console.log('🔍 Filtrado omitido - isLoading:', isLoading, 'sensores.length:', sensores.length)
+      return
+    }
+    
+    console.log('🔍 useEffect de filtrado ejecutándose:', { 
+      sensoresLength: sensores.length, 
+      searchTerm, 
+      selectedTipo, 
+      selectedUbicacion, 
+      estadoFilter 
+    })
+    
     let filtered = sensores
 
     // Filtrar por término de búsqueda
@@ -97,8 +153,19 @@ export default function SensoresPage() {
       filtered = filtered.filter(sensor => sensor.ubicacionId === parseInt(selectedUbicacion))
     }
 
+    // Filtrar por estado
+    if (estadoFilter !== 'todos') {
+      const activos = estadoFilter === 'activos'
+      filtered = filtered.filter(sensor => sensor.activo === activos)
+    }
+
+    console.log('🔍 Filtrado completado:', { 
+      originalLength: sensores.length, 
+      filteredLength: filtered.length 
+    })
+    
     setFilteredSensores(filtered)
-  }, [searchTerm, selectedTipo, selectedUbicacion, sensores])
+  }, [searchTerm, selectedTipo, selectedUbicacion, estadoFilter, sensores, isLoading])
 
   // Manejar creación/edición de sensor
   const handleSubmit = async (data: CreateSensorDto | UpdateSensorDto) => {
@@ -155,24 +222,7 @@ export default function SensoresPage() {
     }
   }
 
-  // Manejar simulación de lectura
-  // const handleSimulateReading = async (sensorId?: number) => {
-  //   try {
-  //     await sensorService.simularLectura(sensorId)
-  //     addToast({
-  //       type: "success",
-  //       title: "Lectura simulada",
-  //       message: "Se ha generado una lectura de prueba",
-  //     })
-  //   } catch {
-  //     addToast({
-  //       type: "error",
-  //       title: "Error",
-  //       message: "No se pudo simular la lectura",
-  //     })
-  //   }
-  // }
-
+ 
   // Manejar edición
   const handleEdit = (sensor: Sensor) => {
     setEditingSensor(sensor)
@@ -183,6 +233,11 @@ export default function SensoresPage() {
   const handleCreate = () => {
     setEditingSensor(null)
     setShowForm(true)
+  }
+
+  const handleConfigurarUmbrales = (sensor: Sensor) => {
+    // setSelectedSensorForUmbrales(sensor) // This variable was removed
+    setShowUmbralesConfig(true)
   }
 
 
@@ -200,7 +255,8 @@ export default function SensoresPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -209,27 +265,37 @@ export default function SensoresPage() {
         </div>
         <div className="flex gap-2">
           <Button 
-            onClick={() => setShowESP32AutoConfig(true)} 
+            onClick={() => setShowUmbralesConfig(true)} 
+            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700"
+            disabled={!sensores.length}
+          >
+            <AlertCircle className="w-4 h-4" />
+            Configurar Umbrales
+          </Button>
+          <Button 
+            onClick={() => setShowESP32LecturasPeriodicas(true)} 
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
           >
             <Zap className="w-4 h-4" />
-            Configuración Automática ESP32
+            ESP32 Lecturas Periódicas
           </Button>
           <Button 
-            onClick={() => setShowESP32Wizard(true)} 
-            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+            onClick={() => setShowESP32AutoConfig(true)} 
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700" disabled
+            title="Modo legacy (deshabilitado)"
           >
             <Cpu className="w-4 h-4" />
-            ESP32 Manual
+            ESP32 MQTT (Legacy)
           </Button>
           <Button 
-            onClick={() => setShowWizard(true)} 
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+            onClick={() => {}}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700" disabled
+            title="Crear sensor individual (deshabilitado)"
           >
             <Wifi className="w-4 h-4" />
             Sensor Individual
           </Button>
-          <Button onClick={handleCreate} className="flex items-center gap-2">
+          <Button onClick={() => {}} className="flex items-center gap-2" disabled title="Nuevo sensor (deshabilitado)">
             <Plus className="w-4 h-4" />
             Nuevo Sensor
           </Button>
@@ -237,69 +303,81 @@ export default function SensoresPage() {
       </div>
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Radio className="w-5 h-5 text-blue-600" />
-              <div>
-                <p className="text-sm text-gray-600">Total Sensores</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
+      {isLoading ? (
+        <SensorStatsSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card className={`hover:shadow-md transition-all duration-300 hover:scale-105 ${shouldPulse(stats.total) ? 'sensor-card-pulse' : ''}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <div className={`p-1 rounded ${shouldPulse(stats.total) ? 'bg-blue-100' : 'bg-blue-50'}`}>
+                  <Radio className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Sensores</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-green-600" />
-              <div>
-                <p className="text-sm text-gray-600">Sensores Activos</p>
-                <p className="text-2xl font-bold">{stats.activos}</p>
+            </CardContent>
+          </Card>
+          
+          <Card className={`hover:shadow-md transition-all duration-300 hover:scale-105 ${shouldPulse(stats.activos) ? 'sensor-card-pulse' : ''}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <div className={`p-1 rounded ${shouldPulse(stats.activos) ? 'bg-green-100' : 'bg-green-50'}`}>
+                  <Activity className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Sensores Activos</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.activos}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Thermometer className="w-5 h-5 text-red-600" />
-              <div>
-                <p className="text-sm text-gray-600">Temperatura</p>
-                <p className="text-2xl font-bold">{stats.porTipo[SensorTipo.TEMPERATURA]}</p>
+            </CardContent>
+          </Card>
+          
+          <Card className={`hover:shadow-md transition-all duration-300 hover:scale-105 ${shouldPulse(stats.porTipo[SensorTipo.TEMPERATURA]) ? 'sensor-card-pulse' : ''}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <div className={`p-1 rounded ${shouldPulse(stats.porTipo[SensorTipo.TEMPERATURA]) ? 'bg-red-100' : 'bg-red-50'}`}>
+                  <Thermometer className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Temperatura</p>
+                  <p className="text-2xl font-bold text-red-600">{stats.porTipo[SensorTipo.TEMPERATURA]}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Droplets className="w-5 h-5 text-blue-600" />
-              <div>
-                <p className="text-sm text-gray-600">Humedad</p>
-                <p className="text-2xl font-bold">{stats.porTipo[SensorTipo.HUMEDAD]}</p>
+            </CardContent>
+          </Card>
+          
+          <Card className={`hover:shadow-md transition-all duration-300 hover:scale-105 ${shouldPulse(stats.porTipo[SensorTipo.HUMEDAD]) ? 'sensor-card-pulse' : ''}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <div className={`p-1 rounded ${shouldPulse(stats.porTipo[SensorTipo.HUMEDAD]) ? 'bg-blue-100' : 'bg-blue-50'}`}>
+                  <Droplets className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Humedad</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.porTipo[SensorTipo.HUMEDAD]}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Gauge className="w-5 h-5 text-purple-600" />
-              <div>
-                <p className="text-sm text-gray-600">Presión/Peso</p>
-                <p className="text-2xl font-bold">
-                  {stats.porTipo[SensorTipo.PRESION] + stats.porTipo[SensorTipo.PESO]}
-                </p>
+            </CardContent>
+          </Card>
+          
+          <Card className={`hover:shadow-md transition-all duration-300 hover:scale-105 ${shouldPulse(stats.porTipo[SensorTipo.PRESION] + stats.porTipo[SensorTipo.PESO]) ? 'sensor-card-pulse' : ''}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <div className={`p-1 rounded ${shouldPulse(stats.porTipo[SensorTipo.PRESION] + stats.porTipo[SensorTipo.PESO]) ? 'bg-purple-100' : 'bg-purple-50'}`}>
+                  <Gauge className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Presión/Peso</p>
+                  <p className="text-2xl font-bold text-purple-600">{stats.porTipo[SensorTipo.PRESION] + stats.porTipo[SensorTipo.PESO]}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Filtros */}
       <Card>
@@ -341,6 +419,17 @@ export default function SensoresPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={estadoFilter} onValueChange={(v) => setEstadoFilter(v as 'todos' | 'activos' | 'inactivos')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="activos">Activos</SelectItem>
+                <SelectItem value="inactivos">Inactivos</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -355,9 +444,30 @@ export default function SensoresPage() {
 
       {/* Lista de sensores */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <span className="ml-2">Cargando sensores...</span>
+        <div className="space-y-6">
+          {/* Skeleton para estadísticas */}
+          <SensorStatsSkeleton />
+          
+          {/* Skeleton para filtros */}
+          <Card className="bg-white">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Skeleton className="h-10 w-full bg-gray-200" />
+                <Skeleton className="h-10 w-full bg-gray-200" />
+                <Skeleton className="h-10 w-full bg-gray-200" />
+                <Skeleton className="h-10 w-full bg-gray-200" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Skeleton para tarjetas de sensores */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-32 bg-gray-200" />
+              <Skeleton className="h-8 w-24 bg-gray-200" />
+            </div>
+            <SensorGridSkeleton count={6} />
+          </div>
         </div>
       ) : filteredSensores.length === 0 ? (
         <Card>
@@ -388,10 +498,7 @@ export default function SensoresPage() {
               sensor={sensor}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              onViewDetails={(sensor) => {
-                // Aquí podrías navegar a una página de detalles del sensor
-                console.log('Ver detalles del sensor:', sensor)
-              }}
+              onViewDetails={() => router.push(`/dashboard/sensores/${sensor.id}`)}
             />
           ))}
         </div>
@@ -483,6 +590,49 @@ export default function SensoresPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Modal de ESP32 Lecturas Periódicas */}
+      {showESP32LecturasPeriodicas && (
+        <ESP32LecturasPeriodicasConfig
+          ubicaciones={ubicaciones}
+          onComplete={() => {
+            setShowESP32LecturasPeriodicas(false)
+            loadData()
+            addToast({
+              title: 'Código generado exitosamente',
+              message: 'Tu código Arduino y configuración están listos',
+              type: 'success'
+            })
+          }}
+          onCancel={() => setShowESP32LecturasPeriodicas(false)}
+        />
+      )}
+
+      {/* Modal de configuración de umbrales */}
+      <Dialog open={showUmbralesConfig} onOpenChange={setShowUmbralesConfig}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Configuración de Umbrales y Alertas</DialogTitle>
+          </DialogHeader>
+          <SensorUmbralesConfig
+            sensores={sensores}
+            onComplete={() => {
+              setShowUmbralesConfig(false)
+              // setSelectedSensorForUmbrales(null) // This variable was removed
+              addToast({
+                title: 'Umbrales configurados exitosamente',
+                message: 'La configuración de alertas se ha guardado',
+                type: 'success'
+              })
+            }}
+            onCancel={() => {
+              setShowUmbralesConfig(false)
+              // setSelectedSensorForUmbrales(null) // This variable was removed
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+      </div>
     </div>
   )
 } 

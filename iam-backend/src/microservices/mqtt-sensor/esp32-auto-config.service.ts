@@ -72,6 +72,56 @@ export class ESP32AutoConfigService {
    */
   async generarConfiguracionAutomatica(config: ESP32AutoConfig): Promise<ESP32ConfigResponse> {
     try {
+      // Validar que config no sea null o undefined
+      if (!config) {
+        this.logger.error('ESP32AutoConfigService - Config is null or undefined');
+        return {
+          success: false,
+          message: 'Configuración no proporcionada o inválida'
+        };
+      }
+
+      // Validar campos requeridos
+      if (!config.deviceName) {
+        this.logger.error('ESP32AutoConfigService - deviceName is missing');
+        return {
+          success: false,
+          message: 'El nombre del dispositivo es requerido'
+        };
+      }
+
+      if (!config.wifiSSID) {
+        this.logger.error('ESP32AutoConfigService - wifiSSID is missing');
+        return {
+          success: false,
+          message: 'El SSID de WiFi es requerido'
+        };
+      }
+
+      if (!config.wifiPassword) {
+        this.logger.error('ESP32AutoConfigService - wifiPassword is missing');
+        return {
+          success: false,
+          message: 'La contraseña de WiFi es requerida'
+        };
+      }
+
+      if (!config.ubicacionId || config.ubicacionId <= 0) {
+        this.logger.error('ESP32AutoConfigService - ubicacionId is invalid');
+        return {
+          success: false,
+          message: 'La ubicación es requerida y debe ser válida'
+        };
+      }
+
+      if (!config.sensores || !Array.isArray(config.sensores) || config.sensores.length === 0) {
+        this.logger.error('ESP32AutoConfigService - sensores array is invalid');
+        return {
+          success: false,
+          message: 'Debe incluir al menos un sensor'
+        };
+      }
+
       console.log('🔍 [DEBUG] ESP32AutoConfigService - Received config:', JSON.stringify(config, null, 2));
       this.logger.log(`Generando configuración automática para dispositivo: ${config.deviceName}`);
 
@@ -521,9 +571,11 @@ export class ESP32AutoConfigService {
         },
         create: {
           deviceId,
+          deviceName: config.deviceName,
           nombre: config.deviceName,
           tipo: 'ESP32',
           ubicacionId: config.ubicacionId,
+          empresaId: await this.obtenerEmpresaId(config.ubicacionId),
           configuracion: {
             mqttUsername,
             sensores: config.sensores.filter(s => s.enabled),

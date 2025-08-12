@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SensorTipo, Sensor, SensorLectura } from '@prisma/client';
 import { AlertasAvanzadasService } from '../alertas/alertas-avanzadas.service';
 import { SensoresGateway } from '../websockets/sensores/sensores.gateway';
+import { SensorAlertManagerService } from '../alertas/services/sensor-alert-manager.service';
 
 export interface SensorData {
   id: number;
@@ -76,6 +77,7 @@ export class SensoresService {
     private prisma: PrismaService,
     private alertasAvanzadasService: AlertasAvanzadasService,
     private sensoresGateway: SensoresGateway,
+    private sensorAlertManager: SensorAlertManagerService,
   ) {}
 
   async registrarLectura(dto: CreateSensorLecturaDto, empresaId: number): Promise<SensorData> {
@@ -111,7 +113,7 @@ export class SensoresService {
       }
 
       // Convertir TipoSensor a SensorTipo
-      const sensorTipo = this.convertTipoSensor(dto.tipo);
+      const sensorTipo = dto.tipo; // Ya no es necesario convertir
 
       const data: {
         tipo: SensorTipo;
@@ -158,7 +160,7 @@ export class SensoresService {
       await this.emitirLecturaPorWebSocket(lectura, empresaId);
 
       // Actualizar inventario si es sensor de peso
-      if (dto.tipo === TipoSensor.PESO && dto.productoId) {
+      if (dto.tipo === SensorTipo.PESO && dto.productoId) {
         await this.actualizarInventarioPorPeso(dto.productoId, dto.valor, empresaId);
       }
 
@@ -414,33 +416,13 @@ export class SensoresService {
   }
 
   private convertTipoSensor(tipoSensor: TipoSensor): SensorTipo {
-    switch (tipoSensor) {
-      case TipoSensor.TEMPERATURA:
-        return 'TEMPERATURA';
-      case TipoSensor.HUMEDAD:
-        return 'HUMEDAD';
-      case TipoSensor.PESO:
-        return 'PESO';
-      case TipoSensor.RFID:
-        return 'PRESION'; // Mapear RFID a PRESION ya que RFID no existe en SensorTipo
-      default:
-        return 'TEMPERATURA';
-    }
+    // Ya no es necesario convertir, ambos tipos son compatibles
+    return tipoSensor as SensorTipo;
   }
 
   private convertSensorTipoToTipoSensor(sensorTipo: SensorTipo): TipoSensor {
-    switch (sensorTipo) {
-      case 'TEMPERATURA':
-        return TipoSensor.TEMPERATURA;
-      case 'HUMEDAD':
-        return TipoSensor.HUMEDAD;
-      case 'PESO':
-        return TipoSensor.PESO;
-      case 'PRESION':
-        return TipoSensor.RFID; // Mapear PRESION a RFID
-      default:
-        return TipoSensor.TEMPERATURA;
-    }
+    // Ya no es necesario convertir, ambos tipos son compatibles
+    return sensorTipo as TipoSensor;
   }
 
   private analizarLectura(tipo: SensorTipo, valor: number): 'NORMAL' | 'ALERTA' | 'CRITICO' {
@@ -494,27 +476,62 @@ export class SensoresService {
 
   private async verificarAlertasAvanzadas(lectura: SensorLectura, empresaId: number): Promise<void> {
     try {
-      // Comentado temporalmente hasta que se implemente el método correcto
-      // await this.alertasAvanzadasService.verificarAlertasSensor(lectura, empresaId);
-      this.logger.log(`Verificando alertas avanzadas para lectura ${lectura.id}`);
+      // Usar el nuevo sistema de alertas de sensores
+      await this.sensorAlertManager.procesarLecturaSensor({
+        sensorId: lectura.sensorId || 0,
+        tipo: lectura.tipo,
+        valor: lectura.valor,
+        unidad: lectura.unidad,
+        productoId: lectura.productoId || undefined,
+        ubicacionId: lectura.ubicacionId || 0,
+        timestamp: lectura.fecha
+      }, empresaId);
+      this.logger.log(`Alertas de sensor verificadas para lectura ${lectura.id}`);
     } catch (error) {
-      this.logger.error('Error verificando alertas avanzadas:', error);
+      this.logger.error('Error verificando alertas de sensor:', error);
     }
   }
 
   private async emitirLecturaPorWebSocket(lectura: SensorLectura, empresaId: number): Promise<void> {
     try {
       if (this.sensoresGateway) {
-        this.sensoresGateway.server.to(`empresa_${empresaId}`).emit('nueva_lectura', {
+        // Calcular estado basado en el valor y tipo del sensor
+        const estado = this.analizarLectura(lectura.tipo, lectura.valor);
+        
+        // 🔧 CORREGIR: Emitir a todos los clientes conectados, no solo a la empresa
+        // Esto permite que el frontend reciba las lecturas sin necesidad de suscripción específica
+        this.sensoresGateway.server.emit('nueva_lectura', {
           lectura: {
             id: lectura.id,
             tipo: lectura.tipo,
             valor: lectura.valor,
             unidad: lectura.unidad,
             fecha: lectura.fecha,
+            estado: estado,
+            sensorId: lectura.sensorId,
+            ubicacionId: lectura.ubicacionId,
+            empresaId: empresaId, // Agregar empresaId para filtrado en frontend
           },
           timestamp: new Date().toISOString(),
         });
+
+        // También emitir específicamente a la empresa (para compatibilidad)
+        this.sensoresGateway.server.to(`empresa-${empresaId}`).emit('nueva_lectura', {
+          lectura: {
+            id: lectura.id,
+            tipo: lectura.tipo,
+            valor: lectura.valor,
+            unidad: lectura.unidad,
+            fecha: lectura.fecha,
+            estado: estado,
+            sensorId: lectura.sensorId,
+            ubicacionId: lectura.ubicacionId,
+            empresaId: empresaId,
+          },
+          timestamp: new Date().toISOString(),
+        });
+
+        this.logger.log(`📡 Lectura emitida por WebSocket: ${lectura.tipo} - ${lectura.valor}${lectura.unidad}`);
       }
     } catch (error) {
       this.logger.error('Error emitiendo lectura por WebSocket:', error);
@@ -583,11 +600,14 @@ export class SensoresService {
   // Método mejorado para registro de sensor con configuración automática
   async registrarSensor(dto: CreateSensorDto, empresaId: number): Promise<SensorWithLocation> {
     try {
+      this.logger.log(`🔧 Iniciando registro de sensor: ${dto.nombre} - Tipo: ${dto.tipo} - Empresa: ${empresaId}`);
+
       // Validar que la empresa existe
       const empresa = await this.prisma.empresa.findUnique({
         where: { id: empresaId },
       });
       if (!empresa) {
+        this.logger.error(`❌ Empresa no encontrada: ${empresaId}`);
         throw new Error('Empresa no encontrada');
       }
 
@@ -596,6 +616,7 @@ export class SensoresService {
         where: { id: dto.ubicacionId, empresaId, activa: true },
       });
       if (!ubicacion) {
+        this.logger.error(`❌ Ubicación no encontrada o no pertenece a la empresa: ${dto.ubicacionId} - Empresa: ${empresaId}`);
         throw new Error('Ubicación no encontrada o no pertenece a la empresa');
       }
 
@@ -609,6 +630,7 @@ export class SensoresService {
         },
       });
       if (sensorExistente) {
+        this.logger.warn(`⚠️ Ya existe un sensor con ese nombre en esta ubicación: ${dto.nombre} - Ubicación: ${dto.ubicacionId}`);
         throw new Error('Ya existe un sensor con ese nombre en esta ubicación');
       }
 
@@ -616,18 +638,20 @@ export class SensoresService {
       let configuracionFinal = dto.configuracion;
       if (!configuracionFinal) {
         configuracionFinal = CONFIGURACIONES_PREDEFINIDAS[dto.tipo];
-        this.logger.log(`Aplicando configuración predefinida para sensor tipo ${dto.tipo}`);
+        this.logger.log(`⚙️ Aplicando configuración predefinida para sensor tipo ${dto.tipo}`);
       } else {
         // Combinar configuración personalizada con predefinida
         configuracionFinal = {
           ...CONFIGURACIONES_PREDEFINIDAS[dto.tipo],
           ...configuracionFinal
         };
+        this.logger.log(`⚙️ Combinando configuración personalizada con predefinida para sensor tipo ${dto.tipo}`);
       }
 
       // Validar configuración del sensor según el tipo
       this.validarConfiguracionSensor(dto.tipo, configuracionFinal);
 
+      this.logger.log(`📝 Creando sensor en base de datos...`);
       const sensor = await this.prisma.sensor.create({
         data: {
           nombre: dto.nombre,
@@ -636,6 +660,10 @@ export class SensoresService {
           empresaId,
           activo: dto.activo ?? true,
           configuracion: JSON.parse(JSON.stringify(configuracionFinal)),
+          descripcion: dto.descripcion,
+          // Remover campos que no existen en el modelo Prisma
+          // modelo: dto.modelo,
+          // fabricante: dto.fabricante,
         },
         include: {
           ubicacion: {
@@ -647,18 +675,29 @@ export class SensoresService {
         },
       });
 
-      this.logger.log(`Sensor registrado: ${sensor.nombre} (ID: ${sensor.id}) en ubicación ${ubicacion.nombre}`);
+      this.logger.log(`✅ Sensor registrado exitosamente: ${sensor.nombre} (ID: ${sensor.id}) en ubicación ${ubicacion.nombre}`);
       
       // Emitir evento por WebSocket si está disponible
       try {
         await this.emitirSensorRegistradoPorWebSocket(sensor, empresaId);
+        this.logger.log(`📡 Evento WebSocket emitido para sensor: ${sensor.id}`);
       } catch (wsError) {
-        this.logger.warn('Error emitiendo evento WebSocket:', wsError);
+        this.logger.warn('⚠️ Error emitiendo evento WebSocket:', wsError);
+        // No fallar el registro por error de WebSocket
+      }
+
+      // Emitir evento de auditoría
+      try {
+        await this.emitirEventoAuditoria('SENSOR_CREADO', sensor, empresaId);
+      } catch (auditError) {
+        this.logger.warn('⚠️ Error emitiendo evento de auditoría:', auditError);
       }
 
       return sensor;
     } catch (error) {
-      this.logger.error('Error registrando sensor:', error);
+      this.logger.error('❌ Error registrando sensor:', error);
+      this.logger.error(`📊 Datos del sensor: ${JSON.stringify(dto)}`);
+      this.logger.error(`🏢 Empresa ID: ${empresaId}`);
       throw error;
     }
   }
@@ -720,33 +759,51 @@ export class SensoresService {
     }
   }
 
-  private async emitirSensorRegistradoPorWebSocket(sensor: SensorWithLocation, empresaId: number): Promise<void> {
-    if (this.sensoresGateway) {
-      this.sensoresGateway.server.to(`empresa_${empresaId}`).emit('sensor_registrado', {
-        sensor: {
-          id: sensor.id,
-          nombre: sensor.nombre,
-          tipo: sensor.tipo,
-          ubicacionId: sensor.ubicacionId,
-          activo: sensor.activo,
-          createdAt: sensor.createdAt,
-        },
-        ubicacion: sensor.ubicacion,
-        timestamp: new Date().toISOString(),
-      });
+  // Método para emitir eventos de auditoría
+  private async emitirEventoAuditoria(accion: string, sensor: any, empresaId: number) {
+    try {
+      // Aquí puedes implementar la lógica de auditoría
+      // Por ejemplo, guardar en base de datos o emitir eventos
+      this.logger.debug(`📋 Evento de auditoría: ${accion} - Sensor: ${sensor.id} - Empresa: ${empresaId}`);
+    } catch (error) {
+      this.logger.warn('⚠️ Error en auditoría:', error);
     }
   }
 
-  async obtenerSensores(empresaId: number, ubicacionId?: number): Promise<SensorWithCount[]> {
+  // Método para emitir eventos por WebSocket
+  private async emitirSensorRegistradoPorWebSocket(sensor: any, empresaId: number) {
+    try {
+      if (this.sensoresGateway) {
+        await this.sensoresGateway.emitirEstadoSensores({
+          tipo: 'SENSOR_REGISTRADO',
+          sensor: {
+            id: sensor.id,
+            nombre: sensor.nombre,
+            tipo: sensor.tipo,
+            ubicacionId: sensor.ubicacionId,
+            activo: sensor.activo,
+          },
+          empresaId,
+        }, empresaId);
+      }
+    } catch (error) {
+      this.logger.warn('⚠️ Error emitiendo evento WebSocket:', error);
+    }
+  }
+
+  async obtenerSensores(empresaId: number, ubicacionId?: number, estado: 'activos' | 'inactivos' | 'todos' = 'activos'): Promise<SensorWithCount[]> {
     try {
       const where: {
         empresaId: number;
-        activo: boolean;
+        activo?: boolean;
         ubicacionId?: number;
       } = {
         empresaId,
-        activo: true,
       };
+
+      if (estado !== 'todos') {
+        where.activo = estado === 'activos';
+      }
 
       if (ubicacionId) {
         where.ubicacionId = ubicacionId;

@@ -1,6 +1,8 @@
 import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { IoTExcludedThrottlerGuard } from './common/guards/iot-excluded-throttler.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -30,14 +32,25 @@ import { ImportacionModule } from './importacion/importacion.module';
 import { CommonModule } from './common/common.module';
 import { WebSocketsModule } from './websockets/websockets.module';
 import mqttConfig from './config/mqtt.config';
+import esp32Config from './config/esp32.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
-      load: [mqttConfig],
+      load: [mqttConfig, esp32Config], // Agregar configuración de ESP32
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minuto
+        limit: 10, // 10 peticiones por minuto
+      },
+      {
+        ttl: 3600000, // 1 hora
+        limit: 100, // 100 peticiones por hora
+      },
+    ]),
     // 🔐 MÓDULOS DE AUTENTICACIÓN Y AUTORIZACIÓN
     AuthModule,
     UsersModule,
@@ -73,7 +86,11 @@ import mqttConfig from './config/mqtt.config';
     PrismaService,
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard, // JwtAuthGuard se ejecuta PRIMERO (autenticación)
+      useClass: IoTExcludedThrottlerGuard, // ThrottlerGuard personalizado que excluye IoT
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard, // JwtAuthGuard se ejecuta SEGUNDO (autenticación)
     },
     // EmpresaGuard se usará a nivel de controlador/método para evitar problemas de orden
   ],

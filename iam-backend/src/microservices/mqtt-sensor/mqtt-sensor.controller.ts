@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Body, UseGuards, Param, Delete, Query, Request, Patch, Res, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Param, Delete, Query, Request, Patch, Res, Logger, UsePipes, ValidationPipe } from '@nestjs/common';
 import { Response } from 'express';
 import { MqttSensorService } from './mqtt-sensor.service';
 import { EmqxApiService, EmqxDevice } from './emqx-api.service';
 import { SensoresService } from '../../sensores/sensores.service';
-import { ESP32AutoConfigService, ESP32AutoConfig } from './esp32-auto-config.service';
+import { ESP32AutoConfigService } from './esp32-auto-config.service';
 import { ESP32BaseCodeService } from './esp32-base-code.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -16,6 +16,8 @@ import { CreateSensorDto, CreateSensorSimpleDto, SensorConfiguracion, CONFIGURAC
 import { CreateSensorLecturaDto } from '../../sensores/dto/create-sensor-lectura.dto';
 import { SensorWithLocation } from '../../sensores/interfaces/sensor-with-location.interface';
 import { SensorTipo } from '@prisma/client';
+import { ESP32AutoConfigDto, ESP32ConfigResponseDto } from './dto/esp32-auto-config.dto';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 
 interface ToggleMqttDto {
   enabled: boolean;
@@ -57,6 +59,8 @@ interface DashboardQuery {
   tipo?: string;
 }
 
+@ApiTags('MQTT Sensor')
+@ApiBearerAuth()
 @Controller('mqtt-sensor')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MqttSensorController {
@@ -259,11 +263,11 @@ export class MqttSensorController {
 
   @Get('sensores/listar')
   @Roles(Rol.SUPERADMIN, Rol.ADMIN)
-  async obtenerSensores(@Request() req, @Query('ubicacionId') ubicacionId?: string) {
+  async obtenerSensores(@Request() req, @Query('ubicacionId') ubicacionId?: string, @Query('estado') estado?: 'activos' | 'inactivos' | 'todos') {
     try {
       const user = req.user as JwtUser;
       const ubicacionIdNum = ubicacionId ? parseInt(ubicacionId) : undefined;
-      return await this.sensoresService.obtenerSensores(user.empresaId!, ubicacionIdNum);
+      return await this.sensoresService.obtenerSensores(user.empresaId!, ubicacionIdNum, estado);
     } catch (error) {
       return {
         error: 'Error obteniendo sensores',
@@ -348,8 +352,11 @@ export class MqttSensorController {
         hasta: query.hasta ? new Date(query.hasta) : undefined,
         limite: query.limite ? parseInt(query.limite) : 100,
       };
-      
-      return await this.sensoresService.obtenerLecturas(user.empresaId!, filtros);
+
+      // Permitir filtrar por sensorId si viene en query (para detalle)
+      const sensorId = (query as any).sensorId ? parseInt((query as any).sensorId as string) : undefined;
+      const lecturas = await this.sensoresService.obtenerLecturas(user.empresaId!, filtros);
+      return sensorId ? lecturas.filter(l => (l as any).sensorId === sensorId) : lecturas;
     } catch (error) {
       return {
         error: 'Error obteniendo lecturas',
@@ -688,18 +695,95 @@ export class MqttSensorController {
   // ENDPOINTS DE CONFIGURACIÓN AUTOMÁTICA ESP32
   // ===========================================
 
+  @ApiOperation({
+    summary: 'Generar configuración automática para ESP32',
+    description: 'Genera una configuración automática completa para ESP32 con sensores, incluyendo credenciales MQTT, QR code y instrucciones paso a paso.'
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Configuración generada exitosamente',
+    type: ESP32ConfigResponseDto
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Datos de entrada inválidos'
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No autorizado - requiere rol ADMIN o SUPERADMIN'
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Error interno del servidor'
+  })
   @Post('esp32/configuracion-automatica')
   @Roles(Rol.SUPERADMIN, Rol.ADMIN)
-  async generarConfiguracionAutomatica(@Body() config: ESP32AutoConfig, @Request() req) {
+  @UsePipes(new ValidationPipe({ 
+    transform: true, 
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    validationError: { target: false, value: false }
+  }))
+  async generarConfiguracionAutomatica(
+    @Body() config: ESP32AutoConfigDto, 
+    @Request() req
+  ): Promise<ESP32ConfigResponseDto> {
     try {
       const user = req.user as JwtUser;
       
-      // Validar que la ubicación pertenece a la empresa del usuario
-      // Aquí podrías agregar validación adicional si es necesario
+      this.logger.log(`Usuario ${user.email} (ID: ${user.id}) generando configuración ESP32 para dispositivo: ${config.deviceName}`);
+
+      // Validar que la ubicación existe y pertenece a la empresa del usuario
+      const ubicacion = await this.prisma.ubicacion.findFirst({
+        where: {
+          id: config.ubicacionId,
+          empresaId: user.empresaId
+        }
+      });
+
+      if (!ubicacion) {
+        this.logger.warn(`Usuario ${user.email} intentó acceder a ubicación ${config.ubicacionId} que no existe o no pertenece a su empresa`);
+        return {
+          success: false,
+          message: 'La ubicación especificada no existe o no tienes acceso a ella'
+        };
+      }
+
+      // Validar que al menos un sensor esté habilitado
+      const sensoresHabilitados = config.sensores.filter(sensor => sensor.enabled);
+      if (sensoresHabilitados.length === 0) {
+        return {
+          success: false,
+          message: 'Debe haber al menos un sensor habilitado'
+        };
+      }
+
+      // Validar que no hay pines duplicados para sensores habilitados
+      const pinesUsados = new Set();
+      for (const sensor of sensoresHabilitados) {
+        if (pinesUsados.has(sensor.pin)) {
+          return {
+            success: false,
+            message: `El pin ${sensor.pin} está siendo usado por múltiples sensores. Cada sensor debe usar un pin único.`
+          };
+        }
+        pinesUsados.add(sensor.pin);
+      }
       
-      const resultado = await this.esp32AutoConfigService.generarConfiguracionAutomatica(config);
+      // Convertir DTO a interfaz del servicio
+      const serviceConfig = {
+        deviceName: config.deviceName,
+        wifiSSID: config.wifiSSID,
+        wifiPassword: config.wifiPassword,
+        ubicacionId: config.ubicacionId,
+        sensores: config.sensores
+      };
+
+      const resultado = await this.esp32AutoConfigService.generarConfiguracionAutomatica(serviceConfig);
       
       if (resultado.success) {
+        this.logger.log(`Configuración ESP32 generada exitosamente para usuario ${user.email}, dispositivo: ${config.deviceName}`);
+        
         return {
           ...resultado,
           instrucciones: [
@@ -715,11 +799,14 @@ export class MqttSensorController {
         };
       }
       
+      this.logger.error(`Error generando configuración ESP32 para usuario ${user.email}: ${resultado.message}`);
       return resultado;
     } catch (error) {
+      this.logger.error(`Error inesperado en generarConfiguracionAutomatica para usuario ${req.user?.email}: ${error.message}`, error.stack);
+      
       return {
         success: false,
-        message: `Error: ${error.message}`,
+        message: 'Error interno del servidor. Por favor, inténtalo de nuevo más tarde.',
       };
     }
   }
