@@ -46,8 +46,8 @@ ${tienePresion ? '#include <Adafruit_Sensor.h>\n#include <Adafruit_BMP280.h>' : 
 String wifiSSID = "${config.wifi.ssid}";
 String wifiPassword = "${config.wifi.password}";
 
-// Configuración API (configuración inicial del usuario)
-String apiBaseUrl = "http://192.168.0.4:3001"; // 🔧 CORREGIR: IP real del servidor
+// Configuración API (se obtiene automáticamente del backend)
+String apiBaseUrl = "${config.api.baseUrl}"; // 🔧 IP detectada automáticamente
 String apiToken = "${config.api.token}";
 String apiEndpoint = "/iot/lecturas"; // Endpoint corregido
 
@@ -84,7 +84,66 @@ bool verificarConexionBackend() {
     Serial.println("   • Puerto: " + String(apiPort));
     Serial.println("   • Servicio backend ejecutándose");
     Serial.println("   • Firewall/red");
+    
+    // 🔧 NUEVO: Intentar actualizar la IP del servidor automáticamente
+    Serial.println("🔄 Intentando actualizar IP del servidor automáticamente...");
+    if (actualizarIPServidor()) {
+      Serial.println("✅ IP actualizada, verificando conexión nuevamente...");
+      http.end();
+      return verificarConexionBackend(); // Reintentar con la nueva IP
+    }
+    
     backendConectado = false;
+    http.end();
+    return false;
+  }
+}
+
+/**
+ * 🔧 NUEVO: Actualiza la IP del servidor automáticamente
+ * Esta función se llama cuando se detecta un cambio de IP
+ */
+bool actualizarIPServidor() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("❌ WiFi no conectado para actualizar IP del servidor");
+    return false;
+  }
+
+  HTTPClient http;
+  String url = String(apiBaseUrl) + "/iot/server-info";
+  
+  Serial.println("🔍 Verificando IP del servidor: " + url);
+  
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-empresa-id", String(${config.empresaId}));
+  http.addHeader("x-device-type", "esp32");
+  http.addHeader("x-esp32-device", "true");
+  
+  http.setTimeout(5000);
+  
+  int httpCode = http.GET();
+  
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = http.getString();
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, payload);
+    
+    if (doc.containsKey("serverIP")) {
+      String nuevaIP = doc["serverIP"].as<String>();
+      if (nuevaIP != "" && nuevaIP != "192.168.0.4") {
+        String nuevaURL = "http://" + nuevaIP + ":3001";
+        Serial.println("🔄 IP del servidor actualizada: " + nuevaURL);
+        apiBaseUrl = nuevaURL;
+        http.end();
+        return true;
+      }
+    }
+    
+    http.end();
+    return false;
+  } else {
+    Serial.println("❌ Error obteniendo información del servidor. HTTP Code: " + String(httpCode));
     http.end();
     return false;
   }
