@@ -1,8 +1,9 @@
 import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { IoTExcludedThrottlerGuard } from './common/guards/iot-excluded-throttler.guard';
+import { ScheduleModule } from '@nestjs/schedule';
+import { APP_GUARD } from '@nestjs/core';
+import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -33,14 +34,16 @@ import { CommonModule } from './common/common.module';
 import { WebSocketsModule } from './websockets/websockets.module';
 import mqttConfig from './config/mqtt.config';
 import esp32Config from './config/esp32.config';
+import retentionConfig from './config/retention.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
-      load: [mqttConfig, esp32Config], // Agregar configuración de ESP32
+      load: [mqttConfig, esp32Config, retentionConfig], // Agregar configuración de ESP32 y retención
     }),
+    ScheduleModule.forRoot(), // 🆕 NUEVO - Módulo de scheduling para monitoreo automático
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minuto
@@ -86,7 +89,7 @@ import esp32Config from './config/esp32.config';
     PrismaService,
     {
       provide: APP_GUARD,
-      useClass: IoTExcludedThrottlerGuard, // ThrottlerGuard personalizado que excluye IoT
+      useClass: CustomThrottlerGuard, // ThrottlerGuard personalizado simplificado
     },
     {
       provide: APP_GUARD,
@@ -103,15 +106,17 @@ export class AppModule {
       .forRoutes(
         { path: 'dashboard', method: RequestMethod.ALL },
         { path: 'dashboard-cqrs', method: RequestMethod.ALL },
-        { path: 'dashboard/*', method: RequestMethod.ALL },
-        { path: 'dashboard-cqrs/*', method: RequestMethod.ALL }
+        { path: 'dashboard/*path', method: RequestMethod.ALL },
+        { path: 'dashboard-cqrs/*path', method: RequestMethod.ALL }
       )
-      // 🔒 MIDDLEWARE DE SEGURIDAD (excluyendo health checks)
+      // 🔒 MIDDLEWARE DE SEGURIDAD (excluyendo health checks y rutas IoT)
       .apply(SecurityMiddleware)
       .exclude(
         { path: 'health', method: RequestMethod.ALL },
-        { path: 'health/(.*)', method: RequestMethod.ALL }
+        { path: 'health/*path', method: RequestMethod.ALL },
+        { path: 'sensores/iot/*path', method: RequestMethod.ALL },
+        { path: 'iot/*path', method: RequestMethod.ALL }
       )
-      .forRoutes({ path: '*', method: RequestMethod.ALL });
+      .forRoutes({ path: '*path', method: RequestMethod.ALL });
   }
 }

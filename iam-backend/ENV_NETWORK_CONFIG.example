@@ -1,0 +1,106 @@
+# ===========================================
+# CONFIGURACIÓN INTELIGENTE DE RED POR ENTORNO
+# ===========================================
+
+# 🎯 SISTEMA INTELIGENTE AUTOMÁTICO
+# El sistema detecta automáticamente si estás en desarrollo o producción
+# y configura la URL apropiada sin intervención manual.
+
+# ===========================================
+# 🏠 ENTORNO DE DESARROLLO (Automático)
+# ===========================================
+
+# El sistema detectará AUTOMÁTICAMENTE tu IP local (ej: 192.168.0.11)
+# No necesitas configurar nada en desarrollo.
+
+# Si quieres forzar una IP específica, puedes usar:
+# LOCAL_IP=192.168.0.11
+
+# ===========================================
+# 🌍 ENTORNO DE PRODUCCIÓN (Automático)
+# ===========================================
+
+# En producción, el sistema usará AUTOMÁTICAMENTE tu URL externa:
+
+# OPCIÓN 1: Configurar URL externa (RECOMENDADO)
+EXTERNAL_API_BASE_URL=https://api.iaminventario.com.mx
+# O
+BACKEND_PUBLIC_URL=https://api.iaminventario.com.mx
+
+# OPCIÓN 2: Cambiar NODE_ENV a production
+NODE_ENV=production
+
+# ===========================================
+# 🔍 DETECCIÓN AUTOMÁTICA DE ENTORNO
+# ===========================================
+
+# El sistema detecta automáticamente si estás en:
+# ✅ DESARROLLO: NODE_ENV=development (o no configurado)
+# ✅ PRODUCCIÓN: NODE_ENV=production O EXTERNAL_API_BASE_URL configurado
+# ✅ CLOUD: Vercel, Netlify, Docker, Kubernetes, etc.
+
+# ===========================================
+# 📱 COMPORTAMIENTO DEL ARDUINO
+# ===========================================
+
+# 🏠 DESARROLLO:
+# Arduino → IP local detectada automáticamente (192.168.0.11:3001)
+
+# 🌍 PRODUCCIÓN:
+# Arduino → URL externa configurada (https://api.iaminventario.com.mx)
+
+# ===========================================
+# 🚀 BENEFICIOS DE LA NUEVA LÓGICA
+# ===========================================
+
+# ✅ DESARROLLO:
+#   - Detección automática de IP local
+#   - Sin configuración manual
+#   - Funciona en cualquier red local
+
+# ✅ PRODUCCIÓN:
+#   - Usa URL externa automáticamente
+#   - No intenta detectar IP local del servidor
+#   - Configuración mínima requerida
+
+# ✅ INTELIGENTE:
+#   - Detecta entorno automáticamente
+#   - Cambia comportamiento según contexto
+#   - Fallbacks robustos en cada caso
+
+# ===========================================
+# 📋 CONFIGURACIÓN MÍNIMA REQUERIDA
+# ===========================================
+
+# 🏠 DESARROLLO: NADA (automático)
+# 🌍 PRODUCCIÓN: Solo EXTERNAL_API_BASE_URL
+
+# ===========================================
+# 🔧 CONFIGURACIÓN EXISTENTE
+# ===========================================
+
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
+
+# JWT
+JWT_SECRET="your-secret-key"
+JWT_EXPIRES_IN="24h"
+JWT_ISSUER="http://localhost:3001"
+JWT_AUDIENCE="http://localhost:3001"
+
+# Redis
+REDIS_URL="redis://localhost:6379"
+
+# MQTT
+MQTT_BROKER_URL="mqtt://localhost:1883"
+MQTT_USERNAME="your-mqtt-username"
+MQTT_PASSWORD="your-mqtt-password"
+
+# ===========================================
+# 🎯 RESUMEN FINAL
+# ===========================================
+
+# 🏠 DESARROLLO: Todo automático, sin configuración
+# 🌍 PRODUCCIÓN: Solo EXTERNAL_API_BASE_URL=https://api.iaminventario.com.mx
+# 🔄 CAMBIO DE RED: Automático, sin reiniciar
+# 📱 ARDUINO: Siempre con la URL correcta

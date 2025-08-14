@@ -494,45 +494,25 @@ export class SensoresService {
 
   private async emitirLecturaPorWebSocket(lectura: SensorLectura, empresaId: number): Promise<void> {
     try {
-      if (this.sensoresGateway) {
-        // Calcular estado basado en el valor y tipo del sensor
-        const estado = this.analizarLectura(lectura.tipo, lectura.valor);
-        
-        // 🔧 CORREGIR: Emitir a todos los clientes conectados, no solo a la empresa
-        // Esto permite que el frontend reciba las lecturas sin necesidad de suscripción específica
-        this.sensoresGateway.server.emit('nueva_lectura', {
-          lectura: {
-            id: lectura.id,
-            tipo: lectura.tipo,
-            valor: lectura.valor,
-            unidad: lectura.unidad,
-            fecha: lectura.fecha,
-            estado: estado,
-            sensorId: lectura.sensorId,
-            ubicacionId: lectura.ubicacionId,
-            empresaId: empresaId, // Agregar empresaId para filtrado en frontend
-          },
-          timestamp: new Date().toISOString(),
-        });
+      // Calcular estado basado en el valor y tipo del sensor
+      const estado = this.analizarLectura(lectura.tipo, lectura.valor);
+      
+      this.logger.log(`📡 Emitiendo lectura por WebSocket: ${lectura.tipo} - ${lectura.valor}${lectura.unidad} para empresa ${empresaId}`);
+      
+      // 🔧 CORREGIR: Usar el método del gateway que ya está corregido
+      await this.sensoresGateway.emitirLecturaSensor({
+        id: lectura.id,
+        tipo: lectura.tipo,
+        valor: lectura.valor,
+        unidad: lectura.unidad,
+        fecha: lectura.fecha,
+        estado: estado,
+        sensorId: lectura.sensorId,
+        ubicacionId: lectura.ubicacionId,
+        empresaId: empresaId,
+      }, empresaId);
 
-        // También emitir específicamente a la empresa (para compatibilidad)
-        this.sensoresGateway.server.to(`empresa-${empresaId}`).emit('nueva_lectura', {
-          lectura: {
-            id: lectura.id,
-            tipo: lectura.tipo,
-            valor: lectura.valor,
-            unidad: lectura.unidad,
-            fecha: lectura.fecha,
-            estado: estado,
-            sensorId: lectura.sensorId,
-            ubicacionId: lectura.ubicacionId,
-            empresaId: empresaId,
-          },
-          timestamp: new Date().toISOString(),
-        });
-
-        this.logger.log(`📡 Lectura emitida por WebSocket: ${lectura.tipo} - ${lectura.valor}${lectura.unidad}`);
-      }
+      this.logger.log(`📡 Lectura emitida por WebSocket: ${lectura.tipo} - ${lectura.valor}${lectura.unidad}`);
     } catch (error) {
       this.logger.error('Error emitiendo lectura por WebSocket:', error);
     }
@@ -600,9 +580,12 @@ export class SensoresService {
   // Método mejorado para registro de sensor con configuración automática
   async registrarSensor(dto: CreateSensorDto, empresaId: number): Promise<SensorWithLocation> {
     try {
+      this.logger.log(`🔧 ===== INICIO REGISTRO SENSOR EN SERVICIO =====`);
       this.logger.log(`🔧 Iniciando registro de sensor: ${dto.nombre} - Tipo: ${dto.tipo} - Empresa: ${empresaId}`);
+      this.logger.log(`📊 DTO completo recibido: ${JSON.stringify(dto, null, 2)}`);
 
       // Validar que la empresa existe
+      this.logger.log(`🔍 Verificando empresa ${empresaId}...`);
       const empresa = await this.prisma.empresa.findUnique({
         where: { id: empresaId },
       });
@@ -610,8 +593,10 @@ export class SensoresService {
         this.logger.error(`❌ Empresa no encontrada: ${empresaId}`);
         throw new Error('Empresa no encontrada');
       }
+      this.logger.log(`✅ Empresa encontrada: ${empresa.nombre}`);
 
       // Validar que la ubicación pertenece a la empresa
+      this.logger.log(`🔍 Verificando ubicación ${dto.ubicacionId} para empresa ${empresaId}...`);
       const ubicacion = await this.prisma.ubicacion.findFirst({
         where: { id: dto.ubicacionId, empresaId, activa: true },
       });
@@ -619,52 +604,83 @@ export class SensoresService {
         this.logger.error(`❌ Ubicación no encontrada o no pertenece a la empresa: ${dto.ubicacionId} - Empresa: ${empresaId}`);
         throw new Error('Ubicación no encontrada o no pertenece a la empresa');
       }
+      this.logger.log(`✅ Ubicación encontrada: ${ubicacion.nombre}`);
 
-      // Validar que no existe un sensor con el mismo nombre en la misma ubicación
-      const sensorExistente = await this.prisma.sensor.findFirst({
+      // Idempotencia: si existe (activo o inactivo), actualizamos; si no, creamos
+      this.logger.log(`🔍 Verificando si ya existe un sensor con el mismo nombre (idempotente)...`);
+      const existenteCualquiera = await this.prisma.sensor.findFirst({
         where: {
           nombre: dto.nombre,
           ubicacionId: dto.ubicacionId,
           empresaId,
-          activo: true,
         },
+        select: { id: true, activo: true }
       });
-      if (sensorExistente) {
-        this.logger.warn(`⚠️ Ya existe un sensor con ese nombre en esta ubicación: ${dto.nombre} - Ubicación: ${dto.ubicacionId}`);
-        throw new Error('Ya existe un sensor con ese nombre en esta ubicación');
+      if (existenteCualquiera) {
+        this.logger.warn(`⚠️ Sensor existente encontrado (id=${existenteCualquiera.id}) — se actualizará en lugar de crear`);
       }
 
       // Aplicar configuración predefinida si no se proporciona
+      this.logger.log(`⚙️ Procesando configuración del sensor...`);
       let configuracionFinal = dto.configuracion;
-      if (!configuracionFinal) {
-        configuracionFinal = CONFIGURACIONES_PREDEFINIDAS[dto.tipo];
-        this.logger.log(`⚙️ Aplicando configuración predefinida para sensor tipo ${dto.tipo}`);
+      
+      // 🔧 VALIDAR Y NORMALIZAR CONFIGURACIÓN
+      if (!configuracionFinal || typeof configuracionFinal !== 'object') {
+        this.logger.log(`⚠️ No hay configuración válida, usando configuración predefinida para ${dto.tipo}`);
+        configuracionFinal = { ...CONFIGURACIONES_PREDEFINIDAS[dto.tipo] };
       } else {
         // Combinar configuración personalizada con predefinida
+        this.logger.log(`⚙️ Combinando configuración personalizada con predefinida para sensor tipo ${dto.tipo}`);
         configuracionFinal = {
           ...CONFIGURACIONES_PREDEFINIDAS[dto.tipo],
           ...configuracionFinal
         };
-        this.logger.log(`⚙️ Combinando configuración personalizada con predefinida para sensor tipo ${dto.tipo}`);
       }
+      
+      // 🔧 ASEGURAR QUE TODOS LOS CAMPOS REQUERIDOS ESTÉN PRESENTES
+      const configuracionBase = CONFIGURACIONES_PREDEFINIDAS[dto.tipo];
+      for (const [key, value] of Object.entries(configuracionBase)) {
+        if (configuracionFinal[key] === undefined) {
+          this.logger.log(`🔧 Agregando campo faltante: ${key} = ${value}`);
+          configuracionFinal[key] = value;
+        }
+      }
+      
+      this.logger.log(`⚙️ Configuración final: ${JSON.stringify(configuracionFinal, null, 2)}`);
 
       // Validar configuración del sensor según el tipo
+      this.logger.log(`🔍 Validando configuración del sensor...`);
       this.validarConfiguracionSensor(dto.tipo, configuracionFinal);
+      this.logger.log(`✅ Configuración del sensor válida`);
 
-      this.logger.log(`📝 Creando sensor en base de datos...`);
-      const sensor = await this.prisma.sensor.create({
-        data: {
-          nombre: dto.nombre,
+      // Preparar datos para la base de datos
+      const sensorData = {
+        nombre: dto.nombre,
+        tipo: dto.tipo,
+        ubicacionId: dto.ubicacionId,
+        empresaId,
+        activo: true, // 🔧 FORZAR: Siempre activo para sensores IoT
+        configuracion: JSON.parse(JSON.stringify(configuracionFinal)),
+        descripcion: dto.descripcion || `Sensor ${dto.nombre} registrado desde ESP32`,
+        // Remover campos que no existen en el modelo Prisma
+        // modelo: dto.modelo,
+        // fabricante: dto.fabricante,
+      };
+      
+      this.logger.log(`📝 Datos que se enviarán a la base de datos: ${JSON.stringify(sensorData, null, 2)}`);
+
+      let sensor;
+      this.logger.log(existenteCualquiera ? `📝 Actualizando sensor existente en base de datos...` : `📝 Creando sensor en base de datos...`);
+      sensor = await this.prisma.sensor.upsert({
+        where: { nombre_ubicacionId: { nombre: dto.nombre, ubicacionId: dto.ubicacionId } },
+        update: {
           tipo: dto.tipo,
-          ubicacionId: dto.ubicacionId,
+          activo: true,
+          configuracion: sensorData.configuracion,
+          descripcion: sensorData.descripcion,
           empresaId,
-          activo: dto.activo ?? true,
-          configuracion: JSON.parse(JSON.stringify(configuracionFinal)),
-          descripcion: dto.descripcion,
-          // Remover campos que no existen en el modelo Prisma
-          // modelo: dto.modelo,
-          // fabricante: dto.fabricante,
         },
+        create: sensorData,
         include: {
           ubicacion: {
             select: {
@@ -679,6 +695,7 @@ export class SensoresService {
       
       // Emitir evento por WebSocket si está disponible
       try {
+        this.logger.log(`📡 Intentando emitir evento WebSocket...`);
         await this.emitirSensorRegistradoPorWebSocket(sensor, empresaId);
         this.logger.log(`📡 Evento WebSocket emitido para sensor: ${sensor.id}`);
       } catch (wsError) {
@@ -688,16 +705,21 @@ export class SensoresService {
 
       // Emitir evento de auditoría
       try {
+        this.logger.log(`📊 Intentando emitir evento de auditoría...`);
         await this.emitirEventoAuditoria('SENSOR_CREADO', sensor, empresaId);
+        this.logger.log(`📊 Evento de auditoría emitido`);
       } catch (auditError) {
         this.logger.warn('⚠️ Error emitiendo evento de auditoría:', auditError);
       }
 
+      this.logger.log(`🔧 ===== FIN REGISTRO SENSOR EN SERVICIO EXITOSO =====`);
       return sensor;
     } catch (error) {
+      this.logger.error('❌ ===== ERROR EN REGISTRO SENSOR EN SERVICIO =====');
       this.logger.error('❌ Error registrando sensor:', error);
       this.logger.error(`📊 Datos del sensor: ${JSON.stringify(dto)}`);
       this.logger.error(`🏢 Empresa ID: ${empresaId}`);
+      this.logger.error(`❌ ===== FIN ERROR EN REGISTRO SENSOR EN SERVICIO =====`);
       throw error;
     }
   }
@@ -730,32 +752,58 @@ export class SensoresService {
     return CONFIGURACIONES_PREDEFINIDAS[tipo];
   }
 
-  private validarConfiguracionSensor(tipo: SensorTipo, configuracion: SensorConfiguracion): void {
-    switch (tipo) {
-      case 'TEMPERATURA':
-        if (configuracion.rango_min !== undefined && configuracion.rango_max !== undefined) {
-          if (configuracion.rango_min >= configuracion.rango_max) {
-            throw new Error('El rango mínimo debe ser menor al rango máximo para sensores de temperatura');
+  private validarConfiguracionSensor(tipo: SensorTipo, configuracion: any): void {
+    try {
+      this.logger.log(`🔍 Validando configuración para sensor tipo: ${tipo}`);
+      this.logger.log(`📊 Configuración recibida: ${JSON.stringify(configuracion, null, 2)}`);
+      
+      // Si no hay configuración, usar la predefinida
+      if (!configuracion || typeof configuracion !== 'object') {
+        this.logger.log(`⚠️ No hay configuración válida, usando configuración predefinida para ${tipo}`);
+        configuracion = CONFIGURACIONES_PREDEFINIDAS[tipo];
+      }
+      
+      // Validar que la configuración tenga las propiedades básicas
+      if (!configuracion.unidad) {
+        this.logger.warn(`⚠️ Configuración sin unidad para sensor ${tipo}, usando valor por defecto`);
+        configuracion.unidad = CONFIGURACIONES_PREDEFINIDAS[tipo].unidad;
+      }
+      
+      // Validaciones específicas por tipo
+      switch (tipo) {
+        case 'TEMPERATURA':
+          if (configuracion.rango_min !== undefined && configuracion.rango_max !== undefined) {
+            if (configuracion.rango_min >= configuracion.rango_max) {
+              throw new Error('El rango mínimo debe ser menor al rango máximo para sensores de temperatura');
+            }
           }
-        }
-        break;
-      case 'HUMEDAD':
-        if (configuracion.rango_min !== undefined && configuracion.rango_max !== undefined) {
-          if (configuracion.rango_min < 0 || configuracion.rango_max > 100) {
-            throw new Error('El rango de humedad debe estar entre 0 y 100');
+          break;
+        case 'HUMEDAD':
+          if (configuracion.rango_min !== undefined && configuracion.rango_max !== undefined) {
+            if (configuracion.rango_min < 0 || configuracion.rango_max > 100) {
+              throw new Error('El rango de humedad debe estar entre 0 y 100');
+            }
           }
-        }
-        break;
-      case 'PESO':
-        if (configuracion.rango_min !== undefined && configuracion.rango_min < 0) {
-          throw new Error('El peso mínimo no puede ser negativo');
-        }
-        break;
-      case 'PRESION':
-        if (configuracion.rango_min !== undefined && configuracion.rango_min < 0) {
-          throw new Error('La presión mínima no puede ser negativa');
-        }
-        break;
+          break;
+        case 'PESO':
+          if (configuracion.rango_min !== undefined && configuracion.rango_min < 0) {
+            throw new Error('El peso mínimo no puede ser negativo');
+          }
+          break;
+        case 'PRESION':
+          if (configuracion.rango_min !== undefined && configuracion.rango_min < 0) {
+            throw new Error('La presión mínima no puede ser negativa');
+          }
+          break;
+        default:
+          this.logger.warn(`⚠️ Tipo de sensor no reconocido: ${tipo}, saltando validaciones específicas`);
+          break;
+      }
+      
+      this.logger.log(`✅ Configuración validada exitosamente para sensor tipo: ${tipo}`);
+    } catch (error) {
+      this.logger.error(`❌ Error validando configuración del sensor tipo ${tipo}:`, error);
+      throw new Error(`Error validando configuración del sensor: ${error.message}`);
     }
   }
 

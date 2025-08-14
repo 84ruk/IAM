@@ -87,19 +87,47 @@ export class OAuthService {
       where: {
         OR: [{ googleId: googleUser.googleId }, { email: googleUser.email }],
       },
+      include: {
+        empresa: true // Incluir información de empresa para verificación
+      }
     });
 
     if (user) {
       // Usuario existe, actualizar si es necesario
       return await this.updateExistingGoogleUser(user, googleUser);
     } else {
-      // Crear nuevo usuario
-      return await this.createNewGoogleUser(googleUser);
+      // Verificar si existe una empresa asociada a este email
+      const existingEmpresa = await this.prisma.empresa.findFirst({
+        where: {
+          emailContacto: googleUser.email
+        }
+      });
+
+      if (existingEmpresa) {
+        // Si existe empresa, verificar si ya tiene usuario asignado
+        const existingUserForEmpresa = await this.prisma.usuario.findFirst({
+          where: {
+            empresaId: existingEmpresa.id
+          }
+        });
+
+        if (existingUserForEmpresa) {
+          throw new BadRequestException(
+            `Ya existe una empresa registrada con este email (${googleUser.email}) y tiene un usuario asignado. Contacta al administrador.`
+          );
+        }
+
+        // Si existe empresa pero no tiene usuario, crear usuario y asignarlo
+        return await this.createNewGoogleUserWithExistingEmpresa(googleUser, existingEmpresa);
+      } else {
+        // Crear nuevo usuario sin empresa (setup pendiente)
+        return await this.createNewGoogleUser(googleUser);
+      }
     }
   }
 
   /**
-   * Actualizar usuario existente con datos de Google
+   * Actualizar usuario existente de Google
    */
   private async updateExistingGoogleUser(
     user: any,
@@ -110,6 +138,32 @@ export class OAuthService {
       throw new BadRequestException(
         'Este email ya está registrado con otro método de autenticación',
       );
+    }
+
+    // Si el usuario ya tiene empresa configurada, verificar que sea la correcta
+    if (user.empresaId) {
+      const empresa = await this.prisma.empresa.findUnique({
+        where: { id: user.empresaId }
+      });
+
+      if (empresa && empresa.emailContacto === googleUser.email) {
+        // El usuario ya tiene la empresa correcta asignada
+        console.log(`✅ Usuario ${user.email} ya tiene empresa ${empresa.nombre} asignada`);
+      } else {
+        // Verificar si hay conflicto de empresa
+        const conflictingEmpresa = await this.prisma.empresa.findFirst({
+          where: {
+            emailContacto: googleUser.email,
+            id: { not: user.empresaId } // Diferente a la actual
+          }
+        });
+
+        if (conflictingEmpresa) {
+          throw new BadRequestException(
+            `Conflicto de empresa: El usuario tiene empresa ${empresa?.nombre || 'desconocida'} pero el email ${googleUser.email} está asociado a empresa ${conflictingEmpresa.nombre}. Contacta al administrador.`
+          );
+        }
+      }
     }
 
     // Actualizar datos si es necesario
@@ -130,6 +184,34 @@ export class OAuthService {
         data: updateData,
       });
     }
+
+    return user;
+  }
+
+  /**
+   * Crear nuevo usuario de Google con empresa existente
+   */
+  private async createNewGoogleUserWithExistingEmpresa(googleUser: GoogleUserData, existingEmpresa: any) {
+    const userData = {
+      nombre: googleUser.nombre || 'Usuario Google',
+      email: googleUser.email,
+      googleId: googleUser.googleId,
+      authProvider: 'google',
+      rol: 'ADMIN' as any, // Rol por defecto, se puede cambiar después
+      setupCompletado: true, // Ya tiene empresa, setup completado
+      empresaId: existingEmpresa.id, // Asignar empresa existente
+    };
+
+    const user = await this.prisma.usuario.create({ data: userData });
+
+    // Log del registro exitoso con empresa existente
+    this.secureLogger.logUserRegistration(user.email, user.nombre, user.id);
+    this.jwtAuditService.logJwtEvent('GOOGLE_REGISTER_WITH_EMPRESA', user.id, user.email, {
+      provider: 'google',
+      googleId: googleUser.googleId,
+      empresaId: existingEmpresa.id,
+      empresaNombre: existingEmpresa.nombre
+    });
 
     return user;
   }

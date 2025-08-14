@@ -29,6 +29,7 @@ model Empresa {
   sensores      Sensor[]
   lecturasSensores SensorLectura[]
   smsDeliveryLogs SMSDeliveryLog[]
+  dispositivosIoT DispositivoIoT[]
 }
 
 model Usuario {
@@ -279,6 +280,7 @@ model Ubicacion {
   lecturas    SensorLectura[]
   dispositivosIoT DispositivoIoT[]
   kpiEventos  KpiEvento[]
+  alertas     AlertHistory[]
   
   @@index([empresaId])
   @@index([empresaId, activa])
@@ -288,6 +290,7 @@ model Sensor {
   id          Int        @id @default(autoincrement())
   nombre      String
   tipo        SensorTipo
+  descripcion String?
   ubicacionId Int
   empresaId   Int
   activo      Boolean    @default(true)
@@ -301,6 +304,7 @@ model Sensor {
   empresa     Empresa   @relation(fields: [empresaId], references: [id])
   dispositivoIoT DispositivoIoT? @relation(fields: [dispositivoIoTId], references: [id])
   lecturas    SensorLectura[]
+  alertas     AlertHistory[]
   
   @@index([ubicacionId])
   @@index([empresaId])
@@ -363,6 +367,9 @@ model AlertHistory {
   mensaje             String
   productoId          Int?
   productoNombre      String?
+  sensorId            Int?
+  valor               String?
+  ubicacionId         Int?
   destinatarios       String[]
   estado              String    @default("ENVIADA")
   fechaEnvio          DateTime  @default(now())
@@ -376,6 +383,8 @@ model AlertHistory {
   // ✅ Relaciones
   empresa             Empresa   @relation(fields: [empresaId], references: [id])
   producto            Producto? @relation(fields: [productoId], references: [id])
+  sensor              Sensor?   @relation(fields: [sensorId], references: [id])
+  ubicacion           Ubicacion? @relation(fields: [ubicacionId], references: [id])
   smsDeliveryLogs     SMSDeliveryLog[]
 
   @@index([empresaId])
@@ -535,21 +544,33 @@ enum SensorTipo {
 model DispositivoIoT {
   id                Int      @id @default(autoincrement())
   deviceId          String   @unique
+  deviceName        String
   nombre            String
   tipo              String   @default("ESP32")
   ubicacionId       Int
+  empresaId         Int
   activo            Boolean  @default(true)
   configuracion     Json?
+  wifiSSID          String?
+  wifiPassword      String?
+  apiBaseUrl        String?
+  apiToken          String?
+  apiEndpoint       String?
+  sensoresConfigurados Json?
+  intervaloLecturas Int?     @default(30000)
+  ultimaLectura     DateTime?
   ultimaActualizacion DateTime @default(now())
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   //  Relaciones
   ubicacion         Ubicacion @relation(fields: [ubicacionId], references: [id])
+  empresa           Empresa   @relation(fields: [empresaId], references: [id])
   sensores          Sensor[]
 
   @@index([deviceId])
   @@index([ubicacionId])
+  @@index([empresaId])
   @@index([tipo])
   @@index([activo])
 }

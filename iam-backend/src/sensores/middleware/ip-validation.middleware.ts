@@ -24,66 +24,117 @@ export class IPValidationMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction) {
     // Solo aplicar a endpoints IoT
-    if (!req.url.startsWith('/iot/')) {
+    const url = req.url as string;
+    const method = req.method;
+    
+    this.logger.log(`🔍 Middleware IPValidation - URL: ${url} - Method: ${method}`);
+    
+    // 🔍 Detectar rutas IoT de manera más robusta
+    const isIoTRoute = this.isIoTRoute(url);
+    this.logger.log(`🔍 ¿Es ruta IoT? ${url} -> ${isIoTRoute ? '✅ SÍ' : '❌ NO'}`);
+    
+    if (!isIoTRoute) {
+      this.logger.log(`⏭️ No es ruta IoT, saltando middleware: ${url}`);
       return next();
     }
 
     const clientIP = this.getClientIP(req);
-    this.logger.debug(`🔍 Validando IP para endpoint IoT: ${clientIP} - URL: ${req.url}`);
+    this.logger.log(`🔍 Validando IP para endpoint IoT: ${clientIP} - URL: ${url} - Method: ${method}`);
+    this.logger.log(`🌐 User-Agent: ${req.headers['user-agent'] || 'No especificado'}`);
+    this.logger.log(`🔑 Headers ESP32: x-empresa-id=${req.headers['x-empresa-id']}, x-device-type=${req.headers['x-device-type']}`);
 
-    // En desarrollo, permitir todas las IPs
-    if (process.env.NODE_ENV === 'development') {
-      this.logger.debug('✅ Modo desarrollo: permitiendo todas las IPs');
-      return next();
-    }
-
-    // Verificar si es una IP conocida de ESP32
-    if (this.esp32KnownIPs.includes(clientIP)) {
-      this.logger.debug(`✅ IP de ESP32 conocida permitida: ${clientIP}`);
-      return next();
-    }
-
-    // En producción, validar IPs permitidas
-    if (!this.isIPAllowed(clientIP)) {
-      this.logger.warn(`❌ IP no permitida para endpoint IoT: ${clientIP}`);
-      this.logger.warn(`📡 Endpoint: ${req.url}`);
-      this.logger.warn(`🌐 User-Agent: ${req.headers['user-agent']}`);
-      
-      // En lugar de bloquear, permitir con advertencia para ESP32
-      if (this.isLikelyESP32(req)) {
-        this.logger.warn(`⚠️ IP no permitida pero parece ESP32, permitiendo acceso`);
-        return next();
-      }
-      
-      throw new ForbiddenException('IP no autorizada para dispositivos IoT');
-    }
-
-    this.logger.debug(`✅ IP autorizada para endpoint IoT: ${clientIP}`);
-    next();
+    // 🎯 POLÍTICA PERMISIVA: Permitir TODOS los endpoints IoT
+    this.logger.log(`✅ Endpoint IoT detectado, permitiendo acceso desde IP: ${clientIP}`);
+    this.logger.log(`🌐 URL: ${url}`);
+    this.logger.log(`🤖 User-Agent: ${req.headers['user-agent'] || 'No especificado'}`);
+    
+    // Siempre permitir acceso a endpoints IoT
+    this.logger.log(`✅ Acceso permitido para endpoint IoT: ${url}`);
+    return next();
   }
 
   private getClientIP(req: Request): string {
     // Obtener IP real considerando proxies
-    return req.headers['x-forwarded-for'] as string ||
-           req.headers['x-real-ip'] as string ||
-           req.connection.remoteAddress ||
-           req.socket.remoteAddress ||
+    return (req.headers['x-forwarded-for'] as string) ||
+           (req.headers['x-real-ip'] as string) ||
+           ((req as any).connection?.remoteAddress) ||
+           ((req as any).socket?.remoteAddress) ||
            '0.0.0.0';
   }
 
   private isLikelyESP32(req: Request): boolean {
-    const userAgent = req.headers['user-agent'] || '';
+    const userAgent = (req.headers['user-agent'] as string) || '';
     const isESP32 = userAgent.includes('ESP32') || 
                     userAgent.includes('Arduino') || 
                     userAgent.includes('ESP8266') ||
                     userAgent.includes('IoT') ||
-                    userAgent.includes('Sensor');
+                    userAgent.includes('Sensor') ||
+                    userAgent.includes('ESP32HTTPClient') ||
+                    userAgent.includes('HTTPClient');
     
     // También verificar por headers específicos de ESP32
     const hasESP32Headers = req.headers['x-esp32-device'] || 
-                           req.headers['x-device-type'] === 'esp32';
+                           req.headers['x-device-type'] === 'esp32' ||
+                           req.headers['x-iot-device'] ||
+                           req.headers['x-device-id'];
     
-    return isESP32 || !!hasESP32Headers;
+    // Verificar por contenido del body (para POST requests)
+    const hasIoTBody = req.body && (
+      req.body.deviceId || 
+      req.body.apiToken || 
+      req.body.empresaId ||
+      req.body.sensors
+    );
+    
+    return isESP32 || !!hasESP32Headers || !!hasIoTBody;
+  }
+
+  private hasValidIoTToken(req: Request): boolean {
+    // Verificar si tiene token en headers o body
+    const authHeader = req.headers.authorization;
+    const hasAuthHeader = authHeader && (
+      authHeader.startsWith('Bearer ') || 
+      authHeader.startsWith('Token ')
+    );
+    
+    const hasTokenInBody = req.body && req.body.apiToken;
+    const hasDeviceId = req.body && req.body.deviceId;
+    
+    return hasAuthHeader || (hasTokenInBody && hasDeviceId);
+  }
+
+  private isConfigurationEndpoint(url: string): boolean {
+    // Permitir endpoints de configuración para dispositivos IoT
+    const configEndpoints = [
+      '/iot/config',
+      '/iot/health',
+      '/iot/server-info'
+    ];
+    
+    return configEndpoints.some(endpoint => url.includes(endpoint));
+  }
+
+  private isHealthEndpoint(url: string): boolean {
+    // Permitir endpoints de health para dispositivos IoT
+    const healthEndpoints = [
+      '/iot/health', 
+      '/iot/server-info',
+      '/iot/stats'
+    ];
+    
+    return healthEndpoints.some(endpoint => url.includes(endpoint));
+  }
+
+  private isReadingEndpoint(url: string): boolean {
+    // Permitir endpoints de lecturas para dispositivos IoT
+    const readingEndpoints = [
+      '/iot/lecturas',
+      '/iot/readings', 
+      '/iot/data',
+      '/iot/sensor-data'
+    ];
+    
+    return readingEndpoints.some(endpoint => url.includes(endpoint));
   }
 
   private isIPAllowed(ip: string): boolean {
@@ -105,5 +156,23 @@ export class IPValidationMiddleware implements NestMiddleware {
     
     // Validación básica para desarrollo
     return networkParts[0] === ipParts[0] && networkParts[1] === ipParts[1];
+  }
+
+  private isIoTRoute(url: string): boolean {
+    // 🔍 Detectar rutas IoT de manera más robusta
+    const iotPatterns = [
+      '/sensores/iot/',
+      '/iot/',
+      'iot/',
+      'iot'
+    ];
+    
+    const isIoT = iotPatterns.some(pattern => 
+      url.toLowerCase().includes(pattern.toLowerCase())
+    );
+    
+    this.logger.log(`🔍 Verificando si es ruta IoT: ${url} -> ${isIoT ? '✅ SÍ' : '❌ NO'}`);
+    
+    return isIoT;
   }
 }

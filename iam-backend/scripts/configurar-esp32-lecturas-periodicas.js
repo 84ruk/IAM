@@ -16,7 +16,8 @@ const readline = require('readline');
 
 // Configuración
 const CONFIG_FILE = 'esp32-config.json';
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
+// 🎯 SIEMPRE usar la URL de producción sin puerto para ESP32
+const API_BASE_URL = process.env.API_BASE_URL || 'https://api.iaminventario.com.mx';
 
 // Colores para consola
 const colors = {

@@ -212,3 +212,5 @@ curl -X POST http://localhost:3001/sensores/iot/lectura \
 ---
 
 **🎯 El botón "ESP32 Lecturas Periódicas" ahora genera todo el código necesario automáticamente, incluyendo los headers correctos para la autenticación en el backend.**
+
+

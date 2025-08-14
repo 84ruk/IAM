@@ -146,12 +146,44 @@ export class SensoresGateway implements OnGatewayConnection, OnGatewayDisconnect
   // Métodos para emitir eventos a los clientes suscritos
   async emitirLecturaSensor(lectura: any, empresaId: number) {
     try {
-      // Emitir a todos los clientes de la empresa
-      this.server.to(`empresa-${empresaId}`).emit('nueva-lectura', {
-        tipo: 'LECTURA_SENSOR',
-        data: lectura,
-        timestamp: new Date(),
+      this.logger.log(`📡 Emitiendo lectura de sensor: ${lectura.tipo} - ${lectura.valor}${lectura.unidad} para empresa ${empresaId}`);
+      
+      // 🔧 CORREGIR: Emitir evento principal que el frontend espera
+      // El frontend escucha 'nueva_lectura' (con guión bajo)
+      this.server.emit('nueva_lectura', {
+        lectura: {
+          id: lectura.id,
+          tipo: lectura.tipo,
+          valor: lectura.valor,
+          unidad: lectura.unidad,
+          fecha: lectura.fecha,
+          estado: lectura.estado,
+          sensorId: lectura.sensorId,
+          ubicacionId: lectura.ubicacionId,
+          empresaId: empresaId,
+        },
+        timestamp: new Date().toISOString(),
       });
+
+      this.logger.log(`📡 Evento 'nueva_lectura' emitido a todos los clientes`);
+
+      // Emitir a todos los clientes de la empresa
+      this.server.to(`empresa-${empresaId}`).emit('nueva_lectura', {
+        lectura: {
+          id: lectura.id,
+          tipo: lectura.tipo,
+          valor: lectura.valor,
+          unidad: lectura.unidad,
+          fecha: lectura.fecha,
+          estado: lectura.estado,
+          sensorId: lectura.sensorId,
+          ubicacionId: lectura.ubicacionId,
+          empresaId: empresaId,
+        },
+        timestamp: new Date().toISOString(),
+      });
+
+      this.logger.log(`📡 Evento 'nueva_lectura' emitido a empresa ${empresaId}`);
 
       // Emitir específicamente a los suscritos al sensor
       if (lectura.sensorId) {
@@ -164,6 +196,7 @@ export class SensoresGateway implements OnGatewayConnection, OnGatewayDisconnect
           fecha: lectura.fecha,
           estado: lectura.estado,
         });
+        this.logger.log(`📡 Evento 'lectura-sensor' emitido a sensor ${lectura.sensorId}`);
       }
 
       // Emitir a los suscritos a la ubicación
@@ -178,7 +211,10 @@ export class SensoresGateway implements OnGatewayConnection, OnGatewayDisconnect
           fecha: lectura.fecha,
           estado: lectura.estado,
         });
+        this.logger.log(`📡 Evento 'lectura-ubicacion' emitido a ubicación ${lectura.ubicacionId}`);
       }
+
+      this.logger.log(`✅ Lectura de sensor ${lectura.tipo} emitida exitosamente por WebSocket`);
     } catch (error) {
       this.logger.error('Error emitiendo lectura de sensor:', error);
     }

@@ -3,7 +3,8 @@ import { registerAs } from '@nestjs/config';
 export default registerAs('esp32', () => ({
   // Configuración de endpoints para ESP32
   endpoints: {
-    lectura: '/sensores/iot/lectura',
+    // Usar el endpoint público de IoT para múltiples lecturas
+    lectura: '/iot/lecturas',
     registro: '/sensores/iot/registrar-sensor',
     configuracion: '/sensores/esp32-config',
     estado: '/sensores/esp32-status',
@@ -38,3 +39,5 @@ export default registerAs('esp32', () => ({
     whitelistIPs: process.env.ESP32_WHITELIST_IPS?.split(',') || [],
   },
 }));
+
+

@@ -9,8 +9,11 @@ import { AlertasAvanzadasModule } from '../alertas/alertas-avanzadas.module';
 import { SensoresGateway } from '../websockets/sensores/sensores.gateway';
 import { IPValidationMiddleware } from './middleware/ip-validation.middleware';
 import { IoTAuditService } from './services/iot-audit.service';
+import { IoTConfigService } from './services/iot-config.service';
 import { SensorAlertsModule } from '../alertas/sensor-alerts.module';
 import { WebSocketsModule } from '../websockets/websockets.module';
+import { CommonModule } from '../common/common.module';
+import { SensorRetentionService } from './services/sensor-retention.service';
 
 @Module({
   imports: [
@@ -19,15 +22,18 @@ import { WebSocketsModule } from '../websockets/websockets.module';
     AlertasAvanzadasModule, 
     SensorAlertsModule,
     WebSocketsModule, // Importar el módulo de WebSockets
+    CommonModule, // Importar el módulo común para URLConfigService
   ],
   providers: [
     SensoresService, 
     ESP32SensorService, 
-    SensoresGateway, 
-    IoTAuditService
+    IoTAuditService,
+    IoTConfigService,
+    SensorRetentionService,
+    // 🔧 CORREGIR: El gateway se importa desde WebSocketsModule, no se declara aquí
   ],
   controllers: [SensoresController, IoTController],
-  exports: [SensoresService, SensoresGateway], // Exportar el gateway también
+  exports: [SensoresService, IoTConfigService], // Exportar servicios, no el gateway
 })
 export class SensoresModule {
   configure(consumer: MiddlewareConsumer) {

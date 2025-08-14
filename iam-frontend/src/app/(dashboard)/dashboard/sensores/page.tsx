@@ -33,9 +33,13 @@ import {
   Zap
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
+import ESP32WebSocketConfig, { ESP32WebSocketConfigProps } from '@/components/ui/esp32-websocket-config'
+import { useAuth } from '@/hooks/useAuth'
+import ESP32WebSocketWizard from '@/components/ui/esp32-websocket-wizard'
 
 export default function SensoresPage() {
   const router = useRouter()
+  const { authInfo } = useAuth()
   const [sensores, setSensores] = useState<Sensor[]>([])
   const [filteredSensores, setFilteredSensores] = useState<Sensor[]>([])
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([])
@@ -54,6 +58,7 @@ export default function SensoresPage() {
   const [editingSensor, setEditingSensor] = useState<Sensor | null>(null)
   const [error, setError] = useState<string>('')
   const { addToast } = useToast()
+  const [showESP32WebSocket, setShowESP32WebSocket] = useState(false)
 
     // Función para determinar si una card debe mostrar pulse
   const shouldPulse = (value: number) => value > 0
@@ -277,12 +282,11 @@ export default function SensoresPage() {
             ESP32 Lecturas Periódicas
           </Button>
           <Button 
-            onClick={() => setShowESP32AutoConfig(true)} 
-            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700" disabled
-            title="Modo legacy (deshabilitado)"
+            onClick={() => setShowESP32WebSocket(true)}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
           >
             <Cpu className="w-4 h-4" />
-            ESP32 MQTT (Legacy)
+            ESP32 WebSocket
           </Button>
           <Button 
             onClick={() => {}}
@@ -626,6 +630,20 @@ export default function SensoresPage() {
               setShowUmbralesConfig(false)
               // setSelectedSensorForUmbrales(null) // This variable was removed
             }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de ESP32 WebSocket */}
+      <Dialog open={showESP32WebSocket} onOpenChange={setShowESP32WebSocket}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Configuración ESP32 por WebSocket</DialogTitle>
+          </DialogHeader>
+          <ESP32WebSocketWizard
+            initialEmpresaId={authInfo?.empresaId || 1}
+            backendUrlHost={(process.env.NEXT_PUBLIC_API_URL || '').replace(/^https?:\/\//, '').replace(/\/$/, '')}
+            onClose={() => setShowESP32WebSocket(false)}
           />
         </DialogContent>
       </Dialog>

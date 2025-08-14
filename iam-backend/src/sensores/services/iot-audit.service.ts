@@ -24,42 +24,55 @@ export class IoTAuditService {
   async logIOTRequest(auditData: IOTAuditLog): Promise<void> {
     try {
       // Log en consola para debugging
-      this.logger.log(`🔍 IoT Audit: ${auditData.method} ${auditData.endpoint} - Device: ${auditData.deviceId} - IP: ${auditData.ip} - Success: ${auditData.success}`);
+      const statusIcon = auditData.success ? '✅' : '❌';
+      const ipInfo = auditData.ip ? ` - IP: ${auditData.ip}` : '';
+      const errorInfo = auditData.errorMessage ? ` - Error: ${auditData.errorMessage}` : '';
+      
+      this.logger.log(`${statusIcon} IoT Audit: ${auditData.method} ${auditData.endpoint} - Device: ${auditData.deviceId}${ipInfo}${errorInfo}`);
 
       // En producción, guardar en base de datos
       if (process.env.NODE_ENV === 'production') {
-        await this.prisma.auditLog.create({
-          data: {
-            action: 'IOT_REQUEST',
-            userId: 0, // Usuario sistema para IoT
-            userEmail: 'iot@system.com',
-            userName: 'IoT System',
-            resource: 'IoT_DEVICE',
-            resourceId: 0,
-            empresaId: auditData.empresaId,
-            empresaName: 'IoT System',
-            details: JSON.stringify({
-              deviceId: auditData.deviceId,
-              endpoint: auditData.endpoint,
-              method: auditData.method,
-              ip: auditData.ip,
-              userAgent: auditData.userAgent,
-              success: auditData.success,
-              errorMessage: auditData.errorMessage,
-              requestBody: auditData.requestBody,
-              responseStatus: auditData.responseStatus,
-            }),
-            ipAddress: auditData.ip,
-            userAgent: auditData.userAgent || 'IoT Device',
-          },
-        });
+        try {
+          await this.prisma.auditLog.create({
+            data: {
+              action: 'IOT_REQUEST',
+              userId: 0, // Usuario sistema para IoT
+              userEmail: 'iot@system.com',
+              userName: 'IoT System',
+              resource: 'IoT_DEVICE',
+              resourceId: 0,
+              empresaId: auditData.empresaId,
+              empresaName: 'IoT System',
+              details: JSON.stringify({
+                deviceId: auditData.deviceId,
+                endpoint: auditData.endpoint,
+                method: auditData.method,
+                ip: auditData.ip,
+                userAgent: auditData.userAgent,
+                success: auditData.success,
+                errorMessage: auditData.errorMessage,
+                requestBody: auditData.requestBody,
+                responseStatus: auditData.responseStatus,
+                timestamp: auditData.timestamp,
+              }),
+              ipAddress: auditData.ip,
+              userAgent: auditData.userAgent || 'IoT Device',
+            },
+          });
+          
+          this.logger.debug(`📊 Auditoría IoT guardada en base de datos para dispositivo: ${auditData.deviceId}`);
+        } catch (dbError) {
+          this.logger.error(`❌ Error guardando auditoría IoT en BD: ${dbError.message}`);
+          // No fallar la operación principal por error de auditoría
+        }
       }
 
       // Alertar sobre patrones sospechosos
       await this.detectSuspiciousActivity(auditData);
 
     } catch (error) {
-      this.logger.error('Error logging IoT audit:', error);
+      this.logger.error(`❌ Error logging IoT audit para dispositivo ${auditData.deviceId}:`, error);
+      // No fallar la operación principal por error de auditoría
     }
   }
 

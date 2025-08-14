@@ -273,6 +273,30 @@ export class SensoresController {
       }
 
       // Registrar lectura
+      // Intentar asociar automáticamente la lectura a un sensor existente si no viene sensorId
+      try {
+        if ((!dto.sensorId || dto.sensorId === 0) && dto.ubicacionId) {
+          this.logger.log(`🔍 Buscando sensor para asociar lectura automáticamente. Empresa: ${empresaId}, Ubicación: ${dto.ubicacionId}, Tipo: ${dto.tipo}`);
+          const sensorMatch = await this.prisma.sensor.findFirst({
+            where: {
+              empresaId: empresaId,
+              ubicacionId: dto.ubicacionId,
+              tipo: dto.tipo,
+              activo: true,
+            },
+            select: { id: true, nombre: true },
+          });
+          if (sensorMatch) {
+            dto.sensorId = sensorMatch.id;
+            this.logger.log(`🔗 Lectura asociada al sensor ${sensorMatch.nombre} (ID: ${sensorMatch.id})`);
+          } else {
+            this.logger.warn(`⚠️ No se encontró sensor activo para asociar la lectura automáticamente (empresa=${empresaId}, ubicacion=${dto.ubicacionId}, tipo=${dto.tipo}). Se registrará sin sensorId.`);
+          }
+        }
+      } catch (assocErr) {
+        this.logger.warn(`⚠️ Error intentando asociar sensor automáticamente: ${assocErr}`);
+      }
+
       const resultado = await this.sensoresService.registrarLectura(dto, empresaId);
       this.logger.log(`✅ Lectura de ESP32 registrada exitosamente: ${resultado.id}`);
       
@@ -293,29 +317,135 @@ export class SensoresController {
   @Post('iot/registrar-sensor')
   async registrarSensorESP32(@Body() createSensorDto: CreateSensorDto, @Request() req) {
     try {
+      this.logger.log(`🤖 ===== INICIO REGISTRO SENSOR ESP32 =====`);
       this.logger.log(`🤖 Registro de sensor solicitado por ESP32: ${createSensorDto.nombre}`);
+      this.logger.log(`📊 Datos completos del sensor: ${JSON.stringify(createSensorDto, null, 2)}`);
+      this.logger.log(`🌐 Headers recibidos: ${JSON.stringify(req.headers, null, 2)}`);
+      this.logger.log(`🌐 URL completa: ${req.url}`);
+      this.logger.log(`🌐 Método: ${req.method}`);
       
       // Obtener empresa ID del header
       const empresaId = parseInt(req.headers['x-empresa-id'] as string);
+      this.logger.log(`🏢 Empresa ID extraído del header: ${empresaId}`);
+      const deviceIdHeader = (req.headers['x-device-id'] as string) || '';
+      let dispositivoIoTId: number | null = null;
+      
       if (!empresaId || isNaN(empresaId)) {
         this.logger.error(`❌ ESP32 no envió empresa ID válido`);
         throw new Error('Empresa ID requerido para registro de sensores');
       }
 
       // Validar datos del sensor
+      this.logger.log(`🔍 Validando datos del sensor...`);
+      this.logger.log(`   - Nombre: ${createSensorDto.nombre}`);
+      this.logger.log(`   - Tipo: ${createSensorDto.tipo}`);
+      this.logger.log(`   - Ubicación ID: ${createSensorDto.ubicacionId}`);
+      this.logger.log(`   - Configuración: ${JSON.stringify(createSensorDto.configuracion)}`);
+      this.logger.log(`   - Activo: ${createSensorDto.activo}`);
+      this.logger.log(`   - Modo: ${createSensorDto.modo}`);
+      this.logger.log(`   - Descripción: ${createSensorDto.descripcion}`);
+      
+      // 🔍 VALIDACIÓN ADICIONAL DE DATOS
       if (!createSensorDto.nombre || !createSensorDto.tipo || !createSensorDto.ubicacionId) {
         this.logger.error(`❌ Datos de sensor incompletos: ${JSON.stringify(createSensorDto)}`);
         throw new Error('Datos de sensor incompletos');
       }
+      
+      // 🔍 VALIDAR TIPO DE SENSOR
+      const tiposValidos = ['TEMPERATURA', 'HUMEDAD', 'PESO', 'PRESION'];
+      if (!tiposValidos.includes(createSensorDto.tipo)) {
+        this.logger.error(`❌ Tipo de sensor inválido: ${createSensorDto.tipo}`);
+        throw new Error(`Tipo de sensor inválido. Debe ser uno de: ${tiposValidos.join(', ')}`);
+      }
+      
+      // 🔍 VALIDAR UBICACIÓN ID
+      if (isNaN(createSensorDto.ubicacionId) || createSensorDto.ubicacionId <= 0) {
+        this.logger.error(`❌ Ubicación ID inválido: ${createSensorDto.ubicacionId}`);
+        throw new Error('Ubicación ID debe ser un número positivo');
+      }
+      
+      this.logger.log(`✅ Validaciones básicas del DTO exitosas`);
 
-      // 🔧 CORREGIR: Asegurar que el sensor se cree como activo
-      if (createSensorDto.activo === undefined) {
-        createSensorDto.activo = true;
+      // Intentar resolver dispositivo IoT por header (si viene) para reglas de duplicados y vinculación
+      if (deviceIdHeader) {
+        try {
+          const dispositivo = await this.prisma.dispositivoIoT.findFirst({
+            where: { deviceId: deviceIdHeader, empresaId },
+            select: { id: true }
+          });
+          dispositivoIoTId = dispositivo?.id ?? null;
+          this.logger.log(`🔗 DispositivoIoTId resuelto: ${dispositivoIoTId}`);
+        } catch (e) {
+          this.logger.warn(`⚠️ No se pudo resolver dispositivo para deviceId=${deviceIdHeader}: ${e?.message || e}`);
+        }
+      }
+
+      // 🔧 FORZAR: El sensor siempre se crea como activo desde ESP32
+      createSensorDto.activo = true;
+      this.logger.log(`🔧 Forzando sensor como activo: true`);
+
+      // Validar que la empresa existe antes de crear el sensor
+      this.logger.log(`🔍 Verificando que la empresa ${empresaId} existe...`);
+      const empresa = await this.prisma.empresa.findUnique({
+        where: { id: empresaId }
+      });
+      if (!empresa) {
+        this.logger.error(`❌ Empresa no encontrada: ${empresaId}`);
+        throw new Error('Empresa no encontrada');
+      }
+      this.logger.log(`✅ Empresa encontrada: ${empresa.nombre}`);
+
+      // Validar que la ubicación existe y pertenece a la empresa
+      this.logger.log(`🔍 Verificando que la ubicación ${createSensorDto.ubicacionId} existe y pertenece a la empresa...`);
+      const ubicacion = await this.prisma.ubicacion.findFirst({
+        where: { 
+          id: createSensorDto.ubicacionId, 
+          empresaId: empresaId,
+          activa: true
+        }
+      });
+      if (!ubicacion) {
+        this.logger.error(`❌ Ubicación no encontrada o no pertenece a la empresa: ${createSensorDto.ubicacionId} - Empresa: ${empresaId}`);
+        throw new Error('Ubicación no encontrada o no pertenece a la empresa');
+      }
+      this.logger.log(`✅ Ubicación encontrada: ${ubicacion.nombre}`);
+
+      // Regla de nombres duplicados: si ya existe un sensor con mismo nombre en la ubicación
+      // y el dispositivo actual es distinto, generar un nombre único con sufijo "#n"
+      try {
+        const existente = await this.prisma.sensor.findFirst({
+          where: { nombre: createSensorDto.nombre, ubicacionId: createSensorDto.ubicacionId, empresaId },
+          select: { id: true, dispositivoIoTId: true }
+        });
+        if (existente && dispositivoIoTId && existente.dispositivoIoTId !== dispositivoIoTId) {
+          const baseName = createSensorDto.nombre;
+          createSensorDto.nombre = await this.generarNombreUnico(baseName, createSensorDto.ubicacionId, empresaId);
+          this.logger.log(`🆕 Nombre duplicado detectado, usando nombre único: ${createSensorDto.nombre}`);
+        }
+      } catch (e) {
+        this.logger.warn(`⚠️ No se pudo aplicar regla de nombre único: ${e?.message || e}`);
       }
 
       // Registrar sensor
+      this.logger.log(`📝 Iniciando creación del sensor en la base de datos...`);
+      this.logger.log(`📝 DTO final que se enviará al servicio: ${JSON.stringify(createSensorDto, null, 2)}`);
+      
       const sensor = await this.sensoresService.registrarSensor(createSensorDto, empresaId);
       this.logger.log(`✅ Sensor registrado desde ESP32 exitosamente: ${sensor.nombre} (ID: ${sensor.id})`);
+      
+      // Vincular al dispositivo IoT si se resolvió y no está vinculado
+      if (dispositivoIoTId && !sensor.dispositivoIoTId) {
+        try {
+          await this.prisma.sensor.update({
+            where: { id: sensor.id },
+            data: { dispositivoIoTId }
+          });
+          this.logger.log(`🔗 Sensor ${sensor.id} vinculado a dispositivo IoT ${dispositivoIoTId}`);
+        } catch (e) {
+          this.logger.warn(`⚠️ No se pudo vincular sensor ${sensor.id} a dispositivo ${dispositivoIoTId}: ${e?.message || e}`);
+        }
+      }
+      this.logger.log(`🤖 ===== FIN REGISTRO SENSOR ESP32 EXITOSO =====`);
       
       return {
         success: true,
@@ -324,9 +454,35 @@ export class SensoresController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
+      this.logger.error(`❌ ===== ERROR EN REGISTRO SENSOR ESP32 =====`);
       this.logger.error(`❌ Error registrando sensor desde ESP32:`, error);
+      this.logger.error(`📊 DTO recibido: ${JSON.stringify(createSensorDto, null, 2)}`);
+      this.logger.error(`🌐 Headers: ${JSON.stringify(req.headers, null, 2)}`);
+      this.logger.error(`🌐 URL: ${req.url}`);
+      this.logger.error(`🌐 Método: ${req.method}`);
+      this.logger.error(`❌ ===== FIN ERROR REGISTRO SENSOR ESP32 =====`);
       throw error;
     }
+  }
+
+  /**
+   * Genera un nombre único agregando sufijo incremental "#n" evitando colisión en (nombre, ubicacionId)
+   */
+  private async generarNombreUnico(baseName: string, ubicacionId: number, empresaId: number): Promise<string> {
+    const maxAttempts = 100;
+    // Si el baseName ya termina en "#n", mantener la base sin el sufijo
+    const base = baseName.replace(/\s#\d+$/, '');
+    for (let i = 2; i < maxAttempts; i++) {
+      const candidate = `${base} #${i}`;
+      const exists = await this.prisma.sensor.findFirst({
+        where: { nombre: candidate, ubicacionId, empresaId },
+        select: { id: true }
+      });
+      if (!exists) return candidate;
+    }
+    // Fallback: timestamp corto
+    const ts = Math.floor(Date.now() / 1000) % 100000;
+    return `${base} #${ts}`;
   }
 
   // 🔧 NUEVO: Endpoint de health check para ESP32

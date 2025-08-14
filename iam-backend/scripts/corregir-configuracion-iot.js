@@ -34,8 +34,8 @@ async function corregirConfiguracionIoT() {
           console.log(`     API Base URL: ${dispositivo.apiBaseUrl}`);
           console.log(`     API Endpoint: ${dispositivo.apiEndpoint}`);
           
-          // Corregir configuración
-          const baseUrl = process.env.EXTERNAL_API_BASE_URL || process.env.BACKEND_PUBLIC_URL || 'http://192.168.0.12:3001';
+          // Corregir configuración - SIEMPRE usar URL de producción sin puerto
+          const baseUrl = process.env.EXTERNAL_API_BASE_URL || process.env.BACKEND_PUBLIC_URL || 'https://api.iaminventario.com.mx';
           await prisma.dispositivoIoT.update({
             where: { id: dispositivo.id },
             data: {

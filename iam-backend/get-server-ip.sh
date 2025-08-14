@@ -12,18 +12,20 @@ if [ -z "$IP" ]; then
 fi
 
 echo "✅ IP del servidor: $IP"
-echo "🌐 URL para ESP32: http://$IP:3001"
+echo "🌐 URL para ESP32: https://api.iaminventario.com.mx"
 echo ""
 echo "📋 Configuración para ESP32:"
-echo "   • IP del servidor: $IP"
-echo "   • Puerto: 3001"
-echo "   • URL completa: http://$IP:3001"
+echo "   • URL del servidor: api.iaminventario.com.mx"
+echo "   • Puerto: 443 (HTTPS estándar)"
+echo "   • URL completa: https://api.iaminventario.com.mx"
 echo ""
 echo "🔧 Para usar en el código Arduino:"
-echo "   String apiBaseUrl = \"http://$IP:3001\";"
+echo "   String apiBaseUrl = \"https://api.iaminventario.com.mx\";"
 echo ""
 echo "🧪 Para probar la conexión:"
-echo "   curl -X GET http://$IP:3001/sensores/iot/health \\"
+echo "   curl -X GET https://api.iaminventario.com.mx/sensores/iot/health \\"
 echo "     -H \"x-empresa-id: 2\" \\"
 echo "     -H \"x-device-type: esp32\" \\"
 echo "     -H \"x-esp32-device: true\""
+
+

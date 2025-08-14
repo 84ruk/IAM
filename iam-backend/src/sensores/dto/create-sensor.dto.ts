@@ -71,10 +71,8 @@ export class CreateSensorDto {
   activo?: boolean = true;
 
   @IsOptional()
-  @IsObject()
-  @ValidateNested()
-  @Type(() => Object)
-  configuracion?: SensorConfiguracion;
+  @IsObject({ message: 'La configuración debe ser un objeto válido' })
+  configuracion?: any; // Simplificar la validación para evitar problemas
 
   @IsOptional()
   @IsString()

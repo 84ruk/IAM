@@ -1,157 +1,189 @@
-import { Controller, Get, Post, Body, Request, Logger, Res, UnauthorizedException, UseGuards, Req } from '@nestjs/common';
-import { Public } from '../auth/decorators/public.decorator';
-import { Response } from 'express';
-import { ESP32SensorService } from './esp32-sensor.service';
+import { Controller, Post, Body, Get, Req, UseGuards, Logger, UnauthorizedException, Param, Query } from '@nestjs/common';
+import { IoTThrottlerGuard } from './guards/iot-throttler.guard';
 import { CreateSensorLecturaMultipleDto } from './dto/create-sensor-lectura-multiple.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { IoTThrottlerGuard } from './guards/iot-throttler.guard';
+import { Public } from '../common/decorators/public.decorator';
+import { Request } from 'express';
 import { IoTAuditService } from './services/iot-audit.service';
+import { IoTConfigService } from './services/iot-config.service';
+import { URLConfigService } from '../common/services/url-config.service';
+import { ESP32SensorService } from './esp32-sensor.service';
 
 @Controller('iot')
 export class IoTController {
   private readonly logger = new Logger(IoTController.name);
 
   constructor(
-    private readonly esp32SensorService: ESP32SensorService,
     private readonly prisma: PrismaService,
-    private readonly iotAuditService: IoTAuditService
+    private readonly iotAudit: IoTAuditService,
+    private readonly iotConfig: IoTConfigService,
+    private readonly urlConfig: URLConfigService,
+    private readonly esp32Service: ESP32SensorService,
   ) {}
 
+  /**
+   * Endpoint para obtener información del servidor (IP, puerto, endpoints)
+   */
   @Public()
-  @Get('config')
-  async getConfig(@Request() req) {
-    this.logger.log(`🔧 Obteniendo configuración desde: ${req.protocol}://${req.get('host')}/iot/config`);
+  @Get('server-info')
+  async getServerInfo(@Req() req: Request) {
+    const clientIP = this.getClientIP(req);
+    this.logger.log(`🔧 Obteniendo información del servidor desde: ${req.protocol}://${req.get('host')}/iot/server-info - IP: ${clientIP}`);
     
     try {
-      const config = await this.esp32SensorService.obtenerConfiguracionESP32('default');
+      // 🌐 Usar URLConfigService para obtener la IP correcta
+      const localIP = await this.urlConfig.detectLocalIP();
       
-      // Obtener la IP real del servidor desde la request
-      const serverIP = this.getServerIP(req);
-      const baseUrl = `http://${serverIP}:3001`;
+      this.logger.log(`🌐 IP del servidor detectada automáticamente: ${localIP}`);
       
-      // Actualizar la configuración con la IP correcta
-      const updatedConfig = {
-        ...config,
-        api: {
-          ...config.api,
-          baseUrl: baseUrl
+      return {
+        serverIP: localIP,
+        serverPort: 443, // Puerto HTTPS estándar
+        baseUrl: `https://api.iaminventario.com.mx`, // SIEMPRE usar URL de producción sin puerto
+        timestamp: new Date().toISOString(),
+        endpoints: {
+          config: `/iot/config`,
+          health: `/iot/health`,
+          lecturas: `/iot/lecturas`,
+          registrar: `/iot/registrar-sensor`
+        },
+        clientInfo: {
+          ip: clientIP,
+          userAgent: req.headers['user-agent'] || 'No especificado',
+          protocol: req.protocol,
+          host: req.get('host')
         }
       };
-      
-      this.logger.log(`✅ Configuración enviada con IP: ${baseUrl}`);
-      return updatedConfig;
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo configuración: ${error.message}`);
+      this.logger.error(`❌ Error obteniendo información del servidor: ${error.message}`);
+      
+      // Fallback a IP por defecto
+      const fallbackIP = '192.168.0.11';
+      this.logger.warn(`⚠️ Usando IP por defecto: ${fallbackIP}`);
+      
+      return {
+        serverIP: fallbackIP,
+        serverPort: 443, // Puerto HTTPS estándar
+        baseUrl: `https://api.iaminventario.com.mx`, // SIEMPRE usar URL de producción sin puerto
+        timestamp: new Date().toISOString(),
+        endpoints: {
+          config: `/iot/config`,
+          health: `/iot/health`,
+          lecturas: `/iot/lecturas`,
+          registrar: `/iot/registrar-sensor`
+        },
+        clientInfo: {
+          ip: clientIP,
+          userAgent: req.headers['user-agent'] || 'No especificado',
+          protocol: req.protocol,
+          host: req.get('host')
+        }
+      };
+    }
+  }
+
+  /**
+   * Endpoint para health check del IoT
+   */
+  @Public()
+  @Get('health')
+  async healthCheck(@Req() req: Request) {
+    const clientIP = this.getClientIP(req);
+    this.logger.log(`🏥 Health check IoT desde IP: ${clientIP} - User-Agent: ${req.headers['user-agent'] || 'No especificado'}`);
+    
+    try {
+      const localIP = await this.urlConfig.detectLocalIP();
+      
+      return {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        serverIP: localIP,
+        clientIP: clientIP,
+        message: 'IoT endpoint funcionando correctamente',
+        clientInfo: {
+          userAgent: req.headers['user-agent'] || 'No especificado',
+          protocol: req.protocol,
+          host: req.get('host')
+        }
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error en health check: ${error.message}`);
+      return {
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        clientIP: clientIP,
+        error: error.message,
+        clientInfo: {
+          userAgent: req.headers['user-agent'] || 'No especificado',
+          protocol: req.protocol,
+          host: req.get('host')
+        }
+      };
+    }
+  }
+
+  /**
+   * Endpoint para obtener configuración básica del IoT
+   */
+  @Public()
+  @Post('config')
+  async obtenerConfiguracionIoT(@Body() data: { deviceId: string; apiToken: string; empresaId: number }, @Req() req: Request) {
+    const clientIP = this.getClientIP(req);
+    this.logger.log(`⚙️ Configuración solicitada para dispositivo: ${data.deviceId} desde IP: ${clientIP} - User-Agent: ${req.headers['user-agent'] || 'No especificado'}`);
+    
+    try {
+      // Usar el nuevo servicio de configuración IoT
+      const config = await this.iotConfig.getDeviceConfig(data.deviceId, data.apiToken, data.empresaId);
+      
+      this.logger.log(`✅ Configuración enviada para dispositivo: ${data.deviceId} con URL: ${config.api.baseUrl} desde IP: ${clientIP}`);
+
+      // Registrar auditoría exitosa
+      await this.iotAudit.logIOTRequest({
+        deviceId: data.deviceId,
+        empresaId: data.empresaId,
+        endpoint: '/iot/config',
+        method: 'POST',
+        ip: clientIP,
+        success: true,
+        timestamp: new Date(),
+        requestBody: data
+      });
+
+      return {
+        ...config,
+        clientInfo: {
+          ip: clientIP,
+          userAgent: req.headers['user-agent'] || 'No especificado'
+        }
+      };
+    } catch (error: any) {
+      this.logger.error(`❌ Error obteniendo configuración IoT: ${error?.message || 'Error desconocido'} para dispositivo: ${data.deviceId} desde IP: ${clientIP}`);
+      
+      // Registrar auditoría de error
+      await this.iotAudit.logIOTRequest({
+        deviceId: data.deviceId,
+        empresaId: data.empresaId,
+        endpoint: '/iot/config',
+        method: 'POST',
+        ip: clientIP,
+        success: false,
+        errorMessage: error?.message || 'Error desconocido',
+        timestamp: new Date(),
+        requestBody: data
+      });
+      
       throw error;
     }
   }
 
-  @Public()
-  @Get('health')
-  async healthCheck(@Request() req) {
-    const clientIP = req.ip || req.connection.remoteAddress;
-    this.logger.log(`🏥 Health check desde IP: ${clientIP}`);
-    
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      serverIP: this.getServerIP(req),
-      clientIP: clientIP
-    };
-  }
-
-  @Public()
-  @Get('server-info')
-  async getServerInfo(@Request() req) {
-    const serverIP = this.getServerIP(req);
-    const clientIP = req.ip || req.connection.remoteAddress;
-    
-    this.logger.log(`ℹ️ Información del servidor solicitada desde: ${clientIP}`);
-    
-    return {
-      serverIP: serverIP,
-      serverPort: 3001,
-      baseUrl: `http://${serverIP}:3001`,
-      timestamp: new Date().toISOString(),
-      endpoints: {
-        config: `/iot/config`,
-        health: `/iot/health`,
-        lecturas: `/iot/lecturas`,
-        registrar: `/iot/registrar-sensor`
-      }
-    };
-  }
-
   /**
-   * Detecta automáticamente la IP del servidor
+   * Endpoint público para dispositivos IoT con validación por API key
    */
-  private getServerIP(req: any): string {
-    // Intentar obtener la IP desde diferentes fuentes
-    let serverIP = '192.168.0.4'; // IP por defecto
-    
-    try {
-      // 1. Intentar obtener desde headers personalizados
-      const forwardedIP = req.headers['x-forwarded-for'];
-      if (forwardedIP) {
-        serverIP = forwardedIP.split(',')[0].trim();
-        this.logger.log(`📍 IP detectada desde X-Forwarded-For: ${serverIP}`);
-        return serverIP;
-      }
-
-      // 2. Intentar obtener desde la request
-      if (req.get('host')) {
-        const host = req.get('host');
-        if (host.includes(':')) {
-          serverIP = host.split(':')[0];
-          this.logger.log(`📍 IP detectada desde Host: ${serverIP}`);
-          return serverIP;
-        }
-      }
-
-      // 3. Intentar obtener desde la conexión
-      if (req.connection && req.connection.localAddress) {
-        serverIP = req.connection.localAddress;
-        this.logger.log(`📍 IP detectada desde Connection: ${serverIP}`);
-        return serverIP;
-      }
-
-      // 4. Intentar obtener desde el socket
-      if (req.socket && req.socket.localAddress) {
-        serverIP = req.socket.localAddress;
-        this.logger.log(`📍 IP detectada desde Socket: ${serverIP}`);
-        return serverIP;
-      }
-
-      // 5. Detección automática usando interfaces de red
-      const networkInterfaces = require('os').networkInterfaces();
-      for (const interfaceName in networkInterfaces) {
-        const interfaces = networkInterfaces[interfaceName];
-        for (const netInterface of interfaces) {
-          if (netInterface.family === 'IPv4' && !netInterface.internal) {
-            serverIP = netInterface.address;
-            this.logger.log(`📍 IP detectada automáticamente: ${serverIP}`);
-            return serverIP;
-          }
-        }
-      }
-
-      this.logger.warn(`⚠️ No se pudo detectar IP automáticamente, usando IP por defecto: ${serverIP}`);
-      return serverIP;
-      
-    } catch (error) {
-      this.logger.error(`❌ Error detectando IP: ${error.message}`);
-      return serverIP;
-    }
-  }
-
-  // Endpoint público para dispositivos IoT con validación por API key
   @Public()
   @UseGuards(IoTThrottlerGuard)
   @Post('lecturas')
   async recibirLecturasIoT(@Body() dto: CreateSensorLecturaMultipleDto, @Req() req: Request) {
     const clientIP = this.getClientIP(req);
-    let success = false;
-    let errorMessage: string | undefined;
 
     try {
       // Validar que el dispositivo existe y está activo
@@ -164,84 +196,185 @@ export class IoTController {
       });
 
       if (!dispositivo) {
-        errorMessage = 'Dispositivo no encontrado o inactivo';
         this.logger.warn(`Dispositivo no encontrado o inactivo: ${dto.deviceId}`);
         throw new UnauthorizedException('Dispositivo no autorizado');
       }
 
       // Validar que el API token coincide (opcional, para mayor seguridad)
       if (dispositivo.apiToken && dispositivo.apiToken !== dto.apiToken) {
-        errorMessage = 'Token de dispositivo inválido';
         this.logger.warn(`Token inválido para dispositivo: ${dto.deviceId}`);
         throw new UnauthorizedException('Token de dispositivo inválido');
       }
 
       this.logger.log(`Lecturas autorizadas para dispositivo: ${dto.deviceId}`);
-      const result = await this.esp32SensorService.registrarLecturasMultiples(dto);
-      success = true;
-      
-      // Registrar auditoría exitosa
-      await this.iotAuditService.logIOTRequest({
+
+      // Procesar y registrar lecturas múltiples (persistir y emitir WS)
+      const resultado = await this.esp32Service.registrarLecturasMultiples(dto);
+
+      // Actualizar "ultimaLectura" del dispositivo
+      try {
+        await this.prisma.dispositivoIoT.update({
+          where: { deviceId: dto.deviceId },
+          data: { ultimaLectura: new Date() },
+        });
+      } catch (e) {
+        this.logger.warn(`No se pudo actualizar ultimaLectura para ${dto.deviceId}: ${e?.message || e}`);
+      }
+
+      // Registrar auditoría exitosa usando IoTAuditService
+      await this.iotAudit.logIOTRequest({
         deviceId: dto.deviceId,
         empresaId: dto.empresaId,
         endpoint: '/iot/lecturas',
         method: 'POST',
         ip: clientIP,
-        userAgent: req.headers['user-agent'],
         success: true,
         timestamp: new Date(),
-        requestBody: dto,
-        responseStatus: 200,
+        requestBody: dto
       });
-
-      return result;
-    } catch (error) {
+      
+      return {
+        success: true,
+        message: 'Lecturas registradas correctamente',
+        deviceId: dto.deviceId,
+        totalLecturas: resultado.totalLecturas,
+        alertasGeneradas: resultado.alertasGeneradas,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error: any) {
       // Registrar auditoría de error
-      await this.iotAuditService.logIOTRequest({
+      await this.iotAudit.logIOTRequest({
         deviceId: dto.deviceId,
         empresaId: dto.empresaId,
         endpoint: '/iot/lecturas',
         method: 'POST',
         ip: clientIP,
-        userAgent: req.headers['user-agent'],
         success: false,
-        errorMessage: errorMessage || error.message,
+        errorMessage: (error?.message || 'Error desconocido'),
         timestamp: new Date(),
-        requestBody: dto,
-        responseStatus: 401,
+        requestBody: dto
       });
-
       throw error;
     }
   }
 
-  private getClientIP(req: any): string {
-    return req.headers['x-forwarded-for'] as string ||
-           req.headers['x-real-ip'] as string ||
-           (req.connection && req.connection.remoteAddress) ||
-           (req.socket && req.socket.remoteAddress) ||
-           '0.0.0.0';
+  /**
+   * Endpoint para obtener estadísticas de dispositivos IoT
+   */
+  @Public()
+  @Get('stats')
+  async getIoTStats(@Req() req: Request) {
+    const clientIP = this.getClientIP(req);
+    this.logger.log(`📊 Estadísticas IoT solicitadas desde IP: ${clientIP}`);
+    
+    try {
+      const stats = await this.iotConfig.getDeviceStats();
+      
+      return {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        stats,
+        clientInfo: {
+          ip: clientIP,
+          userAgent: req.headers['user-agent'] || 'No especificado'
+        }
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error obteniendo estadísticas IoT: ${error.message}`);
+      return {
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        error: error.message,
+        clientInfo: {
+          ip: clientIP,
+          userAgent: req.headers['user-agent'] || 'No especificado'
+        }
+      };
+    }
   }
 
-  // Endpoint público para obtener configuración de dispositivos IoT
+  /**
+   * Endpoint para verificar estado de un dispositivo específico
+   */
   @Public()
-  @Post('config')
-  async obtenerConfiguracionIoT(@Body() data: { deviceId: string; apiToken: string; empresaId: number }) {
-    // Validar que el dispositivo existe y está activo
-    const dispositivo = await this.prisma.dispositivoIoT.findFirst({
-      where: {
-        deviceId: data.deviceId,
-        apiToken: data.apiToken,
-        activo: true,
-        empresaId: data.empresaId
+  @Get('device/:deviceId/status')
+  async getDeviceStatus(
+    @Req() req: Request, 
+    @Param('deviceId') deviceId: string,
+    @Query('apiToken') apiToken: string,
+    @Query('empresaId') empresaId: string
+  ) {
+    const clientIP = this.getClientIP(req);
+    
+    this.logger.log(`🔍 Estado solicitado para dispositivo: ${deviceId} desde IP: ${clientIP}`);
+    
+    try {
+      // Validar parámetros requeridos
+      if (!apiToken || !empresaId) {
+        throw new Error('apiToken y empresaId son requeridos como query parameters');
       }
-    });
 
-    if (!dispositivo) {
-      this.logger.warn(`Configuración solicitada para dispositivo no autorizado: ${data.deviceId}`);
-      throw new UnauthorizedException('Dispositivo no autorizado');
+      const empresaIdNum = parseInt(empresaId, 10);
+      if (isNaN(empresaIdNum)) {
+        throw new Error('empresaId debe ser un número válido');
+      }
+
+      // Buscar dispositivo
+      const dispositivo = await this.prisma.dispositivoIoT.findFirst({
+        where: {
+          deviceId,
+          apiToken,
+          activo: true,
+          empresaId: empresaIdNum
+        }
+      });
+
+      if (!dispositivo) {
+        throw new UnauthorizedException('Dispositivo no autorizado');
+      }
+
+      const lastSeen = dispositivo.ultimaLectura || dispositivo.updatedAt;
+      const connected = Date.now() - lastSeen.getTime() < 5 * 60 * 1000; // 5 minutos
+
+      return {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        device: {
+          deviceId: dispositivo.deviceId,
+          deviceName: dispositivo.deviceName,
+          connected,
+          lastSeen: lastSeen.toISOString(),
+          status: connected ? 'ONLINE' : 'OFFLINE',
+          ubicacionId: dispositivo.ubicacionId,
+          empresaId: dispositivo.empresaId
+        },
+        clientInfo: {
+          ip: clientIP,
+          userAgent: req.headers['user-agent'] || 'No especificado'
+        }
+      };
+    } catch (error: any) {
+      this.logger.error(`❌ Error obteniendo estado del dispositivo ${deviceId}: ${error.message}`);
+      return {
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        error: error.message,
+        clientInfo: {
+          ip: clientIP,
+          userAgent: req.headers['user-agent'] || 'No especificado'
+        }
+      };
     }
+  }
 
-    return this.esp32SensorService.obtenerConfiguracionESP32(data.deviceId);
+  /**
+   * Obtiene la IP del cliente
+   */
+  private getClientIP(req: Request): string {
+    return (req.headers['x-forwarded-for'] as string) ||
+           (req.headers['x-real-ip'] as string) ||
+           ((req as any).connection?.remoteAddress) ||
+           ((req as any).socket?.remoteAddress) ||
+           '0.0.0.0';
   }
 }

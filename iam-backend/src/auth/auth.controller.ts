@@ -83,10 +83,22 @@ export class AuthController {
 
     res.cookie('jwt', token, cookieOptions);
 
-    return {
-      message: 'Login exitoso',
-      refreshToken: refreshToken,
+    // Establecer refresh token en cookie httpOnly (compatibilidad: también se retorna en body)
+    const refreshCookieOptions: any = {
+      ...cookieOptions,
+      // 7 días para refresh token
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     };
+    res.cookie('rt', refreshToken, refreshCookieOptions);
+
+    const responseBody: any = {
+      message: 'Login exitoso',
+    };
+    // En desarrollo, exponer refreshToken para compatibilidad con clientes externos
+    if (!isProduction) {
+      responseBody.refreshToken = refreshToken;
+    }
+    return responseBody;
   }
 
   @Post('logout')
@@ -111,8 +123,9 @@ export class AuthController {
       expires: new Date(0), // Expirar inmediatamente
     };
 
-    // Limpiar la cookie JWT
+    // Limpiar la cookie JWT y refresh token
     res.clearCookie('jwt', clearCookieOptions);
+    res.clearCookie('rt', clearCookieOptions);
 
     // Si hay un usuario autenticado, revocar tokens y hacer log
     if (user) {
@@ -224,9 +237,17 @@ export class AuthController {
   async refreshToken(
     @Body() dto: RefreshTokenDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ) {
+    const providedToken =
+      (req.cookies && (req.cookies as any).rt) || dto.refreshToken;
+
+    if (!providedToken) {
+      throw new UnauthorizedException('Refresh token no proporcionado');
+    }
+
     const { accessToken, newRefreshToken } =
-      await this.refreshTokenService.generateNewAccessToken(dto.refreshToken);
+      await this.refreshTokenService.generateNewAccessToken(providedToken);
 
     // Configuración de cookies configurable
     const isProduction = process.env.NODE_ENV === 'production';
@@ -245,10 +266,20 @@ export class AuthController {
 
     res.cookie('jwt', accessToken, cookieOptions);
 
-    return {
-      message: 'Token renovado exitosamente',
-      refreshToken: newRefreshToken,
+    // Actualizar cookie de refresh token
+    const refreshCookieOptions: any = {
+      ...cookieOptions,
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     };
+    res.cookie('rt', newRefreshToken, refreshCookieOptions);
+
+    const responseBody: any = {
+      message: 'Token renovado exitosamente',
+    };
+    if (!isProduction) {
+      responseBody.refreshToken = newRefreshToken;
+    }
+    return responseBody;
   }
 
   @Post('clear-blacklist')

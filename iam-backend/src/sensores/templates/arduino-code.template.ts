@@ -28,6 +28,9 @@ export const ARDUINO_CODE_TEMPLATE = (config: any) => {
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
+#include <WiFiClientSecure.h>
+#include <time.h>
+${config.socketEnabled ? '#include <WebSocketsClient.h>' : ''}
 ${tieneTemperatura || tieneHumedad ? '#include <DHT.h>' : ''}
 ${tienePeso ? '#include <HX711.h>' : ''}
 ${tienePresion ? '#include <Adafruit_Sensor.h>\n#include <Adafruit_BMP280.h>' : ''}
@@ -47,18 +50,37 @@ String wifiSSID = "${config.wifi.ssid}";
 String wifiPassword = "${config.wifi.password}";
 
 // Configuración API (se obtiene automáticamente del backend)
-String apiBaseUrl = "${config.api.baseUrl}"; // 🔧 IP detectada automáticamente
+String apiBaseUrl = "${(config.api?.baseUrl || '').replace(/\/$/, '')}"; // Normalizar sin slash final
 String apiToken = "${config.api.token}";
-String apiEndpoint = "/iot/lecturas"; // Endpoint corregido
+String apiEndpoint = "${(config.api?.endpoint || '/iot/lecturas').startsWith('/') ? (config.api?.endpoint || '/iot/lecturas') : '/' + (config.api?.endpoint || '/iot/lecturas')}"; // Asegurar prefijo '/'
+
+// Sanitizar endpoint (evitar valores "null" o vacíos)
+String sanitizeEndpoint(String ep) {
+  if (ep.length() == 0) return "/iot/lecturas";
+  ep.trim();
+  ep.toLowerCase();
+  if (ep == "null" || ep == "undefined") return "/iot/lecturas";
+  if (!ep.startsWith("/")) ep = String("/") + ep;
+  return ep;
+}
+
+// Construir URL final de lecturas
+String buildLecturasURL() {
+  String base = String(apiBaseUrl);
+  if (base.endsWith("/")) base.remove(base.length()-1);
+  String ep = sanitizeEndpoint(apiEndpoint);
+  return base + ep;
+}
 
 // 🔧 NUEVO: Configuración de puerto y verificación
-int apiPort = 3001; // Puerto del backend
+// int apiPort = 3001; // Puerto del backend - ELIMINADO
 bool backendConectado = false;
+WiFiClientSecure secureClient; // Cliente TLS para HTTPS
 
 // 🔧 NUEVO: Función para verificar conexión al backend
 bool verificarConexionBackend() {
   HTTPClient http;
-  String testUrl = String(apiBaseUrl) + "/health"; // Endpoint de health check
+  String testUrl = String(apiBaseUrl) + "/iot/health"; // Endpoint de health check
   
   Serial.println("🔍 Verificando conexión al backend: " + testUrl);
   
@@ -80,17 +102,16 @@ bool verificarConexionBackend() {
   } else {
     Serial.println("❌ Error conectando al backend. HTTP Code: " + String(httpCode));
     Serial.println("🔍 Verificar:");
-    Serial.println("   • IP del servidor: " + apiBaseUrl);
-    Serial.println("   • Puerto: " + String(apiPort));
+    Serial.println("   • URL del servidor: " + apiBaseUrl);
     Serial.println("   • Servicio backend ejecutándose");
     Serial.println("   • Firewall/red");
     
-    // 🔧 NUEVO: Intentar actualizar la IP del servidor automáticamente
-    Serial.println("🔄 Intentando actualizar IP del servidor automáticamente...");
-    if (actualizarIPServidor()) {
-      Serial.println("✅ IP actualizada, verificando conexión nuevamente...");
+    // 🔧 NUEVO: Intentar actualizar la URL del servidor automáticamente
+    Serial.println("🔄 Intentando actualizar URL del servidor automáticamente...");
+    if (actualizarURLServidor()) {
+      Serial.println("✅ URL actualizada, verificando conexión nuevamente...");
       http.end();
-      return verificarConexionBackend(); // Reintentar con la nueva IP
+      return verificarConexionBackend(); // Reintentar con la nueva URL
     }
     
     backendConectado = false;
@@ -100,19 +121,19 @@ bool verificarConexionBackend() {
 }
 
 /**
- * 🔧 NUEVO: Actualiza la IP del servidor automáticamente
- * Esta función se llama cuando se detecta un cambio de IP
+ * 🔧 NUEVO: Actualiza la URL del servidor automáticamente
+ * Esta función se llama cuando se detecta un cambio de URL
  */
-bool actualizarIPServidor() {
+bool actualizarURLServidor() {
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("❌ WiFi no conectado para actualizar IP del servidor");
+    Serial.println("❌ WiFi no conectado para actualizar URL del servidor");
     return false;
   }
 
   HTTPClient http;
   String url = String(apiBaseUrl) + "/iot/server-info";
   
-  Serial.println("🔍 Verificando IP del servidor: " + url);
+  Serial.println("🔍 Verificando URL del servidor: " + url);
   
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
@@ -129,11 +150,19 @@ bool actualizarIPServidor() {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, payload);
     
-    if (doc.containsKey("serverIP")) {
+    if (doc.containsKey("baseUrl")) {
+      String nuevaURL = doc["baseUrl"].as<String>();
+      if (nuevaURL != "") {
+        Serial.println("🔄 URL del servidor actualizada: " + nuevaURL);
+        apiBaseUrl = nuevaURL;
+        http.end();
+        return true;
+      }
+    } else if (doc.containsKey("serverIP")) {
       String nuevaIP = doc["serverIP"].as<String>();
-      if (nuevaIP != "" && nuevaIP != "192.168.0.4") {
-        String nuevaURL = "http://" + nuevaIP + ":3001";
-        Serial.println("🔄 IP del servidor actualizada: " + nuevaURL);
+      if (nuevaIP != "") {
+        String nuevaURL = String("https://") + nuevaIP; // preferir HTTPS
+        Serial.println("🔄 URL del servidor actualizada: " + nuevaURL);
         apiBaseUrl = nuevaURL;
         http.end();
         return true;
@@ -165,6 +194,81 @@ struct SensorConfig {
 SensorConfig sensores[10];
 int numSensores = 0;
 int intervaloLecturas = ${config.intervalo};
+bool socketEnabled = ${config.socketEnabled ? 'true' : 'false'};
+${config.socketEnabled ? `
+// ======= WEBSOCKET =======
+WebSocketsClient webSocket;
+bool wsConectado = false;
+
+String buildWebSocketURL() {
+  String base = String(apiBaseUrl);
+  base.replace("http://", "ws://");
+  base.replace("https://", "wss://");
+  if (base.endsWith("/")) base.remove(base.length()-1);
+  return base + "/iot";
+}
+
+void configurarWebSocket() {
+  String wsUrl = buildWebSocketURL();
+  Serial.println("🔌 Configurando WebSocket: " + wsUrl);
+  // Parse host y path desde wsUrl
+  String proto, host, path;
+  int idx = wsUrl.indexOf("://");
+  if (idx > 0) {
+    proto = wsUrl.substring(0, idx);
+    String rest = wsUrl.substring(idx + 3);
+    int slashIdx = rest.indexOf("/");
+    host = slashIdx > 0 ? rest.substring(0, slashIdx) : rest;
+    path = slashIdx > 0 ? rest.substring(slashIdx) : "/iot";
+  } else {
+    host = wsUrl;
+    path = "/iot";
+  }
+  int port = 80;
+  bool useSSL = proto == "wss";
+  if (host.indexOf(":") > 0) {
+    port = host.substring(host.indexOf(":") + 1).toInt();
+    host = host.substring(0, host.indexOf(":"));
+  } else {
+    port = useSSL ? 443 : 80;
+  }
+
+  if (useSSL) {
+    webSocket.beginSSL(host.c_str(), port, path.c_str());
+  } else {
+    webSocket.begin(host.c_str(), port, path.c_str());
+  }
+
+  // Headers extra
+  String headers = String("x-device-id: ") + DEVICE_ID + "\r\n";
+  headers += String("x-empresa-id: ") + String(${config.empresaId}) + "\r\n";
+  headers += String("x-device-type: esp32");
+  webSocket.setExtraHeaders(headers.c_str());
+
+  webSocket.onEvent([](WStype_t type, uint8_t * payload, size_t length){
+    switch (type) {
+      case WStype_CONNECTED:
+        wsConectado = true;
+        Serial.println("✅ WebSocket conectado");
+        break;
+      case WStype_DISCONNECTED:
+        wsConectado = false;
+        Serial.println("❌ WebSocket desconectado");
+        break;
+      case WStype_TEXT: {
+        String msg = String((char*)payload).substring(0, length);
+        Serial.println("💬 Mensaje WS: " + msg);
+        if (msg.indexOf("socket:on") >= 0) { socketEnabled = true; }
+        if (msg.indexOf("socket:off") >= 0) { socketEnabled = false; if (wsConectado) webSocket.disconnect(); }
+        break;
+      }
+      default: break;
+    }
+  });
+
+  webSocket.setReconnectInterval(5000);
+}
+` : ''}
 
 // Configuración inicial de sensores (del usuario)
 void configurarSensoresIniciales() {
@@ -364,23 +468,31 @@ bool enviarLecturas() {
   }
   
   HTTPClient http;
-  String url = String(apiBaseUrl) + "/sensores/iot/lectura";
+  String url = buildLecturasURL();
   
   // Crear JSON con las lecturas
-  DynamicJsonDocument doc(1024);
-  doc["tipo"] = "TEMPERATURA"; // Tipo por defecto, se puede personalizar
-  doc["valor"] = 0.0; // Valor por defecto, se actualiza en el loop
-  doc["unidad"] = "°C"; // Unidad por defecto
+  DynamicJsonDocument doc(2048);
+  doc["deviceId"] = DEVICE_ID;
+  doc["deviceName"] = DEVICE_NAME;
   doc["ubicacionId"] = ${config.ubicacionId};
-  doc["productoId"] = (int)NULL;
-  doc["sensorId"] = (int)NULL;
+  doc["empresaId"] = ${config.empresaId};
+  doc["apiToken"] = apiToken;
+  doc["timestamp"] = (long long)time(nullptr) * 1000LL; // epoch ms vía NTP
+  JsonObject sensorsObj = doc.createNestedObject("sensors");
+  // Agregar un valor por defecto (se sobreescribe en enviarLecturasMultiples)
+  sensorsObj["${sensoresHabilitados[0]?.nombre || 'sensor'}"] = 0.0;
   
   String jsonString;
   serializeJson(doc, jsonString);
   
   Serial.println("📤 Enviando lecturas: " + jsonString);
   
-  http.begin(url);
+  if (url.startsWith("https://")) {
+    secureClient.setInsecure();
+    http.begin(secureClient, url);
+  } else {
+    http.begin(url);
+  }
   http.addHeader("Content-Type", "application/json");
   
   // 🔧 HEADERS ESP32 REQUERIDOS PARA EL BACKEND
@@ -417,74 +529,79 @@ bool enviarLecturasMultiples() {
   }
   
   HTTPClient http;
-  // 🔧 CORREGIR: Usar el endpoint correcto del backend
-  String url = String(apiBaseUrl) + "/sensores/iot/lectura";
+  // Usar el endpoint público IoT correcto (múltiples lecturas)
+  String url = buildLecturasURL();
   
   Serial.println("🌐 URL del backend: " + url);
   Serial.println("🔑 Empresa ID: " + String(${config.empresaId}));
   
-  // Enviar cada sensor individualmente para mejor compatibilidad
+  // Construir un payload único con múltiples lecturas
+  DynamicJsonDocument doc(4096);
+  doc["deviceId"] = DEVICE_ID;
+  doc["deviceName"] = DEVICE_NAME;
+  doc["ubicacionId"] = ${config.ubicacionId};
+  doc["empresaId"] = ${config.empresaId};
+  doc["apiToken"] = apiToken;
+  doc["timestamp"] = (long long)time(nullptr) * 1000LL; // epoch ms vía NTP
+
+  JsonObject sensorsObj = doc.createNestedObject("sensors");
+  JsonArray detailsArr = doc.createNestedArray("sensorDetails");
+
+  int enviados = 0;
   for (int i = 0; i < numSensores; i++) {
     if (sensores[i].enabled) {
       float valor = leerSensor(i);
-      String tipo = sensores[i].tipo;
-      String unidad = sensores[i].unidad;
-      
-      // Crear documento para cada sensor
-      DynamicJsonDocument sensorDoc(512);
-      sensorDoc["tipo"] = tipo;
-      sensorDoc["valor"] = valor;
-      sensorDoc["unidad"] = unidad;
-      sensorDoc["ubicacionId"] = ${config.ubicacionId};
-      sensorDoc["productoId"] = (int)NULL;
-      sensorDoc["sensorId"] = (int)NULL;
-      
-      String sensorJsonString;
-      serializeJson(sensorDoc, sensorJsonString);
-      
-      Serial.println("📤 Enviando sensor " + sensores[i].nombre + ": " + sensorJsonString);
-      
-      http.begin(url);
-      http.addHeader("Content-Type", "application/json");
-      
-      // 🔧 HEADERS ESP32 REQUERIDOS PARA EL BACKEND
-      http.addHeader("x-empresa-id", String(${config.empresaId}));
-      http.addHeader("x-device-type", "esp32");
-      http.addHeader("x-esp32-device", "true");
-      http.addHeader("x-esp32-version", "1.0.0");
-      http.addHeader("User-Agent", "ESP32-Sensor/1.0");
-      
-      // 🔧 CONFIGURACIÓN DE TIMEOUT
-      http.setTimeout(10000); // 10 segundos de timeout
-      
-      int httpCode = http.POST(sensorJsonString);
-      
-      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
-        String response = http.getString();
-        Serial.println("✅ Sensor " + sensores[i].nombre + " enviado exitosamente");
-        Serial.println("📥 Respuesta: " + response);
-      } else {
-        Serial.println("❌ Error enviando sensor " + sensores[i].nombre + ". HTTP Code: " + String(httpCode));
-        String response = http.getString();
-        Serial.println("📥 Respuesta: " + response);
-        
-        // 🔧 DIAGNÓSTICO DE ERRORES
-        if (httpCode == -1) {
-          Serial.println("🔍 Error -1: Problema de conexión. Verificar:");
-          Serial.println("   • URL del backend: " + url);
-          Serial.println("   • Conexión WiFi");
-          Serial.println("   • Headers enviados");
-          Serial.println("   • Empresa ID: " + String(${config.empresaId}));
-        }
-      }
-      
-      http.end();
-      delay(500); // Pausa entre envíos para estabilidad
+      String nombre = sensores[i].nombre;
+      if (isnan(valor)) valor = 0.0;
+      sensorsObj[nombre] = valor;
+
+      JsonObject det = detailsArr.createNestedObject();
+      det["tipo"] = sensores[i].tipo;
+      det["valor"] = valor;
+      det["unidad"] = sensores[i].unidad;
+      det["ubicacionId"] = ${config.ubicacionId};
+      enviados++;
     }
   }
-  
-  Serial.println("✅ Todas las lecturas múltiples enviadas");
-  return true;
+
+  String jsonString;
+  serializeJson(doc, jsonString);
+  Serial.println("📤 Enviando lecturas múltiples: " + jsonString);
+
+  // Iniciar conexión (HTTP/HTTPS)
+  if (url.startsWith("https://")) {
+    secureClient.setInsecure(); // Permitir TLS sin cert en ESP32
+    http.begin(secureClient, url);
+  } else {
+    http.begin(url);
+  }
+
+  http.addHeader("Content-Type", "application/json");
+  // Headers de identificación
+  http.addHeader("x-empresa-id", String(${config.empresaId}));
+  http.addHeader("x-device-type", "esp32");
+  http.addHeader("x-esp32-device", "true");
+  http.addHeader("x-esp32-version", "1.0.0");
+  http.addHeader("User-Agent", "ESP32-Sensor/1.0");
+  http.setTimeout(15000);
+
+  int httpCode = http.POST(jsonString);
+  if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
+    String response = http.getString();
+    Serial.println("✅ Lecturas múltiples enviadas: " + String(enviados));
+    Serial.println("📥 Respuesta: " + response);
+    http.end();
+    return true;
+  } else {
+    Serial.println("❌ Error enviando lecturas múltiples. HTTP Code: " + String(httpCode));
+    String response = http.getString();
+    Serial.println("📥 Respuesta: " + response);
+    if (httpCode == -1) {
+      Serial.println("🔍 Error -1: Problema de conexión/SSL. Verifica WiFi, certificado o URL: " + url);
+    }
+    http.end();
+    return false;
+  }
 }
 
 /**
@@ -645,6 +762,15 @@ void setup() {
   }
   
   Serial.println("✅ Setup completado");
+
+  // Sincronizar tiempo vía NTP para timestamps correctos
+  Serial.println("⏱️ Configurando NTP...");
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+
+  ${config.socketEnabled ? `// Iniciar WebSocket si está habilitado
+  if (socketEnabled) {
+    configurarWebSocket();
+  }` : ''}
 }
 
 void loop() {
@@ -699,6 +825,11 @@ void loop() {
     }
   }
   
+  ${config.socketEnabled ? `// Mantener WS si está activado
+  if (socketEnabled) {
+    webSocket.loop();
+  }` : ''}
+
   delay(1000); // Pequeña pausa para estabilidad
 }
 `;

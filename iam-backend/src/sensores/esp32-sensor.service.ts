@@ -7,6 +7,7 @@ import { SensorTipo, Sensor, SensorLectura } from '@prisma/client';
 import { SensorConfiguracion, CONFIGURACIONES_PREDEFINIDAS } from './dto/create-sensor.dto';
 import { SensoresGateway } from '../websockets/sensores/sensores.gateway';
 import { CreateSensorLecturaDto } from './dto/create-sensor-lectura.dto';
+import { URLConfigService } from '../common/services/url-config.service';
 
 export interface SensorData {
   id: number;
@@ -27,8 +28,11 @@ export class ESP32SensorService {
 
   constructor(
     private prisma: PrismaService,
-    private sensoresGateway?: SensoresGateway
-  ) {}
+    private urlConfig: URLConfigService,
+    private sensoresGateway: SensoresGateway // Remover el ? para hacer la dependencia obligatoria
+  ) {
+    this.logger.log(`🔧 ESP32SensorService inicializado - Gateway disponible: ${!!this.sensoresGateway}`);
+  }
 
   /**
    * 🚀 Registra múltiples lecturas de sensores desde un dispositivo ESP32
@@ -205,11 +209,26 @@ export class ESP32SensorService {
       // Validar configuración
       this.validarConfiguracionESP32(config);
 
+      // Normalizar baseUrl desde entorno si aplica
+      const envBase = await this.urlConfig.getIoTBackendURL();
+      const normalizedConfig = {
+        ...config,
+        api: {
+          ...config.api,
+          baseUrl: (envBase || config.api.baseUrl || '').replace(/\/$/, ''),
+          endpoint: (() => {
+            const ep = (config.api.endpoint || '/iot/lecturas').trim();
+            if (!ep || ep.toLowerCase() === 'null' || ep.toLowerCase() === 'undefined') return '/iot/lecturas';
+            return ep.startsWith('/') ? ep : `/${ep}`;
+          })(),
+        }
+      };
+
       // Guardar configuración en la base de datos
-      await this.guardarConfiguracionESP32(config);
+      await this.guardarConfiguracionESP32(normalizedConfig as any);
 
       // Generar código Arduino personalizado
-      const codigoArduino = ARDUINO_CODE_TEMPLATE(config);
+      const codigoArduino = ARDUINO_CODE_TEMPLATE(normalizedConfig);
       
       // Generar archivo de configuración JSON (para compatibilidad)
       const configFile = JSON.stringify(config, null, 2);
@@ -277,7 +296,7 @@ export class ESP32SensorService {
           password: configuracion.wifiPassword || ''
         },
         api: {
-          baseUrl: this.resolverBaseUrlExterna(configuracion.apiBaseUrl || ''),
+          baseUrl: await this.resolverBaseUrlExterna(configuracion.apiBaseUrl || ''),
           token: configuracion.apiToken || '',
           endpoint: this.resolverEndpointLecturas(configuracion.apiEndpoint || '')
         },
@@ -298,12 +317,91 @@ export class ESP32SensorService {
    * Normaliza la URL base que se envía al ESP32. Si en BD está en localhost/127.0.0.1
    * o viene vacía, se reemplaza por una URL externa configurable por entorno.
    */
-  private resolverBaseUrlExterna(guardada: string): string {
-    const esInvalida = !guardada || /(^https?:\/\/)?(localhost|127\.0\.0\.1)/i.test(guardada);
-    const preferida = process.env.EXTERNAL_API_BASE_URL || process.env.BACKEND_PUBLIC_URL || '';
-    const fallback = preferida || `http://${process.env.LOCAL_LAN_IP || '192.168.0.4'}:3001`;
-    const url = (esInvalida ? fallback : guardada).replace(/\/+$/, '');
-    return url;
+  private async resolverBaseUrlExterna(guardada: string): Promise<string> {
+    try {
+      // Si la URL guardada es válida (no localhost), usarla
+      if (guardada && !/(^https?:\/\/)?(localhost|127\.0\.0\.1)/i.test(guardada)) {
+        this.logger.debug(`🔧 Usando URL guardada en BD: ${guardada}`);
+        return guardada.replace(/\/+$/, '');
+      }
+
+      // 🔍 DETECTAR ENTORNO
+      const isProduction = this.isProductionEnvironment();
+      
+      if (isProduction) {
+        this.logger.log('🌍 Entorno de producción detectado, usando URL externa');
+        return this.getProductionURL();
+      } else {
+        this.logger.log('🏠 Entorno de desarrollo detectado, usando IP local');
+        return this.getDevelopmentURL();
+      }
+
+    } catch (error) {
+      this.logger.error(`❌ Error resolviendo URL base: ${error.message}`);
+      // Fallback final - SIEMPRE usar URL de producción sin puerto
+      return 'https://api.iaminventario.com.mx';
+    }
+  }
+
+  /**
+   * 🌍 Obtiene URL para entornos de producción
+   */
+  private getProductionURL(): string {
+    // 🎯 SIEMPRE usar la URL de producción
+    const productionURL = 'https://api.iaminventario.com.mx';
+    this.logger.log(`🌍 Usando URL de producción: ${productionURL}`);
+    return productionURL;
+  }
+
+  /**
+   * 🏠 Obtiene URL para entornos de desarrollo
+   */
+  private async getDevelopmentURL(): Promise<string> {
+    // 🎯 En desarrollo también usar la URL de producción
+    const productionURL = 'https://api.iaminventario.com.mx';
+    this.logger.log(`🏠 En desarrollo, pero usando URL de producción: ${productionURL}`);
+    return productionURL;
+  }
+
+  /**
+   * 🔍 Detecta si estamos en un entorno de producción
+   */
+  private isProductionEnvironment(): boolean {
+    // 🎯 SIEMPRE comportarse como producción para el Arduino
+    this.logger.debug(`🔍 Siempre usando comportamiento de producción para Arduino`);
+    return true;
+  }
+
+  /**
+   * 🔍 Detecta si hay dominios de producción en la configuración
+   */
+  private hasProductionDomain(): boolean {
+    const productionDomains = [
+      'api.iaminventario.com.mx',
+      'iaminventario.com.mx',
+      'app.iaminventario.com.mx'
+    ];
+    
+    // Verificar si alguna de las variables de entorno contiene dominios de producción
+    const envVars = [
+      process.env.EXTERNAL_API_BASE_URL,
+      process.env.BACKEND_PUBLIC_URL,
+      process.env.FRONTEND_URL,
+      process.env.API_URL
+    ];
+    
+    for (const envVar of envVars) {
+      if (envVar) {
+        for (const domain of productionDomains) {
+          if (envVar.includes(domain)) {
+            this.logger.debug(`🌍 Dominio de producción detectado: ${domain} en ${envVar}`);
+            return true;
+          }
+        }
+      }
+    }
+    
+    return false;
   }
 
   /**
@@ -408,6 +506,68 @@ export class ESP32SensorService {
 
     } catch (error) {
       this.logger.error('Error obteniendo estadísticas ESP32:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🌐 Obtiene información de red detectada automáticamente
+   */
+  async obtenerInformacionRed(): Promise<{
+    localIP: string;
+    networkInterface: string;
+    backendURL: string;
+    frontendURL: string;
+    isLocalNetwork: boolean;
+    timestamp: string;
+  }> {
+    try {
+      const localIP = await this.urlConfig.detectLocalIP();
+      const backendURL = await this.urlConfig.getBackendURL();
+      const frontendURL = await this.urlConfig.getFrontendURL();
+
+      return {
+        localIP,
+        networkInterface: 'auto-detected',
+        backendURL,
+        frontendURL,
+        isLocalNetwork: true,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      this.logger.error('Error obteniendo información de red:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔄 Fuerza la actualización de información de red
+   */
+  async actualizarInformacionRed(): Promise<{
+    localIP: string;
+    networkInterface: string;
+    backendURL: string;
+    frontendURL: string;
+    isLocalNetwork: boolean;
+    timestamp: string;
+  }> {
+    try {
+      const localIP = await this.urlConfig.detectLocalIP();
+      const backendURL = await this.urlConfig.getBackendURL();
+      const frontendURL = await this.urlConfig.getFrontendURL();
+
+      this.logger.log(`🔄 Información de red actualizada: ${localIP}`);
+
+      return {
+        localIP,
+        networkInterface: 'auto-detected',
+        backendURL,
+        frontendURL,
+        isLocalNetwork: true,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      this.logger.error('Error actualizando información de red:', error);
       throw error;
     }
   }
@@ -645,7 +805,7 @@ export class ESP32SensorService {
 
   private async guardarConfiguracionESP32(config: ESP32Configuracion): Promise<void> {
     try {
-      const baseUrlNormalizada = this.resolverBaseUrlExterna(config.api.baseUrl);
+      const baseUrlNormalizada = await this.resolverBaseUrlExterna(config.api.baseUrl);
       const endpointNormalizado = this.resolverEndpointLecturas(config.api.endpoint);
 
       await this.prisma.dispositivoIoT.upsert({
@@ -754,10 +914,7 @@ export class ESP32SensorService {
     ubicacionId: number
   ): Promise<void> {
     try {
-      if (!this.sensoresGateway) {
-        this.logger.warn('WebSocket Gateway no disponible');
-        return;
-      }
+      this.logger.log(`📡 Iniciando emisión de ${lecturas.length} lecturas por WebSocket para empresa ${empresaId}`);
 
       // Emitir cada lectura individual
       for (const lectura of lecturas) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { BarChart2, Home, Package, Truck, X, TrendingUp, Shield, Activity, Upload, MapPin, Radio, Bell, MessageSquare } from 'lucide-react'
+import { BarChart2, Home, Package, Truck, X, TrendingUp, Shield, Activity, Upload, MapPin, Radio, Bell, MessageSquare, Cpu } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -16,6 +16,7 @@ const getNavItems = (user: User | null) => {
     { href: '/dashboard/proveedores', label: 'Proveedores', icon: <Truck size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
     { href: '/dashboard/ubicaciones', label: 'Ubicaciones', icon: <MapPin size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
     { href: '/dashboard/sensores', label: 'Sensores', icon: <Radio size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
+    { href: '/dashboard/esp32-websocket', label: 'ESP32 WebSocket', icon: <Cpu size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
     { href: '/dashboard/alertas', label: 'Alertas', icon: <Bell size={18} />, roles: ['SUPERADMIN', 'ADMIN'], disabled: false },
     { href: '/dashboard/sms', label: 'SMS', icon: <MessageSquare size={18} />, roles: ['SUPERADMIN', 'ADMIN'], disabled: false },
     { href: '/dashboard/kpis', label: 'KPIs', icon: <TrendingUp size={18} />, roles: ['SUPERADMIN', 'ADMIN', 'EMPLEADO'], disabled: false },
