@@ -78,7 +78,7 @@ export function AlertasActivasGestion({
   const [ordenamiento, setOrdenamiento] = useState<'timestamp' | 'severidad' | 'sensor'>('timestamp')
   const { addToast } = useToast()
 
-  const filtrarAlertas = () => {
+  useEffect(() => {
     let resultado = [...alertas]
 
     // Filtro de búsqueda
@@ -126,10 +126,6 @@ export function AlertasActivasGestion({
     })
 
     setAlertasFiltradas(resultado)
-  }
-
-  useEffect(() => {
-    filtrarAlertas()
   }, [alertas, filtros, ordenamiento])
 
   const handleResolver = async (alertaId: string) => {

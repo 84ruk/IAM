@@ -1,3 +1,4 @@
+import { SeveridadAlerta } from '@prisma/client';
 export interface SensorLectura {
   id?: number;
   tipo: 'TEMPERATURA' | 'HUMEDAD' | 'PRESION' | 'PESO';
@@ -59,7 +60,7 @@ export interface AlertaGenerada {
   id: number;
   tipo: string;
   mensaje: string;
-  severidad: string;
+  severidad: SeveridadAlerta;
   empresaId: number;
   ubicacionId?: number;
   sensorId?: number;

@@ -7,6 +7,7 @@ import { SensorTipo, Sensor, SensorLectura } from '@prisma/client';
 import { AlertasAvanzadasService } from '../alertas/alertas-avanzadas.service';
 import { SensoresGateway } from '../websockets/sensores/sensores.gateway';
 import { SensorAlertManagerService } from '../alertas/services/sensor-alert-manager.service';
+import { Prisma } from '@prisma/client';
 
 export interface SensorData {
   id: number;
@@ -712,6 +713,41 @@ export class SensoresService {
         this.logger.warn('⚠️ Error emitiendo evento de auditoría:', auditError);
       }
 
+      // Después de registrar el sensor, crear configuración de alerta si no existe
+      const umbral = {
+        ...configuracionFinal,
+        // Puedes ajustar aquí los campos críticos según tu modelo
+        severidad: configuracionFinal.severidad || 'MEDIA',
+        tipo: dto.tipo,
+      };
+      const notificacion = {
+        email: true,
+        sms: false,
+        webSocket: true,
+        push: false,
+      };
+      await this.prisma.configuracionAlerta.upsert({
+        where: {
+          sensorId: sensor.id,
+        },
+        update: {
+          tipoAlerta: 'GENERAL',
+          activo: true,
+          frecuencia: 'INMEDIATA',
+          umbral: umbral as Prisma.JsonObject,
+          notificacion: notificacion as Prisma.JsonObject,
+        },
+        create: {
+          empresaId,
+          sensorId: sensor.id,
+          tipoAlerta: 'GENERAL',
+          activo: true,
+          frecuencia: 'INMEDIATA',
+          umbral: umbral as Prisma.JsonObject,
+          notificacion: notificacion as Prisma.JsonObject,
+        },
+      });
+
       this.logger.log(`🔧 ===== FIN REGISTRO SENSOR EN SERVICIO EXITOSO =====`);
       return sensor;
     } catch (error) {
@@ -1080,7 +1116,7 @@ export class SensoresService {
           });
 
           // Obtener alertas activas
-          const alertasActivas = await this.prisma.alertHistory.count({
+          const alertasActivas = await this.prisma.alertaHistorial.count({
             where: {
               empresaId,
               estado: 'ENVIADA',
@@ -1176,7 +1212,7 @@ export class SensoresService {
       });
 
       // Obtener alertas recientes
-      const alertas = await this.prisma.alertHistory.findMany({
+      const alertas = await this.prisma.alertaHistorial.findMany({
         where: {
           empresaId,
           estado: 'ENVIADA',
@@ -1235,7 +1271,7 @@ export class SensoresService {
         whereAlertas.fechaEnvio = { ...whereAlertas.fechaEnvio, lte: filtros.hasta };
       }
 
-      const alertas = await this.prisma.alertHistory.findMany({
+      const alertas = await this.prisma.alertaHistorial.findMany({
         where: whereAlertas,
         include: {
           producto: {

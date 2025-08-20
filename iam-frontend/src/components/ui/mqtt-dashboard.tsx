@@ -20,7 +20,6 @@ import {
   Users,
   MessageSquare
 } from 'lucide-react'
-import { useToast } from '@/components/ui/Toast'
 
 interface MqttStatus {
   enabled: boolean
@@ -62,7 +61,7 @@ export function MqttDashboard() {
   const [recentReadings, setRecentReadings] = useState<SensorReading[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string>('')
-  const { addToast } = useToast()
+  // Eliminar: addToast, loadDashboardData si no se usan en el archivo.
 
   const loadDashboardData = async () => {
     try {

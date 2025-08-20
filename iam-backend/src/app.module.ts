@@ -35,6 +35,7 @@ import { WebSocketsModule } from './websockets/websockets.module';
 import mqttConfig from './config/mqtt.config';
 import esp32Config from './config/esp32.config';
 import retentionConfig from './config/retention.config';
+import { AlertasModule } from './alertas/alertas.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import retentionConfig from './config/retention.config';
     ColasModule, // 🆕 NUEVO - Módulo de colas para procesamiento asíncrono
     ImportacionModule, // 🆕 NUEVO - Módulo de importación de datos
     WebSocketsModule, // 🆕 NUEVO - Módulo de WebSockets para tiempo real
+    AlertasModule,
   ],
   controllers: [AppController],
   providers: [

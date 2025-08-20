@@ -2,128 +2,100 @@ import {
   Body,
   Controller,
   Get,
-  HttpException,
+  HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Post,
   Put,
-  Request,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { UnifiedEmpresaGuard } from '../../auth/guards/unified-empresa.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { EmpresaRequired } from '../../auth/decorators/empresa-required.decorator';
+import { JwtUser } from '../../auth/interfaces/jwt-user.interface';
+import { AlertasConfigService } from '../services/alertas-config.service';
+import { ConfiguracionSistemaAlertasDto } from '../dto/configuracion-sistema-alertas.dto';
 
-// Estructuras esperadas por el frontend (shape compatible)
-interface ConfiguracionSistemaAlertasDto {
-  id?: number;
-  empresaId: number;
-  sistemaActivado: boolean;
-  modoDebug: boolean;
-  escalamientoAutomatico: boolean;
-  tiempoEscalamientoMinutos: number;
-  maximoNivelEscalamiento: number;
-  canalesHabilitados: Array<'EMAIL' | 'SMS' | 'WEBSOCKET' | 'PUSH'>;
-  destinatariosPrincipales: string[];
-  destinatariosSupervisores: string[];
-  destinatariosAdministradores: string[];
-  plantillaEmailNormal: string;
-  plantillaEmailCritica: string;
-  plantillaSMSNormal: string;
-  plantillaSMSCritica: string;
-  maximoReintentos: number;
-  intervaloReintentosMinutos: number;
-  horarioBlackout: { horaInicio: string; horaFin: string; diasSemana: number[] };
-  agruparAlertas: boolean;
-  ventanaAgrupacionMinutos: number;
-}
-
-@UseGuards(JwtAuthGuard)
 @Controller('empresas')
+@UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
 export class AlertasConfigController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly alertasConfigService: AlertasConfigService) {}
 
-  private mapFromRow(row: any): ConfiguracionSistemaAlertasDto {
-    const json = (row?.umbralCritico as any) || {};
-    const canales = Array.isArray(json.canalesHabilitados)
-      ? (json.canalesHabilitados.filter((c: string) => ['EMAIL', 'SMS', 'WEBSOCKET', 'PUSH'].includes(c)) as Array<'EMAIL'|'SMS'|'WEBSOCKET'|'PUSH'>)
-      : (['EMAIL', 'WEBSOCKET'] as Array<'EMAIL'|'SMS'|'WEBSOCKET'|'PUSH'>);
-
-    return {
-      id: row?.id,
-      empresaId: row.empresaId,
-      sistemaActivado: row?.activo ?? true,
-      modoDebug: Boolean(json.modoDebug ?? false),
-      escalamientoAutomatico: Boolean(json.escalamientoAutomatico ?? true),
-      tiempoEscalamientoMinutos: Number(json.tiempoEscalamientoMinutos ?? 10),
-      maximoNivelEscalamiento: Number(json.maximoNivelEscalamiento ?? 3),
-      canalesHabilitados: canales,
-      destinatariosPrincipales: (json.destinatariosPrincipales as string[]) || [],
-      destinatariosSupervisores: (json.destinatariosSupervisores as string[]) || [],
-      destinatariosAdministradores: (json.destinatariosAdministradores as string[]) || [],
-      plantillaEmailNormal: String(json.plantillaEmailNormal || ''),
-      plantillaEmailCritica: String(json.plantillaEmailCritica || ''),
-      plantillaSMSNormal: String(json.plantillaSMSNormal || ''),
-      plantillaSMSCritica: String(json.plantillaSMSCritica || ''),
-      maximoReintentos: Number(json.maximoReintentos ?? 3),
-      intervaloReintentosMinutos: Number(json.intervaloReintentosMinutos ?? 5),
-      horarioBlackout: json.horarioBlackout || { horaInicio: '00:00', horaFin: '00:00', diasSemana: [] },
-      agruparAlertas: Boolean(json.agruparAlertas ?? false),
-      ventanaAgrupacionMinutos: Number(json.ventanaAgrupacionMinutos ?? 10),
-    };
-  }
-
+  /**
+   * Obtiene la configuración de alertas para una empresa específica.
+   */
   @Get(':empresaId/alertas/configuracion')
-  async obtener(@Request() req, @Param('empresaId') empresaIdParam: string) {
-    const empresaId = Number(empresaIdParam);
-    if (empresaId !== req.user.empresaId) {
-      throw new HttpException('Empresa inválida', HttpStatus.FORBIDDEN);
-    }
-    const row = await this.prisma.alertConfiguration.findFirst({
-      where: { empresaId, tipoAlerta: 'SISTEMA' },
-    });
-    if (!row) {
-      // retornar valores por defecto
-      return this.mapFromRow({ empresaId, activo: true, umbralCritico: {} });
-    }
-    return this.mapFromRow(row);
+  @Roles('SUPERADMIN', 'ADMIN')
+  @EmpresaRequired()
+  @HttpCode(HttpStatus.OK)
+  async obtener(
+    @Param('empresaId', ParseIntPipe) empresaId: number,
+    @CurrentUser() currentUser: JwtUser,
+  ) {
+    this.validarAccesoEmpresa(currentUser, empresaId);
+    return this.alertasConfigService.obtenerConfiguracion(empresaId);
   }
 
+  /**
+   * Crea la configuración de alertas para la empresa del usuario autenticado.
+   */
   @Post('alertas/configuracion')
-  async crear(@Request() req, @Body() body: ConfiguracionSistemaAlertasDto) {
-    if (body.empresaId !== req.user.empresaId) {
-      throw new HttpException('Empresa inválida', HttpStatus.FORBIDDEN);
-    }
-    const saved = await this.prisma.alertConfiguration.create({
-      data: {
-        empresaId: body.empresaId,
-        tipoAlerta: 'SISTEMA',
-        activo: body.sistemaActivado,
-        destinatarios: body.destinatariosPrincipales || [],
-        frecuencia: 'inmediata',
-        ventanaEsperaMinutos: body.tiempoEscalamientoMinutos,
-        umbralCritico: (body as unknown) as Prisma.InputJsonValue, // almacenamos toda la config como JSON
-      },
-    });
-    return this.mapFromRow(saved);
+  @Roles('SUPERADMIN', 'ADMIN')
+  @EmpresaRequired()
+  @HttpCode(HttpStatus.CREATED)
+  async crear(
+    @Body() config: ConfiguracionSistemaAlertasDto,
+    @CurrentUser() currentUser: JwtUser,
+  ) {
+    this.validarEmpresaUsuario(currentUser);
+    return this.alertasConfigService.crear(
+      config,
+      currentUser.rol,
+      currentUser.empresaId!,
+    );
   }
 
+  /**
+   * Actualiza la configuración de alertas para la empresa del usuario autenticado.
+   */
   @Put('alertas/configuracion/:id')
-  async actualizar(@Request() req, @Param('id') id: string, @Body() body: ConfiguracionSistemaAlertasDto) {
-    const row = await this.prisma.alertConfiguration.findUnique({ where: { id: Number(id) } });
-    if (!row || row.empresaId !== req.user.empresaId) {
-      throw new HttpException('No autorizado', HttpStatus.FORBIDDEN);
+  @Roles('SUPERADMIN', 'ADMIN')
+  @EmpresaRequired()
+  @HttpCode(HttpStatus.OK)
+  async actualizar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() config: ConfiguracionSistemaAlertasDto,
+    @CurrentUser() currentUser: JwtUser,
+  ) {
+    this.validarEmpresaUsuario(currentUser);
+    return this.alertasConfigService.actualizar(
+      id,
+      config,
+      currentUser.rol,
+      currentUser.empresaId!,
+    );
+  }
+
+  /**
+   * Valida que el usuario tenga acceso a la empresa solicitada.
+   */
+  private validarAccesoEmpresa(user: JwtUser, empresaId: number) {
+    if (user.rol !== 'SUPERADMIN' && user.empresaId !== empresaId) {
+      throw new Error('No tienes permisos para acceder a esta empresa');
     }
-    const updated = await this.prisma.alertConfiguration.update({
-      where: { id: Number(id) },
-      data: {
-        activo: body.sistemaActivado,
-        destinatarios: body.destinatariosPrincipales || [],
-        ventanaEsperaMinutos: body.tiempoEscalamientoMinutos,
-        umbralCritico: (body as unknown) as Prisma.InputJsonValue,
-      },
-    });
-    return this.mapFromRow(updated);
+  }
+
+  /**
+   * Valida que el usuario tenga una empresa asignada.
+   */
+  private validarEmpresaUsuario(user: JwtUser) {
+    if (!user.empresaId) {
+      throw new Error('El usuario no tiene una empresa asignada');
+    }
   }
 }
 

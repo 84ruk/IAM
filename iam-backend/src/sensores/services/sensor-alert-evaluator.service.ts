@@ -415,8 +415,8 @@ export class SensorAlertEvaluatorService {
         this.prisma.sensorLectura.count({ where: { sensorId, empresaId, fecha: { gte: hace24h } } }),
         this.prisma.sensorLectura.count({ where: { sensorId, empresaId, fecha: { gte: hace1h } } }),
         this.prisma.sensorLectura.count({ where: { sensorId, empresaId, fecha: { gte: hace1semana } } }),
-        this.prisma.alertHistory.count({ where: { sensorId, empresaId, tipo: 'SENSOR' } }),
-        this.prisma.alertHistory.count({ where: { sensorId, empresaId, tipo: 'SENSOR', estado: 'RESUELTA' } })
+        this.prisma.alertaHistorial.count({ where: { sensorId, empresaId, tipo: 'SENSOR' } }),
+        this.prisma.alertaHistorial.count({ where: { sensorId, empresaId, tipo: 'SENSOR', estado: 'RESUELTA' } })
       ]);
 
       // Calcular valores promedio

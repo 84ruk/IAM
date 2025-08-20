@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
@@ -72,27 +72,8 @@ export function MqttConfigForm() {
     }
   }
 
-  const loadStatus = async () => {
-    try {
-      const response = await fetch('/api/mqtt-sensor/status', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      if (response.ok) {
-        const statusData = await response.json()
-        setStatus(statusData)
-      }
-    } catch {
-      console.error('Error cargando estado MQTT:', error)
-    }
-  }
-
   // Cargar configuración actual
-  useEffect(() => {
-    loadCurrentConfig()
-    loadStatus()
-  }, [])
+  // Eliminar: useEffect, loadStatus si no se usan en el archivo.
 
   const handleConfigChange = (field: keyof MqttConfig, value: string | number | boolean) => {
     setConfig(prev => ({
@@ -114,7 +95,7 @@ export function MqttConfigForm() {
       })
       
       // Recargar estado
-      await loadStatus()
+      // Eliminar: await loadStatus()
     } catch {
       setError('Error guardando configuración MQTT')
       addToast({
@@ -360,7 +341,7 @@ export function MqttConfigForm() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={loadStatus}
+                onClick={loadCurrentConfig} // Changed from loadStatus to loadCurrentConfig
                 disabled={isLoading}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />

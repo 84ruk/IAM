@@ -24,12 +24,14 @@ model Empresa {
   movimientos   MovimientoInventario[]
   proveedores   Proveedor[]
   pedidos       PedidoInventario[]
-  alertas       AlertHistory[]
+  alertas       AlertaHistorial[]
+  alertasConfiguracion ConfiguracionAlerta[]
   ubicaciones   Ubicacion[]
   sensores      Sensor[]
   lecturasSensores SensorLectura[]
   smsDeliveryLogs SMSDeliveryLog[]
   dispositivosIoT DispositivoIoT[]
+  destinatarios DestinatarioAlerta[]
 }
 
 model Usuario {
@@ -44,10 +46,12 @@ model Usuario {
   authProvider    String   @default("local")
   googleId        String?  @unique
   setupCompletado Boolean  @default(false)
+  telefono        String?
   
   // ✅ Relaciones
   empresa         Empresa? @relation(fields: [empresaId], references: [id])
   refreshTokens   RefreshToken[]
+  destinatarioAlertas ConfiguracionAlertaDestinatario[] @relation("UsuarioDestinatarioAlertas")
 
   @@index([empresaId, rol])
   @@index([empresaId, activo])
@@ -91,7 +95,7 @@ model Producto {
   movimientos       MovimientoInventario[] @relation("ProductoMovimientos")
   sensores          SensorLectura[]
   pedidos           PedidoInventario[] @relation("ProductoPedidos")
-  alertas           AlertHistory[]
+  alertas           AlertaHistorial[]
 
   @@index([empresaId, etiquetas])
   @@index([empresaId, estado])
@@ -186,20 +190,68 @@ model PasswordResetToken {
 model RefreshToken {
   id        Int      @id @default(autoincrement())
   token     String   @unique
-  userId    Int
-  expiresAt DateTime
-  isRevoked Boolean  @default(false)
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
   jti       String   @unique
-  createdAt DateTime @default(now())
-
-  // ✅ Relaciones
+  createdAt DateTime @default(now()) @map("created_at")
   user      Usuario  @relation(fields: [userId], references: [id])
 
+  @@map("refresh_tokens")
   @@index([userId])
-  @@index([token])
-  @@index([jti])
-  @@index([expiresAt])
-  @@index([isRevoked])
+}
+
+model ConfiguracionAlerta {
+  id            Int      @id @default(autoincrement())
+  empresaId     Int
+  sensorId      Int   @unique
+  tipoAlerta    String
+  activo        Boolean  @default(true)
+  frecuencia    String
+  ventanaEspera Int?
+  umbral        Json
+  notificacion  Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  sensor        Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+  destinatarios ConfiguracionAlertaDestinatario[]
+
+  @@index([empresaId])
+  @@index([sensorId])
+}
+
+model ConfiguracionAlertaDestinatario {
+  id                     Int                @id @default(autoincrement())
+  configuracionAlertaId  Int
+  destinatarioId         Int
+  userId                 Int? // Relación con Usuario (opcional)
+
+  configuracionAlerta    ConfiguracionAlerta  @relation(fields: [configuracionAlertaId], references: [id])
+  destinatario           DestinatarioAlerta   @relation(fields: [destinatarioId], references: [id])
+  usuario                Usuario? @relation("UsuarioDestinatarioAlertas", fields: [userId], references: [id])
+
+  @@unique([configuracionAlertaId, destinatarioId])
+  @@index([configuracionAlertaId])
+  @@index([destinatarioId])
+  @@index([userId])
+}
+
+model DestinatarioAlerta {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  email     String
+  telefono  String?
+  tipo      TipoDestinatarioAlerta
+  activo    Boolean  @default(true)
+  empresaId Int
+
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  alertasConfiguradas ConfiguracionAlertaDestinatario[]
+
+  @@unique([empresaId, email])
+  @@index([empresaId])
 }
 
 model BlacklistedToken {
@@ -280,7 +332,7 @@ model Ubicacion {
   lecturas    SensorLectura[]
   dispositivosIoT DispositivoIoT[]
   kpiEventos  KpiEvento[]
-  alertas     AlertHistory[]
+  alertas     AlertaHistorial[]
   
   @@index([empresaId])
   @@index([empresaId, activa])
@@ -304,7 +356,8 @@ model Sensor {
   empresa     Empresa   @relation(fields: [empresaId], references: [id])
   dispositivoIoT DispositivoIoT? @relation(fields: [dispositivoIoTId], references: [id])
   lecturas    SensorLectura[]
-  alertas     AlertHistory[]
+  alertas     AlertaHistorial[]
+  configuracionAlerta ConfiguracionAlerta?
   
   @@index([ubicacionId])
   @@index([empresaId])
@@ -358,11 +411,24 @@ model AuditLog {
   @@index([empresaId])
 }
 
-model AlertHistory {
+enum TipoDestinatarioAlerta {
+  EMAIL
+  SMS
+  AMBOS
+}
+
+enum SeveridadAlerta {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+model AlertaHistorial {
   id                  Int       @id @default(autoincrement())
   empresaId           Int
   tipo                String
-  severidad           String
+  severidad           SeveridadAlerta
   titulo              String
   mensaje             String
   productoId          Int?
@@ -380,11 +446,11 @@ model AlertHistory {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  // ✅ Relaciones
   empresa             Empresa   @relation(fields: [empresaId], references: [id])
   producto            Producto? @relation(fields: [productoId], references: [id])
   sensor              Sensor?   @relation(fields: [sensorId], references: [id])
   ubicacion           Ubicacion? @relation(fields: [ubicacionId], references: [id])
+  registrosEnvioSMS   RegistroEnvioSMS[]
   smsDeliveryLogs     SMSDeliveryLog[]
 
   @@index([empresaId])
@@ -393,20 +459,18 @@ model AlertHistory {
   @@index([fechaEnvio(sort: Desc)])
 }
 
-model AlertConfiguration {
-  id                   Int      @id @default(autoincrement())
-  empresaId            Int
-  tipoAlerta           String
-  activo               Boolean  @default(true)
-  destinatarios        String[]
-  frecuencia           String
-  ventanaEsperaMinutos Int?
-  umbralCritico        Json?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+model RegistroEnvioSMS {
+  id            Int      @id @default(autoincrement())
+  mensajeId     String
+  destinatario  String
+  estado        String
+  codigoError   String?
+  alertaId      Int?
 
-  @@index([empresaId])
-  @@index([tipoAlerta])
+  alerta        AlertaHistorial? @relation(fields: [alertaId], references: [id])
+
+  @@index([alertaId])
+  @@index([estado])
 }
 
 model NotificationTemplate {
@@ -441,7 +505,7 @@ model SMSDeliveryLog {
 
   // Relaciones
   empresa     Empresa  @relation(fields: [empresaId], references: [id])
-  alerta      AlertHistory? @relation(fields: [alertaId], references: [id])
+  alerta      AlertaHistorial? @relation(fields: [alertaId], references: [id])
 
   @@index([empresaId])
   @@index([messageId])

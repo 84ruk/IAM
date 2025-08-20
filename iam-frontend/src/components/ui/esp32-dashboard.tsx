@@ -21,6 +21,7 @@ import {
   Cpu
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import Link from 'next/link';
 
 interface ESP32DashboardProps {
   ubicacionId?: number;
@@ -68,7 +69,6 @@ export function ESP32Dashboard({ ubicacionId }: ESP32DashboardProps) {
   const [estadisticas, setEstadisticas] = useState<ESP32Stats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDevice, setSelectedDevice] = useState<ESP32Device | null>(null);
-  const [error, setError] = useState<string>('')
   const { addToast } = useToast()
 
   const cargarDatos = async () => {
@@ -283,9 +283,9 @@ export function ESP32Dashboard({ ubicacionId }: ESP32DashboardProps) {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 No hay dispositivos ESP32 registrados. 
-                <a href="/sensores/esp32/configuracion-automatica" className="text-blue-600 hover:underline ml-1">
+                <Link href="/sensores/esp32/configuracion-automatica" className="text-blue-600 hover:underline ml-1">
                   Configura tu primer dispositivo
-                </a>
+                </Link>
               </AlertDescription>
             </Alert>
           ) : (

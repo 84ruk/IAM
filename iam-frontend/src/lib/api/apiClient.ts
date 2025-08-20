@@ -97,7 +97,7 @@ class ApiClient {
             await this.refreshPromise
             // Reintentar la petición original con cookies actualizadas
             return this.instance.request(originalConfig)
-          } catch (refreshError) {
+          } catch {
             // Si la renovación falla, propagar el error original 401/403
             return Promise.reject(error)
           }

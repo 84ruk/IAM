@@ -1,3 +1,4 @@
+import { SeveridadAlerta } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 // import { SensorAlertEvaluatorService, AlertaEvaluada, LecturaSensor } from './sensor-alert-evaluator.service';
@@ -6,9 +7,6 @@ import { SMSNotificationService } from './sms-notification.service';
 import { UmbralesSensorDto } from '../../sensores/dto/umbrales-sensor.dto';
 import { SensorTipo } from '@prisma/client';
 // import { SensoresGateway } from '../../websockets/sensores/sensores.gateway';
-
-// Definir tipos localmente para evitar dependencias circulares
-export type SeveridadAlerta = 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
 
 export interface LecturaSensor {
   sensorId: number;
@@ -282,7 +280,7 @@ export class SensorAlertManagerService {
   ): Promise<AlertaGenerada> {
     try {
       // Crear la alerta en la base de datos
-      const alertaDB = await this.prisma.alertHistory.create({
+      const alertaDB = await this.prisma.alertaHistorial.create({
         data: {
           empresaId,
           tipo: alertaEvaluada.tipo,
@@ -372,13 +370,21 @@ export class SensorAlertManagerService {
     configuracion: ConfiguracionAlerta
   ): Promise<void> {
     try {
-      const asunto = `🚨 ALERTA DE SENSOR: ${alerta.tipo}`;
-      const contenido = this.generarContenidoEmail(alerta, configuracion);
-
-      // TODO: Implementar envío de email usando tu servicio existente
-      this.logger.log(`Emails de alerta preparados para ${configuracion.destinatarios.length} destinatarios`);
-      this.logger.debug(`Asunto: ${asunto}, Contenido: ${contenido}`);
-
+      await this.notificationService.sendSensorAlert({
+        tipo: 'sensor-alert',
+        destinatarios: configuracion.destinatarios,
+        variables: {
+          tipoAlerta: alerta.tipo,
+          mensaje: alerta.mensaje,
+          sensorId: alerta.sensorId,
+          ubicacionId: alerta.ubicacionId,
+          severidad: alerta.severidad,
+          fecha: alerta.fecha,
+          productoId: alerta.productoId,
+          empresaId: alerta.empresaId,
+        },
+        empresaId: alerta.empresaId,
+      });
       this.logger.log(`Emails de alerta enviados a ${configuracion.destinatarios.length} destinatarios`);
     } catch (error) {
       this.logger.error(`Error enviando email de alerta: ${error.message}`);
@@ -523,7 +529,7 @@ export class SensorAlertManagerService {
    */
   private async marcarAlertaNotificada(alertaId: string): Promise<void> {
     try {
-      await this.prisma.alertHistory.update({
+      await this.prisma.alertaHistorial.update({
         where: { id: parseInt(alertaId) },
         data: { emailEnviado: true },
       });
@@ -553,7 +559,7 @@ export class SensorAlertManagerService {
       const fechaInicio = new Date();
       fechaInicio.setDate(fechaInicio.getDate() - dias);
 
-      const alertas = await this.prisma.alertHistory.findMany({
+      const alertas = await this.prisma.alertaHistorial.findMany({
         where: {
           empresaId,
           createdAt: { gte: fechaInicio },
@@ -615,7 +621,7 @@ export class SensorAlertManagerService {
     empresaId: number
   ): Promise<boolean> {
     try {
-      await this.prisma.alertHistory.update({
+      await this.prisma.alertaHistorial.update({
         where: {
           id: parseInt(alertaId),
           empresaId,

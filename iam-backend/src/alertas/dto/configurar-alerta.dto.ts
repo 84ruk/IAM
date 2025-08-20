@@ -1,4 +1,6 @@
-import { IsOptional, IsNumber, IsString, IsBoolean, IsArray, Min, Max } from 'class-validator';
+import { IsOptional, IsNumber, IsString, IsBoolean, IsArray, Min, Max, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { DestinatarioAlertaDto } from './destinatario-alerta.dto';
 
 export class UmbralAlertaDto {
   @IsOptional()
@@ -53,9 +55,8 @@ export class ConfigurarAlertaDto {
   @IsNumber()
   ubicacionId: number;
 
-  @IsOptional()
   @IsNumber()
-  sensorId?: number;
+  sensorId: number;
 
   @IsOptional()
   @IsNumber()
@@ -65,12 +66,9 @@ export class ConfigurarAlertaDto {
   activo: boolean = true;
 
   @IsArray()
-  @IsString({ each: true })
-  destinatarios: string[] = [];
-
-  @IsArray()
-  @IsString({ each: true })
-  destinatariosSMS: string[] = [];
+  @ValidateNested({ each: true })
+  @Type(() => DestinatarioAlertaDto)
+  destinatarios: DestinatarioAlertaDto[] = [];
 
   @IsString()
   frecuencia: string = 'INMEDIATA'; // INMEDIATA, DIARIA, SEMANAL
@@ -97,6 +95,12 @@ export class ConfigurarAlertaDto {
   @IsOptional()
   @IsString()
   prioridadSMS?: 'low' | 'normal' | 'high' | 'urgent' = 'normal';
+
+  @IsOptional()
+  umbral?: Record<string, any>;
+
+  @IsOptional()
+  notificacion?: Record<string, any>;
 }
 
 export class CrearAlertaDto {

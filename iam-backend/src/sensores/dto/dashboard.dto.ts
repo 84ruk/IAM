@@ -1,3 +1,4 @@
+import { SeveridadAlerta } from '@prisma/client';
 import { IsOptional, IsNumber, IsString, IsDateString } from 'class-validator';
 
 export class DashboardUbicacionesDto {
@@ -86,7 +87,7 @@ export interface DashboardTiempoReal {
   alertas: {
     id: string;
     tipo: string;
-    severidad: string;
+    severidad: SeveridadAlerta;
     mensaje: string;
     fecha: Date;
   }[];

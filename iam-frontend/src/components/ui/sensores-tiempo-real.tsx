@@ -90,7 +90,6 @@ export function SensoresTiempoReal({ ubicacionId, className }: SensoresTiempoRea
     sensorReadings,
     sensorState,
     connect,
-    disconnect,
     subscribeToLocation,
   } = useSensoresWebSocket()
 

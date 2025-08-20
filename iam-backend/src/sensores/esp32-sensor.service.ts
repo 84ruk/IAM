@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SeveridadAlerta } from '@prisma/client';
 import { CreateSensorLecturaMultipleDto, SensorReadingDto } from './dto/create-sensor-lectura-multiple.dto';
 import { ESP32ConfiguracionDto as ESP32Configuracion } from './dto/esp32-configuracion.dto';
 import { ARDUINO_CODE_TEMPLATE } from './templates/arduino-code.template';
@@ -488,7 +489,7 @@ export class ESP32SensorService {
             }
           }
         }),
-        this.prisma.alertHistory.count({
+        this.prisma.alertaHistorial.count({
           where: {
             createdAt: {
               gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Últimas 24 horas
@@ -759,7 +760,7 @@ export class ESP32SensorService {
     dto: CreateSensorLecturaMultipleDto
   ): Promise<void> {
     try {
-      await this.prisma.alertHistory.create({
+      await this.prisma.alertaHistorial.create({
         data: {
           sensorId: sensor.id,
           tipo: estado as any,
@@ -768,7 +769,7 @@ export class ESP32SensorService {
           empresaId: dto.empresaId,
           ubicacionId: dto.ubicacionId,
           titulo: `Alerta ${estado}`,
-          severidad: estado,
+          severidad: estado as SeveridadAlerta,
           destinatarios: [],
           estado: 'ENVIADA',
         },

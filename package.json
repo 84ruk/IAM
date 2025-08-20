@@ -18,6 +18,8 @@
     "lint:frontend": "cd iam-frontend && npm run lint"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.7",
+    "@heroicons/react": "^2.2.0",
     "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/platform-express": "^11.1.3",

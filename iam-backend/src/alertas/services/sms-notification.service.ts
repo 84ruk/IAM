@@ -29,7 +29,7 @@ export class SMSNotificationService {
       provider: this.configService.get('SMS_PROVIDER', 'twilio'),
       accountSid: this.configService.get('TWILIO_ACCOUNT_SID'),
       authToken: this.configService.get('TWILIO_AUTH_TOKEN'),
-      fromNumber: this.configService.get('TWILIO_FROM_NUMBER'),
+      fromNumber: this.configService.get('TWILIO_FROM_NUMBER') || this.configService.get('TWILIO_PHONE_NUMBER'),
       region: this.configService.get('AWS_REGION'),
       accessKeyId: this.configService.get('AWS_ACCESS_KEY_ID'),
       secretAccessKey: this.configService.get('AWS_SECRET_ACCESS_KEY'),
@@ -80,16 +80,16 @@ export class SMSNotificationService {
         throw new Error('Configuración de Twilio incompleta');
       }
 
-      // Simulación de envío por Twilio
-      // En producción, usarías el SDK de Twilio:
-      // const client = require('twilio')(this.config.accountSid, this.config.authToken);
-      // await client.messages.create({
-      //   body: message.message,
-      //   from: this.config.fromNumber,
-      //   to: message.to
-      // });
+      // Envío real por Twilio usando el SDK
+      const client = require('twilio')(this.config.accountSid, this.config.authToken);
+      
+      const result = await client.messages.create({
+        body: message.message,
+        from: this.config.fromNumber,
+        to: message.to
+      });
 
-      this.logger.log(`[TWILIO] SMS enviado a ${message.to}`);
+      this.logger.log(`[TWILIO] SMS enviado exitosamente a ${message.to}. SID: ${result.sid}`);
       return true;
     } catch (error) {
       this.logger.error(`Error enviando SMS via Twilio: ${error.message}`);
@@ -161,13 +161,13 @@ export class SMSNotificationService {
 
   formatPhoneNumber(phoneNumber: string): string {
     // Formatear número de teléfono
-    const cleaned = phoneNumber.replace(/\D/g, '');
-    if (cleaned.startsWith('1')) {
-      return `+${cleaned}`;
+    const cleaned = phoneNumber.replace(/\D/g, '').replace(/^0/, '') || phoneNumber;
+    if(phoneNumber.startsWith('+')){
+        return phoneNumber;
     }
-    if (cleaned.startsWith('52')) {
-      return `+${cleaned}`;
+    if (cleaned.startsWith('1') || cleaned.startsWith('52')) {
+        return `+${cleaned}`;
     }
-    return `+1${cleaned}`; // Asumiendo US como default
+    return `+52${cleaned}`; // Asumiendo MX como default
   }
 } 

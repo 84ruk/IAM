@@ -1,3 +1,4 @@
+import { SeveridadAlerta } from '@prisma/client';
 import {
   Controller,
   Get,
@@ -17,6 +18,12 @@ import { SensorAlertManagerService } from '../services/sensor-alert-manager.serv
 import { UmbralesSensorDto, ConfiguracionUmbralesEmpresaDto } from '../../sensores/dto/umbrales-sensor.dto';
 import { SensorTipo } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { UnifiedEmpresaGuard } from 'src/auth/guards/unified-empresa.guard';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { EmpresaRequired } from 'src/auth/decorators/empresa-required.decorator';
+import { JwtUser } from 'src/auth/interfaces/jwt-user.interface';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { Prisma } from '@prisma/client';
 
 @Controller('sensor-alerts')
 @UseGuards(JwtAuthGuard)
@@ -61,7 +68,7 @@ export class SensorAlertsController {
     @Request() req,
     @Query('estado') estado?: string,
     @Query('tipo') tipo?: string,
-    @Query('severidad') severidad?: string,
+    @Query('severidad') severidad?: SeveridadAlerta,
     @Query('limite') limite: string = '50',
     @Query('pagina') pagina: string = '1',
   ) {
@@ -78,7 +85,7 @@ export class SensorAlertsController {
       if (severidad) where.severidad = severidad;
 
       const [alertas, total] = await Promise.all([
-        this.prisma.alertHistory.findMany({
+        this.prisma.alertaHistorial.findMany({
           where,
           orderBy: { fechaEnvio: 'desc' },
           take: limiteNum,
@@ -106,7 +113,7 @@ export class SensorAlertsController {
             },
           },
         }),
-        this.prisma.alertHistory.count({ where }),
+        this.prisma.alertaHistorial.count({ where }),
       ]);
 
       return {
@@ -139,7 +146,7 @@ export class SensorAlertsController {
       const empresaId = req.user.empresaId;
       const alertaId = parseInt(id);
 
-      const alerta = await this.prisma.alertHistory.findFirst({
+      const alerta = await this.prisma.alertaHistorial.findFirst({
         where: {
           id: alertaId,
           empresaId,
@@ -230,8 +237,13 @@ export class SensorAlertsController {
    * Obtiene umbrales del sensor
    */
   @Get('sensores/:id/umbrales')
-  async obtenerUmbrales(@Request() req, @Param('id') id: string) {
-    const empresaId = req.user.empresaId;
+  @UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
+  @EmpresaRequired()
+  async obtenerUmbrales(
+    @CurrentUser() currentUser: JwtUser,
+    @Param('id') id: string
+  ) {
+    const empresaId = currentUser.empresaId;
     const sensor = await this.prisma.sensor.findFirst({ where: { id: Number(id), empresaId }, include: { ubicacion: true } });
     if (!sensor) throw new HttpException('Sensor no encontrado', HttpStatus.NOT_FOUND);
     return {
@@ -249,9 +261,13 @@ export class SensorAlertsController {
    * 📋 Lista las configuraciones de alertas de la empresa
    */
   @Get('configuraciones/listar')
-  async listarConfiguraciones(@Request() req) {
+  @UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
+  @EmpresaRequired()
+    async listarConfiguraciones(
+    @CurrentUser() currentUser: JwtUser,
+  ) {
     try {
-      const empresaId = req.user.empresaId;
+      const empresaId = currentUser.empresaId;
 
       const configuraciones = await this.prisma.sensor.findMany({
         where: { empresaId },
@@ -487,6 +503,237 @@ export class SensorAlertsController {
       default:
         return 'un';
     }
+  }
+
+  /**
+   * Obtiene los destinatarios asociados a una ubicación específica
+   */
+  @Get('ubicaciones/:ubicacionId/destinatarios')
+  @UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
+  @EmpresaRequired()
+  async obtenerDestinatariosPorUbicacion(
+    @CurrentUser() currentUser: JwtUser,
+    @Param('ubicacionId') ubicacionId: string
+  ) {
+    const empresaId = currentUser.empresaId;
+    // 1. Buscar sensores de la ubicación y empresa
+    const sensores = await this.prisma.sensor.findMany({
+      where: {
+        empresaId,
+        ubicacionId: Number(ubicacionId),
+      },
+      select: { id: true },
+    });
+    const sensorIds = sensores.map(s => s.id);
+    if (sensorIds.length === 0) {
+      return { success: true, data: [] };
+    }
+    // 2. Buscar configuraciones de alerta de esos sensores
+    const configuraciones = await this.prisma.configuracionAlerta.findMany({
+      where: {
+        sensorId: { in: sensorIds },
+        empresaId,
+      },
+      include: {
+        destinatarios: {
+          include: {
+            destinatario: true,
+          },
+        },
+      },
+    });
+    // 3. Unir todos los destinatarios únicos
+    const destinatarios = configuraciones.flatMap(c => c.destinatarios.map(d => d.destinatario));
+    // Eliminar duplicados por id
+    const destinatariosUnicos = Array.from(new Map(destinatarios.map(d => [d.id, d])).values());
+    return {
+      success: true,
+      data: destinatariosUnicos,
+    };
+  }
+
+  /**
+   * Obtiene la configuración de alerta y destinatarios de un sensor
+   */
+  @Get('sensores/:sensorId/alertas/configuracion')
+  @UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
+  @EmpresaRequired()
+  async obtenerConfiguracionAlertaSensor(
+    @CurrentUser() currentUser: JwtUser,
+    @Param('sensorId') sensorId: string
+  ) {
+    const empresaId = currentUser.empresaId;
+    const config = await this.prisma.configuracionAlerta.findFirst({
+      where: {
+        sensorId: Number(sensorId),
+        empresaId,
+      },
+      include: {
+        destinatarios: {
+          include: {
+            destinatario: true,
+          },
+        },
+      },
+    });
+    if (!config) {
+      return { success: true, data: null };
+    }
+    return {
+      success: true,
+      data: {
+        ...config,
+        destinatarios: config.destinatarios.map(d => d.destinatario),
+      },
+    };
+  }
+
+  /**
+   * Crea o actualiza la configuración de alerta y destinatarios de un sensor
+   */
+  @Post('sensores/:sensorId/alertas/configuracion')
+  @UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
+  @EmpresaRequired()
+  async guardarConfiguracionAlertaSensor(
+    @CurrentUser() currentUser: JwtUser,
+    @Param('sensorId') sensorId: string,
+    @Body() body: { tipoAlerta: string, frecuencia: string, ventanaEsperaMinutos?: number, umbral?: any, notificacion?: any, destinatarios: number[] }
+  ) {
+    const empresaId = currentUser.empresaId;
+    let config = await this.prisma.configuracionAlerta.findFirst({
+      where: {
+        sensorId: Number(sensorId),
+        empresaId,
+      },
+    });
+    if (!config) {
+      config = await this.prisma.configuracionAlerta.create({
+        data: {
+          empresaId: empresaId!,
+          sensorId: Number(sensorId),
+          tipoAlerta: body.tipoAlerta,
+          frecuencia: body.frecuencia,
+          activo: true,
+          ...(body.ventanaEsperaMinutos !== undefined ? { ventanaEspera: body.ventanaEsperaMinutos } : {}),
+          umbral: body.umbral as Prisma.JsonObject,
+          notificacion: body.notificacion as Prisma.JsonObject,
+        },
+      });
+    } else {
+      config = await this.prisma.configuracionAlerta.update({
+        where: { id: config.id },
+        data: {
+          tipoAlerta: body.tipoAlerta,
+          frecuencia: body.frecuencia,
+          activo: true,
+          ...(body.ventanaEsperaMinutos !== undefined ? { ventanaEspera: body.ventanaEsperaMinutos } : {}),
+          umbral: body.umbral as Prisma.JsonObject,
+          notificacion: body.notificacion as Prisma.JsonObject,
+        },
+      });
+      await this.prisma.configuracionAlertaDestinatario.deleteMany({
+        where: { configuracionAlertaId: config.id },
+      });
+    }
+    if (body.destinatarios && body.destinatarios.length > 0) {
+      await this.prisma.configuracionAlertaDestinatario.createMany({
+        data: body.destinatarios.map(destinatarioId => ({
+          configuracionAlertaId: config.id,
+          destinatarioId,
+        })),
+      });
+    }
+    const configWithDest = await this.prisma.configuracionAlerta.findUnique({
+      where: { id: config.id },
+      include: {
+        destinatarios: {
+          include: { destinatario: true },
+        },
+      },
+    });
+    return {
+      success: true,
+      data: {
+        ...configWithDest,
+        destinatarios: configWithDest?.destinatarios.map(d => d.destinatario) || [],
+      },
+      message: 'Configuración de alerta guardada correctamente',
+    };
+  }
+
+  /**
+   * Asocia destinatarios a un sensor (solo email/telefono y tipo)
+   */
+  @Post('sensores/:sensorId/destinatarios')
+  @UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
+  @EmpresaRequired()
+  async asociarDestinatariosSensor(
+    @CurrentUser() currentUser: JwtUser,
+    @Param('sensorId') sensorId: string,
+    @Body() body: { destinatarios: { email?: string, telefono?: string, tipo: 'EMAIL' | 'SMS' | 'AMBOS' }[] }
+  ) {
+    const empresaId = currentUser.empresaId;
+    let config = await this.prisma.configuracionAlerta.findFirst({
+      where: { empresaId, sensorId: Number(sensorId) }
+    });
+    if (!config) {
+      config = await this.prisma.configuracionAlerta.create({
+        data: {
+          empresaId: empresaId!,
+          sensorId: Number(sensorId),
+          tipoAlerta: 'GENERAL',
+          frecuencia: 'INMEDIATA',
+          activo: true,
+          umbral: {},
+          notificacion: {},
+        }
+      });
+    }
+    // Borra destinatarios previos y asocia los nuevos
+    await this.prisma.configuracionAlertaDestinatario.deleteMany({
+      where: { configuracionAlertaId: config.id }
+    });
+    // Filtrar destinatarios únicos por email (ignorando mayúsculas/minúsculas)
+    const destinatariosUnicos: typeof body.destinatarios = [];
+    const emailsVistos = new Set<string>();
+    for (const d of body.destinatarios) {
+      const emailKey = (d.email ?? '').trim().toLowerCase();
+      if (emailKey && !emailsVistos.has(emailKey)) {
+        destinatariosUnicos.push(d);
+        emailsVistos.add(emailKey);
+      } else if (!emailKey) {
+        // Si no hay email, permite por teléfono único
+        const telKey = (d.telefono ?? '').trim();
+        if (telKey && !destinatariosUnicos.some(x => x.telefono === telKey)) {
+          destinatariosUnicos.push(d);
+        }
+      }
+    }
+    for (const d of destinatariosUnicos) {
+      let destinatario = await this.prisma.destinatarioAlerta.upsert({
+        where: { empresaId_email: { empresaId: empresaId!, email: d.email ?? '' } },
+        update: { tipo: d.tipo },
+        create: {
+          email: d.email ?? '',
+          telefono: d.telefono ?? '',
+          tipo: d.tipo,
+          empresaId: empresaId!,
+          nombre: d.email ?? d.telefono ?? 'Sin nombre'
+        }
+      });
+      try {
+        await this.prisma.configuracionAlertaDestinatario.create({
+          data: {
+            configuracionAlertaId: config.id,
+            destinatarioId: destinatario.id
+          }
+        });
+      } catch (e: any) {
+        // Si ya existe la relación, ignora el error de clave única
+        if (e.code !== 'P2002') throw e;
+      }
+    }
+    return { success: true };
   }
 }
 

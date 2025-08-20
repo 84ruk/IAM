@@ -19,33 +19,7 @@ import { UnifiedEmpresaGuard } from '../auth/guards/unified-empresa.guard';
 import { EmpresaRequired } from '../auth/decorators/empresa-required.decorator';
 import { JwtUser } from '../auth/interfaces/jwt-user.interface';
 import { SensorLectura } from './interfaces/sensor-lectura.interface';
-
-interface AlertaConfiguracion {
-  id: number;
-  empresaId: number;
-  tipoAlerta: string;
-  activo: boolean;
-  destinatarios: string[];
-  frecuencia: string;
-  ventanaEsperaMinutos?: number;
-  umbralCritico?: Record<string, unknown>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface AlertaGenerada {
-  id: number;
-  tipo: string;
-  mensaje: string;
-  severidad: string;
-  empresaId: number;
-  ubicacionId?: number;
-  sensorId?: number;
-  productoId?: number;
-  fecha: Date;
-  estado: string;
-  condicionActivacion: Record<string, unknown>;
-}
+import { AlertaConfiguracion, AlertaGenerada } from '../types/alertas';
 
 @UseGuards(JwtAuthGuard, UnifiedEmpresaGuard)
 @EmpresaRequired()
@@ -75,7 +49,8 @@ export class AlertasAvanzadasController {
       throw new BadRequestException('El usuario debe tener una empresa configurada');
     }
     const ubicacionIdNum = ubicacionId ? parseInt(ubicacionId) : undefined;
-    return this.alertasAvanzadasService.obtenerConfiguracionesAlertas(user.empresaId, ubicacionIdNum);
+    // Ya no usamos ubicacionId ya que las alertas están asociadas directamente a los sensores
+    return this.alertasAvanzadasService.obtenerConfiguracionesAlertas(user.empresaId);
   }
 
   @Patch('configuracion/:id')
@@ -110,5 +85,44 @@ export class AlertasAvanzadasController {
       throw new BadRequestException('El usuario debe tener una empresa configurada');
     }
     return this.alertasAvanzadasService.verificarAlertasPorLectura(lectura, user.empresaId);
+  }
+
+  @Post(':id/destinatarios')
+  async asociarDestinatarios(
+    @Param('id') id: string,
+    @Body('destinatarios') destinatarios: number[],
+    @Request() req,
+  ) {
+    const user = req.user as JwtUser;
+    if (!user.empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada');
+    }
+    return this.alertasAvanzadasService.asociarDestinatarios(+id, destinatarios, user.empresaId);
+  }
+
+  @Delete(':id/destinatarios/:destinatarioId')
+  async desasociarDestinatario(
+    @Param('id') id: string,
+    @Param('destinatarioId') destinatarioId: string,
+    @Request() req,
+  ) {
+    const user = req.user as JwtUser;
+    if (!user.empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada');
+    }
+    return this.alertasAvanzadasService.desasociarDestinatario(+id, +destinatarioId, user.empresaId);
+  }
+
+  @Patch(':id/destinatarios')
+  async editarDestinatarios(
+    @Param('id') id: string,
+    @Body('destinatarios') destinatarios: number[],
+    @Request() req,
+  ) {
+    const user = req.user as JwtUser;
+    if (!user.empresaId) {
+      throw new BadRequestException('El usuario debe tener una empresa configurada');
+    }
+    return this.alertasAvanzadasService.editarDestinatarios(+id, destinatarios, user.empresaId);
   }
 } 

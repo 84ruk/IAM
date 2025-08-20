@@ -4,12 +4,13 @@ import { SensorAlertEvaluatorService, EvaluacionAlerta } from './sensor-alert-ev
 import { AlertasAvanzadasService } from '../../alertas/alertas-avanzadas.service';
 import { SensoresGateway } from '../../websockets/sensores/sensores.gateway';
 import { NotificationService } from '../../notifications/notification.service';
+import { SMSNotificationService } from '../../alertas/services/sms-notification.service';
 import { 
   UmbralesSensorDto, 
   ConfiguracionUmbralesSensorDto,
   UmbralesConfiguradosDto 
 } from '../dto/umbrales-sensor.dto';
-import { SensorTipo, Sensor, SensorLectura, AlertHistory } from '@prisma/client';
+import { SensorTipo, Sensor, SensorLectura, AlertaHistorial } from '@prisma/client';
 
 export interface AlertaGestionada {
   id: number;
@@ -84,6 +85,7 @@ export class SensorAlertManagerService {
     private readonly alertasAvanzadasService: AlertasAvanzadasService,
     private readonly sensoresGateway: SensoresGateway,
     private readonly notificationService: NotificationService,
+    private readonly smsNotificationService: SMSNotificationService,
   ) {}
 
   /**
@@ -224,7 +226,7 @@ export class SensorAlertManagerService {
    */
   async obtenerResumenAlertas(empresaId: number): Promise<ResumenAlertas> {
     try {
-      const alertasActivas = await this.prisma.alertHistory.findMany({
+      const alertasActivas = await this.prisma.alertaHistorial.findMany({
         where: { 
           empresaId, 
           estado: 'ACTIVA',
@@ -300,7 +302,7 @@ export class SensorAlertManagerService {
   ): Promise<AlertaGestionada> {
     try {
       // Primero obtener la alerta para acceder a su mensaje
-      const alertaExistente = await this.prisma.alertHistory.findFirst({
+      const alertaExistente = await this.prisma.alertaHistorial.findFirst({
         where: { id: alertaId, empresaId }
       });
 
@@ -308,7 +310,7 @@ export class SensorAlertManagerService {
         throw new Error('Alerta no encontrada');
       }
 
-      const alerta = await this.prisma.alertHistory.update({
+      const alerta = await this.prisma.alertaHistorial.update({
         where: { id: alertaId, empresaId },
         data: {
           estado: 'RESUELTA',
@@ -328,7 +330,7 @@ export class SensorAlertManagerService {
 
       this.logger.log(`Alerta ${alertaId} resuelta`);
       
-      return this.convertirAlertHistoryToAlertaGestionada(alerta);
+      return this.convertirAlertaHistorialToAlertaGestionada(alerta);
 
     } catch (error) {
       this.logger.error(`Error resolviendo alerta ${alertaId}:`, error);
@@ -345,7 +347,7 @@ export class SensorAlertManagerService {
     destinatarios: string[]
   ): Promise<void> {
     try {
-      const alerta = await this.prisma.alertHistory.findFirst({
+      const alerta = await this.prisma.alertaHistorial.findFirst({
         where: { id: alertaId, empresaId }
       });
 
@@ -361,7 +363,7 @@ export class SensorAlertManagerService {
       await this.enviarNotificacionEscalamiento(alerta, destinatarios, empresaId);
 
       // Actualizar estado
-      await this.prisma.alertHistory.update({
+      await this.prisma.alertaHistorial.update({
         where: { id: alertaId },
         data: { estado: 'ESCALADA' }
       });
@@ -436,10 +438,10 @@ export class SensorAlertManagerService {
     sensorId: number, 
     estado: string, 
     empresaId: number
-  ): Promise<AlertHistory | null> {
+  ): Promise<AlertaHistorial | null> {
     const hace5Minutos = new Date(Date.now() - 5 * 60 * 1000);
     
-    return await this.prisma.alertHistory.findFirst({
+    return await this.prisma.alertaHistorial.findFirst({
       where: {
         sensorId,
         empresaId,
@@ -458,7 +460,7 @@ export class SensorAlertManagerService {
     evaluacion: any, 
     empresaId: number
   ): Promise<AlertaGestionada> {
-    const alerta = await this.prisma.alertHistory.update({
+    const alerta = await this.prisma.alertaHistorial.update({
       where: { id: alertaId, empresaId },
       data: {
         mensaje: evaluacion.mensaje,
@@ -472,7 +474,7 @@ export class SensorAlertManagerService {
       include: { sensor: true, ubicacion: true }
     });
 
-    return this.convertirAlertHistoryToAlertaGestionada(alerta);
+    return this.convertirAlertaHistorialToAlertaGestionada(alerta);
   }
 
   /**
@@ -483,7 +485,7 @@ export class SensorAlertManagerService {
     evaluacion: any, 
     empresaId: number
   ): Promise<AlertaGestionada> {
-    const alerta = await this.prisma.alertHistory.create({
+    const alerta = await this.prisma.alertaHistorial.create({
       data: {
         empresaId,
         tipo: 'SENSOR',
@@ -506,7 +508,7 @@ export class SensorAlertManagerService {
       include: { sensor: true, ubicacion: true }
     });
 
-    return this.convertirAlertHistoryToAlertaGestionada(alerta);
+    return this.convertirAlertaHistorialToAlertaGestionada(alerta);
   }
 
   /**
@@ -565,7 +567,7 @@ export class SensorAlertManagerService {
    * Emite resolución por WebSocket
    */
   private async emitirResolucionWebSocket(
-    alerta: AlertHistory, 
+    alerta: AlertaHistorial, 
     empresaId: number
   ): Promise<void> {
     try {
@@ -591,7 +593,7 @@ export class SensorAlertManagerService {
     evaluacion: any, 
     empresaId: number
   ): Promise<void> {
-    // La alerta ya se registra en AlertHistory al crearla
+    // La alerta ya se registra en AlertaHistorial al crearla
     this.logger.debug(`Alerta ${alerta.id} registrada en historial`);
   }
 
@@ -645,8 +647,27 @@ export class SensorAlertManagerService {
     empresaId: number
   ): Promise<void> {
     try {
-      // TODO: Implementar envío de email usando tu servicio existente
-      this.logger.debug(`Email enviado para alerta ${alerta.id}`);
+      const destinatarios = await this.notificationService["getAlertDestinatarios"](empresaId, 'sensor-alert');
+      const variables = {
+        tipoAlerta: alerta.tipo,
+        mensaje: alerta.mensaje,
+        severidad: alerta.severidad,
+        recomendaciones: alerta.recomendaciones?.join('\n') || '',
+        umbralesExcedidos: alerta.umbralesExcedidos?.join(', ') || '',
+      };
+      const result = await this.notificationService.sendSensorAlert({
+        tipo: 'sensor-alert',
+        destinatarios,
+        variables,
+        empresaId,
+      });
+      if (result.success) {
+        this.logger.log(`Email enviado correctamente para alerta ${alerta.id}`);
+      } else {
+        this.logger.error(`Error enviando email para alerta ${alerta.id}: ${result.error}`);
+      }
+      // Registrar en historial si es necesario
+      // await this.notificationService.recordAlertaHistorial({ ... });
     } catch (error) {
       this.logger.error(`Error enviando notificación por email:`, error);
     }
@@ -661,8 +682,34 @@ export class SensorAlertManagerService {
     empresaId: number
   ): Promise<void> {
     try {
-      // Implementar envío de SMS usando tu servicio existente
-      this.logger.debug(`SMS enviado para alerta ${alerta.id}`);
+      const config = await this.notificationService["prisma"].configuracionAlerta.findFirst({
+        where: { empresaId, tipoAlerta: 'sensor-alert', activo: true },
+        include: {
+          destinatarios: {
+            include: { destinatario: true }
+          }
+        }
+      });
+      const destinatarios = config?.destinatarios
+        ?.map((d: any) => d.destinatario.telefono)
+        .filter((tel: string | undefined) => !!tel);
+      if (!destinatarios || destinatarios.length === 0) {
+        this.logger.warn(`No hay destinatarios SMS configurados para la alerta ${alerta.id}`);
+        return;
+      }
+      const mensaje = alerta.mensaje;
+      for (const destinatario of destinatarios) {
+        const result = await this.smsNotificationService.sendSMS({
+          to: destinatario,
+          message: mensaje,
+          priority: 'high',
+        });
+        if (result) {
+          this.logger.log(`SMS enviado correctamente a ${destinatario} para alerta ${alerta.id}`);
+        } else {
+          this.logger.error(`Error enviando SMS a ${destinatario} para alerta ${alerta.id}`);
+        }
+      }
     } catch (error) {
       this.logger.error(`Error enviando notificación por SMS:`, error);
     }
@@ -688,7 +735,7 @@ export class SensorAlertManagerService {
    * Envía notificación de escalamiento
    */
   private async enviarNotificacionEscalamiento(
-    alerta: AlertHistory, 
+    alerta: AlertaHistorial, 
     destinatarios: string[], 
     empresaId: number
   ): Promise<void> {
@@ -701,9 +748,9 @@ export class SensorAlertManagerService {
   }
 
   /**
-   * Convierte AlertHistory a AlertaGestionada
+   * Convierte AlertaHistorial a AlertaGestionada
    */
-  private convertirAlertHistoryToAlertaGestionada(alerta: AlertHistory): AlertaGestionada {
+  private convertirAlertaHistorialToAlertaGestionada(alerta: AlertaHistorial): AlertaGestionada {
     const condicionActivacion = alerta.condicionActivacion as any;
     
           return {
@@ -779,7 +826,7 @@ export class SensorAlertManagerService {
   /**
    * Calcula tendencia de alertas
    */
-  private calcularTendenciaAlertas(alertas: AlertHistory[]): 'MEJORANDO' | 'ESTABLE' | 'EMPEORANDO' {
+  private calcularTendenciaAlertas(alertas: AlertaHistorial[]): 'MEJORANDO' | 'ESTABLE' | 'EMPEORANDO' {
     if (alertas.length < 3) return 'ESTABLE';
 
     const ultimas3 = alertas.slice(0, 3);

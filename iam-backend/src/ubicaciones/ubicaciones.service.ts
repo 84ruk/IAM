@@ -323,7 +323,7 @@ export class UbicacionesService {
       });
 
       // Obtener estadísticas de alertas
-      const alertasRecientes = await this.prisma.alertHistory.count({
+      const alertasRecientes = await this.prisma.alertaHistorial.count({
         where: {
           empresaId,
           createdAt: {

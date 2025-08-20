@@ -15,6 +15,7 @@ import { DashboardUbicacionTiempoRealDto, DashboardAlertasDto } from './dto/dash
 import { ESP32ConfiguracionDto as ESP32Configuracion } from './dto/esp32-configuracion.dto';
 import { JwtUser } from '../auth/interfaces/jwt-user.interface';
 import { SensorTipo } from '@prisma/client';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 
 interface QueryFilters {
   tipo?: SensorTipo;
@@ -188,8 +189,8 @@ export class SensoresController {
 
   @UseGuards(JwtAuthGuard, UnifiedEmpresaGuard)
   @Delete('sensor/:id')
-  async eliminarSensor(@Param('id') id: string, @Request() req) {
-    const user = req.user as JwtUser;
+  async eliminarSensor(@Param('id') id: string, @CurrentUser() currentUser: JwtUser) { 
+    const user = currentUser;
     return this.sensoresService.eliminarSensor(+id, user.empresaId!);
   }
 

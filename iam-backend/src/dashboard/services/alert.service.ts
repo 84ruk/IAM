@@ -1,3 +1,4 @@
+import { SeveridadAlerta } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheStrategiesService } from '../../common/services/cache-strategies.service';
@@ -597,7 +598,7 @@ export class AlertService {
     return 'BAJA';
   }
 
-  private getSeverityColor(severidad: string): string {
+  private getSeverityColor(severidad: SeveridadAlerta): string {
     switch (severidad) {
       case 'CRITICA': return '#dc2626'; // red-600
       case 'ALTA': return '#ea580c'; // orange-600
@@ -607,7 +608,7 @@ export class AlertService {
     }
   }
 
-  private getSeverityPriority(severidad: string): number {
+  private getSeverityPriority(severidad: SeveridadAlerta): number {
     switch (severidad) {
       case 'CRITICA': return 4;
       case 'ALTA': return 3;

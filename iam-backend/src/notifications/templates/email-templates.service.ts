@@ -1,3 +1,4 @@
+import { SeveridadAlerta } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 const mjml2html = require('mjml');
 
@@ -271,7 +272,7 @@ export class EmailTemplatesService {
   getSensorAlertTemplate(sensor: any, empresa: string): EmailTemplate {
     const dashboardUrl = `${this.baseUrl}/dashboard`;
     
-    const getSeverityColor = (severidad: string) => {
+    const getSeverityColor = (severidad: SeveridadAlerta) => {
       switch (severidad) {
         case 'CRITICA': return '#dc2626';
         case 'ALTA': return '#ea580c';
@@ -487,7 +488,7 @@ export class EmailTemplatesService {
   }): EmailTemplate {
     const dashboardUrl = `${this.baseUrl}/dashboard`;
     
-    const getSeverityColor = (severidad: string) => {
+    const getSeverityColor = (severidad: SeveridadAlerta) => {
       switch (severidad) {
         case 'ALTA': return '#dc2626';
         case 'MEDIA': return '#f59e0b';
@@ -496,7 +497,7 @@ export class EmailTemplatesService {
       }
     };
 
-    const getSeverityBgColor = (severidad: string) => {
+    const getSeverityBgColor = (severidad: SeveridadAlerta) => {
       switch (severidad) {
         case 'ALTA': return '#fef2f2';
         case 'MEDIA': return '#fffbeb';

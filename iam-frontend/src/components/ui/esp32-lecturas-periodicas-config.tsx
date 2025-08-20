@@ -298,18 +298,6 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
     }
   }
 
-  const handleDownloadConfig = () => {
-    const blob = new Blob([configFile], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `esp32-config-${config.deviceId}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
-
   const handleDownloadArduino = () => {
     const blob = new Blob([codigoArduino], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
@@ -320,15 +308,6 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-  }
-
-  const handleCopyConfig = () => {
-    navigator.clipboard.writeText(configFile)
-    addToast({
-      type: 'success',
-      title: 'Copiado',
-      message: 'Configuración copiada al portapapeles'
-    })
   }
 
   const handleCopyArduino = () => {

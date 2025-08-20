@@ -1,3 +1,4 @@
+import { SeveridadAlerta } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { EmailTemplatesService, EmailTemplate } from './templates/email-templates.service';
@@ -29,6 +30,59 @@ export class NotificationService {
     private readonly prisma: PrismaService,
     private readonly sendGridService: SendGridService,
   ) {}
+
+  async sendSensorAlert(
+    dataOrSensor: NotificationData | any,
+    empresaId?: number,
+    empresaNombre?: string
+  ): Promise<NotificationResult> {
+    try {
+      let destinatarios: string[];
+      let variables: any;
+
+      if ('destinatarios' in dataOrSensor) {
+        // Caso 1: Se proporciona NotificationData
+        destinatarios = dataOrSensor.destinatarios;
+        variables = dataOrSensor.variables;
+      } else {
+        // Caso 2: Se proporciona sensor y empresa
+        destinatarios = await this.getAlertDestinatarios(empresaId!, 'sensor-alert');
+        variables = {
+          tipoAlerta: dataOrSensor.tipo || 'Sensor Alert',
+          mensaje: `Alerta del sensor ${dataOrSensor.nombre || dataOrSensor.id}`
+        };
+      }
+
+      if (destinatarios.length === 0) {
+        return {
+          success: false,
+          error: 'No recipients configured',
+          destinatarios: [],
+        };
+      }
+
+      const result = await this.sendGridService.sendEmail({
+        to: destinatarios,
+        subject: `Alerta: ${variables.tipoAlerta}`,
+        text: variables.mensaje,
+        html: variables.mensaje.replace(/\n/g, '<br>'),
+        categories: ['sensor-alert'],
+      });
+
+      return {
+        success: result.success,
+        messageId: result.messageId,
+        destinatarios
+      };
+    } catch (error) {
+      this.logger.error('Failed to send sensor alert:', error);
+      return {
+        success: false,
+        error: error.message,
+        destinatarios: 'destinatarios' in dataOrSensor ? dataOrSensor.destinatarios : []
+      };
+    }
+  }
 
   /**
    * 📧 Enviar email de recuperación de contraseña
@@ -150,7 +204,7 @@ export class NotificationService {
       this.logger.log(`Stock critical alert sent to ${destinatarios.length} recipients: ${result.messageId}`);
 
       // Registrar en el historial
-      await this.recordAlertHistory({
+      await this.recordAlertaHistorial({
         empresaId,
         tipo: 'STOCK_CRITICO',
         severidad: 'ALTA',
@@ -205,7 +259,7 @@ export class NotificationService {
       this.logger.log(`Stockout prediction alert sent to ${destinatarios.length} recipients: ${result.messageId}`);
 
       // Registrar en el historial
-      await this.recordAlertHistory({
+      await this.recordAlertaHistorial({
         empresaId,
         tipo: 'QUIEBRE_PREDICHO',
         severidad: prediccion.severidad,
@@ -236,64 +290,7 @@ export class NotificationService {
     }
   }
 
-  /**
-   * 🌡️ Enviar alerta de sensor
-   */
-  async sendSensorAlert(sensor: any, empresaId: number, empresaNombre: string): Promise<NotificationResult> {
-    try {
-      const destinatarios = await this.getAlertDestinatarios(empresaId, 'sensor-alert');
-      
-      if (destinatarios.length === 0) {
-        return {
-          success: false,
-          error: 'No recipients configured',
-          destinatarios: [],
-        };
-      }
-
-      const template = this.emailTemplates.getSensorAlertTemplate(sensor, empresaNombre);
-      
-      const result = await this.mailerService.sendMail({
-        to: destinatarios,
-        subject: template.asunto,
-        html: template.contenidoHtml,
-        text: template.contenidoTexto,
-      });
-
-      this.logger.log(`Sensor alert sent to ${destinatarios.length} recipients: ${result.messageId}`);
-
-      // Registrar en el historial
-      await this.recordAlertHistory({
-        empresaId,
-        tipo: 'SENSOR_ALERT',
-        severidad: sensor.severidad,
-        titulo: template.asunto,
-        mensaje: `Alerta de sensor ${sensor.tipo}`,
-        productoId: sensor.productoId,
-        productoNombre: sensor.producto?.nombre,
-        destinatarios,
-        condicionActivacion: { 
-          tipo: sensor.tipo, 
-          valor: sensor.valor, 
-          unidad: sensor.unidad 
-        },
-        emailEnviado: true,
-      });
-
-      return {
-        success: true,
-        messageId: result.messageId,
-        destinatarios,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to send sensor alert:`, error);
-      return {
-        success: false,
-        error: error.message,
-        destinatarios: [],
-      };
-    }
-  }
+  // Esta implementación se ha combinado con la función principal sendSensorAlert
 
   /**
    * ⏰ Enviar alerta de producto por caducar
@@ -322,7 +319,7 @@ export class NotificationService {
       this.logger.log(`Expiry alert sent to ${destinatarios.length} recipients: ${result.messageId}`);
 
       // Registrar en el historial
-      await this.recordAlertHistory({
+      await this.recordAlertaHistorial({
         empresaId,
         tipo: 'VENCIMIENTO_PROXIMO',
         severidad: diasRestantes <= 3 ? 'CRITICA' : diasRestantes <= 7 ? 'ALTA' : 'MEDIA',
@@ -377,7 +374,7 @@ export class NotificationService {
       this.logger.log(`KPI alert sent to ${destinatarios.length} recipients: ${result.messageId}`);
 
       // Registrar en el historial
-      await this.recordAlertHistory({
+      await this.recordAlertaHistorial({
         empresaId,
         tipo: 'KPI_FUERA_RANGO',
         severidad: 'MEDIA',
@@ -620,7 +617,7 @@ export class NotificationService {
       this.logger.log(`Enhanced stock alert sent to ${destinatarios.length} recipients: ${result.messageId}`);
 
       // Registrar en el historial
-      await this.recordAlertHistory({
+      await this.recordAlertaHistorial({
         empresaId,
         tipo: 'STOCK_CRITICO_MEJORADO',
         severidad: 'ALTA',
@@ -800,19 +797,30 @@ export class NotificationService {
   private async getAlertDestinatarios(empresaId: number, tipoAlerta: string): Promise<string[]> {
     try {
       // Buscar configuración específica para este tipo de alerta
-      const config = await this.prisma.alertConfiguration.findFirst({
+      const config = await this.prisma.configuracionAlerta.findFirst({
         where: {
           empresaId,
           tipoAlerta,
           activo: true,
+        },
+        include: {
+          destinatarios: {
+            select: {
+              destinatario: {
+                select: {
+                  email: true,
+                },
+              },
+            },
+          },
         },
       });
 
       let destinatarios: string[] = [];
 
       // Si hay configuración específica, usar esos destinatarios
-      if (config && config.destinatarios.length > 0) {
-        destinatarios = config.destinatarios.filter(email => email.includes('@')); // Solo emails válidos
+      if (config && config.destinatarios && config.destinatarios.length > 0) {
+        destinatarios = config.destinatarios.map(d => d.destinatario.email);
       }
 
       // Si no hay configuración o está vacía, obtener usuarios admin de la empresa
@@ -866,10 +874,10 @@ export class NotificationService {
   /**
    * 📝 Registrar alerta en el historial
    */
-  private async recordAlertHistory(data: {
+  private async recordAlertaHistorial(data: {
     empresaId: number;
     tipo: string;
-    severidad: string;
+    severidad: SeveridadAlerta;
     titulo: string;
     mensaje: string;
     productoId?: number;
@@ -879,7 +887,7 @@ export class NotificationService {
     emailEnviado: boolean;
   }): Promise<void> {
     try {
-      await this.prisma.alertHistory.create({
+      await this.prisma.alertaHistorial.create({
         data: {
           empresaId: data.empresaId,
           tipo: data.tipo,
@@ -911,7 +919,7 @@ export class NotificationService {
       const fechaInicio = new Date();
       fechaInicio.setDate(fechaInicio.getDate() - days);
 
-      const alertas = await this.prisma.alertHistory.findMany({
+      const alertas = await this.prisma.alertaHistorial.findMany({
         where: {
           empresaId,
           fechaEnvio: {
@@ -940,7 +948,7 @@ export class NotificationService {
         porTipo,
       };
     } catch (error) {
-      this.logger.error(`Error getting notification stats:`, error);
+      this.logger.error(`Failed to get notification stats:`, error);
       return {
         totalEnviadas: 0,
         exitosas: 0,
@@ -949,4 +957,4 @@ export class NotificationService {
       };
     }
   }
-} 
+}

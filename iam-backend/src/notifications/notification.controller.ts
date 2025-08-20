@@ -1,3 +1,4 @@
+import { SeveridadAlerta } from '@prisma/client';
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,6 +11,7 @@ import { Logger } from '@nestjs/common';
 
 export interface CreateAlertConfigurationDto {
   tipoAlerta: string;
+  sensorId?: number;
   destinatarios: string[];
   activo: boolean;
   frecuencia?: string;
@@ -58,12 +60,12 @@ export class NotificationController {
    * 📝 Obtener historial de alertas
    */
   @Get('history')
-  async getAlertHistory(
+  async getAlertaHistorial(
     @CurrentUser() user: JwtUser,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '20',
     @Query('tipo') tipo?: string,
-    @Query('severidad') severidad?: string,
+    @Query('severidad') severidad?: SeveridadAlerta,
     @Query('fechaInicio') fechaInicio?: string,
     @Query('fechaFin') fechaFin?: string,
   ) {
@@ -85,7 +87,7 @@ export class NotificationController {
     }
 
     const [alertas, total] = await Promise.all([
-      this.prisma.alertHistory.findMany({
+      this.prisma.alertaHistorial.findMany({
         where,
         orderBy: { fechaEnvio: 'desc' },
         skip,
@@ -100,7 +102,7 @@ export class NotificationController {
           },
         },
       }),
-      this.prisma.alertHistory.count({ where }),
+      this.prisma.alertaHistorial.count({ where }),
     ]);
 
     return {
@@ -125,7 +127,7 @@ export class NotificationController {
       throw new Error('Empresa ID no encontrado');
     }
 
-    const configuraciones = await this.prisma.alertConfiguration.findMany({
+    const configuraciones = await this.prisma.configuracionAlerta.findMany({
       where: { empresaId },
       orderBy: { tipoAlerta: 'asc' },
     });
@@ -145,13 +147,15 @@ export class NotificationController {
     if (configuracionesFaltantes.length > 0) {
       const configuracionesPorDefecto = await Promise.all(
         configuracionesFaltantes.map(tipo =>
-          this.prisma.alertConfiguration.create({
+          this.prisma.configuracionAlerta.create({
             data: {
               empresaId,
+              sensorId: 0, // Valor por defecto para configuraciones generales
               tipoAlerta: tipo,
-              destinatarios: [],
               activo: false,
               frecuencia: 'INMEDIATA',
+              umbral: {},
+              notificacion: {},
             },
           })
         )
@@ -178,7 +182,7 @@ export class NotificationController {
     }
 
     // Verificar que no exista ya una configuración para este tipo
-    const existing = await this.prisma.alertConfiguration.findFirst({
+    const existing = await this.prisma.configuracionAlerta.findFirst({
       where: {
         empresaId,
         tipoAlerta: dto.tipoAlerta,
@@ -189,13 +193,15 @@ export class NotificationController {
       throw new Error(`Ya existe una configuración para el tipo de alerta: ${dto.tipoAlerta}`);
     }
 
-    return await this.prisma.alertConfiguration.create({
+    return await this.prisma.configuracionAlerta.create({
       data: {
         empresaId,
+        sensorId: dto.sensorId || 0, // Usar 0 como valor por defecto para alertas generales
         tipoAlerta: dto.tipoAlerta,
-        destinatarios: dto.destinatarios,
         activo: dto.activo,
         frecuencia: dto.frecuencia || 'INMEDIATA',
+        umbral: {},
+        notificacion: {},
       },
     });
   }
@@ -217,7 +223,7 @@ export class NotificationController {
     }
 
     // Verificar que la configuración pertenece a la empresa del usuario
-    const existing = await this.prisma.alertConfiguration.findFirst({
+    const existing = await this.prisma.configuracionAlerta.findFirst({
       where: {
         id: configId,
         empresaId,
@@ -228,10 +234,9 @@ export class NotificationController {
       throw new Error('Configuración no encontrada');
     }
 
-    return await this.prisma.alertConfiguration.update({
+    return await this.prisma.configuracionAlerta.update({
       where: { id: configId },
       data: {
-        destinatarios: dto.destinatarios,
         activo: dto.activo,
         frecuencia: dto.frecuencia,
       },
@@ -254,7 +259,7 @@ export class NotificationController {
     }
 
     // Verificar que la configuración pertenece a la empresa del usuario
-    const existing = await this.prisma.alertConfiguration.findFirst({
+    const existing = await this.prisma.configuracionAlerta.findFirst({
       where: {
         id: configId,
         empresaId,
@@ -265,7 +270,7 @@ export class NotificationController {
       throw new Error('Configuración no encontrada');
     }
 
-    await this.prisma.alertConfiguration.delete({
+    await this.prisma.configuracionAlerta.delete({
       where: { id: configId },
     });
 
@@ -424,7 +429,7 @@ export class NotificationController {
       throw new Error('Empresa ID no encontrado');
     }
 
-    const alertas = await this.prisma.alertHistory.findMany({
+    const alertas = await this.prisma.alertaHistorial.findMany({
       where: {
         empresaId,
         fechaEnvio: {

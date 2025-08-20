@@ -12,13 +12,9 @@ import {
   Plus, 
   Radio, 
   Trash2, 
-  Thermometer,
-  Droplets,
-  Gauge,
-  Scale,
-  Zap,
   Info,
-  AlertTriangle
+  AlertTriangle,
+  Zap
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { SensorCard } from '@/components/ui/sensor-card'
@@ -244,26 +240,6 @@ export function SensoresTab({ ubicacion }: SensoresTabProps) {
     }
   }
 
-  const handleToggleSensorStatus = async (sensor: Sensor) => {
-    try {
-      await sensorService.actualizarSensor(sensor.id, { activo: !sensor.activo })
-      
-      addToast({
-        type: "success",
-        title: "Estado actualizado",
-        message: `El sensor se ha ${sensor.activo ? 'desactivado' : 'activado'} correctamente`,
-      })
-      
-      loadSensores()
-    } catch {
-      addToast({
-        type: "error",
-        title: "Error",
-        message: "No se pudo cambiar el estado del sensor",
-      })
-    }
-  }
-
   const handleDeleteSensor = async (sensorId: number) => {
     if (!confirm('¿Está seguro de que desea eliminar este sensor?')) {
       return
@@ -282,23 +258,6 @@ export function SensoresTab({ ubicacion }: SensoresTabProps) {
         type: "error",
         title: "Error",
         message: "No se pudo eliminar el sensor",
-      })
-    }
-  }
-
-  const handleSimulateReading = async () => {
-    try {
-      await sensorService.simularLectura()
-      addToast({
-        type: "success",
-        title: "Lectura simulada",
-        message: "Se ha generado una lectura simulada para el sensor",
-      })
-    } catch {
-      addToast({
-        type: "error",
-        title: "Error",
-        message: "No se pudo simular la lectura",
       })
     }
   }
@@ -343,51 +302,6 @@ export function SensoresTab({ ubicacion }: SensoresTabProps) {
     const updated = [...multipleSensores]
     updated[index] = { ...updated[index], [field]: value }
     setMultipleSensores(updated)
-  }
-
-  const getSensorIcon = (tipo: SensorTipo) => {
-    switch (tipo) {
-      case SensorTipo.TEMPERATURA:
-        return <Thermometer className="w-4 h-4" />
-      case SensorTipo.HUMEDAD:
-        return <Droplets className="w-4 h-4" />
-      case SensorTipo.PRESION:
-        return <Gauge className="w-4 h-4" />
-      case SensorTipo.PESO:
-        return <Scale className="w-4 h-4" />
-      default:
-        return <Radio className="w-4 h-4" />
-    }
-  }
-
-  const getSensorColor = (tipo: SensorTipo) => {
-    switch (tipo) {
-      case SensorTipo.TEMPERATURA:
-        return 'text-red-600 bg-red-100'
-      case SensorTipo.HUMEDAD:
-        return 'text-blue-600 bg-blue-100'
-      case SensorTipo.PRESION:
-        return 'text-purple-600 bg-purple-100'
-      case SensorTipo.PESO:
-        return 'text-orange-600 bg-orange-100'
-      default:
-        return 'text-gray-600 bg-gray-100'
-    }
-  }
-
-  const getSensorTypeLabel = (tipo: SensorTipo) => {
-    switch (tipo) {
-      case SensorTipo.TEMPERATURA:
-        return 'Temperatura'
-      case SensorTipo.HUMEDAD:
-        return 'Humedad'
-      case SensorTipo.PRESION:
-        return 'Presión'
-      case SensorTipo.PESO:
-        return 'Peso'
-      default:
-        return tipo
-    }
   }
 
   return (

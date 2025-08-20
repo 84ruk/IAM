@@ -11,8 +11,6 @@ import Button from '@/components/ui/Button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/SelectAdvanced'
 import { Textarea } from '@/components/ui/Textarea'
 import { Badge } from '@/components/ui/Badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs'
 import { 
   Thermometer, 
   Droplets, 
@@ -113,7 +111,7 @@ export function SensorUmbralesConfig({
       })
       
       onComplete()
-    } catch (error) {
+    } catch {
       addToast({
         title: 'Error',
         message: 'No se pudieron guardar los umbrales',
@@ -131,16 +129,6 @@ export function SensorUmbralesConfig({
       case SensorTipo.PRESION: return <Gauge className="w-4 h-4" />
       case SensorTipo.PESO: return <Scale className="w-4 h-4" />
       default: return <Settings className="w-4 h-4" />
-    }
-  }
-
-  const getSeverityColor = (severidad: SeveridadAlerta) => {
-    switch (severidad) {
-      case SeveridadAlerta.BAJA: return 'bg-green-100 text-green-800'
-      case SeveridadAlerta.MEDIA: return 'bg-yellow-100 text-yellow-800'
-      case SeveridadAlerta.ALTA: return 'bg-orange-100 text-orange-800'
-      case SeveridadAlerta.CRITICA: return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
     }
   }
 

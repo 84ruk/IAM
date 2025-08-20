@@ -7,6 +7,7 @@ import { NotificationController } from './notification.controller';
 import { SendGridService } from './sendgrid.service';
 import { EmailTemplatesService } from './templates/email-templates.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { TwilioService } from './twilio.service';
 
 @Module({
   imports: [
@@ -36,7 +37,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     PrismaModule,
   ],
   controllers: [NotificationController],
-  providers: [NotificationService, SendGridService, EmailTemplatesService],
-  exports: [NotificationService, SendGridService, EmailTemplatesService],
+  providers: [NotificationService, SendGridService, EmailTemplatesService, TwilioService],
+  exports: [NotificationService, SendGridService, EmailTemplatesService, TwilioService],
 })
 export class NotificationModule {} 

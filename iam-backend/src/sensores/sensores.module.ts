@@ -13,7 +13,9 @@ import { IoTConfigService } from './services/iot-config.service';
 import { SensorAlertsModule } from '../alertas/sensor-alerts.module';
 import { WebSocketsModule } from '../websockets/websockets.module';
 import { CommonModule } from '../common/common.module';
+import { NotificationModule } from '../notifications/notification.module';
 import { SensorRetentionService } from './services/sensor-retention.service';
+import { SensorAlertasController } from './controllers/sensor-alertas.controller';
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { SensorRetentionService } from './services/sensor-retention.service';
     SensorAlertsModule,
     WebSocketsModule, // Importar el módulo de WebSockets
     CommonModule, // Importar el módulo común para URLConfigService
+    NotificationModule, // Importar el módulo de notificaciones
   ],
   providers: [
     SensoresService, 
@@ -32,7 +35,7 @@ import { SensorRetentionService } from './services/sensor-retention.service';
     SensorRetentionService,
     // 🔧 CORREGIR: El gateway se importa desde WebSocketsModule, no se declara aquí
   ],
-  controllers: [SensoresController, IoTController],
+  controllers: [SensoresController, IoTController, SensorAlertasController],
   exports: [SensoresService, IoTConfigService], // Exportar servicios, no el gateway
 })
 export class SensoresModule {

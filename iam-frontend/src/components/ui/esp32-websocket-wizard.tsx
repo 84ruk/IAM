@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -15,7 +15,6 @@ import {
   ChevronRight,
   ChevronLeft,
   CheckCircle,
-  Globe,
   Copy,
   Download,
   Settings

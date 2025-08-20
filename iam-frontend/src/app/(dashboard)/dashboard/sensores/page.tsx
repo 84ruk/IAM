@@ -11,7 +11,7 @@ import { ESP32Wizard } from '@/components/ui/esp32-wizard'
 import { ESP32AutoConfig } from '@/components/ui/esp32-auto-config'
 import { ESP32LecturasPeriodicasConfig } from '@/components/ui/esp32-lecturas-periodicas-config'
 import { SensorUmbralesConfig } from '@/components/ui/sensor-umbrales-config'
-import { SensorCardSkeleton, SensorGridSkeleton, SensorStatsSkeleton } from '@/components/ui/sensor-skeleton'
+import { SensorGridSkeleton, SensorStatsSkeleton } from '@/components/ui/sensor-skeleton'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -33,9 +33,8 @@ import {
   Zap
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
-import ESP32WebSocketConfig, { ESP32WebSocketConfigProps } from '@/components/ui/esp32-websocket-config'
-import { useAuth } from '@/hooks/useAuth'
 import ESP32WebSocketWizard from '@/components/ui/esp32-websocket-wizard'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function SensoresPage() {
   const router = useRouter()
@@ -237,12 +236,6 @@ export default function SensoresPage() {
     setEditingSensor(null)
     setShowForm(true)
   }
-
-  const handleConfigurarUmbrales = () => {
-    setShowUmbralesConfig(true)
-  }
-
-
 
   // Estadísticas
   const stats = {

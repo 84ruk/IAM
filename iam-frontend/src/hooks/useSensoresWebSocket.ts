@@ -49,19 +49,14 @@ export function useSensoresWebSocket(): UseSensoresWebSocketReturn {
   const connectionAttemptsRef = useRef(0)
   const currentSensorIdRef = useRef<number | null>(null)
   const seenIdsRef = useRef<Set<string | number>>(new Set())
-  const maxConnectionAttempts = 3
-
-  // Conectar automáticamente cuando el usuario esté disponible
-  useEffect(() => {
-    if (user && !isConnecting && !isConnected) {
-      connect()
-    }
-  }, [user]) // Solo depender del usuario, no de isConnecting o isConnected
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isInitializedRef = useRef(false)
 
   const connect = useCallback((ubicacionId?: number): Promise<boolean> => {
-    if (isConnecting || isConnected) {
-      console.log('⚠️ WebSocket ya está conectando o conectado')
-      return Promise.resolve(true)
+    // Evitar múltiples conexiones simultáneas
+    if (isConnecting || isConnected || socketRef.current) {
+      console.log('⚠️ WebSocket ya está conectando, conectado o existe una conexión activa')
+      return Promise.resolve(isConnected)
     }
 
     try {
@@ -79,9 +74,7 @@ export function useSensoresWebSocket(): UseSensoresWebSocketReturn {
       const newSocket = io(`${socketUrl}/sensores`, {
         transports: ['websocket', 'polling'],
         timeout: 10000,
-        reconnection: true, // Habilitar reconexión automática
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
+        reconnection: false, // Deshabilitar reconexión automática para controlarla manualmente
         withCredentials: true,
         auth: jwt ? { token: jwt } : undefined,
       })
@@ -104,12 +97,22 @@ export function useSensoresWebSocket(): UseSensoresWebSocketReturn {
           resolve(true)
         })
 
-        newSocket.on('disconnect', () => {
-          console.log('❌ WebSocket Sensores desconectado')
+        newSocket.on('disconnect', (reason) => {
+          console.log('❌ WebSocket Sensores desconectado:', reason)
           setSocket(null)
           socketRef.current = null
           setIsConnected(false)
           setIsConnecting(false)
+          
+          // Solo reconectar si no fue una desconexión manual y no hemos excedido los intentos
+          if (reason !== 'io client disconnect' && connectionAttemptsRef.current < 3) { // maxConnectionAttempts removed
+            console.log(`🔄 Programando reconexión en 3 segundos... (intento ${connectionAttemptsRef.current + 1}/3)`) // maxConnectionAttempts removed
+            reconnectTimeoutRef.current = setTimeout(() => {
+              if (!isConnected && !isConnecting) {
+                connect()
+              }
+            }, 3000)
+          }
         })
 
         newSocket.on('connect_error', (error) => {
@@ -192,14 +195,24 @@ export function useSensoresWebSocket(): UseSensoresWebSocketReturn {
         // Conectar manualmente
         newSocket.connect()
       })
-    } catch (error) {
-      console.error('❌ Error al conectar WebSocket Sensores:', error)
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('❌ Error al conectar WebSocket Sensores:', error.message)
+      } else {
+        console.error('❌ Error desconocido al conectar WebSocket Sensores:', error)
+      }
       setIsConnecting(false)
       return Promise.resolve(false)
     }
-  }, []) // Sin dependencias para evitar recreaciones constantes
+  }, [isConnected, isConnecting]) // Dependencias estabilizadas
 
   const disconnect = useCallback(() => {
+    // Limpiar timeout de reconexión
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+    
     if (socketRef.current) {
       socketRef.current.disconnect()
       setSocket(null)
@@ -207,8 +220,9 @@ export function useSensoresWebSocket(): UseSensoresWebSocketReturn {
       setIsConnected(false)
       setIsConnecting(false)
       connectionAttemptsRef.current = 0
+      isInitializedRef.current = false
     }
-  }, []) // Sin dependencias para evitar recreaciones
+  }, [])
 
   const subscribeToLocation = useCallback((ubicacionId: number) => {
     if (socketRef.current && isConnected) {
@@ -232,12 +246,23 @@ export function useSensoresWebSocket(): UseSensoresWebSocketReturn {
   // Limpiar al desmontar
   useEffect(() => {
     return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
       if (socketRef.current) {
         socketRef.current.disconnect()
         socketRef.current = null
       }
     }
-  }, []) // Sin dependencias para evitar recreaciones
+  }, [])
+
+  useEffect(() => {
+    // Conectar automáticamente solo una vez cuando el usuario esté disponible
+    if (user && !isInitializedRef.current && !isConnecting && !isConnected) {
+      isInitializedRef.current = true
+      connect()
+    }
+  }, [connect, isConnected, isConnecting])
 
   return {
     socket,
