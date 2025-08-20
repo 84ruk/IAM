@@ -2,14 +2,12 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Cog } from 'lucide-react';
-import { TabPanel } from '@mui/lab';
 
 interface ConfiguracionTabProps {
-  value: string;
   configuracion: Record<string, unknown> | undefined;
 }
 
-export const ConfiguracionTab: React.FC<ConfiguracionTabProps> = ({value, configuracion }) => {
+export const ConfiguracionTab: React.FC<ConfiguracionTabProps> = ({ configuracion }) => {
   if (!configuracion) {
     return (
       <Card>
@@ -26,8 +24,7 @@ export const ConfiguracionTab: React.FC<ConfiguracionTabProps> = ({value, config
   }
 
   return (
-    <TabPanel value={value}>
-   <Card>
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Cog className="w-5 h-5 text-blue-600" /> Configuración General
@@ -55,7 +52,5 @@ export const ConfiguracionTab: React.FC<ConfiguracionTabProps> = ({value, config
         </div>
       </CardContent>
     </Card>
-    </TabPanel>
- 
   );
 };

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { sensorService } from '@/lib/services/sensorService'
-import { SensorLectura } from '@/types/sensor'
+import { SensorLectura, Sensor } from '@/types/sensor'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
@@ -24,76 +24,33 @@ type LecturaHistorica = SensorLectura & {
   estado?: 'NORMAL' | 'ALERTA' | 'CRITICO'
 }
 
-// Tipos extendidos de sensor para el nuevo sistema de alertas
-interface UmbralesSensor {
-  min?: number
-  max?: number
+// Tipo para la configuración del sensor
+interface ConfiguracionSensor {
+  rango_min?: number
+  rango_max?: number
+  intervalo_lectura?: number
+  umbrales?: {
+    humedadMin?: number
+    humedadMax?: number
+    temperaturaMin?: number
+    temperaturaMax?: number
+    pesoMin?: number
+    pesoMax?: number
+    presionMin?: number
+    presionMax?: number
+  }
 }
 
-interface Sensor {
-  id: number
-  nombre: string
-  tipo: 'TEMPERATURA' | 'HUMEDAD' | 'PESO' | 'PRESION'
-  ubicacionId: number
-  ubicacion?: {
-    nombre: string
-  }
-  activo: boolean
-  umbrales?: UmbralesSensor
-  empresaId: number
-  configuracion?: Record<string, unknown> | undefined
-}
-
-// Función para mapear la configuración general a la estructura de umbrales
-type UmbralesMap = {
-  humedadMin?: number;
-  humedadMax?: number;
-  temperaturaMin?: number;
-  temperaturaMax?: number;
-  pesoMin?: number;
-  pesoMax?: number;
-  presionMin?: number;
-  presionMax?: number;
-  intervaloVerificacionMinutos?: number;
-};
-function mapConfigToUmbrales(sensor: Sensor | null): Partial<UmbralesMap> | undefined {
-  if (!sensor?.configuracion) return undefined;
-  const c = sensor.configuracion as Record<string, unknown>;
-  switch (sensor.tipo) {
-    case 'HUMEDAD':
-      return {
-        humedadMin: typeof c.rango_min === 'number' ? c.rango_min : typeof (c.umbrales as Record<string, unknown> | undefined)?.humedadMin === 'number' ? (c.umbrales as Record<string, unknown>).humedadMin as number : undefined,
-        humedadMax: typeof c.rango_max === 'number' ? c.rango_max : typeof (c.umbrales as Record<string, unknown> | undefined)?.humedadMax === 'number' ? (c.umbrales as Record<string, unknown>).humedadMax as number : undefined,
-        intervaloVerificacionMinutos: typeof c.intervalo_lectura === 'number' ? Math.round((c.intervalo_lectura as number) / 60000) : undefined,
-      };
-    case 'TEMPERATURA':
-      return {
-        temperaturaMin: typeof c.rango_min === 'number' ? c.rango_min : typeof (c.umbrales as Record<string, unknown> | undefined)?.temperaturaMin === 'number' ? (c.umbrales as Record<string, unknown>).temperaturaMin as number : undefined,
-        temperaturaMax: typeof c.rango_max === 'number' ? c.rango_max : typeof (c.umbrales as Record<string, unknown> | undefined)?.temperaturaMax === 'number' ? (c.umbrales as Record<string, unknown>).temperaturaMax as number : undefined,
-        intervaloVerificacionMinutos: typeof c.intervalo_lectura === 'number' ? Math.round((c.intervalo_lectura as number) / 60000) : undefined,
-      };
-    case 'PESO':
-      return {
-        pesoMin: typeof c.rango_min === 'number' ? c.rango_min : typeof (c.umbrales as Record<string, unknown> | undefined)?.pesoMin === 'number' ? (c.umbrales as Record<string, unknown>).pesoMin as number : undefined,
-        pesoMax: typeof c.rango_max === 'number' ? c.rango_max : typeof (c.umbrales as Record<string, unknown> | undefined)?.pesoMax === 'number' ? (c.umbrales as Record<string, unknown>).pesoMax as number : undefined,
-        intervaloVerificacionMinutos: typeof c.intervalo_lectura === 'number' ? Math.round((c.intervalo_lectura as number) / 60000) : undefined,
-      };
-    case 'PRESION':
-      return {
-        presionMin: typeof c.rango_min === 'number' ? c.rango_min : typeof (c.umbrales as Record<string, unknown> | undefined)?.presionMin === 'number' ? (c.umbrales as Record<string, unknown>).presionMin as number : undefined,
-        presionMax: typeof c.rango_max === 'number' ? c.rango_max : typeof (c.umbrales as Record<string, unknown> | undefined)?.presionMax === 'number' ? (c.umbrales as Record<string, unknown>).presionMax as number : undefined,
-        intervaloVerificacionMinutos: typeof c.intervalo_lectura === 'number' ? Math.round((c.intervalo_lectura as number) / 60000) : undefined,
-      };
-    default:
-      return undefined;
-  }
+// Tipo extendido de sensor para el nuevo sistema de alertas
+type SensorExtendido = Sensor & {
+  configuracion?: ConfiguracionSensor
 }
 
 export default function SensorDetallePage() {
   const params = useParams<{ id: string }>()
   const sensorId = Number(params?.id)
 
-  const [sensor, setSensor] = useState<Sensor | null>(null)
+  const [sensor, setSensor] = useState<SensorExtendido | null>(null)
   const [lecturas, setLecturas] = useState<LecturaHistorica[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [activeTab, setActiveTab] = useState('overview')
@@ -367,7 +324,7 @@ export default function SensorDetallePage() {
                   {/* Pestaña: Configuración */}
                   <TabsContent value="configuracion" className="space-y-3 sm:space-y-6">
                     {sensor && (
-                      <ConfiguracionTab value={activeTab} configuracion={sensor.configuracion} />
+                      <ConfiguracionTab configuracion={sensor.configuracion} />
                     )}
                   </TabsContent>
                   {/* Pestaña: Alertas */}
