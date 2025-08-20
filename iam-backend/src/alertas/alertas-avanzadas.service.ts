@@ -63,15 +63,15 @@ export class AlertasAvanzadasService {
       .map(d => d.telefono)
       .filter(Boolean) as string[];
 
-    const umbral: UmbralCriticoConfig = {
-      ...dto.umbral,
+    const umbralCritico: UmbralCriticoConfig = {
+      ...dto.umbralCritico,
       enviarSMS: destinatariosCreados.some(d => d.tipo === TipoDestinatarioAlerta.SMS || d.tipo === TipoDestinatarioAlerta.AMBOS),
       mensajeSMS: dto.mensajeSMS,
       prioridadSMS: (dto.prioridadSMS === 'high' ? 'high' : 'normal') as 'normal' | 'high',
       destinatarios: destinatariosTelefono
     };
 
-    const notificacion: NotificacionConfig = {
+    const configuracionNotificacion: NotificacionConfig = {
       email: destinatariosCreados.some(d => d.tipo === TipoDestinatarioAlerta.EMAIL || d.tipo === TipoDestinatarioAlerta.AMBOS),
       sms: destinatariosCreados.some(d => d.tipo === TipoDestinatarioAlerta.SMS || d.tipo === TipoDestinatarioAlerta.AMBOS),
       webSocket: false,
@@ -91,9 +91,9 @@ export class AlertasAvanzadasService {
         tipoAlerta: dto.tipoAlerta,
         activo: dto.activo,
         frecuencia: dto.frecuencia,
-        ventanaEspera: dto.ventanaEsperaMinutos ?? null,
-        umbral: umbral ? umbral as unknown as Prisma.InputJsonValue : {},
-        notificacion: notificacion ? notificacion as unknown as Prisma.InputJsonValue : {},
+        ventanaEsperaMinutos: dto.ventanaEsperaMinutos ?? null,
+        umbralCritico: umbralCritico ? umbralCritico as unknown as Prisma.InputJsonValue : {},
+        configuracionNotificacion: configuracionNotificacion ? configuracionNotificacion as unknown as Prisma.InputJsonValue : {},
         destinatarios: {
           create: destinatariosCreados.map(dest => ({ destinatarioId: dest.id }))
         }
@@ -102,9 +102,9 @@ export class AlertasAvanzadasService {
         tipoAlerta: dto.tipoAlerta,
         activo: dto.activo,
         frecuencia: dto.frecuencia,
-        ventanaEspera: dto.ventanaEsperaMinutos ?? null,
-        umbral: umbral ? umbral as unknown as Prisma.InputJsonValue : {},
-        notificacion: notificacion ? notificacion as unknown as Prisma.InputJsonValue : {},
+        ventanaEsperaMinutos: dto.ventanaEsperaMinutos ?? null,
+        umbralCritico: umbralCritico ? umbralCritico as unknown as Prisma.InputJsonValue : {},
+        configuracionNotificacion: configuracionNotificacion ? configuracionNotificacion as unknown as Prisma.InputJsonValue : {},
         destinatarios: {
           deleteMany: {},
           create: destinatariosCreados.map(dest => ({ destinatarioId: dest.id }))
@@ -138,18 +138,18 @@ export class AlertasAvanzadasService {
       tipoAlerta: configuracion.tipoAlerta,
       activo: configuracion.activo,
       frecuencia: configuracion.frecuencia,
-      ventanaEsperaMinutos: configuracion.ventanaEspera,
+      ventanaEsperaMinutos: configuracion.ventanaEsperaMinutos,
       createdAt: configuracion.createdAt,
       updatedAt: configuracion.updatedAt,
       umbralCritico: {
-        ...(configuracion.umbral as any),
+        ...(configuracion.umbralCritico as any),
         destinatarios: configuracion.destinatarios
           .filter(d => d.destinatario.tipo === TipoDestinatarioAlerta.SMS || d.destinatario.tipo === TipoDestinatarioAlerta.AMBOS)
           .map(d => d.destinatario.telefono)
           .filter(Boolean) as string[]
       } as UmbralCriticoConfig,
       configuracionNotificacion: {
-        ...(configuracion.notificacion as any),
+        ...(configuracion.configuracionNotificacion as any),
         email: configuracion.destinatarios.some(d => 
           d.destinatario.tipo === TipoDestinatarioAlerta.EMAIL || d.destinatario.tipo === TipoDestinatarioAlerta.AMBOS
         ),
@@ -194,16 +194,16 @@ export class AlertasAvanzadasService {
         tipoAlerta: config.tipoAlerta,
         activo: config.activo,
         frecuencia: config.frecuencia,
-        ventanaEsperaMinutos: config.ventanaEspera,
+        ventanaEsperaMinutos: config.ventanaEsperaMinutos,
         umbralCritico: {
-          ...(config.umbral as any),
+          ...(config.umbralCritico as any),
           destinatarios: config.destinatarios
             .filter(d => d.destinatario.tipo === TipoDestinatarioAlerta.SMS || d.destinatario.tipo === TipoDestinatarioAlerta.AMBOS)
             .map(d => d.destinatario.telefono)
             .filter(Boolean) as string[]
         } as UmbralCriticoConfig,
         configuracionNotificacion: {
-          ...(config.notificacion as any),
+          ...(config.configuracionNotificacion as any),
           email: config.destinatarios.some(d => 
             d.destinatario.tipo === TipoDestinatarioAlerta.EMAIL || d.destinatario.tipo === TipoDestinatarioAlerta.AMBOS
           ),
@@ -271,9 +271,9 @@ export class AlertasAvanzadasService {
       destinatariosCreados = await Promise.all(crearOActualizarDestinatarios);
     }
 
-    // Prepare umbral data
-    const umbral: UmbralCriticoConfig = {
-      ...(updateData.umbral || {}),
+    // Prepare umbralCritico data
+    const umbralCritico: UmbralCriticoConfig = {
+      ...(updateData.umbralCritico || {}),
       enviarSMS: destinatariosCreados.some(d => d.tipo === TipoDestinatarioAlerta.SMS || d.tipo === TipoDestinatarioAlerta.AMBOS),
       mensajeSMS: updateData.mensajePersonalizado ?? '',
       prioridadSMS: 'normal',
@@ -282,8 +282,8 @@ export class AlertasAvanzadasService {
         .map(d => d.telefono!) // El filtro anterior asegura que telefono no sea null
     };
 
-    // Prepare notificacion
-    const notificacion: NotificacionConfig = {
+    // Prepare configuracionNotificacion
+    const configuracionNotificacion: NotificacionConfig = {
       email: destinatariosCreados.some(d => d.tipo === TipoDestinatarioAlerta.EMAIL || d.tipo === TipoDestinatarioAlerta.AMBOS),
       sms: destinatariosCreados.some(d => d.tipo === TipoDestinatarioAlerta.SMS || d.tipo === TipoDestinatarioAlerta.AMBOS),
       webSocket: false,
@@ -298,9 +298,9 @@ export class AlertasAvanzadasService {
         ...(updateData.tipoAlerta && { tipoAlerta: updateData.tipoAlerta }),
         ...(typeof updateData.activo !== 'undefined' && { activo: updateData.activo }),
         ...(updateData.frecuencia && { frecuencia: updateData.frecuencia }),
-        ...(typeof updateData.ventanaEsperaMinutos !== 'undefined' && { ventanaEspera: updateData.ventanaEsperaMinutos ?? null }),
-        umbral: umbral ? umbral as unknown as Prisma.InputJsonValue : {},
-        notificacion: notificacion ? notificacion as unknown as Prisma.InputJsonValue : {},
+        ...(typeof updateData.ventanaEsperaMinutos !== 'undefined' && { ventanaEsperaMinutos: updateData.ventanaEsperaMinutos ?? null }),
+        umbralCritico: umbralCritico ? umbralCritico as unknown as Prisma.InputJsonValue : {},
+        configuracionNotificacion: configuracionNotificacion ? configuracionNotificacion as unknown as Prisma.InputJsonValue : {},
         ...(destinatariosCreados.length > 0 && {
           destinatarios: {
             deleteMany: {},
@@ -328,16 +328,16 @@ export class AlertasAvanzadasService {
       tipoAlerta: updatedConfig.tipoAlerta,
       activo: updatedConfig.activo,
       frecuencia: updatedConfig.frecuencia,
-      ventanaEsperaMinutos: updatedConfig.ventanaEspera || 0,
+      ventanaEsperaMinutos: updatedConfig.ventanaEsperaMinutos || 0,
       umbralCritico: {
-        ...umbral,
+        ...umbralCritico,
         destinatarios: updatedConfig.destinatarios
           .filter(d => d.destinatario.tipo === TipoDestinatarioAlerta.SMS || d.destinatario.tipo === TipoDestinatarioAlerta.AMBOS)
           .map(d => d.destinatario.telefono)
           .filter(Boolean) as string[]
       },
       configuracionNotificacion: {
-        ...notificacion,
+        ...configuracionNotificacion,
         email: updatedConfig.destinatarios.some(d => 
           d.destinatario.tipo === TipoDestinatarioAlerta.EMAIL || d.destinatario.tipo === TipoDestinatarioAlerta.AMBOS
         ),
@@ -359,7 +359,7 @@ export class AlertasAvanzadasService {
       updatedAt: updatedConfig.updatedAt
     };
     
-    // Enviamos notificaciones
+    // Enviamos configuracionNotificaciones
     const smsDestinatarios = result.destinatarios
       .filter(d => d.tipo === TipoDestinatarioAlerta.SMS || d.tipo === TipoDestinatarioAlerta.AMBOS)
       .filter(d => d.telefono)
@@ -407,10 +407,10 @@ export class AlertasAvanzadasService {
       // Verificar si la lectura coincide con el tipo de alerta
       if (configuracion.tipoAlerta !== lectura.tipo) continue;
 
-      // Verificar umbrales
-      const umbralExcedido = await this.evaluarUmbrales(lectura, configuracion.umbralCritico as unknown as UmbralCriticoConfig);
+      // Verificar umbralCriticoes
+      const umbralCriticoExcedido = await this.evaluarUmbrales(lectura, configuracion.umbralCritico as unknown as UmbralCriticoConfig);
       
-      if (umbralExcedido) {
+      if (umbralCriticoExcedido) {
         const alerta = await this.generarAlerta(lectura, configuracion, empresaId);
         alertasGeneradas.push(alerta);
       }
@@ -492,25 +492,25 @@ export class AlertasAvanzadasService {
     return { success: true, destinatarios: idsValidos };
   }
 
-  private async evaluarUmbrales(lectura: SensorLectura, umbrales: UmbralCriticoConfig): Promise<boolean> {
-    if (!umbrales) return false;
+  private async evaluarUmbrales(lectura: SensorLectura, umbralCriticoes: UmbralCriticoConfig): Promise<boolean> {
+    if (!umbralCriticoes) return false;
 
     switch (lectura.tipo) {
       case 'TEMPERATURA':
-        return (umbrales.temperaturaMin !== undefined && lectura.valor < umbrales.temperaturaMin) ||
-               (umbrales.temperaturaMax !== undefined && lectura.valor > umbrales.temperaturaMax);
+        return (umbralCriticoes.temperaturaMin !== undefined && lectura.valor < umbralCriticoes.temperaturaMin) ||
+               (umbralCriticoes.temperaturaMax !== undefined && lectura.valor > umbralCriticoes.temperaturaMax);
       
       case 'HUMEDAD':
-        return (umbrales.humedadMin !== undefined && lectura.valor < umbrales.humedadMin) ||
-               (umbrales.humedadMax !== undefined && lectura.valor > umbrales.humedadMax);
+        return (umbralCriticoes.humedadMin !== undefined && lectura.valor < umbralCriticoes.humedadMin) ||
+               (umbralCriticoes.humedadMax !== undefined && lectura.valor > umbralCriticoes.humedadMax);
       
       case 'PESO':
-        return (umbrales.pesoMin !== undefined && lectura.valor < umbrales.pesoMin) ||
-               (umbrales.pesoMax !== undefined && lectura.valor > umbrales.pesoMax);
+        return (umbralCriticoes.pesoMin !== undefined && lectura.valor < umbralCriticoes.pesoMin) ||
+               (umbralCriticoes.pesoMax !== undefined && lectura.valor > umbralCriticoes.pesoMax);
       
       case 'PRESION':
-        return (umbrales.presionMin !== undefined && lectura.valor < umbrales.presionMin) ||
-               (umbrales.presionMax !== undefined && lectura.valor > umbrales.presionMax);
+        return (umbralCriticoes.presionMin !== undefined && lectura.valor < umbralCriticoes.presionMin) ||
+               (umbralCriticoes.presionMax !== undefined && lectura.valor > umbralCriticoes.presionMax);
       
       default:
         return false;
@@ -522,8 +522,8 @@ export class AlertasAvanzadasService {
                    `Alerta: Valor ${lectura.valor} ${lectura.unidad} en sensor ${configuracion.tipoAlerta}`;
     const severidad = this.determinarSeveridad(lectura, configuracion.umbralCritico);
 
-    // Serializar la configuración umbral para almacenamiento JSON
-    const umbralSerializado = {
+    // Serializar la configuración umbralCritico para almacenamiento JSON
+    const umbralCriticoSerializado = {
       ...configuracion.umbralCritico,
       valores: {
         min: configuracion.umbralCritico.temperaturaMin || 
@@ -549,7 +549,7 @@ export class AlertasAvanzadasService {
         valor: lectura.valor.toString(),
         estado: 'PENDIENTE',
         condicionActivacion: {
-          umbral: umbralSerializado as unknown as Prisma.InputJsonValue,
+          umbralCritico: umbralCriticoSerializado as unknown as Prisma.InputJsonValue,
           lectura: {
             tipo: lectura.tipo,
             valor: lectura.valor,
@@ -559,7 +559,7 @@ export class AlertasAvanzadasService {
       }
     });
 
-    // Enviar notificaciones si están configuradas
+    // Enviar configuracionNotificaciones si están configuradas
     if (configuracion.umbralCritico.enviarSMS) {
       const destinatarios = configuracion.umbralCritico.destinatarios || [];
       await Promise.all(destinatarios.map(destinatario => 
@@ -606,7 +606,7 @@ export class AlertasAvanzadasService {
           valor: lectura.valor,
           unidad: lectura.unidad
         },
-        umbral: configuracion.umbralCritico
+        umbralCritico: configuracion.umbralCritico
       }
     };
   }
@@ -694,8 +694,8 @@ export class AlertasAvanzadasService {
   }
 
   private generarMensajeAlerta(lectura: SensorLectura, configuracion: Prisma.ConfiguracionAlertaGetPayload<{ include: { destinatarios: true } }>): string {
-    const umbral = configuracion.umbral as unknown as UmbralCriticoConfig;
-    const baseMensaje = umbral?.mensajePersonalizado || `Alerta de ${lectura.tipo}`;
+    const umbralCritico = configuracion.umbralCritico as unknown as UmbralCriticoConfig;
+    const baseMensaje = umbralCritico?.mensajePersonalizado || `Alerta de ${lectura.tipo}`;
     
     return baseMensaje
       .replace('{tipo}', lectura.tipo)
@@ -706,18 +706,18 @@ export class AlertasAvanzadasService {
       .replace('{fecha}', new Date().toLocaleString());
   }
 
-  private determinarSeveridad(lectura: SensorLectura, umbrales: UmbralCriticoConfig): SeveridadAlerta {
-    // Lógica para determinar severidad basada en qué tan lejos está del umbral
-    const umbralCritico = 0.5; // 50% más allá del umbral
+  private determinarSeveridad(lectura: SensorLectura, umbralCriticoes: UmbralCriticoConfig): SeveridadAlerta {
+    // Lógica para determinar severidad basada en qué tan lejos está del umbralCritico
+    const umbralCritico = 0.5; // 50% más allá del umbralCritico
     
     switch (lectura.tipo) {
       case 'TEMPERATURA':
-        if (umbrales.temperaturaMin !== undefined && lectura.valor < umbrales.temperaturaMin * umbralCritico) return 'CRITICA';
-        if (umbrales.temperaturaMax !== undefined && lectura.valor > umbrales.temperaturaMax * (2 - umbralCritico)) return 'CRITICA';
+        if (umbralCriticoes.temperaturaMin !== undefined && lectura.valor < umbralCriticoes.temperaturaMin * umbralCritico) return 'CRITICA';
+        if (umbralCriticoes.temperaturaMax !== undefined && lectura.valor > umbralCriticoes.temperaturaMax * (2 - umbralCritico)) return 'CRITICA';
         break;
       case 'HUMEDAD':
-        if (umbrales.humedadMin !== undefined && lectura.valor < umbrales.humedadMin * umbralCritico) return 'CRITICA';
-        if (umbrales.humedadMax !== undefined && lectura.valor > umbrales.humedadMax * (2 - umbralCritico)) return 'CRITICA';
+        if (umbralCriticoes.humedadMin !== undefined && lectura.valor < umbralCriticoes.humedadMin * umbralCritico) return 'CRITICA';
+        if (umbralCriticoes.humedadMax !== undefined && lectura.valor > umbralCriticoes.humedadMax * (2 - umbralCritico)) return 'CRITICA';
         break;
     }
     

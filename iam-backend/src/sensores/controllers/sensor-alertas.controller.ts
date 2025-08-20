@@ -844,14 +844,14 @@ export class SensorAlertasController {
     try {
       switch (tipoPrueba) {
         case 'EMAIL':
-          // Enviar email real usando el servicio de notificaciones
+          // Enviar email real usando el servicio de configuracionNotificaciones
           if (configuracion.tiposNotificacion?.email) {
             const emailDestinatario = destinatario || configuracion.destinatarios?.find(d => d.tipo === 'EMAIL' || d.tipo === 'AMBOS')?.email || 'admin@empresa.com';
             
             console.log(`📧 Enviando email de prueba a: ${emailDestinatario}`);
             
             try {
-              // Crear datos de sensor para el servicio de notificaciones
+              // Crear datos de sensor para el servicio de configuracionNotificaciones
               const sensorData = {
                 nombre: sensor.nombre,
                 tipo: sensor.tipo,
@@ -902,7 +902,7 @@ export class SensorAlertasController {
           break;
         
         case 'SMS':
-          // Enviar SMS real usando el servicio de notificaciones
+          // Enviar SMS real usando el servicio de configuracionNotificaciones
           if (configuracion.tiposNotificacion?.sms) {
             const telefonoDestinatario = destinatario || configuracion.destinatarios?.find(d => d.tipo === 'SMS' || d.tipo === 'AMBOS')?.telefono || '+52 55 1234 5678';
             

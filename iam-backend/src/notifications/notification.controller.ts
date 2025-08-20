@@ -39,7 +39,7 @@ export class NotificationController {
   ) {}
 
   /**
-   * 📊 Obtener estadísticas de notificaciones
+   * 📊 Obtener estadísticas de configuracionNotificaciones
    */
   @Get('stats')
   async getNotificationStats(
@@ -154,8 +154,8 @@ export class NotificationController {
               tipoAlerta: tipo,
               activo: false,
               frecuencia: 'INMEDIATA',
-              umbral: {},
-              notificacion: {},
+              umbralCritico: {},
+              configuracionNotificacion: {},
             },
           })
         )
@@ -200,8 +200,8 @@ export class NotificationController {
         tipoAlerta: dto.tipoAlerta,
         activo: dto.activo,
         frecuencia: dto.frecuencia || 'INMEDIATA',
-        umbral: {},
-        notificacion: {},
+        umbralCritico: {},
+        configuracionNotificacion: {},
       },
     });
   }

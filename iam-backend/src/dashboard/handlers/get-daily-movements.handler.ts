@@ -274,11 +274,11 @@ export class GetDailyMovementsHandler {
 
     let tendencia: 'CRECIENTE' | 'DECRECIENTE' | 'ESTABLE' = 'ESTABLE';
     const diferencia = actividadSegundaMitad - actividadPrimeraMitad;
-    const umbral = actividadPrimeraMitad * 0.1; // 10% de diferencia
+    const umbralCritico = actividadPrimeraMitad * 0.1; // 10% de diferencia
 
-    if (diferencia > umbral) {
+    if (diferencia > umbralCritico) {
       tendencia = 'CRECIENTE';
-    } else if (diferencia < -umbral) {
+    } else if (diferencia < -umbralCritico) {
       tendencia = 'DECRECIENTE';
     }
 

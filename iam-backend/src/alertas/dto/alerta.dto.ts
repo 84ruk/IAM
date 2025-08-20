@@ -54,12 +54,6 @@ export class ConfiguracionAlertaDto {
   tipoAlerta: string;
 
   @IsNumber()
-  umbralMinimo?: number;
-
-  @IsNumber()
-  umbralMaximo?: number;
-
-  @IsNumber()
   umbralCriticoMinimo?: number;
 
   @IsNumber()

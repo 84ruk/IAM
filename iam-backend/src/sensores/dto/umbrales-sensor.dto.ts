@@ -2,7 +2,7 @@ import { IsNumber, IsOptional, IsString, IsEnum, IsBoolean, IsArray, ValidateNes
 import { Type } from 'class-transformer';
 import { SensorTipo } from '@prisma/client';
 
-// DTO para umbrales específicos por tipo de sensor
+// DTO para umbralCriticoes específicos por tipo de sensor
 export class UmbralesSensorDto {
   @IsOptional()
   @IsNumber()
@@ -82,18 +82,18 @@ export class UmbralesSensorDto {
 
   @IsOptional()
   @IsBoolean()
-  notificacionEmail?: boolean = true;
+  configuracionNotificacionEmail?: boolean = true;
 
   @IsOptional()
   @IsBoolean()
-  notificacionSMS?: boolean = false;
+  configuracionNotificacionSMS?: boolean = false;
 
   @IsOptional()
   @IsBoolean()
-  notificacionWebSocket?: boolean = true;
+  configuracionNotificacionWebSocket?: boolean = true;
 }
 
-// DTO para configuración completa de umbrales por sensor
+// DTO para configuración completa de umbralCriticoes por sensor
 export class ConfiguracionUmbralesSensorDto {
   @IsNumber()
   sensorId: number;
@@ -103,7 +103,7 @@ export class ConfiguracionUmbralesSensorDto {
 
   @ValidateNested()
   @Type(() => UmbralesSensorDto)
-  umbrales: UmbralesSensorDto;
+  umbralCriticoes: UmbralesSensorDto;
 
   @IsOptional()
   @IsString()
@@ -114,7 +114,7 @@ export class ConfiguracionUmbralesSensorDto {
   descripcion?: string;
 }
 
-// DTO para configuración de umbrales por ubicación
+// DTO para configuración de umbralCriticoes por ubicación
 export class ConfiguracionUmbralesUbicacionDto {
   @IsNumber()
   ubicacionId: number;
@@ -136,7 +136,7 @@ export class ConfiguracionUmbralesUbicacionDto {
   destinatariosGlobales?: string[];
 }
 
-// DTO para respuesta de umbrales configurados
+// DTO para respuesta de umbralCriticoes configurados
 export class UmbralesConfiguradosDto {
   id: number;
   sensorId: number;
@@ -144,13 +144,13 @@ export class UmbralesConfiguradosDto {
   nombre: string;
   ubicacionId: number;
   ubicacionNombre: string;
-  umbrales: UmbralesSensorDto;
+  umbralCriticoes: UmbralesSensorDto;
   activo: boolean;
   ultimaActualizacion: Date;
   proximaVerificacion: Date;
 }
 
-// DTO para validación de umbrales
+// DTO para validación de umbralCriticoes
 export class ValidacionUmbralesDto {
   @IsEnum(SensorTipo)
   tipo: SensorTipo;
@@ -163,7 +163,7 @@ export class ValidacionUmbralesDto {
 
   @ValidateNested()
   @Type(() => UmbralesSensorDto)
-  umbrales: UmbralesSensorDto;
+  umbralCriticoes: UmbralesSensorDto;
 }
 
 // DTO para respuesta de validación
@@ -172,7 +172,7 @@ export class ResultadoValidacionUmbralesDto {
   estado: 'NORMAL' | 'ALERTA' | 'CRITICO';
   mensaje: string;
   severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
-  umbralesExcedidos: string[];
+  umbralCriticoesExcedidos: string[];
   recomendaciones: string[];
   proximaVerificacion: Date;
 }
@@ -205,10 +205,10 @@ export class ConfiguracionAlertasTiempoRealDto {
 
   @IsOptional()
   @IsBoolean()
-  notificacionesPush?: boolean = false;
+  configuracionNotificacionesPush?: boolean = false;
 }
 
-// DTO para configuración de umbrales por empresa
+// DTO para configuración de umbralCriticoes por empresa
 export class ConfiguracionUmbralesEmpresaDto {
   @IsNumber()
   empresaId: number;

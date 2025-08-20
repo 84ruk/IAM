@@ -34,7 +34,7 @@ export class ConfiguracionCompletaAlertaDto {
   @IsBoolean()
   activo: boolean;
 
-  configNotificacion: ConfiguracionNotificacionDto;
+  configuracionNotificacion: ConfiguracionNotificacionDto;
 
   @IsArray()
   destinatarios: DestinatarioAlertaDto[];

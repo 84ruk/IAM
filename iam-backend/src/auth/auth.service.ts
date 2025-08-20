@@ -51,7 +51,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtAuditService: JwtAuditService,
     private cacheStrategiesService: CacheStrategiesService,
-    private notificationService: NotificationService, // NUEVO: Servicio de notificaciones
+    private notificationService: NotificationService, // NUEVO: Servicio de configuracionNotificaciones
     private sessionManagementService: SessionManagementService, // NUEVO: Servicio de gestión de sesiones
   ) {}
 

@@ -31,7 +31,7 @@ export interface AlertaConfiguracion {
   empresaId: number;
   ubicacionId?: number;
   sensorId?: number;
-  umbrales: UmbralAlertaDto;
+  umbralCriticoes: UmbralAlertaDto;
   umbralCritico?: UmbralAlertaDto;
   destinatarios: string[];
   destinatariosSMS: string[];

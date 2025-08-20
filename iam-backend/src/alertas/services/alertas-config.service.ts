@@ -11,7 +11,7 @@ export class AlertasConfigService {
   constructor(private readonly prisma: PrismaService) {}
 
   private mapFromRow(row: any): ConfiguracionSistemaAlertasDto {
-    const json = (row?.umbral as any) || {};
+    const json = (row?.umbralCritico as any) || {};
     const canales = Array.isArray(json.canalesHabilitados)
       ? (json.canalesHabilitados.filter((c: string) => ['EMAIL', 'SMS', 'WEBSOCKET', 'PUSH'].includes(c)) as Array<'EMAIL'|'SMS'|'WEBSOCKET'|'PUSH'>)
       : (['EMAIL', 'WEBSOCKET'] as Array<'EMAIL'|'SMS'|'WEBSOCKET'|'PUSH'>);
@@ -47,7 +47,7 @@ export class AlertasConfigService {
 
     if (!row) {
       // Retornar valores por defecto
-      return this.mapFromRow({ empresaId, activo: true, umbral: {} });
+      return this.mapFromRow({ empresaId, activo: true, umbralCritico: {} });
     }
 
     return this.mapFromRow(row);
@@ -66,8 +66,8 @@ export class AlertasConfigService {
         tipoAlerta: 'SISTEMA',
         activo: config.sistemaActivado,
         frecuencia: 'inmediata',
-        umbral: config.umbral ? config.umbral : {},
-        notificacion: config.notificacion ? config.notificacion : {},
+        umbralCritico: config.umbralCritico ? config.umbralCritico : {},
+        configuracionNotificacion: config.configuracionNotificacion ? config.configuracionNotificacion : {},
       },
     });
 
@@ -91,8 +91,8 @@ export class AlertasConfigService {
       where: { id },
       data: {
         activo: config.sistemaActivado,
-        umbral: config.umbral ? config.umbral : {},
-        notificacion: config.notificacion ? config.notificacion : {},
+        umbralCritico: config.umbralCritico ? config.umbralCritico : {},
+        configuracionNotificacion: config.configuracionNotificacion ? config.configuracionNotificacion : {},
       },
     });
 

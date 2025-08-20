@@ -907,7 +907,7 @@ export class NotificationService {
   }
 
   /**
-   * 📊 Obtener estadísticas de notificaciones
+   * 📊 Obtener estadísticas de configuracionNotificaciones
    */
   async getNotificationStats(empresaId: number, days: number = 30): Promise<{
     totalEnviadas: number;

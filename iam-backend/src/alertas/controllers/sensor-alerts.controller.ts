@@ -196,17 +196,17 @@ export class SensorAlertsController {
   }
 
   /**
-   * ⚙️ Configura umbrales por sensor (forma compatible con frontend newer)
+   * ⚙️ Configura umbralCriticoes por sensor (forma compatible con frontend newer)
    */
-  @Post('sensores/umbrales')
-  async configurarUmbrales(@Request() req, @Body() dto: { sensorId: number; tipo: SensorTipo; umbrales: any }) {
+  @Post('sensores/umbralCriticoes')
+  async configurarUmbrales(@Request() req, @Body() dto: { sensorId: number; tipo: SensorTipo; umbralCriticoes: any }) {
     try {
       const empresaId = req.user.empresaId;
       const sensorActualizado = await this.prisma.sensor.update({
         where: { id: dto.sensorId, empresaId },
         data: {
           configuracion: {
-            ...dto.umbrales,
+            ...dto.umbralCriticoes,
             ultimaActualizacion: new Date(),
           },
         },
@@ -218,7 +218,7 @@ export class SensorAlertsController {
         data: {
           sensorId: sensorActualizado.id,
           tipo: dto.tipo,
-          umbrales: dto.umbrales as UmbralesSensorDto,
+          umbralCriticoes: dto.umbralCriticoes as UmbralesSensorDto,
           ubicacion: sensorActualizado.ubicacion?.nombre || '',
         },
         message: 'Umbrales configurados correctamente',
@@ -227,16 +227,16 @@ export class SensorAlertsController {
       if (error instanceof HttpException) throw error;
       
       throw new HttpException(
-        `Error configurando umbrales: ${error.message}`,
+        `Error configurando umbralCriticoes: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   /**
-   * Obtiene umbrales del sensor
+   * Obtiene umbralCriticoes del sensor
    */
-  @Get('sensores/:id/umbrales')
+  @Get('sensores/:id/umbralCriticoes')
   @UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
   @EmpresaRequired()
   async obtenerUmbrales(
@@ -251,7 +251,7 @@ export class SensorAlertsController {
       data: {
         sensorId: sensor.id,
         tipo: sensor.tipo,
-        umbrales: (sensor.configuracion as any) || {},
+        umbralCriticoes: (sensor.configuracion as any) || {},
         ubicacion: sensor.ubicacion?.nombre || '',
       },
     };
@@ -597,7 +597,7 @@ export class SensorAlertsController {
   async guardarConfiguracionAlertaSensor(
     @CurrentUser() currentUser: JwtUser,
     @Param('sensorId') sensorId: string,
-    @Body() body: { tipoAlerta: string, frecuencia: string, ventanaEsperaMinutos?: number, umbral?: any, notificacion?: any, destinatarios: number[] }
+    @Body() body: { tipoAlerta: string, frecuencia: string, ventanaEsperaMinutos?: number, umbralCritico?: any, configuracionNotificacion?: any, destinatarios: number[] }
   ) {
     const empresaId = currentUser.empresaId;
     let config = await this.prisma.configuracionAlerta.findFirst({
@@ -614,9 +614,9 @@ export class SensorAlertsController {
           tipoAlerta: body.tipoAlerta,
           frecuencia: body.frecuencia,
           activo: true,
-          ...(body.ventanaEsperaMinutos !== undefined ? { ventanaEspera: body.ventanaEsperaMinutos } : {}),
-          umbral: body.umbral as Prisma.JsonObject,
-          notificacion: body.notificacion as Prisma.JsonObject,
+          ...(body.ventanaEsperaMinutos !== undefined ? { ventanaEsperaMinutos: body.ventanaEsperaMinutos } : {}),
+          umbralCritico: body.umbralCritico as Prisma.JsonObject,
+          configuracionNotificacion: body.configuracionNotificacion as unknown as Prisma.JsonObject,
         },
       });
     } else {
@@ -626,9 +626,9 @@ export class SensorAlertsController {
           tipoAlerta: body.tipoAlerta,
           frecuencia: body.frecuencia,
           activo: true,
-          ...(body.ventanaEsperaMinutos !== undefined ? { ventanaEspera: body.ventanaEsperaMinutos } : {}),
-          umbral: body.umbral as Prisma.JsonObject,
-          notificacion: body.notificacion as Prisma.JsonObject,
+          ...(body.ventanaEsperaMinutos !== undefined ? { ventanaEsperaMinutos: body.ventanaEsperaMinutos } : {}),
+          umbralCritico: body.umbralCritico as Prisma.JsonObject,
+          configuracionNotificacion: body.configuracionNotificacion as unknown as Prisma.JsonObject,
         },
       });
       await this.prisma.configuracionAlertaDestinatario.deleteMany({
@@ -684,8 +684,8 @@ export class SensorAlertsController {
           tipoAlerta: 'GENERAL',
           frecuencia: 'INMEDIATA',
           activo: true,
-          umbral: {},
-          notificacion: {},
+          umbralCritico: {},
+          configuracionNotificacion: {},
         }
       });
     }

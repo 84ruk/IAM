@@ -87,6 +87,6 @@ export interface AlertaGenerada {
   valor?: string;
   detalles: {
     lectura: Record<string, any>;
-    umbral: UmbralCriticoConfig;
+    umbralCritico: UmbralCriticoConfig;
   };
 }

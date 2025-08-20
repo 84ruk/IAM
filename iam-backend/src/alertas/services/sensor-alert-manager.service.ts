@@ -39,7 +39,7 @@ export interface AlertaGenerada {
   productoId?: number;
   fecha: Date;
   estado: 'PENDIENTE' | 'EN_PROCESO' | 'RESUELTA' | 'IGNORADA';
-  notificacionesEnviadas: boolean;
+  configuracionNotificacionesEnviadas: boolean;
 }
 
 export interface ConfiguracionAlerta {
@@ -47,7 +47,7 @@ export interface ConfiguracionAlerta {
   empresaId: number;
   tipoSensor: SensorTipo;
   activo: boolean;
-  umbrales: UmbralesSensorDto;
+  umbralCriticoes: UmbralesSensorDto;
   destinatarios: string[];
   destinatariosSMS: string[];
   enviarEmail: boolean;
@@ -91,7 +91,7 @@ export class SensorAlertManagerService {
       }
 
       // 3. Evaluar si la lectura activa una alerta (implementación simplificada)
-      const alertaEvaluada = this.evaluarLecturaSimplificada(lectura, configuracion.umbrales);
+      const alertaEvaluada = this.evaluarLecturaSimplificada(lectura, configuracion.umbralCriticoes);
       if (!alertaEvaluada) {
         return null;
       }
@@ -99,7 +99,7 @@ export class SensorAlertManagerService {
       // 4. Generar y registrar la alerta
       const alertaGenerada = await this.generarAlerta(lectura, alertaEvaluada, configuracion, empresaId);
 
-      // 5. Enviar notificaciones
+      // 5. Enviar configuracionNotificaciones
       await this.enviarNotificaciones(alertaGenerada, configuracion);
 
       // 6. Emitir por WebSocket
@@ -115,9 +115,9 @@ export class SensorAlertManagerService {
   }
 
   /**
-   * 🔍 Evalúa si una lectura de sensor excede los umbrales (implementación simplificada)
+   * 🔍 Evalúa si una lectura de sensor excede los umbralCriticoes (implementación simplificada)
    */
-  private evaluarLecturaSimplificada(lectura: LecturaSensor, umbrales: UmbralesSensorDto): AlertaEvaluada | null {
+  private evaluarLecturaSimplificada(lectura: LecturaSensor, umbralCriticoes: UmbralesSensorDto): AlertaEvaluada | null {
     try {
       let activada = false;
       let severidad: SeveridadAlerta = 'MEDIA';
@@ -126,62 +126,62 @@ export class SensorAlertManagerService {
       let requiereAccion = false;
 
       // Evaluar temperatura
-      if (umbrales.temperaturaMin !== undefined && lectura.valor < umbrales.temperaturaMin) {
+      if (umbralCriticoes.temperaturaMin !== undefined && lectura.valor < umbralCriticoes.temperaturaMin) {
         activada = true;
         severidad = 'ALTA';
-        mensaje = `Temperatura por debajo del umbral mínimo: ${lectura.valor}${lectura.unidad} < ${umbrales.temperaturaMin}${lectura.unidad}`;
-        detalles = { tipo: 'TEMPERATURA_BAJA', valor: lectura.valor, umbral: umbrales.temperaturaMin };
+        mensaje = `Temperatura por debajo del umbralCritico mínimo: ${lectura.valor}${lectura.unidad} < ${umbralCriticoes.temperaturaMin}${lectura.unidad}`;
+        detalles = { tipo: 'TEMPERATURA_BAJA', valor: lectura.valor, umbralCritico: umbralCriticoes.temperaturaMin };
         requiereAccion = true;
-      } else if (umbrales.temperaturaMax !== undefined && lectura.valor > umbrales.temperaturaMax) {
+      } else if (umbralCriticoes.temperaturaMax !== undefined && lectura.valor > umbralCriticoes.temperaturaMax) {
         activada = true;
         severidad = 'CRITICA';
-        mensaje = `Temperatura por encima del umbral máximo: ${lectura.valor}${lectura.unidad} > ${umbrales.temperaturaMax}${lectura.unidad}`;
-        detalles = { tipo: 'TEMPERATURA_ALTA', valor: lectura.valor, umbral: umbrales.temperaturaMax };
+        mensaje = `Temperatura por encima del umbralCritico máximo: ${lectura.valor}${lectura.unidad} > ${umbralCriticoes.temperaturaMax}${lectura.unidad}`;
+        detalles = { tipo: 'TEMPERATURA_ALTA', valor: lectura.valor, umbralCritico: umbralCriticoes.temperaturaMax };
         requiereAccion = true;
       }
 
       // Evaluar humedad
-      if (umbrales.humedadMin !== undefined && lectura.valor < umbrales.humedadMin) {
+      if (umbralCriticoes.humedadMin !== undefined && lectura.valor < umbralCriticoes.humedadMin) {
         activada = true;
         severidad = 'MEDIA';
-        mensaje = `Humedad por debajo del umbral mínimo: ${lectura.valor}${lectura.unidad} < ${umbrales.humedadMin}${lectura.unidad}`;
-        detalles = { tipo: 'HUMEDAD_BAJA', valor: lectura.valor, umbral: umbrales.humedadMin };
+        mensaje = `Humedad por debajo del umbralCritico mínimo: ${lectura.valor}${lectura.unidad} < ${umbralCriticoes.humedadMin}${lectura.unidad}`;
+        detalles = { tipo: 'HUMEDAD_BAJA', valor: lectura.valor, umbralCritico: umbralCriticoes.humedadMin };
         requiereAccion = false;
-      } else if (umbrales.humedadMax !== undefined && lectura.valor > umbrales.humedadMax) {
+      } else if (umbralCriticoes.humedadMax !== undefined && lectura.valor > umbralCriticoes.humedadMax) {
         activada = true;
         severidad = 'ALTA';
-        mensaje = `Humedad por encima del umbral máximo: ${lectura.valor}${lectura.unidad} > ${umbrales.humedadMax}${lectura.unidad}`;
-        detalles = { tipo: 'HUMEDAD_ALTA', valor: lectura.valor, umbral: umbrales.humedadMax };
+        mensaje = `Humedad por encima del umbralCritico máximo: ${lectura.valor}${lectura.unidad} > ${umbralCriticoes.humedadMax}${lectura.unidad}`;
+        detalles = { tipo: 'HUMEDAD_ALTA', valor: lectura.valor, umbralCritico: umbralCriticoes.humedadMax };
         requiereAccion = true;
       }
 
       // Evaluar peso
-      if (umbrales.pesoMin !== undefined && lectura.valor < umbrales.pesoMin) {
+      if (umbralCriticoes.pesoMin !== undefined && lectura.valor < umbralCriticoes.pesoMin) {
         activada = true;
         severidad = 'ALTA';
-        mensaje = `Peso por debajo del umbral mínimo: ${lectura.valor}${lectura.unidad} < ${umbrales.pesoMin}${lectura.unidad}`;
-        detalles = { tipo: 'PESO_BAJO', valor: lectura.valor, umbral: umbrales.pesoMin };
+        mensaje = `Peso por debajo del umbralCritico mínimo: ${lectura.valor}${lectura.unidad} < ${umbralCriticoes.pesoMin}${lectura.unidad}`;
+        detalles = { tipo: 'PESO_BAJO', valor: lectura.valor, umbralCritico: umbralCriticoes.pesoMin };
         requiereAccion = true;
-      } else if (umbrales.pesoMax !== undefined && lectura.valor > umbrales.pesoMax) {
+      } else if (umbralCriticoes.pesoMax !== undefined && lectura.valor > umbralCriticoes.pesoMax) {
         activada = true;
         severidad = 'CRITICA';
-        mensaje = `Peso por encima del umbral máximo: ${lectura.valor}${lectura.unidad} > ${umbrales.pesoMax}${lectura.unidad}`;
-        detalles = { tipo: 'PESO_ALTO', valor: lectura.valor, umbral: umbrales.pesoMax };
+        mensaje = `Peso por encima del umbralCritico máximo: ${lectura.valor}${lectura.unidad} > ${umbralCriticoes.pesoMax}${lectura.unidad}`;
+        detalles = { tipo: 'PESO_ALTO', valor: lectura.valor, umbralCritico: umbralCriticoes.pesoMax };
         requiereAccion = true;
       }
 
       // Evaluar presión
-      if (umbrales.presionMin !== undefined && lectura.valor < umbrales.presionMin) {
+      if (umbralCriticoes.presionMin !== undefined && lectura.valor < umbralCriticoes.presionMin) {
         activada = true;
         severidad = 'ALTA';
-        mensaje = `Presión por debajo del umbral mínimo: ${lectura.valor}${lectura.unidad} < ${umbrales.presionMin}${lectura.unidad}`;
-        detalles = { tipo: 'PRESION_BAJA', valor: lectura.valor, umbral: umbrales.presionMin };
+        mensaje = `Presión por debajo del umbralCritico mínimo: ${lectura.valor}${lectura.unidad} < ${umbralCriticoes.presionMin}${lectura.unidad}`;
+        detalles = { tipo: 'PRESION_BAJA', valor: lectura.valor, umbralCritico: umbralCriticoes.presionMin };
         requiereAccion = true;
-      } else if (umbrales.presionMax !== undefined && lectura.valor > umbrales.presionMax) {
+      } else if (umbralCriticoes.presionMax !== undefined && lectura.valor > umbralCriticoes.presionMax) {
         activada = true;
         severidad = 'CRITICA';
-        mensaje = `Presión por encima del umbral máximo: ${lectura.valor}${lectura.unidad} > ${umbrales.presionMax}${lectura.unidad}`;
-        detalles = { tipo: 'PRESION_ALTA', valor: lectura.valor, umbral: umbrales.presionMax };
+        mensaje = `Presión por encima del umbralCritico máximo: ${lectura.valor}${lectura.unidad} > ${umbralCriticoes.presionMax}${lectura.unidad}`;
+        detalles = { tipo: 'PRESION_ALTA', valor: lectura.valor, umbralCritico: umbralCriticoes.presionMax };
         requiereAccion = true;
       }
 
@@ -234,11 +234,11 @@ export class SensorAlertManagerService {
         empresaId: sensor.empresaId,
         tipoSensor: sensor.tipo,
         activo: sensor.activo,
-        umbrales: configuracion as UmbralesSensorDto,
+        umbralCriticoes: configuracion as UmbralesSensorDto,
         destinatarios: configuracion.destinatarios || [],
         destinatariosSMS: configuracion.destinatariosSMS || [],
-        enviarEmail: configuracion.notificacionEmail || true,
-        enviarSMS: configuracion.notificacionSMS || false,
+        enviarEmail: configuracion.configuracionNotificacionEmail || true,
+        enviarSMS: configuracion.configuracionNotificacionSMS || false,
         ventanaEsperaMinutos: configuracion.intervaloVerificacionMinutos || 15,
       };
     } catch (error) {
@@ -310,7 +310,7 @@ export class SensorAlertManagerService {
         productoId: lectura.productoId,
         fecha: alertaDB.fechaEnvio,
         estado: 'PENDIENTE',
-        notificacionesEnviadas: false,
+        configuracionNotificacionesEnviadas: false,
       };
 
       // Actualizar cache para evitar spam
@@ -332,33 +332,33 @@ export class SensorAlertManagerService {
   }
 
   /**
-   * 📧 Envía notificaciones por email y SMS según la configuración
+   * 📧 Envía configuracionNotificaciones por email y SMS según la configuración
    */
   private async enviarNotificaciones(
     alerta: AlertaGenerada,
     configuracion: ConfiguracionAlerta
   ): Promise<void> {
     try {
-      const notificaciones: Promise<void>[] = [];
+      const configuracionNotificaciones: Promise<void>[] = [];
 
       // 1. Enviar email si está habilitado
       if (configuracion.enviarEmail && configuracion.destinatarios.length > 0) {
-        notificaciones.push(this.enviarEmailAlerta(alerta, configuracion));
+        configuracionNotificaciones.push(this.enviarEmailAlerta(alerta, configuracion));
       }
 
       // 2. Enviar SMS si está habilitado
       if (configuracion.enviarSMS && configuracion.destinatariosSMS.length > 0) {
-        notificaciones.push(this.enviarSMSAlerta(alerta, configuracion));
+        configuracionNotificaciones.push(this.enviarSMSAlerta(alerta, configuracion));
       }
 
-      // Ejecutar notificaciones en paralelo
-      await Promise.allSettled(notificaciones);
+      // Ejecutar configuracionNotificaciones en paralelo
+      await Promise.allSettled(configuracionNotificaciones);
 
       // Marcar como notificada
       await this.marcarAlertaNotificada(alerta.id);
 
     } catch (error) {
-      this.logger.error(`Error enviando notificaciones: ${error.message}`);
+      this.logger.error(`Error enviando configuracionNotificaciones: ${error.message}`);
     }
   }
 

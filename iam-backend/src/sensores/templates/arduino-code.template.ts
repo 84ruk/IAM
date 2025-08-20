@@ -185,8 +185,8 @@ struct SensorConfig {
   int pin;
   int pin2;
   bool enabled;
-  float umbralMin;
-  float umbralMax;
+  float umbralCriticoMin;
+  float umbralCriticoMax;
   String unidad;
   int intervalo;
 };
@@ -279,8 +279,8 @@ void configurarSensoresIniciales() {
   sensores[numSensores].pin = ${sensor.pin};
   sensores[numSensores].pin2 = ${sensor.pin2};
   sensores[numSensores].enabled = true;
-  sensores[numSensores].umbralMin = ${sensor.umbralMin};
-  sensores[numSensores].umbralMax = ${sensor.umbralMax};
+  sensores[numSensores].umbralCriticoMin = ${sensor.umbralCriticoMin};
+  sensores[numSensores].umbralCriticoMax = ${sensor.umbralCriticoMax};
   sensores[numSensores].unidad = "${sensor.unidad}";
   sensores[numSensores].intervalo = ${sensor.intervalo};
   numSensores++;`).join('\n  ')}
@@ -368,8 +368,8 @@ bool obtenerConfiguracionDesdeBackend() {
           sensores[numSensores].pin = sensor["pin"];
           sensores[numSensores].pin2 = sensor["pin2"];
           sensores[numSensores].enabled = sensor["enabled"];
-          sensores[numSensores].umbralMin = sensor["umbralMin"];
-          sensores[numSensores].umbralMax = sensor["umbralMax"];
+          sensores[numSensores].umbralCriticoMin = sensor["umbralCriticoMin"];
+          sensores[numSensores].umbralCriticoMax = sensor["umbralCriticoMax"];
           sensores[numSensores].unidad = sensor["unidad"].as<String>();
           sensores[numSensores].intervalo = sensor["intervalo"];
           numSensores++;
@@ -636,12 +636,12 @@ bool registrarSensoresEnBackend() {
       // Configuración del sensor
       JsonObject configuracion = sensorDoc.createNestedObject("configuracion");
       configuracion["unidad"] = sensores[i].unidad;
-      configuracion["rango_min"] = sensores[i].umbralMin;
-      configuracion["rango_max"] = sensores[i].umbralMax;
+      configuracion["rango_min"] = sensores[i].umbralCriticoMin;
+      configuracion["rango_max"] = sensores[i].umbralCriticoMax;
       configuracion["precision"] = 0.1;
       configuracion["intervalo_lectura"] = sensores[i].intervalo;
-      configuracion["umbral_alerta"] = sensores[i].umbralMax * 0.8;
-      configuracion["umbral_critico"] = sensores[i].umbralMax * 0.9;
+      configuracion["umbralCritico_alerta"] = sensores[i].umbralCriticoMax * 0.8;
+      configuracion["umbralCritico_critico"] = sensores[i].umbralCriticoMax * 0.9;
       
       String sensorJsonString;
       serializeJson(sensorDoc, sensorJsonString);

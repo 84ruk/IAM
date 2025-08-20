@@ -714,13 +714,13 @@ export class SensoresService {
       }
 
       // Después de registrar el sensor, crear configuración de alerta si no existe
-      const umbral = {
+      const umbralCritico = {
         ...configuracionFinal,
         // Puedes ajustar aquí los campos críticos según tu modelo
         severidad: configuracionFinal.severidad || 'MEDIA',
         tipo: dto.tipo,
       };
-      const notificacion = {
+      const configuracionNotificacion = {
         email: true,
         sms: false,
         webSocket: true,
@@ -734,8 +734,8 @@ export class SensoresService {
           tipoAlerta: 'GENERAL',
           activo: true,
           frecuencia: 'INMEDIATA',
-          umbral: umbral as Prisma.JsonObject,
-          notificacion: notificacion as Prisma.JsonObject,
+          umbralCritico: umbralCritico as Prisma.JsonObject,
+          configuracionNotificacion: configuracionNotificacion as unknown as Prisma.JsonObject,
         },
         create: {
           empresaId,
@@ -743,8 +743,8 @@ export class SensoresService {
           tipoAlerta: 'GENERAL',
           activo: true,
           frecuencia: 'INMEDIATA',
-          umbral: umbral as Prisma.JsonObject,
-          notificacion: notificacion as Prisma.JsonObject,
+          umbralCritico: umbralCritico as Prisma.JsonObject,
+          configuracionNotificacion: configuracionNotificacion as unknown as Prisma.JsonObject,
         },
       });
 

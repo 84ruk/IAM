@@ -97,10 +97,7 @@ export class ConfigurarAlertaDto {
   prioridadSMS?: 'low' | 'normal' | 'high' | 'urgent' = 'normal';
 
   @IsOptional()
-  umbral?: Record<string, any>;
-
-  @IsOptional()
-  notificacion?: Record<string, any>;
+  configuracionNotificacion?: Record<string, any>;
 }
 
 export class CrearAlertaDto {

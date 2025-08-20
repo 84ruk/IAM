@@ -9,8 +9,8 @@ export interface SensorConfiguracion {
   rango_max?: number;
   precision?: number;
   intervalo_lectura?: number;
-  umbral_alerta?: number;
-  umbral_critico?: number;
+  umbralCritico_alerta?: number;
+  umbralCritico_critico?: number;
   [key: string]: unknown;
 }
 
@@ -22,8 +22,8 @@ export const CONFIGURACIONES_PREDEFINIDAS: Record<SensorTipo, SensorConfiguracio
     rango_max: 50,
     precision: 0.1,
     intervalo_lectura: 30,
-    umbral_alerta: 35,
-    umbral_critico: 40
+    umbralCritico_alerta: 35,
+    umbralCritico_critico: 40
   },
   HUMEDAD: {
     unidad: '%',
@@ -31,8 +31,8 @@ export const CONFIGURACIONES_PREDEFINIDAS: Record<SensorTipo, SensorConfiguracio
     rango_max: 100,
     precision: 0.1,
     intervalo_lectura: 30,
-    umbral_alerta: 80,
-    umbral_critico: 90
+    umbralCritico_alerta: 80,
+    umbralCritico_critico: 90
   },
   PESO: {
     unidad: 'kg',
@@ -40,8 +40,8 @@ export const CONFIGURACIONES_PREDEFINIDAS: Record<SensorTipo, SensorConfiguracio
     rango_max: 1000,
     precision: 0.01,
     intervalo_lectura: 60,
-    umbral_alerta: 800,
-    umbral_critico: 950
+    umbralCritico_alerta: 800,
+    umbralCritico_critico: 950
   },
   PRESION: {
     unidad: 'Pa',
@@ -49,8 +49,8 @@ export const CONFIGURACIONES_PREDEFINIDAS: Record<SensorTipo, SensorConfiguracio
     rango_max: 2000,
     precision: 1,
     intervalo_lectura: 30,
-    umbral_alerta: 1500,
-    umbral_critico: 1800
+    umbralCritico_alerta: 1500,
+    umbralCritico_critico: 1800
   }
 };
 

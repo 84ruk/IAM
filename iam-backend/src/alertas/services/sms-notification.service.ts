@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { TwilioService } from '../../notifications/twilio.service';
 
 export interface SMSConfig {
   provider: 'twilio' | 'aws-sns' | 'custom';
@@ -24,7 +25,10 @@ export class SMSNotificationService {
   private readonly logger = new Logger(SMSNotificationService.name);
   private config: SMSConfig;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private twilioService: TwilioService
+  ) {
     this.config = {
       provider: this.configService.get('SMS_PROVIDER', 'twilio'),
       accountSid: this.configService.get('TWILIO_ACCOUNT_SID'),
@@ -76,21 +80,28 @@ export class SMSNotificationService {
 
   private async sendViaTwilio(message: SMSMessage): Promise<boolean> {
     try {
-      if (!this.config.accountSid || !this.config.authToken || !this.config.fromNumber) {
-        throw new Error('Configuración de Twilio incompleta');
+      // Verificar si Twilio está disponible
+      if (!this.twilioService.isAvailable()) {
+        this.logger.error('Twilio no está configurado o disponible');
+        return false;
       }
 
-      // Envío real por Twilio usando el SDK
-      const client = require('twilio')(this.config.accountSid, this.config.authToken);
-      
-      const result = await client.messages.create({
-        body: message.message,
-        from: this.config.fromNumber,
-        to: message.to
-      });
+      // Usar el TwilioService para enviar el SMS
+      const result = await this.twilioService.sendSmsWithRetry(
+        message.to,
+        message.message,
+        1, // empresaId por defecto
+        undefined, // alertaId opcional
+        1 // maxRetries
+      );
 
-      this.logger.log(`[TWILIO] SMS enviado exitosamente a ${message.to}. SID: ${result.sid}`);
-      return true;
+      if (result.success) {
+        this.logger.log(`[TWILIO] SMS enviado exitosamente a ${message.to}. SID: ${result.messageId}`);
+        return true;
+      } else {
+        this.logger.error(`[TWILIO] Error enviando SMS a ${message.to}: ${result.error}`);
+        return false;
+      }
     } catch (error) {
       this.logger.error(`Error enviando SMS via Twilio: ${error.message}`);
       return false;

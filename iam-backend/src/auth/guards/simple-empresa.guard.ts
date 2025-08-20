@@ -37,7 +37,7 @@ export class SimpleEmpresaGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // 3. Lógica simplificada para notificaciones
+    // 3. Lógica simplificada para configuracionNotificaciones
     const currentUrl = request.url;
     const method = request.method;
 
@@ -58,7 +58,7 @@ export class SimpleEmpresaGuard implements CanActivate {
       return true;
     }
 
-    // Para notificaciones, siempre requerir empresa
+    // Para configuracionNotificaciones, siempre requerir empresa
     return await this.validateEmpresaAccess(user, request);
   }
 

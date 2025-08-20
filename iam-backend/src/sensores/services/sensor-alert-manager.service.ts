@@ -24,10 +24,10 @@ export interface AlertaGestionada {
   productoId?: number;
   ubicacionId?: number;
   empresaId: number;
-  umbralesExcedidos: string[];
+  umbralCriticoesExcedidos: string[];
   recomendaciones: string[];
   accionesTomadas: string[];
-  notificacionesEnviadas: {
+  configuracionNotificacionesEnviadas: {
     email: boolean;
     sms: boolean;
     webSocket: boolean;
@@ -52,9 +52,9 @@ export interface ResumenAlertas {
 
 export interface ConfiguracionAlertas {
   sensorId: number;
-  umbrales: UmbralesSensorDto;
+  umbralCriticoes: UmbralesSensorDto;
   activo: boolean;
-  notificaciones: {
+  configuracionNotificaciones: {
     email: boolean;
     sms: boolean;
     webSocket: boolean;
@@ -98,16 +98,16 @@ export class SensorAlertManagerService {
     try {
       this.logger.log(`Procesando lectura del sensor ${lectura.sensorId} - ${lectura.tipo}: ${lectura.valor}`);
 
-      // Obtener umbrales configurados para el sensor
-      const umbrales = await this.obtenerUmbralesSensor(lectura.sensorId!, empresaId);
+      // Obtener umbralCriticoes configurados para el sensor
+      const umbralCriticoes = await this.obtenerUmbralesSensor(lectura.sensorId!, empresaId);
       
-      if (!umbrales.alertasActivas) {
+      if (!umbralCriticoes.alertasActivas) {
         this.logger.debug(`Alertas desactivadas para sensor ${lectura.sensorId}`);
         return null;
       }
 
-      // Evaluar la lectura contra los umbrales
-      const evaluacion = await this.evaluadorService.evaluarLectura(lectura, umbrales);
+      // Evaluar la lectura contra los umbralCriticoes
+      const evaluacion = await this.evaluadorService.evaluarLectura(lectura, umbralCriticoes);
       
       if (evaluacion.estado === 'NORMAL') {
         this.logger.debug(`Lectura normal para sensor ${lectura.sensorId}`);
@@ -129,7 +129,7 @@ export class SensorAlertManagerService {
       // Crear nueva alerta
       const alerta = await this.crearNuevaAlerta(lectura, evaluacion, empresaId);
       
-      // Enviar notificaciones
+      // Enviar configuracionNotificaciones
       await this.enviarNotificacionesAlerta(alerta, evaluacion, empresaId);
       
       // Emitir por WebSocket
@@ -148,7 +148,7 @@ export class SensorAlertManagerService {
   }
 
   /**
-   * Configura umbrales para un sensor
+   * Configura umbralCriticoes para un sensor
    */
   async configurarUmbralesSensor(
     configuracion: ConfiguracionUmbralesSensorDto,
@@ -166,7 +166,7 @@ export class SensorAlertManagerService {
         where: { id: configuracion.sensorId, empresaId },
         data: {
           configuracion: {
-            ...configuracion.umbrales,
+            ...configuracion.umbralCriticoes,
             ultimaActualizacion: new Date()
           }
         },
@@ -179,18 +179,18 @@ export class SensorAlertManagerService {
       // Crear configuración de alertas
       const configAlertas: ConfiguracionAlertas = {
         sensorId: configuracion.sensorId,
-        umbrales: configuracion.umbrales,
-        activo: configuracion.umbrales.alertasActivas ?? true,
-        notificaciones: {
-          email: configuracion.umbrales.notificacionEmail ?? true,
-          sms: configuracion.umbrales.notificacionSMS ?? false,
-          webSocket: configuracion.umbrales.notificacionWebSocket ?? true,
+        umbralCriticoes: configuracion.umbralCriticoes,
+        activo: configuracion.umbralCriticoes.alertasActivas ?? true,
+        configuracionNotificaciones: {
+          email: configuracion.umbralCriticoes.configuracionNotificacionEmail ?? true,
+          sms: configuracion.umbralCriticoes.configuracionNotificacionSMS ?? false,
+          webSocket: configuracion.umbralCriticoes.configuracionNotificacionWebSocket ?? true,
           push: false
         },
         escalamiento: {
-          habilitado: configuracion.umbrales.severidad === 'CRITICA',
+          habilitado: configuracion.umbralCriticoes.severidad === 'CRITICA',
           tiempoEscalacionMinutos: 30,
-          destinatariosEscalacion: configuracion.umbrales.destinatarios || []
+          destinatariosEscalacion: configuracion.umbralCriticoes.destinatarios || []
         },
         horario: {
           habilitado: false,
@@ -209,15 +209,15 @@ export class SensorAlertManagerService {
         nombre: sensor.nombre,
         ubicacionId: sensor.ubicacionId,
         ubicacionNombre: sensor.ubicacion.nombre,
-        umbrales: configuracion.umbrales,
+        umbralCriticoes: configuracion.umbralCriticoes,
         activo: configAlertas.activo,
         ultimaActualizacion: new Date(),
-        proximaVerificacion: new Date(Date.now() + (configuracion.umbrales.intervaloVerificacionMinutos || 5) * 60 * 1000)
+        proximaVerificacion: new Date(Date.now() + (configuracion.umbralCriticoes.intervaloVerificacionMinutos || 5) * 60 * 1000)
       };
 
     } catch (error) {
-      this.logger.error(`Error configurando umbrales para sensor ${configuracion.sensorId}:`, error);
-      throw new Error(`Error configurando umbrales: ${error.message}`);
+      this.logger.error(`Error configurando umbralCriticoes para sensor ${configuracion.sensorId}:`, error);
+      throw new Error(`Error configurando umbralCriticoes: ${error.message}`);
     }
   }
 
@@ -377,7 +377,7 @@ export class SensorAlertManagerService {
   }
 
   /**
-   * Obtiene umbrales configurados para un sensor
+   * Obtiene umbralCriticoes configurados para un sensor
    */
   private async obtenerUmbralesSensor(sensorId: number, empresaId: number): Promise<UmbralesSensorDto> {
     const cacheKey = `${empresaId}-${sensorId}`;
@@ -393,14 +393,14 @@ export class SensorAlertManagerService {
       });
 
       if (!sensor || !sensor.configuracion) {
-        // Retornar umbrales por defecto
-        const umbrales = this.obtenerUmbralesPorDefecto(sensor?.tipo || 'TEMPERATURA');
-        this.cacheUmbrales.set(cacheKey, umbrales);
-        return umbrales;
+        // Retornar umbralCriticoes por defecto
+        const umbralCriticoes = this.obtenerUmbralesPorDefecto(sensor?.tipo || 'TEMPERATURA');
+        this.cacheUmbrales.set(cacheKey, umbralCriticoes);
+        return umbralCriticoes;
       }
 
       const config = sensor.configuracion as any;
-      const umbrales: UmbralesSensorDto = {
+      const umbralCriticoes: UmbralesSensorDto = {
         temperaturaMin: config.temperaturaMin,
         temperaturaMax: config.temperaturaMax,
         humedadMin: config.humedadMin,
@@ -415,19 +415,19 @@ export class SensorAlertManagerService {
         destinatarios: config.destinatarios,
         severidad: config.severidad ?? 'MEDIA',
         intervaloVerificacionMinutos: config.intervaloVerificacionMinutos ?? 5,
-        notificacionEmail: config.notificacionEmail ?? true,
-        notificacionSMS: config.notificacionSMS ?? false,
-        notificacionWebSocket: config.notificacionWebSocket ?? true
+        configuracionNotificacionEmail: config.configuracionNotificacionEmail ?? true,
+        configuracionNotificacionSMS: config.configuracionNotificacionSMS ?? false,
+        configuracionNotificacionWebSocket: config.configuracionNotificacionWebSocket ?? true
       };
 
-      this.cacheUmbrales.set(cacheKey, umbrales);
-      return umbrales;
+      this.cacheUmbrales.set(cacheKey, umbralCriticoes);
+      return umbralCriticoes;
 
     } catch (error) {
-      this.logger.error(`Error obteniendo umbrales del sensor:`, error);
-      const umbrales = this.obtenerUmbralesPorDefecto('TEMPERATURA');
-      this.cacheUmbrales.set(cacheKey, umbrales);
-      return umbrales;
+      this.logger.error(`Error obteniendo umbralCriticoes del sensor:`, error);
+      const umbralCriticoes = this.obtenerUmbralesPorDefecto('TEMPERATURA');
+      this.cacheUmbrales.set(cacheKey, umbralCriticoes);
+      return umbralCriticoes;
     }
   }
 
@@ -467,7 +467,7 @@ export class SensorAlertManagerService {
         severidad: evaluacion.severidad,
         fechaEnvio: new Date(),
         condicionActivacion: {
-          umbralesExcedidos: evaluacion.umbralesExcedidos,
+          umbralCriticoesExcedidos: evaluacion.umbralCriticoesExcedidos,
           recomendaciones: evaluacion.recomendaciones
         }
       },
@@ -499,7 +499,7 @@ export class SensorAlertManagerService {
         estado: 'ACTIVA',
         fechaEnvio: new Date(),
         condicionActivacion: {
-          umbralesExcedidos: evaluacion.umbralesExcedidos,
+          umbralCriticoesExcedidos: evaluacion.umbralCriticoesExcedidos,
           recomendaciones: evaluacion.recomendaciones,
           tipo: lectura.tipo,
           unidad: lectura.unidad
@@ -512,7 +512,7 @@ export class SensorAlertManagerService {
   }
 
   /**
-   * Envía notificaciones de alerta
+   * Envía configuracionNotificaciones de alerta
    */
   private async enviarNotificacionesAlerta(
     alerta: AlertaGestionada, 
@@ -522,20 +522,20 @@ export class SensorAlertManagerService {
     try {
       const config = await this.obtenerConfiguracionAlertas(alerta.sensorId, empresaId);
       
-      if (config.notificaciones.email) {
+      if (config.configuracionNotificaciones.email) {
         await this.enviarNotificacionEmail(alerta, evaluacion, empresaId);
       }
 
-      if (config.notificaciones.sms) {
+      if (config.configuracionNotificaciones.sms) {
         await this.enviarNotificacionSMS(alerta, evaluacion, empresaId);
       }
 
-      if (config.notificaciones.push) {
+      if (config.configuracionNotificaciones.push) {
         await this.enviarNotificacionPush(alerta, evaluacion, empresaId);
       }
 
     } catch (error) {
-      this.logger.error(`Error enviando notificaciones:`, error);
+      this.logger.error(`Error enviando configuracionNotificaciones:`, error);
     }
   }
 
@@ -613,9 +613,9 @@ export class SensorAlertManagerService {
     // Configuración por defecto
     const config: ConfiguracionAlertas = {
       sensorId,
-      umbrales: await this.obtenerUmbralesSensor(sensorId, empresaId),
+      umbralCriticoes: await this.obtenerUmbralesSensor(sensorId, empresaId),
       activo: true,
-      notificaciones: {
+      configuracionNotificaciones: {
         email: true,
         sms: false,
         webSocket: true,
@@ -653,7 +653,7 @@ export class SensorAlertManagerService {
         mensaje: alerta.mensaje,
         severidad: alerta.severidad,
         recomendaciones: alerta.recomendaciones?.join('\n') || '',
-        umbralesExcedidos: alerta.umbralesExcedidos?.join(', ') || '',
+        umbralCriticoesExcedidos: alerta.umbralCriticoesExcedidos?.join(', ') || '',
       };
       const result = await this.notificationService.sendSensorAlert({
         tipo: 'sensor-alert',
@@ -724,7 +724,7 @@ export class SensorAlertManagerService {
     empresaId: number
   ): Promise<void> {
     try {
-      // Implementar notificaciones push
+      // Implementar configuracionNotificaciones push
       this.logger.debug(`Notificación push enviada para alerta ${alerta.id}`);
     } catch (error) {
       this.logger.error(`Error enviando notificación push:`, error);
@@ -765,10 +765,10 @@ export class SensorAlertManagerService {
         productoId: alerta.productoId || undefined,
         ubicacionId: alerta.ubicacionId || undefined,
         empresaId: alerta.empresaId,
-      umbralesExcedidos: condicionActivacion?.umbralesExcedidos || [],
+      umbralCriticoesExcedidos: condicionActivacion?.umbralCriticoesExcedidos || [],
       recomendaciones: condicionActivacion?.recomendaciones || [],
       accionesTomadas: [],
-      notificacionesEnviadas: {
+      configuracionNotificacionesEnviadas: {
         email: alerta.emailEnviado,
         sms: false,
         webSocket: true,
@@ -778,7 +778,7 @@ export class SensorAlertManagerService {
   }
 
   /**
-   * Obtiene umbrales por defecto
+   * Obtiene umbralCriticoes por defecto
    */
   private obtenerUmbralesPorDefecto(tipo: SensorTipo): UmbralesSensorDto {
     switch (tipo) {

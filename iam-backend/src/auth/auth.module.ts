@@ -36,7 +36,7 @@ import { WebSocketAuthService } from './services/websocket-auth.service';
     forwardRef(() => UsersModule), // Usar forwardRef para evitar dependencia circular
     PrismaModule,
     CommonModule, // Importar CommonModule para servicios de cache
-    NotificationModule, // NUEVO: Módulo de notificaciones
+    NotificationModule, // NUEVO: Módulo de configuracionNotificaciones
     PassportModule,
     ThrottlerModule.forRoot([
       {

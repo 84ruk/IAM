@@ -729,9 +729,9 @@ export class ESP32SensorService {
     const config = CONFIGURACIONES_PREDEFINIDAS[tipo];
     if (!config) return 'NORMAL';
 
-    if (valor >= (config.umbral_critico || 100)) {
+    if (valor >= (config.umbralCritico_critico || 100)) {
       return 'CRITICO';
-    } else if (valor >= (config.umbral_alerta || 80)) {
+    } else if (valor >= (config.umbralCritico_alerta || 80)) {
       return 'ALERTA';
     }
 
@@ -744,9 +744,9 @@ export class ESP32SensorService {
 
     switch (estado) {
       case 'CRITICO':
-        return `¡CRÍTICO! ${tipo}: ${valor}${config.unidad} - Supera umbral crítico (${config.umbral_critico}${config.unidad})`;
+        return `¡CRÍTICO! ${tipo}: ${valor}${config.unidad} - Supera umbralCritico crítico (${config.umbralCritico_critico}${config.unidad})`;
       case 'ALERTA':
-        return `¡ALERTA! ${tipo}: ${valor}${config.unidad} - Supera umbral de alerta (${config.umbral_alerta}${config.unidad})`;
+        return `¡ALERTA! ${tipo}: ${valor}${config.unidad} - Supera umbralCritico de alerta (${config.umbralCritico_alerta}${config.unidad})`;
       default:
         return `${tipo}: ${valor}${config.unidad} - Normal`;
     }
@@ -865,35 +865,35 @@ export class ESP32SensorService {
           // El campo configuracion existe en el modelo Sensor como Json?
           const config = sensor.configuracion as any;
           
-          // Verificar umbrales de alerta si están configurados
-          if (config.umbral_alerta && lectura.valor > config.umbral_alerta) {
-            return `Valor ${lectura.valor}${lectura.unidad} supera umbral de alerta (${config.umbral_alerta}${lectura.unidad})`;
+          // Verificar umbralCriticoes de alerta si están configurados
+          if (config.umbralCritico_alerta && lectura.valor > config.umbralCritico_alerta) {
+            return `Valor ${lectura.valor}${lectura.unidad} supera umbralCritico de alerta (${config.umbralCritico_alerta}${lectura.unidad})`;
           }
           
-          if (config.umbral_critico && lectura.valor > config.umbral_critico) {
-            return `Valor ${lectura.valor}${lectura.unidad} supera umbral crítico (${config.umbral_critico}${lectura.unidad})`;
+          if (config.umbralCritico_critico && lectura.valor > config.umbralCritico_critico) {
+            return `Valor ${lectura.valor}${lectura.unidad} supera umbralCritico crítico (${config.umbralCritico_critico}${lectura.unidad})`;
           }
         } else {
-          // Si no hay configuración, usar umbrales por defecto
+          // Si no hay configuración, usar umbralCriticoes por defecto
           if (lectura.tipo === 'TEMPERATURA') {
-            const umbralAlerta = 35;
+            const umbralCriticoAlerta = 35;
             const umbralCritico = 40;
             
             if (lectura.valor > umbralCritico) {
-              return `Valor ${lectura.valor}${lectura.unidad} supera umbral crítico (${umbralCritico}${lectura.unidad})`;
-            } else if (lectura.valor > umbralAlerta) {
-              return `Valor ${lectura.valor}${lectura.unidad} supera umbral de alerta (${umbralAlerta}${lectura.unidad})`;
+              return `Valor ${lectura.valor}${lectura.unidad} supera umbralCritico crítico (${umbralCritico}${lectura.unidad})`;
+            } else if (lectura.valor > umbralCriticoAlerta) {
+              return `Valor ${lectura.valor}${lectura.unidad} supera umbralCritico de alerta (${umbralCriticoAlerta}${lectura.unidad})`;
             }
           }
           
           if (lectura.tipo === 'HUMEDAD') {
-            const umbralHumedadAlerta = 80;
-            const umbralHumedadCritico = 90;
+            const umbralCriticoHumedadAlerta = 80;
+            const umbralCriticoHumedadCritico = 90;
             
-            if (lectura.valor > umbralHumedadCritico) {
-              return `Valor ${lectura.valor}${lectura.unidad} supera umbral crítico (${umbralHumedadCritico}${lectura.unidad})`;
-            } else if (lectura.valor > umbralHumedadAlerta) {
-              return `Valor ${lectura.valor}${lectura.unidad} supera umbral de alerta (${umbralHumedadAlerta}${lectura.unidad})`;
+            if (lectura.valor > umbralCriticoHumedadCritico) {
+              return `Valor ${lectura.valor}${lectura.unidad} supera umbralCritico crítico (${umbralCriticoHumedadCritico}${lectura.unidad})`;
+            } else if (lectura.valor > umbralCriticoHumedadAlerta) {
+              return `Valor ${lectura.valor}${lectura.unidad} supera umbralCritico de alerta (${umbralCriticoHumedadAlerta}${lectura.unidad})`;
             }
           }
         }

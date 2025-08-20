@@ -14,8 +14,8 @@ import { UmbralesSensorDto, ConfiguracionUmbralesSensorDto } from '../dto/umbral
 export class UmbralesSensorController {
   constructor(private readonly prisma: PrismaService) {}
 
-  @Get(':id/umbrales')
-  @ApiOperation({ summary: 'Obtener umbrales de un sensor' })
+  @Get(':id/umbralCriticoes')
+  @ApiOperation({ summary: 'Obtener umbralCriticoes de un sensor' })
   @ApiResponse({ status: 200, description: 'Umbrales obtenidos exitosamente' })
   @ApiResponse({ status: 404, description: 'Sensor no encontrado' })
   async obtenerUmbrales(
@@ -40,8 +40,8 @@ export class UmbralesSensorController {
       // Obtener configuración actual del sensor
       const configuracion = sensor.configuracion as any || {};
       
-      // Construir respuesta con umbrales
-      const umbrales: UmbralesSensorDto = {
+      // Construir respuesta con umbralCriticoes
+      const umbralCriticoes: UmbralesSensorDto = {
         temperaturaMin: configuracion.temperaturaMin || 15,
         temperaturaMax: configuracion.temperaturaMax || 25,
         humedadMin: configuracion.humedadMin || 40,
@@ -56,9 +56,9 @@ export class UmbralesSensorController {
         destinatarios: configuracion.destinatarios || [],
         severidad: configuracion.severidad || 'MEDIA',
         intervaloVerificacionMinutos: configuracion.intervaloVerificacionMinutos || 5,
-        notificacionEmail: configuracion.notificacionEmail ?? true,
-        notificacionSMS: configuracion.notificacionSMS ?? false,
-        notificacionWebSocket: configuracion.notificacionWebSocket ?? true
+        configuracionNotificacionEmail: configuracion.configuracionNotificacionEmail ?? true,
+        configuracionNotificacionSMS: configuracion.configuracionNotificacionSMS ?? false,
+        configuracionNotificacionWebSocket: configuracion.configuracionNotificacionWebSocket ?? true
       };
 
       return {
@@ -69,27 +69,27 @@ export class UmbralesSensorController {
           sensorTipo: sensor.tipo,
           ubicacionId: sensor.ubicacionId,
           ubicacionNombre: sensor.ubicacion?.nombre,
-          umbrales,
+          umbralCriticoes,
           ultimaActualizacion: new Date(),
-          proximaVerificacion: new Date(Date.now() + ((umbrales.intervaloVerificacionMinutos || 5) * 60 * 1000))
+          proximaVerificacion: new Date(Date.now() + ((umbralCriticoes.intervaloVerificacionMinutos || 5) * 60 * 1000))
         }
       };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new HttpException('Error obteniendo umbrales', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException('Error obteniendo umbralCriticoes', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
-  @Post(':id/umbrales')
-  @ApiOperation({ summary: 'Actualizar umbrales de un sensor' })
+  @Post(':id/umbralCriticoes')
+  @ApiOperation({ summary: 'Actualizar umbralCriticoes de un sensor' })
   @ApiResponse({ status: 200, description: 'Umbrales actualizados exitosamente' })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
   @ApiResponse({ status: 404, description: 'Sensor no encontrado' })
   async actualizarUmbrales(
     @Param('id') sensorId: string,
-    @Body() umbralesDto: UmbralesSensorDto,
+    @Body() umbralCriticoesDto: UmbralesSensorDto,
     @CurrentUser() user: any
   ) {
     try {
@@ -105,8 +105,8 @@ export class UmbralesSensorController {
         throw new HttpException('Sensor no encontrado', HttpStatus.NOT_FOUND);
       }
 
-      // Validar umbrales
-      this.validarUmbrales(umbralesDto);
+      // Validar umbralCriticoes
+      this.validarUmbrales(umbralCriticoesDto);
 
       // Obtener configuración actual
       const configuracionActual = sensor.configuracion as any || {};
@@ -114,7 +114,7 @@ export class UmbralesSensorController {
       // Actualizar configuración
       const nuevaConfiguracion = {
         ...configuracionActual,
-        ...umbralesDto,
+        ...umbralCriticoesDto,
         ultimaActualizacion: new Date(),
         actualizadoPor: user.id
       };
@@ -140,8 +140,8 @@ export class UmbralesSensorController {
           userEmail: user.email || 'admin@empresa.com',
           userName: user.nombre || 'Administrador',
           details: JSON.stringify({
-            umbralesAnteriores: configuracionActual,
-            umbralesNuevos: umbralesDto,
+            umbralCriticoesAnteriores: configuracionActual,
+            umbralCriticoesNuevos: umbralCriticoesDto,
             motivo: 'Actualización desde frontend'
           }),
           ipAddress: 'N/A', // Se puede obtener del request
@@ -157,7 +157,7 @@ export class UmbralesSensorController {
         data: {
           sensorId: sensorActualizado.id,
           sensorNombre: sensorActualizado.nombre,
-          umbrales: nuevaConfiguracion,
+          umbralCriticoes: nuevaConfiguracion,
           ultimaActualizacion: nuevaConfiguracion.ultimaActualizacion
         }
       };
@@ -165,7 +165,7 @@ export class UmbralesSensorController {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new HttpException('Error actualizando umbrales', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException('Error actualizando umbralCriticoes', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -344,43 +344,43 @@ export class UmbralesSensorController {
     }
   }
 
-  private validarUmbrales(umbrales: UmbralesSensorDto) {
+  private validarUmbrales(umbralCriticoes: UmbralesSensorDto) {
     // Validar temperatura
-    if (umbrales.temperaturaMin !== undefined && umbrales.temperaturaMax !== undefined) {
-      if (umbrales.temperaturaMin >= umbrales.temperaturaMax) {
+    if (umbralCriticoes.temperaturaMin !== undefined && umbralCriticoes.temperaturaMax !== undefined) {
+      if (umbralCriticoes.temperaturaMin >= umbralCriticoes.temperaturaMax) {
         throw new HttpException('La temperatura mínima debe ser menor que la máxima', HttpStatus.BAD_REQUEST);
       }
     }
 
     // Validar humedad
-    if (umbrales.humedadMin !== undefined && umbrales.humedadMax !== undefined) {
-      if (umbrales.humedadMin >= umbrales.humedadMax) {
+    if (umbralCriticoes.humedadMin !== undefined && umbralCriticoes.humedadMax !== undefined) {
+      if (umbralCriticoes.humedadMin >= umbralCriticoes.humedadMax) {
         throw new HttpException('La humedad mínima debe ser menor que la máxima', HttpStatus.BAD_REQUEST);
       }
-      if (umbrales.humedadMin < 0 || umbrales.humedadMax > 100) {
+      if (umbralCriticoes.humedadMin < 0 || umbralCriticoes.humedadMax > 100) {
         throw new HttpException('La humedad debe estar entre 0% y 100%', HttpStatus.BAD_REQUEST);
       }
     }
 
     // Validar peso
-    if (umbrales.pesoMin !== undefined && umbrales.pesoMax !== undefined) {
-      if (umbrales.pesoMin >= umbrales.pesoMax) {
+    if (umbralCriticoes.pesoMin !== undefined && umbralCriticoes.pesoMax !== undefined) {
+      if (umbralCriticoes.pesoMin >= umbralCriticoes.pesoMax) {
         throw new HttpException('El peso mínimo debe ser menor que el máximo', HttpStatus.BAD_REQUEST);
       }
-      if (umbrales.pesoMin < 0 || umbrales.pesoMax < 0) {
+      if (umbralCriticoes.pesoMin < 0 || umbralCriticoes.pesoMax < 0) {
         throw new HttpException('El peso debe ser positivo', HttpStatus.BAD_REQUEST);
       }
     }
 
     // Validar presión
-    if (umbrales.presionMin !== undefined && umbrales.presionMax !== undefined) {
-      if (umbrales.presionMin >= umbrales.presionMax) {
+    if (umbralCriticoes.presionMin !== undefined && umbralCriticoes.presionMax !== undefined) {
+      if (umbralCriticoes.presionMin >= umbralCriticoes.presionMax) {
         throw new HttpException('La presión mínima debe ser menor que la máxima', HttpStatus.BAD_REQUEST);
       }
     }
 
     // Validar intervalo de verificación
-    const intervalo = umbrales.intervaloVerificacionMinutos || 5;
+    const intervalo = umbralCriticoes.intervaloVerificacionMinutos || 5;
     if (intervalo < 1 || intervalo > 1440) {
       throw new HttpException('El intervalo de verificación debe estar entre 1 y 1440 minutos', HttpStatus.BAD_REQUEST);
     }

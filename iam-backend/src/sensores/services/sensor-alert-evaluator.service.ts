@@ -16,7 +16,7 @@ export interface EvaluacionAlerta {
   estado: 'NORMAL' | 'ALERTA' | 'CRITICO';
   severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
   mensaje: string;
-  umbralesExcedidos: string[];
+  umbralCriticoesExcedidos: string[];
   recomendaciones: string[];
   timestamp: Date;
   productoId?: number;
@@ -55,69 +55,69 @@ export class SensorAlertEvaluatorService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Evalúa una lectura de sensor contra los umbrales configurados
+   * Evalúa una lectura de sensor contra los umbralCriticoes configurados
    */
   async evaluarLectura(
     lectura: SensorLectura, 
-    umbrales: UmbralesSensorDto
+    umbralCriticoes: UmbralesSensorDto
   ): Promise<ResultadoValidacionUmbralesDto> {
     try {
       const validacion: ValidacionUmbralesDto = {
         tipo: lectura.tipo,
         valor: lectura.valor,
         unidad: lectura.unidad,
-        umbrales
+        umbralCriticoes
       };
 
       return await this.evaluarUmbrales(validacion);
     } catch (error) {
       this.logger.error(`Error evaluando lectura del sensor ${lectura.sensorId}:`, error);
-      throw new Error(`Error en evaluación de umbrales: ${error.message}`);
+      throw new Error(`Error en evaluación de umbralCriticoes: ${error.message}`);
     }
   }
 
   /**
-   * Evalúa umbrales para un tipo de sensor específico
+   * Evalúa umbralCriticoes para un tipo de sensor específico
    */
   async evaluarUmbrales(validacion: ValidacionUmbralesDto): Promise<ResultadoValidacionUmbralesDto> {
-    const { tipo, valor, umbrales } = validacion;
+    const { tipo, valor, umbralCriticoes } = validacion;
     
     let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
     let severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA' = 'BAJA';
-    let umbralesExcedidos: string[] = [];
+    let umbralCriticoesExcedidos: string[] = [];
     let recomendaciones: string[] = [];
 
     // Evaluar según el tipo de sensor
     switch (tipo) {
       case 'TEMPERATURA':
-        const resultadoTemp = this.evaluarTemperatura(valor, umbrales);
+        const resultadoTemp = this.evaluarTemperatura(valor, umbralCriticoes);
         estado = resultadoTemp.estado;
         severidad = resultadoTemp.severidad;
-        umbralesExcedidos = resultadoTemp.umbralesExcedidos;
+        umbralCriticoesExcedidos = resultadoTemp.umbralCriticoesExcedidos;
         recomendaciones = resultadoTemp.recomendaciones;
         break;
 
       case 'HUMEDAD':
-        const resultadoHum = this.evaluarHumedad(valor, umbrales);
+        const resultadoHum = this.evaluarHumedad(valor, umbralCriticoes);
         estado = resultadoHum.estado;
         severidad = resultadoHum.severidad;
-        umbralesExcedidos = resultadoHum.umbralesExcedidos;
+        umbralCriticoesExcedidos = resultadoHum.umbralCriticoesExcedidos;
         recomendaciones = resultadoHum.recomendaciones;
         break;
 
       case 'PESO':
-        const resultadoPeso = this.evaluarPeso(valor, umbrales);
+        const resultadoPeso = this.evaluarPeso(valor, umbralCriticoes);
         estado = resultadoPeso.estado;
         severidad = resultadoPeso.severidad;
-        umbralesExcedidos = resultadoPeso.umbralesExcedidos;
+        umbralCriticoesExcedidos = resultadoPeso.umbralCriticoesExcedidos;
         recomendaciones = resultadoPeso.recomendaciones;
         break;
 
       case 'PRESION':
-        const resultadoPres = this.evaluarPresion(valor, umbrales);
+        const resultadoPres = this.evaluarPresion(valor, umbralCriticoes);
         estado = resultadoPres.estado;
         severidad = resultadoPres.severidad;
-        umbralesExcedidos = resultadoPres.umbralesExcedidos;
+        umbralCriticoesExcedidos = resultadoPres.umbralCriticoesExcedidos;
         recomendaciones = resultadoPres.recomendaciones;
         break;
 
@@ -125,28 +125,28 @@ export class SensorAlertEvaluatorService {
         throw new Error(`Tipo de sensor no soportado: ${tipo}`);
     }
 
-    const mensaje = this.generarMensajeEvaluacion(tipo, valor, estado, umbralesExcedidos);
-    const proximaVerificacion = this.calcularProximaVerificacion(umbrales.intervaloVerificacionMinutos);
+    const mensaje = this.generarMensajeEvaluacion(tipo, valor, estado, umbralCriticoesExcedidos);
+    const proximaVerificacion = this.calcularProximaVerificacion(umbralCriticoes.intervaloVerificacionMinutos);
 
     return {
       cumpleUmbrales: estado === 'NORMAL',
       estado,
       mensaje,
       severidad,
-      umbralesExcedidos,
+      umbralCriticoesExcedidos,
       recomendaciones,
       proximaVerificacion
     };
   }
 
   /**
-   * Evalúa umbrales de temperatura
+   * Evalúa umbralCriticoes de temperatura
    */
-  private evaluarTemperatura(valor: number, umbrales: UmbralesSensorDto) {
-    const { temperaturaMin, temperaturaMax } = umbrales;
+  private evaluarTemperatura(valor: number, umbralCriticoes: UmbralesSensorDto) {
+    const { temperaturaMin, temperaturaMax } = umbralCriticoes;
     let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
     let severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA' = 'BAJA';
-    let umbralesExcedidos: string[] = [];
+    let umbralCriticoesExcedidos: string[] = [];
     let recomendaciones: string[] = [];
 
     if (temperaturaMin !== undefined && valor < temperaturaMin) {
@@ -157,7 +157,7 @@ export class SensorAlertEvaluatorService {
         estado = 'ALERTA';
         severidad = 'ALTA';
       }
-      umbralesExcedidos.push(`Temperatura mínima (${temperaturaMin}°C)`);
+      umbralCriticoesExcedidos.push(`Temperatura mínima (${temperaturaMin}°C)`);
       recomendaciones.push('Verificar sistema de calefacción o aislamiento');
     }
 
@@ -169,21 +169,21 @@ export class SensorAlertEvaluatorService {
         estado = 'ALERTA';
         severidad = 'ALTA';
       }
-      umbralesExcedidos.push(`Temperatura máxima (${temperaturaMax}°C)`);
+      umbralCriticoesExcedidos.push(`Temperatura máxima (${temperaturaMax}°C)`);
       recomendaciones.push('Verificar sistema de refrigeración o ventilación');
     }
 
-    return { estado, severidad, umbralesExcedidos, recomendaciones };
+    return { estado, severidad, umbralCriticoesExcedidos, recomendaciones };
   }
 
   /**
-   * Evalúa umbrales de humedad
+   * Evalúa umbralCriticoes de humedad
    */
-  private evaluarHumedad(valor: number, umbrales: UmbralesSensorDto) {
-    const { humedadMin, humedadMax } = umbrales;
+  private evaluarHumedad(valor: number, umbralCriticoes: UmbralesSensorDto) {
+    const { humedadMin, humedadMax } = umbralCriticoes;
     let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
     let severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA' = 'BAJA';
-    let umbralesExcedidos: string[] = [];
+    let umbralCriticoesExcedidos: string[] = [];
     let recomendaciones: string[] = [];
 
     if (humedadMin !== undefined && valor < humedadMin) {
@@ -194,7 +194,7 @@ export class SensorAlertEvaluatorService {
         estado = 'ALERTA';
         severidad = 'MEDIA';
       }
-      umbralesExcedidos.push(`Humedad mínima (${humedadMin}%)`);
+      umbralCriticoesExcedidos.push(`Humedad mínima (${humedadMin}%)`);
       recomendaciones.push('Verificar sistema de humidificación');
     }
 
@@ -206,21 +206,21 @@ export class SensorAlertEvaluatorService {
         estado = 'ALERTA';
         severidad = 'ALTA';
       }
-      umbralesExcedidos.push(`Humedad máxima (${humedadMax}%)`);
+      umbralCriticoesExcedidos.push(`Humedad máxima (${humedadMax}%)`);
       recomendaciones.push('Verificar sistema de deshumidificación o ventilación');
     }
 
-    return { estado, severidad, umbralesExcedidos, recomendaciones };
+    return { estado, severidad, umbralCriticoesExcedidos, recomendaciones };
   }
 
   /**
-   * Evalúa umbrales de peso
+   * Evalúa umbralCriticoes de peso
    */
-  private evaluarPeso(valor: number, umbrales: UmbralesSensorDto) {
-    const { pesoMin, pesoMax } = umbrales;
+  private evaluarPeso(valor: number, umbralCriticoes: UmbralesSensorDto) {
+    const { pesoMin, pesoMax } = umbralCriticoes;
     let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
     let severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA' = 'BAJA';
-    let umbralesExcedidos: string[] = [];
+    let umbralCriticoesExcedidos: string[] = [];
     let recomendaciones: string[] = [];
 
     if (pesoMin !== undefined && valor < pesoMin) {
@@ -231,7 +231,7 @@ export class SensorAlertEvaluatorService {
         estado = 'ALERTA';
         severidad = 'MEDIA';
       }
-      umbralesExcedidos.push(`Peso mínimo (${pesoMin}kg)`);
+      umbralCriticoesExcedidos.push(`Peso mínimo (${pesoMin}kg)`);
       recomendaciones.push('Verificar inventario y reposición de stock');
     }
 
@@ -243,21 +243,21 @@ export class SensorAlertEvaluatorService {
         estado = 'ALERTA';
         severidad = 'ALTA';
       }
-      umbralesExcedidos.push(`Peso máximo (${pesoMax}kg)`);
+      umbralCriticoesExcedidos.push(`Peso máximo (${pesoMax}kg)`);
       recomendaciones.push('Verificar capacidad de almacenamiento');
     }
 
-    return { estado, severidad, umbralesExcedidos, recomendaciones };
+    return { estado, severidad, umbralCriticoesExcedidos, recomendaciones };
   }
 
   /**
-   * Evalúa umbrales de presión
+   * Evalúa umbralCriticoes de presión
    */
-  private evaluarPresion(valor: number, umbrales: UmbralesSensorDto) {
-    const { presionMin, presionMax } = umbrales;
+  private evaluarPresion(valor: number, umbralCriticoes: UmbralesSensorDto) {
+    const { presionMin, presionMax } = umbralCriticoes;
     let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
     let severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA' = 'BAJA';
-    let umbralesExcedidos: string[] = [];
+    let umbralCriticoesExcedidos: string[] = [];
     let recomendaciones: string[] = [];
 
     if (presionMin !== undefined && valor < presionMin) {
@@ -268,7 +268,7 @@ export class SensorAlertEvaluatorService {
         estado = 'ALERTA';
         severidad = 'ALTA';
       }
-      umbralesExcedidos.push(`Presión mínima (${presionMin}Pa)`);
+      umbralCriticoesExcedidos.push(`Presión mínima (${presionMin}Pa)`);
       recomendaciones.push('Verificar sistema de presión y posibles fugas');
     }
 
@@ -280,11 +280,11 @@ export class SensorAlertEvaluatorService {
         estado = 'ALERTA';
         severidad = 'ALTA';
       }
-      umbralesExcedidos.push(`Presión máxima (${presionMax}Pa)`);
+      umbralCriticoesExcedidos.push(`Presión máxima (${presionMax}Pa)`);
       recomendaciones.push('Verificar válvulas de seguridad y sistema de control');
     }
 
-    return { estado, severidad, umbralesExcedidos, recomendaciones };
+    return { estado, severidad, umbralCriticoesExcedidos, recomendaciones };
   }
 
   /**
@@ -294,14 +294,14 @@ export class SensorAlertEvaluatorService {
     tipo: SensorTipo, 
     valor: number, 
     estado: string, 
-    umbralesExcedidos: string[]
+    umbralCriticoesExcedidos: string[]
   ): string {
     if (estado === 'NORMAL') {
       return `${tipo} en rango normal: ${valor}`;
     }
 
-    const umbralesTexto = umbralesExcedidos.join(', ');
-    return `${tipo} ${estado.toLowerCase()}: ${valor} - Excede: ${umbralesTexto}`;
+    const umbralCriticoesTexto = umbralCriticoesExcedidos.join(', ');
+    return `${tipo} ${estado.toLowerCase()}: ${valor} - Excede: ${umbralCriticoesTexto}`;
   }
 
   /**
@@ -341,9 +341,9 @@ export class SensorAlertEvaluatorService {
       let alertasActivas = 0;
 
       for (const lectura of lecturas) {
-        // Aquí deberías obtener los umbrales configurados para este sensor
-        const umbrales = await this.obtenerUmbralesSensor(sensorId, empresaId);
-        const evaluacion = await this.evaluarLectura(lectura, umbrales);
+        // Aquí deberías obtener los umbralCriticoes configurados para este sensor
+        const umbralCriticoes = await this.obtenerUmbralesSensor(sensorId, empresaId);
+        const evaluacion = await this.evaluarLectura(lectura, umbralCriticoes);
         
         if (evaluacion.estado !== 'NORMAL') {
           alertasActivas++;
@@ -357,7 +357,7 @@ export class SensorAlertEvaluatorService {
           estado: evaluacion.estado,
           severidad: evaluacion.severidad,
           mensaje: evaluacion.mensaje,
-          umbralesExcedidos: evaluacion.umbralesExcedidos,
+          umbralCriticoesExcedidos: evaluacion.umbralCriticoesExcedidos,
           recomendaciones: evaluacion.recomendaciones,
           timestamp: lectura.fecha,
           productoId: lectura.productoId || undefined,
@@ -461,7 +461,7 @@ export class SensorAlertEvaluatorService {
   }
 
   /**
-   * Obtiene umbrales configurados para un sensor
+   * Obtiene umbralCriticoes configurados para un sensor
    */
   private async obtenerUmbralesSensor(sensorId: number, empresaId: number): Promise<UmbralesSensorDto> {
     try {
@@ -470,7 +470,7 @@ export class SensorAlertEvaluatorService {
       });
 
       if (!sensor || !sensor.configuracion) {
-        // Retornar umbrales por defecto según el tipo
+        // Retornar umbralCriticoes por defecto según el tipo
         return this.obtenerUmbralesPorDefecto(sensor?.tipo || 'TEMPERATURA');
       }
 
@@ -490,18 +490,18 @@ export class SensorAlertEvaluatorService {
         destinatarios: config.destinatarios,
         severidad: config.severidad ?? 'MEDIA',
         intervaloVerificacionMinutos: config.intervaloVerificacionMinutos ?? 5,
-        notificacionEmail: config.notificacionEmail ?? true,
-        notificacionSMS: config.notificacionSMS ?? false,
-        notificacionWebSocket: config.notificacionWebSocket ?? true
+        configuracionNotificacionEmail: config.configuracionNotificacionEmail ?? true,
+        configuracionNotificacionSMS: config.configuracionNotificacionSMS ?? false,
+        configuracionNotificacionWebSocket: config.configuracionNotificacionWebSocket ?? true
       };
     } catch (error) {
-      this.logger.error(`Error obteniendo umbrales del sensor:`, error);
+      this.logger.error(`Error obteniendo umbralCriticoes del sensor:`, error);
       return this.obtenerUmbralesPorDefecto('TEMPERATURA');
     }
   }
 
   /**
-   * Obtiene umbrales por defecto según el tipo de sensor
+   * Obtiene umbralCriticoes por defecto según el tipo de sensor
    */
   private obtenerUmbralesPorDefecto(tipo: SensorTipo): UmbralesSensorDto {
     switch (tipo) {
@@ -577,43 +577,43 @@ export class SensorAlertEvaluatorService {
   }
 
   /**
-   * Valida configuración de umbrales
+   * Valida configuración de umbralCriticoes
    */
   async validarConfiguracionUmbrales(
     configuracion: ConfiguracionUmbralesSensorDto
   ): Promise<{ valido: boolean; errores: string[] }> {
     const errores: string[] = [];
-    const { tipo, umbrales } = configuracion;
+    const { tipo, umbralCriticoes } = configuracion;
 
-    // Validar umbrales según el tipo
+    // Validar umbralCriticoes según el tipo
     switch (tipo) {
       case 'TEMPERATURA':
-        if (umbrales.temperaturaMin !== undefined && umbrales.temperaturaMax !== undefined) {
-          if (umbrales.temperaturaMin >= umbrales.temperaturaMax) {
+        if (umbralCriticoes.temperaturaMin !== undefined && umbralCriticoes.temperaturaMax !== undefined) {
+          if (umbralCriticoes.temperaturaMin >= umbralCriticoes.temperaturaMax) {
             errores.push('La temperatura mínima debe ser menor que la máxima');
           }
         }
         break;
 
       case 'HUMEDAD':
-        if (umbrales.humedadMin !== undefined && umbrales.humedadMax !== undefined) {
-          if (umbrales.humedadMin >= umbrales.humedadMax) {
+        if (umbralCriticoes.humedadMin !== undefined && umbralCriticoes.humedadMax !== undefined) {
+          if (umbralCriticoes.humedadMin >= umbralCriticoes.humedadMax) {
             errores.push('La humedad mínima debe ser menor que la máxima');
           }
         }
         break;
 
       case 'PESO':
-        if (umbrales.pesoMin !== undefined && umbrales.pesoMax !== undefined) {
-          if (umbrales.pesoMin >= umbrales.pesoMax) {
+        if (umbralCriticoes.pesoMin !== undefined && umbralCriticoes.pesoMax !== undefined) {
+          if (umbralCriticoes.pesoMin >= umbralCriticoes.pesoMax) {
             errores.push('El peso mínimo debe ser menor que el máximo');
           }
         }
         break;
 
       case 'PRESION':
-        if (umbrales.presionMin !== undefined && umbrales.presionMax !== undefined) {
-          if (umbrales.presionMin >= umbrales.presionMax) {
+        if (umbralCriticoes.presionMin !== undefined && umbralCriticoes.presionMax !== undefined) {
+          if (umbralCriticoes.presionMin >= umbralCriticoes.presionMax) {
             errores.push('La presión mínima debe ser menor que la máxima');
           }
         }
@@ -621,8 +621,8 @@ export class SensorAlertEvaluatorService {
     }
 
     // Validar intervalo de verificación
-    if (umbrales.intervaloVerificacionMinutos !== undefined) {
-      if (umbrales.intervaloVerificacionMinutos < 1 || umbrales.intervaloVerificacionMinutos > 1440) {
+    if (umbralCriticoes.intervaloVerificacionMinutos !== undefined) {
+      if (umbralCriticoes.intervaloVerificacionMinutos < 1 || umbralCriticoes.intervaloVerificacionMinutos > 1440) {
         errores.push('El intervalo de verificación debe estar entre 1 y 1440 minutos');
       }
     }

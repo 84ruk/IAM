@@ -82,8 +82,8 @@ export class ConfiguracionSistemaAlertasDto {
   ventanaAgrupacionMinutos: number;
 
   @IsOptional()
-  umbral?: Record<string, any>;
+  umbralCritico?: Record<string, any>;
 
   @IsOptional()
-  notificacion?: Record<string, any>;
+  configuracionNotificacion?: Record<string, any>;
 }

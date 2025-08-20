@@ -195,7 +195,7 @@ export class SendGridService {
             <ul>
               <li>Configura tu perfil de usuario</li>
               <li>Agrega tus primeros productos</li>
-              <li>Configura alertas y notificaciones</li>
+              <li>Configura alertas y configuracionNotificaciones</li>
               <li>Explora el dashboard</li>
             </ul>
           </div>

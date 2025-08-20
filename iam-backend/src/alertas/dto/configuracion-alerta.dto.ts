@@ -138,19 +138,13 @@ export class ConfiguracionAlertaDto {
   @IsNumber()
   ventanaEsperaMinutos?: number;
 
-  @IsOptional()
-  umbral?: Record<string, any>;
-
-  @IsOptional()
-  notificacion?: Record<string, any>;
-
   @ValidateNested()
   @Type(() => UmbralCriticoDto)
   umbralCritico: UmbralCriticoDto;
 
   @ValidateNested()
   @Type(() => NotificacionConfigDto)
-  configNotificacion: NotificacionConfigDto;
+  configuracionNotificacion: NotificacionConfigDto;
 
   @ValidateNested({ each: true })
   @Type(() => DestinatarioDto)

@@ -91,7 +91,7 @@ export class IoTAuditService {
       if (recentFailures >= 5) {
         this.logger.warn(`🚨 Posible ataque detectado: ${recentFailures} fallos de autenticación desde IP ${auditData.ip} en los últimos 5 minutos`);
         
-        // Aquí podrías implementar bloqueo de IP, notificaciones, etc.
+        // Aquí podrías implementar bloqueo de IP, configuracionNotificaciones, etc.
         await this.blockIP(auditData.ip);
       }
     }

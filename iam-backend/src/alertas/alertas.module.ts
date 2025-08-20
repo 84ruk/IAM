@@ -8,7 +8,7 @@ import { NotificationModule } from '../notifications/notification.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, NotificationModule],
   controllers: [
     AlertasController,
     ConfiguracionSensorAlertasController

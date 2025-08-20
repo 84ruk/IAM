@@ -29,8 +29,8 @@ export class ConfiguracionSensorAlertasService {
 
     return {
       ...config,
-      configNotificacion: config.notificacion as unknown as NotificacionConfigDto,
-      umbral: config.umbral as unknown as UmbralCriticoDto,
+      configuracionNotificacion: config.configuracionNotificacion as unknown as NotificacionConfigDto,
+      umbralCritico: config.umbralCritico as unknown as UmbralCriticoDto,
       destinatarios: config.destinatarios.map(d => ({
         id: d.destinatario.id,
         nombre: d.destinatario.nombre,
@@ -51,9 +51,9 @@ export class ConfiguracionSensorAlertasService {
         tipoAlerta: config.tipoAlerta,
         activo: config.activo,
         frecuencia: config.frecuencia,
-        ventanaEspera: config.ventanaEsperaMinutos ?? null,
-        umbral: config.umbral ? config.umbral as Prisma.JsonObject : {},
-        notificacion: config.notificacion ? config.notificacion as Prisma.JsonObject : {},
+        ventanaEsperaMinutos: config.ventanaEsperaMinutos ?? null,
+        umbralCritico: config.umbralCritico ? config.umbralCritico as Prisma.JsonObject : {},
+        configuracionNotificacion: config.configuracionNotificacion ? config.configuracionNotificacion as unknown as Prisma.JsonObject : {},
       },
       create: {
         sensorId,
@@ -61,9 +61,9 @@ export class ConfiguracionSensorAlertasService {
         tipoAlerta: config.tipoAlerta,
         activo: config.activo,
         frecuencia: config.frecuencia,
-        ventanaEspera: config.ventanaEsperaMinutos ?? null,
-        umbral: config.umbral ? config.umbral as Prisma.JsonObject : {},
-        notificacion: config.notificacion ? config.notificacion as Prisma.JsonObject : {},
+        ventanaEsperaMinutos: config.ventanaEsperaMinutos ?? null,
+        umbralCritico: config.umbralCritico ? config.umbralCritico as Prisma.JsonObject : {},
+        configuracionNotificacion: config.configuracionNotificacion ? config.configuracionNotificacion as unknown as Prisma.JsonObject : {},
       },
       include: {
         destinatarios: {

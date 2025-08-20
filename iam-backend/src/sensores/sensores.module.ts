@@ -25,7 +25,7 @@ import { SensorAlertasController } from './controllers/sensor-alertas.controller
     SensorAlertsModule,
     WebSocketsModule, // Importar el módulo de WebSockets
     CommonModule, // Importar el módulo común para URLConfigService
-    NotificationModule, // Importar el módulo de notificaciones
+    NotificationModule, // Importar el módulo de configuracionNotificaciones
   ],
   providers: [
     SensoresService, 

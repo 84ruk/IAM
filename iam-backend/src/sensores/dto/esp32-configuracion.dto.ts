@@ -44,10 +44,10 @@ export class SensorConfigDto {
   enabled: boolean;
 
   @IsNumber()
-  umbralMin: number;
+  umbralCriticoMin: number;
 
   @IsNumber()
-  umbralMax: number;
+  umbralCriticoMax: number;
 
   @IsString()
   @IsNotEmpty()
