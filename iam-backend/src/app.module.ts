@@ -1,10 +1,9 @@
 import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
-import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
-import { AppController } from './app.controller';
+/* import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
+ */import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -45,16 +44,7 @@ import { AlertasModule } from './alertas/alertas.module';
       load: [mqttConfig, esp32Config, retentionConfig], // Agregar configuración de ESP32 y retención
     }),
     ScheduleModule.forRoot(), // 🆕 NUEVO - Módulo de scheduling para monitoreo automático
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000, // 1 minuto
-        limit: 10, // 10 peticiones por minuto
-      },
-      {
-        ttl: 3600000, // 1 hora
-        limit: 100, // 100 peticiones por hora
-      },
-    ]),
+   
     // 🔐 MÓDULOS DE AUTENTICACIÓN Y AUTORIZACIÓN
     AuthModule,
     UsersModule,
@@ -89,10 +79,10 @@ import { AlertasModule } from './alertas/alertas.module';
   providers: [
     AppService,
     PrismaService,
-    {
+   /*  {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard, // ThrottlerGuard personalizado simplificado
-    },
+    }, */
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard, // JwtAuthGuard se ejecuta SEGUNDO (autenticación)

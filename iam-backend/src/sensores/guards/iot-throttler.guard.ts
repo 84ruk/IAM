@@ -1,60 +1,22 @@
-import { Injectable, ExecutionContext, Logger } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { Injectable, ExecutionContext, Logger, CanActivate } from '@nestjs/common';
 
 @Injectable()
-export class IoTThrottlerGuard extends ThrottlerGuard {
+export class IoTThrottlerGuard implements CanActivate {
   private readonly logger = new Logger(IoTThrottlerGuard.name);
 
-  protected getThrottleOptions(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
     const url = req.url;
     
-    this.logger.log(`🔓 IoTThrottlerGuard - Procesando: ${req.method} ${url}`);
-    
-    // 🔓 Para endpoints IoT, permitir más peticiones
+    // 🔓 Para endpoints IoT, SIEMPRE permitir acceso (sin throttling)
     if (this.isIoTRoute(url)) {
-      this.logger.log(`🔓 Ruta IoT detectada en IoTThrottlerGuard: ${url}`);
-      return [
-        {
-          ttl: 60000, // 1 minuto
-          limit: 999999, // Límite muy alto (efectivamente sin límite)
-        },
-        {
-          ttl: 3600000, // 1 hora
-          limit: 999999, // Límite muy alto
-        },
-      ];
+      this.logger.log(`🔓 IoTThrottlerGuard - PERMITIENDO acceso IoT SIN LÍMITES a: ${req.method} ${url}`);
+      this.logger.log(`🔓 IoTThrottlerGuard - Device: ${req.body?.deviceId || 'N/A'}, IP: ${this.getClientIP(req)}`);
+      return true; // 🔓 SIEMPRE permitir para IoT
     }
     
-    this.logger.log(`⏱️ Ruta no IoT en IoTThrottlerGuard: ${url}`);
-    
-    // Para otros endpoints, usar configuración por defecto
-    return [
-      {
-        ttl: 60000,
-        limit: 10,
-      },
-      {
-        ttl: 3600000,
-        limit: 100,
-      },
-    ];
-  }
-
-  protected async getTracker(req: Record<string, any>): Promise<string> {
-    const url = req.url;
-    
-    // 🔓 Usar deviceId como tracker para dispositivos IoT
-    if (this.isIoTRoute(url) && req.body?.deviceId) {
-      const tracker = `iot:${req.body.deviceId}`;
-      this.logger.log(`🔓 IoTThrottlerGuard - Usando deviceId como tracker: ${url} -> ${tracker}`);
-      return tracker;
-    }
-    
-    // Para otros endpoints, usar IP
-    const ip = req.ips.length ? req.ips[0] : req.ip;
-    this.logger.log(`⏱️ IoTThrottlerGuard - Usando IP como tracker: ${url} -> ${ip}`);
-    return ip;
+    this.logger.log(`⏱️ IoTThrottlerGuard - Ruta no IoT, permitiendo acceso normal: ${req.method} ${url}`);
+    return true; // 🔓 Permitir acceso normal para otros endpoints
   }
 
   private isIoTRoute(url: string): boolean {
@@ -73,5 +35,13 @@ export class IoTThrottlerGuard extends ThrottlerGuard {
     this.logger.log(`🔍 IoTThrottlerGuard - Verificando si es ruta IoT: ${url} -> ${isIoT ? '✅ SÍ' : '❌ NO'}`);
     
     return isIoT;
+  }
+
+  private getClientIP(req: any): string {
+    return (req.headers['x-forwarded-for'] as string) ||
+           (req.headers['x-real-ip'] as string) ||
+           ((req as any).connection?.remoteAddress) ||
+           ((req as any).socket?.remoteAddress) ||
+           '0.0.0.0';
   }
 }

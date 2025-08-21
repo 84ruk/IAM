@@ -9,6 +9,8 @@ import { SensorConfiguracion, CONFIGURACIONES_PREDEFINIDAS } from './dto/create-
 import { SensoresGateway } from '../websockets/sensores/sensores.gateway';
 import { CreateSensorLecturaDto } from './dto/create-sensor-lectura.dto';
 import { URLConfigService } from '../common/services/url-config.service';
+import { SensorAlertManagerService } from './services/sensor-alert-manager.service';
+import { AlertasAvanzadasService } from '../alertas/alertas-avanzadas.service';
 
 export interface SensorData {
   id: number;
@@ -30,9 +32,13 @@ export class ESP32SensorService {
   constructor(
     private prisma: PrismaService,
     private urlConfig: URLConfigService,
-    private sensoresGateway: SensoresGateway // Remover el ? para hacer la dependencia obligatoria
+    private sensoresGateway: SensoresGateway,
+    private sensorAlertManager: SensorAlertManagerService,
+    private alertasAvanzadasService: AlertasAvanzadasService,
   ) {
     this.logger.log(`🔧 ESP32SensorService inicializado - Gateway disponible: ${!!this.sensoresGateway}`);
+    this.logger.log(`🔧 ESP32SensorService inicializado - Alert Manager disponible: ${!!this.sensorAlertManager}`);
+    this.logger.log(`🔧 ESP32SensorService inicializado - Alertas Avanzadas disponible: ${!!this.alertasAvanzadasService}`);
   }
 
   /**
@@ -46,6 +52,7 @@ export class ESP32SensorService {
   }> {
     try {
       this.logger.log(`📊 Recibiendo lecturas múltiples del dispositivo: ${dto.deviceId}`);
+      this.logger.log(`🔍 DTO completo recibido:`, JSON.stringify(dto, null, 2));
 
       // Validar datos de entrada
       this.validarDatosLecturasMultiples(dto);
@@ -56,6 +63,8 @@ export class ESP32SensorService {
       // Procesar cada lectura de sensor
       for (const [nombreSensor, valor] of Object.entries(dto.sensors)) {
         try {
+          this.logger.log(`🔧 Procesando sensor: ${nombreSensor} = ${valor}`);
+          
           const lecturaProcesada = await this.procesarLecturaIndividual(
             nombreSensor,
             valor,
@@ -63,10 +72,14 @@ export class ESP32SensorService {
           );
 
           if (lecturaProcesada) {
+            this.logger.log(`✅ Lectura procesada: ${nombreSensor} = ${valor}, estado: ${lecturaProcesada.estado}`);
             lecturas.push(lecturaProcesada);
             if (lecturaProcesada.estado !== 'NORMAL') {
               alertasGeneradas++;
+              this.logger.log(`🚨 ALERTA GENERADA para sensor ${nombreSensor}: ${lecturaProcesada.mensaje}`);
             }
+          } else {
+            this.logger.warn(`⚠️ No se pudo procesar lectura del sensor: ${nombreSensor}`);
           }
         } catch (error) {
           this.logger.error(`Error procesando lectura del sensor ${nombreSensor}:`, error);
@@ -155,8 +168,30 @@ export class ESP32SensorService {
 
       this.logger.log(`✅ Lectura de ESP32 registrada: ${lectura.id}`);
 
-      // Procesar alertas si es necesario
-      const alertaGenerada = await this.procesarAlertasSensor(lectura, empresaId);
+      // 🔧 NUEVO: Procesar alertas usando el sistema completo
+      let alertaGenerada: any = null;
+      let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
+      let mensaje = 'Lectura normal';
+
+      try {
+        // Procesar alertas usando el SensorAlertManagerService
+        const alertaResult = await this.sensorAlertManager.procesarLecturaSensor(lectura, empresaId);
+        
+        if (alertaResult) {
+          alertaGenerada = alertaResult;
+          estado = 'ALERTA';
+          mensaje = alertaResult.mensaje;
+          this.logger.log(`🚨 Alerta generada por SensorAlertManager: ${alertaResult.id} - ${alertaResult.mensaje}`);
+        }
+      } catch (error) {
+        this.logger.warn(`Error procesando alertas con SensorAlertManager: ${error.message}`);
+        // Fallback al método anterior si falla
+        const alertaFallback = await this.procesarAlertasSensor(lectura, empresaId);
+        if (alertaFallback) {
+          estado = 'ALERTA';
+          mensaje = alertaFallback;
+        }
+      }
 
       // Emitir por WebSocket
       if (this.sensoresGateway) {
@@ -165,13 +200,13 @@ export class ESP32SensorService {
           tipo: lectura.tipo,
           valor: lectura.valor,
           unidad: lectura.unidad,
-          sensorId: lectura.sensorId,
-          productoId: lectura.productoId || undefined, // Convertir null a undefined
+          sensorId: lectura.sensorId || undefined,
+          productoId: lectura.productoId || undefined,
           ubicacionId: lectura.ubicacionId,
           empresaId: lectura.empresaId,
           fecha: lectura.fecha,
           estado: alertaGenerada ? 'ALERTA' : 'NORMAL',
-          mensaje: alertaGenerada ? `Alerta generada: ${alertaGenerada}` : 'Lectura normal', // Valor por defecto
+          mensaje: alertaGenerada ? `Alerta generada: ${alertaGenerada}` : 'Lectura normal',
         }, empresaId);
       }
 
@@ -181,11 +216,11 @@ export class ESP32SensorService {
         valor: lectura.valor,
         unidad: lectura.unidad,
         sensorId: lectura.sensorId || 0,
-        productoId: lectura.productoId || undefined, // Convertir null a undefined
+        productoId: lectura.productoId || undefined,
         productoNombre: undefined,
         fecha: lectura.fecha,
         estado: alertaGenerada ? 'ALERTA' : 'NORMAL',
-        mensaje: alertaGenerada ? `Alerta generada: ${alertaGenerada}` : 'Lectura normal', // Valor por defecto
+        mensaje: alertaGenerada ? `Alerta generada: ${alertaGenerada}` : 'Lectura normal',
       };
 
     } catch (error) {
@@ -205,13 +240,16 @@ export class ESP32SensorService {
     metadata: { deviceName: string; deviceId: string; sensoresConfigurados: number; fechaGeneracion: string; };
   }> {
     try {
-      this.logger.log(`Generando código Arduino para dispositivo: ${config.deviceName}`);
+      this.logger.log(`🚀 Iniciando generación de código Arduino para dispositivo: ${config.deviceName}`);
+      this.logger.log(`🔍 Configuración recibida:`, JSON.stringify(config, null, 2));
 
       // Validar configuración
       this.validarConfiguracionESP32(config);
 
       // Normalizar baseUrl desde entorno si aplica
       const envBase = await this.urlConfig.getIoTBackendURL();
+      this.logger.log(`🌐 URL base del entorno: ${envBase}`);
+      
       const normalizedConfig = {
         ...config,
         api: {
@@ -225,6 +263,8 @@ export class ESP32SensorService {
         }
       };
 
+      this.logger.log(`🔧 Configuración normalizada:`, JSON.stringify(normalizedConfig, null, 2));
+
       // Guardar configuración en la base de datos
       await this.guardarConfiguracionESP32(normalizedConfig as any);
 
@@ -237,9 +277,11 @@ export class ESP32SensorService {
       const metadata = {
         deviceName: config.deviceName,
         deviceId: config.deviceId,
-        sensoresConfigurados: config.sensores.filter(s => s.enabled).length,
+        sensoresConfigurados: config.sensores.filter(s => s.enabled !== false).length,
         fechaGeneracion: new Date().toISOString()
       };
+
+      this.logger.log(`✅ Código Arduino generado exitosamente para dispositivo: ${config.deviceId}`);
 
       return {
         success: true,
@@ -250,10 +292,12 @@ export class ESP32SensorService {
       };
 
     } catch (error) {
-      this.logger.error('Error generando código Arduino:', error);
+      this.logger.error(`❌ Error generando código Arduino:`, error);
+      this.logger.error(`❌ Stack trace:`, error.stack);
+      
       return {
         success: false,
-        message: 'Error generando código Arduino',
+        message: `Error generando código Arduino: ${error.message}`,
         codigoArduino: '',
         configFile: '',
         metadata: {
@@ -597,12 +641,17 @@ export class ESP32SensorService {
     dto: CreateSensorLecturaMultipleDto
   ): Promise<SensorData | null> {
     try {
+      this.logger.log(`🔧 Iniciando procesamiento de lectura: ${nombreSensor} = ${valor}`);
+      
       // Determinar tipo de sensor basado en el nombre
       const tipoSensor = this.determinarTipoSensor(nombreSensor);
       const unidad = this.determinarUnidadSensor(tipoSensor);
+      
+      this.logger.log(`🔍 Tipo sensor detectado: ${tipoSensor}, unidad: ${unidad}`);
 
       // Buscar o crear sensor en la base de datos
       const sensor = await this.buscarOCrearSensor(nombreSensor, tipoSensor, dto);
+      this.logger.log(`🔍 Sensor encontrado/creado: ID ${sensor.id}, nombre: ${sensor.nombre}`);
 
       // Crear la lectura
       const lectura = await this.prisma.sensorLectura.create({
@@ -616,13 +665,52 @@ export class ESP32SensorService {
           fecha: new Date(dto.timestamp),
         },
       });
+      
+      this.logger.log(`✅ Lectura creada en BD: ID ${lectura.id}, valor: ${valor}${unidad}`);
 
-      // Analizar la lectura para alertas
-      const estado = this.analizarLectura(tipoSensor, valor);
-      const mensaje = this.generarMensaje(tipoSensor, valor, estado);
+      // 🔧 NUEVO: Usar el sistema completo de alertas
+      let alertaGenerada: any = null;
+      let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
+      let mensaje = '';
+      
+      try {
+        this.logger.log(`🚨 Intentando procesar alertas con SensorAlertManager...`);
+        
+        // Procesar alertas usando el SensorAlertManagerService
+        const alertaResult = await this.sensorAlertManager.procesarLecturaSensor(lectura, dto.empresaId);
+        
+        if (alertaResult) {
+          alertaGenerada = alertaResult;
+          estado = 'ALERTA';
+          mensaje = alertaResult.mensaje;
+          this.logger.log(`🚨 Alerta generada por SensorAlertManager: ${alertaResult.id} - ${alertaResult.mensaje}`);
+        } else {
+          this.logger.log(`✅ SensorAlertManager no generó alerta (lectura normal)`);
+        }
+      } catch (error) {
+        this.logger.warn(`⚠️ Error procesando alertas con SensorAlertManager: ${error.message}`);
+        this.logger.warn(`🔄 Fallback al método anterior...`);
+        
+        // Fallback al método anterior si falla
+        const alertaFallback = await this.procesarAlertasSensor(lectura, dto.empresaId);
+        if (alertaFallback) {
+          estado = 'ALERTA';
+          mensaje = alertaFallback;
+          this.logger.log(`⚠️ Alerta generada por método fallback: ${alertaFallback}`);
+        }
+      }
 
-      // Registrar alerta si es necesario
-      if (estado !== 'NORMAL') {
+      // Si no hay alerta generada, usar el método anterior
+      if (estado === 'NORMAL') {
+        this.logger.log(`🔍 Evaluando lectura con configuración del sensor...`);
+        estado = await this.analizarLecturaConConfiguracionReal(sensor, valor);
+        mensaje = this.generarMensaje(sensor.tipo, valor, estado, sensor);
+        this.logger.log(`🔍 Estado final: ${estado}, mensaje: ${mensaje}`);
+      }
+
+      // Si no hay alerta generada, usar el método anterior
+      if (estado !== 'NORMAL' && !alertaGenerada) {
+        this.logger.log(`🚨 Registrando alerta en historial...`);
         await this.registrarAlerta(sensor, valor, estado, mensaje, dto);
       }
 
@@ -646,7 +734,7 @@ export class ESP32SensorService {
       };
 
     } catch (error) {
-      this.logger.error(`Error procesando lectura individual ${nombreSensor}:`, error);
+      this.logger.error(`❌ Error procesando lectura individual ${nombreSensor}:`, error);
       return null;
     }
   }
@@ -738,15 +826,72 @@ export class ESP32SensorService {
     return 'NORMAL';
   }
 
-  private generarMensaje(tipo: SensorTipo, valor: number, estado: string): string {
+  private async analizarLecturaConConfiguracionReal(
+    sensor: Sensor, 
+    valor: number
+  ): Promise<'NORMAL' | 'ALERTA' | 'CRITICO'> {
+    try {
+      // 🔧 CORREGIDO: Leer configuración real del sensor desde la base de datos
+      if (sensor.configuracion) {
+        const config = sensor.configuracion as any;
+        
+        // 🔧 CORREGIDO: Usar nombres correctos de campos del ESP32
+        const umbralAlerta = config.umbral_alerta || config.umbralCritico_alerta || config.umbralCritico_alerta;
+        const umbralCritico = config.umbral_critico || config.umbralCritico_critico || config.umbralCritico_critico;
+        
+        this.logger.log(`🔍 Configuración sensor ${sensor.nombre}:`, JSON.stringify(config, null, 2));
+        this.logger.log(`🔍 Evaluando sensor ${sensor.nombre}: valor=${valor}, umbral_alerta=${umbralAlerta}, umbral_critico=${umbralCritico}`);
+        
+        if (umbralCritico && valor >= umbralCritico) {
+          this.logger.log(`🚨 CRÍTICO: ${valor} >= ${umbralCritico}`);
+          return 'CRITICO';
+        } else if (umbralAlerta && valor >= umbralAlerta) {
+          this.logger.log(`⚠️ ALERTA: ${valor} >= ${umbralAlerta}`);
+          return 'ALERTA';
+        }
+        
+        this.logger.log(`✅ NORMAL: ${valor} < ${umbralAlerta || 'sin_umbral'}`);
+        return 'NORMAL';
+      }
+      
+      // Fallback a configuración predefinida si no hay configuración personalizada
+      this.logger.warn(`⚠️ Sensor ${sensor.nombre} no tiene configuración personalizada, usando valores por defecto`);
+      return this.analizarLectura(sensor.tipo, valor);
+      
+    } catch (error) {
+      this.logger.error(`Error analizando lectura con configuración real:`, error);
+      // Fallback a método anterior
+      return this.analizarLectura(sensor.tipo, valor);
+    }
+  }
+
+  private generarMensaje(tipo: SensorTipo, valor: number, estado: string, sensor?: Sensor): string {
+    // 🔧 CORREGIDO: Usar configuración real del sensor si está disponible
+    if (sensor && sensor.configuracion) {
+      const config = sensor.configuracion as any;
+      const umbralAlerta = config.umbral_alerta || config.umbralCritico_alerta;
+      const umbralCritico = config.umbral_critico || config.umbralCritico_critico;
+      const unidad = config.unidad || '°C';
+      
+      switch (estado) {
+        case 'CRITICO':
+          return `¡CRÍTICO! ${tipo}: ${valor}${unidad} - Supera umbral crítico (${umbralCritico}${unidad})`;
+        case 'ALERTA':
+          return `¡ALERTA! ${tipo}: ${valor}${unidad} - Supera umbral de alerta (${umbralAlerta}${unidad})`;
+        default:
+          return `${tipo}: ${valor}${unidad} - Normal`;
+      }
+    }
+    
+    // Fallback a configuración predefinida
     const config = CONFIGURACIONES_PREDEFINIDAS[tipo];
     if (!config) return `Lectura: ${valor}`;
 
     switch (estado) {
       case 'CRITICO':
-        return `¡CRÍTICO! ${tipo}: ${valor}${config.unidad} - Supera umbralCritico crítico (${config.umbralCritico_critico}${config.unidad})`;
+        return `¡CRÍTICO! ${tipo}: ${valor}${config.unidad} - Supera umbral crítico (${config.umbralCritico_critico}${config.unidad})`;
       case 'ALERTA':
-        return `¡ALERTA! ${tipo}: ${valor}${config.unidad} - Supera umbralCritico de alerta (${config.umbralCritico_alerta}${config.unidad})`;
+        return `¡ALERTA! ${tipo}: ${valor}${config.unidad} - Supera umbral de alerta (${config.umbralCritico_alerta}${config.unidad})`;
       default:
         return `${tipo}: ${valor}${config.unidad} - Normal`;
     }
@@ -760,6 +905,23 @@ export class ESP32SensorService {
     dto: CreateSensorLecturaMultipleDto
   ): Promise<void> {
     try {
+      // 🔧 CORREGIDO: Mapear estado a severidad correcta del enum
+      let severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+      
+      switch (estado.toUpperCase()) {
+        case 'CRITICO':
+          severidad = 'CRITICA';
+          break;
+        case 'ALERTA':
+          severidad = 'ALTA';
+          break;
+        case 'NORMAL':
+          severidad = 'BAJA';
+          break;
+        default:
+          severidad = 'MEDIA';
+      }
+
       await this.prisma.alertaHistorial.create({
         data: {
           sensorId: sensor.id,
@@ -769,38 +931,83 @@ export class ESP32SensorService {
           empresaId: dto.empresaId,
           ubicacionId: dto.ubicacionId,
           titulo: `Alerta ${estado}`,
-          severidad: estado as SeveridadAlerta,
+          severidad: severidad, // ✅ Usar valor mapeado correcto
           destinatarios: [],
           estado: 'ENVIADA',
         },
       });
 
-      this.logger.log(`🚨 Alerta registrada: ${mensaje}`);
+      this.logger.log(`🚨 Alerta registrada: ${mensaje} con severidad ${severidad}`);
     } catch (error) {
       this.logger.error('Error registrando alerta:', error);
     }
   }
 
   private validarConfiguracionESP32(config: ESP32Configuracion): void {
-    if (!config.deviceId || !config.deviceName) {
-      throw new Error('DeviceId y DeviceName son requeridos');
-    }
+    try {
+      this.logger.log(`🔍 Validando configuración ESP32 para dispositivo: ${config.deviceId}`);
+      
+      // Validar campos básicos
+      if (!config.deviceId || !config.deviceName) {
+        throw new Error('DeviceId y DeviceName son requeridos');
+      }
 
-    if (!config.wifi.ssid || !config.wifi.password) {
-      throw new Error('Configuración WiFi incompleta');
-    }
+      // Validar configuración WiFi
+      if (!config.wifi || !config.wifi.ssid || !config.wifi.password) {
+        throw new Error('Configuración WiFi incompleta: se requiere SSID y password');
+      }
 
-    if (!config.api.baseUrl || !config.api.token) {
-      throw new Error('Configuración API incompleta');
-    }
+      // Validar configuración API
+      if (!config.api || !config.api.baseUrl || !config.api.token) {
+        throw new Error('Configuración API incompleta: se requiere baseUrl y token');
+      }
 
-    if (!config.sensores || config.sensores.length === 0) {
-      throw new Error('Debe configurar al menos un sensor');
-    }
+      // Validar array de sensores
+      if (!config.sensores || !Array.isArray(config.sensores) || config.sensores.length === 0) {
+        throw new Error('Debe configurar al menos un sensor en el array de sensores');
+      }
 
-    const sensoresHabilitados = config.sensores.filter(s => s.enabled);
-    if (sensoresHabilitados.length === 0) {
-      throw new Error('Debe habilitar al menos un sensor');
+      // Validar cada sensor individualmente
+      for (let i = 0; i < config.sensores.length; i++) {
+        const sensor = config.sensores[i];
+        if (!sensor) {
+          throw new Error(`Sensor en posición ${i} es null o undefined`);
+        }
+        
+        if (!sensor.tipo || !sensor.nombre || sensor.pin === undefined || sensor.pin2 === undefined) {
+          throw new Error(`Sensor en posición ${i} tiene campos incompletos: tipo, nombre, pin y pin2 son requeridos`);
+        }
+        
+                       if (sensor.umbralMin === undefined || sensor.umbralMax === undefined) {
+                 throw new Error(`Sensor en posición ${i} tiene umbrales incompletos: umbralMin y umbralMax son requeridos`);
+               }
+        
+        if (!sensor.unidad || sensor.intervalo === undefined) {
+          throw new Error(`Sensor en posición ${i} tiene configuración incompleta: unidad e intervalo son requeridos`);
+        }
+      }
+
+      // Validar que al menos un sensor esté habilitado
+      const sensoresHabilitados = config.sensores.filter(s => s.enabled !== false); // enabled puede ser undefined, lo consideramos habilitado
+      if (sensoresHabilitados.length === 0) {
+        throw new Error('Debe habilitar al menos un sensor (enabled: true o undefined)');
+      }
+
+      // Validar campos adicionales
+      if (config.ubicacionId === undefined || config.empresaId === undefined) {
+        throw new Error('ubicacionId y empresaId son requeridos');
+      }
+
+      if (config.intervalo === undefined || config.intervalo <= 0) {
+        throw new Error('intervalo debe ser un número mayor a 0');
+      }
+
+      this.logger.log(`✅ Configuración ESP32 validada correctamente para dispositivo: ${config.deviceId}`);
+      
+    } catch (error) {
+      this.logger.error(`❌ Error validando configuración ESP32: ${error.message}`);
+      this.logger.error(`❌ Configuración recibida:`, JSON.stringify(config, null, 2));
+      throw new Error(`Validación de configuración falló: ${error.message}`);
     }
   }
 
@@ -809,6 +1016,7 @@ export class ESP32SensorService {
       const baseUrlNormalizada = await this.resolverBaseUrlExterna(config.api.baseUrl);
       const endpointNormalizado = this.resolverEndpointLecturas(config.api.endpoint);
 
+      // 1. Guardar configuración del dispositivo IoT
       await this.prisma.dispositivoIoT.upsert({
         where: { deviceId: config.deviceId },
         update: {
@@ -843,7 +1051,140 @@ export class ESP32SensorService {
         },
       });
 
-      this.logger.log(`✅ Configuración guardada para dispositivo: ${config.deviceId}`);
+      // 2. 🔧 NUEVO: Crear sensores individuales y sus configuraciones de alertas
+      for (const sensorConfig of config.sensores) {
+        if (sensorConfig.enabled) {
+          try {
+            // Crear o actualizar sensor
+            const sensor = await this.prisma.sensor.upsert({
+              where: {
+                nombre_ubicacionId: {
+                  nombre: sensorConfig.nombre,
+                  ubicacionId: config.ubicacionId
+                }
+              },
+              update: {
+                tipo: sensorConfig.tipo as any,
+                descripcion: `Sensor ${sensorConfig.tipo} configurado desde ESP32`,
+                ubicacionId: config.ubicacionId,
+                activo: true,
+                configuracion: {
+                  unidad: sensorConfig.unidad,
+                  rango_min: sensorConfig.umbralMin,
+                  rango_max: sensorConfig.umbralMax,
+                  precision: 0.1,
+                  intervalo_lectura: sensorConfig.intervalo,
+                  umbral_alerta: sensorConfig.umbralMax * 0.8,
+                  umbral_critico: sensorConfig.umbralMax * 0.9
+                }
+              },
+              create: {
+                nombre: sensorConfig.nombre,
+                tipo: sensorConfig.tipo as any,
+                descripcion: `Sensor ${sensorConfig.tipo} configurado desde ESP32`,
+                ubicacionId: config.ubicacionId,
+                empresaId: config.empresaId,
+                activo: true,
+                configuracion: {
+                  unidad: sensorConfig.unidad,
+                  rango_min: sensorConfig.umbralMin,
+                  rango_max: sensorConfig.umbralMax,
+                  precision: 0.1,
+                  intervalo_lectura: sensorConfig.intervalo,
+                  umbral_alerta: sensorConfig.umbralMax * 0.8,
+                  umbral_critico: sensorConfig.umbralMax * 0.9
+                }
+              }
+            });
+
+            this.logger.log(`✅ Sensor ${sensorConfig.nombre} creado/actualizado: ID ${sensor.id}`);
+
+            // 3. 🔧 NUEVO: Crear configuración de alertas para el sensor
+            try {
+              // ✅ AHORA HABILITADO: Prisma está sincronizado
+              await this.prisma.configuracionAlerta.upsert({
+                where: {
+                  sensorId: sensor.id
+                },
+                update: {
+                  tipoAlerta: sensorConfig.tipo,
+                  activo: true,
+                  frecuencia: 'INMEDIATA',
+                  // Campos JSON opcionales - guardar umbrales y configuración
+                  umbralCritico: {
+                    tipo: sensorConfig.tipo,
+                    umbralMin: sensorConfig.umbralMin,
+                    umbralMax: sensorConfig.umbralMax,
+                    unidad: sensorConfig.unidad,
+                    // 🔧 CORREGIDO: Configuración de notificaciones en umbralCritico
+                    alertasActivas: true,
+                    severidad: 'MEDIA',
+                    intervaloVerificacionMinutos: 5,
+                    configuracionNotificacionEmail: true,
+                    configuracionNotificacionSMS: true,  // ✅ SMS habilitado por defecto
+                    configuracionNotificacionWebSocket: true
+                  },
+                  configuracionNotificacion: {
+                    email: true,
+                    sms: true,  // ✅ SMS habilitado por defecto
+                    webSocket: true
+                  }
+                },
+                create: {
+                  empresaId: config.empresaId,
+                  sensorId: sensor.id,
+                  tipoAlerta: sensorConfig.tipo,
+                  activo: true,
+                  frecuencia: 'INMEDIATA',
+                  // Campos JSON opcionales - guardar umbrales y configuración
+                  umbralCritico: {
+                    tipo: sensorConfig.tipo,
+                    umbralMin: sensorConfig.umbralMin,
+                    umbralMax: sensorConfig.umbralMax,
+                    unidad: sensorConfig.unidad,
+                    // 🔧 CORREGIDO: Configuración de notificaciones en umbralCritico
+                    alertasActivas: true,
+                    severidad: 'MEDIA',
+                    intervaloVerificacionMinutos: 5,
+                    configuracionNotificacionEmail: true,
+                    configuracionNotificacionSMS: true,  // ✅ SMS habilitado por defecto
+                    configuracionNotificacionWebSocket: true
+                  },
+                  configuracionNotificacion: {
+                    email: true,
+                    sms: true,  // ✅ SMS habilitado por defecto
+                    webSocket: true
+                  }
+                }
+              });
+
+              this.logger.log(`✅ Configuración de alertas creada para sensor ${sensorConfig.nombre}`);
+
+              // 4. 🔧 NUEVO: Crear destinatarios por defecto para las alertas
+              try {
+                // ✅ AHORA HABILITADO: Depende de ConfiguracionAlerta
+                await this.crearDestinatariosPorDefecto(sensor.id, config.empresaId);
+                this.logger.log(`✅ Destinatarios por defecto creados para sensor ${sensorConfig.nombre}`);
+              } catch (destinatarioError) {
+                this.logger.warn(`⚠️ Error creando destinatarios por defecto para sensor ${sensorConfig.nombre}:`, destinatarioError);
+                // No fallar el proceso completo si falla la creación de destinatarios
+              }
+
+            } catch (alertaError) {
+              this.logger.warn(`⚠️ Error creando configuración de alertas para sensor ${sensorConfig.nombre}:`, alertaError);
+              // No fallar el proceso completo si falla la creación de alertas
+            }
+
+          } catch (sensorError) {
+            this.logger.error(`❌ Error creando/actualizando sensor ${sensorConfig.nombre}:`, sensorError);
+            // Continuar con el siguiente sensor en lugar de fallar todo
+          }
+        }
+      }
+
+      this.logger.log(`✅ Configuración completa guardada para dispositivo: ${config.deviceId}`);
+      this.logger.log(`✅ Sensores creados: ${config.sensores.filter(s => s.enabled).length}`);
+      this.logger.log(`✅ Configuraciones de alertas creadas con SMS habilitado`);
     } catch (error) {
       this.logger.error('Error guardando configuración ESP32:', error);
       throw error;
@@ -952,6 +1293,142 @@ export class ESP32SensorService {
       this.logger.log(`📡 Emitidas ${lecturas.length} lecturas por WebSocket para empresa ${empresaId}`);
     } catch (error) {
       this.logger.error('Error emitiendo lecturas por WebSocket:', error);
+    }
+  }
+
+  /**
+   * 🔧 NUEVO: Crea destinatarios por defecto para un sensor.
+   * Esto asegura que las alertas tengan al menos un destinatario configurado.
+   */
+  private async crearDestinatariosPorDefecto(sensorId: number, empresaId: number): Promise<void> {
+    try {
+      // Buscar usuarios admin de la empresa para usar como destinatarios por defecto
+      const usuariosAdmin = await this.prisma.usuario.findMany({
+        where: {
+          empresaId,
+          rol: { in: ['ADMIN', 'SUPERADMIN'] },
+          activo: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          nombre: true,
+          telefono: true, // Incluir el campo de teléfono
+        },
+        take: 3, // Máximo 3 usuarios admin
+      });
+
+      if (usuariosAdmin.length === 0) {
+        this.logger.warn(`⚠️ No hay usuarios admin en empresa ${empresaId} para configurar como destinatarios`);
+        return;
+      }
+
+      // Obtener la configuración de alerta del sensor
+      const configuracionAlerta = await this.prisma.configuracionAlerta.findFirst({
+        where: { sensorId }
+      });
+
+      if (!configuracionAlerta) {
+        this.logger.warn(`⚠️ No se encontró configuración de alerta para sensor ${sensorId}`);
+        return;
+      }
+
+      // Crear destinatarios de alerta para cada usuario admin
+      for (const usuario of usuariosAdmin) {
+        try {
+          // 🔧 CORREGIDO: Solo crear destinatario si tiene teléfono para SMS
+          if (!usuario.telefono) {
+            this.logger.log(`⚠️ Usuario ${usuario.email} no tiene teléfono, solo se configurará para email`);
+            // Crear destinatario solo para email
+            const destinatario = await this.prisma.destinatarioAlerta.upsert({
+              where: {
+                empresaId_email: {
+                  empresaId,
+                  email: usuario.email
+                }
+              },
+              update: {
+                nombre: usuario.nombre,
+                activo: true,
+                tipo: 'EMAIL' as any, // Solo email
+              },
+              create: {
+                nombre: usuario.nombre,
+                email: usuario.email,
+                telefono: null,
+                tipo: 'EMAIL' as any, // Solo email
+                activo: true,
+                empresaId,
+              }
+            });
+
+            // Asociar el destinatario a la configuración de alerta
+            await this.prisma.configuracionAlertaDestinatario.upsert({
+              where: {
+                configuracionAlertaId_destinatarioId: {
+                  configuracionAlertaId: configuracionAlerta.id,
+                  destinatarioId: destinatario.id
+                }
+              },
+              update: {},
+              create: {
+                configuracionAlertaId: configuracionAlerta.id,
+                destinatarioId: destinatario.id,
+              }
+            });
+
+            this.logger.log(`✅ Destinatario ${usuario.email} (solo email) asociado a sensor ${sensorId}`);
+          } else {
+            // Usuario tiene teléfono, configurar para email y SMS
+            const destinatario = await this.prisma.destinatarioAlerta.upsert({
+              where: {
+                empresaId_email: {
+                  empresaId,
+                  email: usuario.email
+                }
+              },
+              update: {
+                nombre: usuario.nombre,
+                activo: true,
+                telefono: usuario.telefono,
+                tipo: 'AMBOS' as any, // Email y SMS
+              },
+              create: {
+                nombre: usuario.nombre,
+                email: usuario.email,
+                telefono: usuario.telefono,
+                tipo: 'AMBOS' as any, // Email y SMS
+                activo: true,
+                empresaId,
+              }
+            });
+
+            // Asociar el destinatario a la configuración de alerta
+            await this.prisma.configuracionAlertaDestinatario.upsert({
+              where: {
+                configuracionAlertaId_destinatarioId: {
+                  configuracionAlertaId: configuracionAlerta.id,
+                  destinatarioId: destinatario.id
+                }
+              },
+              update: {},
+              create: {
+                configuracionAlertaId: configuracionAlerta.id,
+                destinatarioId: destinatario.id,
+              }
+            });
+
+            this.logger.log(`✅ Destinatario ${usuario.email} (email + SMS: ${usuario.telefono}) asociado a sensor ${sensorId}`);
+          }
+        } catch (error) {
+          this.logger.warn(`⚠️ Error asociando destinatario ${usuario.email}:`, error);
+        }
+      }
+
+      this.logger.log(`✅ ${usuariosAdmin.length} destinatarios por defecto configurados para sensor ${sensorId}`);
+    } catch (error) {
+      this.logger.error(`❌ Error creando destinatarios por defecto para sensor ${sensorId}:`, error);
+      throw error;
     }
   }
 }

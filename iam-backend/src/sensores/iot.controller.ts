@@ -185,6 +185,9 @@ export class IoTController {
   async recibirLecturasIoT(@Body() dto: CreateSensorLecturaMultipleDto, @Req() req: Request) {
     const clientIP = this.getClientIP(req);
 
+    // 🔓 LOG ADICIONAL: Confirmar que el IoTThrottlerGuard permitió el acceso
+    this.logger.log(`🔓 IoTThrottlerGuard PERMITIÓ acceso a /iot/lecturas desde IP: ${clientIP}, Device: ${dto.deviceId}`);
+
     try {
       // Validar que el dispositivo existe y está activo
       const dispositivo = await this.prisma.dispositivoIoT.findFirst({

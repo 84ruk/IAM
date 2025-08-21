@@ -16,6 +16,8 @@ import { ESP32ConfiguracionDto as ESP32Configuracion } from './dto/esp32-configu
 import { JwtUser } from '../auth/interfaces/jwt-user.interface';
 import { SensorTipo } from '@prisma/client';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { ValidationLoggingInterceptor } from '../common/interceptors/validation-logging.interceptor';
+import { UseInterceptors } from '@nestjs/common';
 
 interface QueryFilters {
   tipo?: SensorTipo;
@@ -77,7 +79,11 @@ export class SensoresController {
   }
 
   @Post('generar-codigo-arduino')
+  @UseInterceptors(ValidationLoggingInterceptor) // 🔧 NUEVO: Interceptor para logging de validación
   async generarCodigoArduino(@Body() config: ESP32Configuracion) {
+    this.logger.log(`🚀 Generando código Arduino para dispositivo: ${config.deviceName}`);
+    this.logger.log(`🔍 Configuración recibida:`, JSON.stringify(config, null, 2));
+    
     return this.esp32SensorService.generarCodigoArduino(config);
   }
 

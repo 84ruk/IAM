@@ -1,0 +1,77 @@
+🔧 CORRECCIONES NECESARIAS PARA EL CÓDIGO ARDUINO:
+
+// ===========================================
+// PROBLEMA 1: ENDPOINT INCORRECTO
+// ===========================================
+
+// ❌ INCORRECTO (línea 67):
+String apiEndpoint = "/sensores/lecturas-multiples";
+
+// ✅ CORRECTO:
+String apiEndpoint = "/iot/lecturas";
+
+// ===========================================
+// PROBLEMA 2: FUNCIÓN buildLecturasURL() INCORRECTA
+// ===========================================
+
+// ❌ INCORRECTO (línea 75-79):
+String buildLecturasURL() {
+  String base = String(apiBaseUrl);
+  if (base.endsWith("/")) base.remove(base.length()-1);
+  String ep = sanitizeEndpoint(apiEndpoint);
+  return base + ep;
+}
+
+// ✅ CORRECTO:
+String buildLecturasURL() {
+  String base = String(apiBaseUrl);
+  if (base.endsWith("/")) base.remove(base.length()-1);
+  return base + "/iot/lecturas"; // SIEMPRE usar /iot/lecturas
+}
+
+// ===========================================
+// PROBLEMA 3: FUNCIÓN enviarLecturasMultiples() INCORRECTA
+// ===========================================
+
+// ❌ INCORRECTO (línea 450):
+String url = buildLecturasURL();
+
+// ✅ CORRECTO:
+String url = String(apiBaseUrl) + "/iot/lecturas";
+
+// ===========================================
+// PROBLEMA 4: FUNCIÓN enviarLecturas() INCORRECTA
+// ===========================================
+
+// ❌ INCORRECTO (línea 380):
+String url = buildLecturasURL();
+
+// ✅ CORRECTO:
+String url = String(apiBaseUrl) + "/iot/lecturas";
+
+// ===========================================
+// RESUMEN DE CAMBIOS
+// ===========================================
+
+1. Cambiar línea 67: "/sensores/lecturas-multiples" → "/iot/lecturas"
+2. Modificar buildLecturasURL() para que SIEMPRE retorne /iot/lecturas
+3. En enviarLecturasMultiples(), usar directamente apiBaseUrl + "/iot/lecturas"
+4. En enviarLecturas(), usar directamente apiBaseUrl + "/iot/lecturas"
+
+// ===========================================
+// CÓDIGO CORREGIDO COMPLETO
+// ===========================================
+
+// Línea 67:
+String apiEndpoint = "/iot/lecturas";
+
+// Línea 75-79:
+String buildLecturasURL() {
+  return String(apiBaseUrl) + "/iot/lecturas";
+}
+
+// Línea 380 (en enviarLecturas):
+String url = String(apiBaseUrl) + "/iot/lecturas";
+
+// Línea 450 (en enviarLecturasMultiples):
+String url = String(apiBaseUrl) + "/iot/lecturas";

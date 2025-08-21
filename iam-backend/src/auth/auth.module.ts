@@ -1,7 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { RefreshTokenService } from './refresh-token.service';
@@ -38,12 +37,7 @@ import { WebSocketAuthService } from './services/websocket-auth.service';
     CommonModule, // Importar CommonModule para servicios de cache
     NotificationModule, // NUEVO: Módulo de configuracionNotificaciones
     PassportModule,
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000, // 1 minuto
-        limit: 10, // 10 requests por minuto
-      },
-    ]),
+    // 🔧 ELIMINADO: ThrottlerModule.forRoot para evitar conflicto con IoTThrottlerGuard
     JwtModule.register({
       secret: securityConfig.jwt.secret,
       signOptions: {

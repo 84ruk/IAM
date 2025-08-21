@@ -647,27 +647,39 @@ export class SensorAlertManagerService {
     empresaId: number
   ): Promise<void> {
     try {
-      const destinatarios = await this.notificationService["getAlertDestinatarios"](empresaId, 'sensor-alert');
+      // 🔧 CORREGIDO: Obtener destinatarios desde la configuración de alertas
+      const config = await this.obtenerConfiguracionAlertas(alerta.sensorId, empresaId);
+      const destinatarios = config.umbralCriticoes.destinatarios || [];
+      
+      if (destinatarios.length === 0) {
+        this.logger.warn(`No hay destinatarios email configurados para la alerta ${alerta.id}`);
+        return;
+      }
+
       const variables = {
         tipoAlerta: alerta.tipo,
         mensaje: alerta.mensaje,
         severidad: alerta.severidad,
         recomendaciones: alerta.recomendaciones?.join('\n') || '',
         umbralCriticoesExcedidos: alerta.umbralCriticoesExcedidos?.join(', ') || '',
+        sensorId: alerta.sensorId,
+        ubicacionId: alerta.ubicacionId,
+        empresaId: alerta.empresaId
       };
+
+      // 🔧 CORREGIDO: Usar el método correcto del NotificationService
       const result = await this.notificationService.sendSensorAlert({
         tipo: 'sensor-alert',
         destinatarios,
         variables,
         empresaId,
       });
+
       if (result.success) {
         this.logger.log(`Email enviado correctamente para alerta ${alerta.id}`);
       } else {
         this.logger.error(`Error enviando email para alerta ${alerta.id}: ${result.error}`);
       }
-      // Registrar en historial si es necesario
-      // await this.notificationService.recordAlertaHistorial({ ... });
     } catch (error) {
       this.logger.error(`Error enviando notificación por email:`, error);
     }
@@ -682,23 +694,29 @@ export class SensorAlertManagerService {
     empresaId: number
   ): Promise<void> {
     try {
-      const config = await this.notificationService["prisma"].configuracionAlerta.findFirst({
-        where: { empresaId, tipoAlerta: 'sensor-alert', activo: true },
-        include: {
-          destinatarios: {
-            include: { destinatario: true }
-          }
-        }
-      });
-      const destinatarios = config?.destinatarios
-        ?.map((d: any) => d.destinatario.telefono)
-        .filter((tel: string | undefined) => !!tel);
-      if (!destinatarios || destinatarios.length === 0) {
+      // 🔧 CORREGIDO: Obtener destinatarios desde la configuración de alertas
+      const config = await this.obtenerConfiguracionAlertas(alerta.sensorId, empresaId);
+      const destinatarios = config.umbralCriticoes.destinatarios || [];
+      
+      if (destinatarios.length === 0) {
         this.logger.warn(`No hay destinatarios SMS configurados para la alerta ${alerta.id}`);
         return;
       }
+
+      // 🔧 CORREGIDO: Filtrar solo números de teléfono válidos
+      const telefonos = destinatarios.filter(tel => {
+        // Validación básica de número de teléfono
+        const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+        return phoneRegex.test(tel.replace(/\s/g, ''));
+      });
+
+      if (telefonos.length === 0) {
+        this.logger.warn(`No hay números de teléfono válidos para SMS en la alerta ${alerta.id}`);
+        return;
+      }
+
       const mensaje = alerta.mensaje;
-      for (const destinatario of destinatarios) {
+      for (const destinatario of telefonos) {
         const result = await this.smsNotificationService.sendSMS({
           to: destinatario,
           message: mensaje,
@@ -753,18 +771,18 @@ export class SensorAlertManagerService {
   private convertirAlertaHistorialToAlertaGestionada(alerta: AlertaHistorial): AlertaGestionada {
     const condicionActivacion = alerta.condicionActivacion as any;
     
-          return {
-        id: alerta.id,
-        sensorId: alerta.sensorId!,
-        tipo: 'TEMPERATURA', // Valor por defecto ya que no tenemos acceso al sensor
-        severidad: (alerta.severidad as any) || 'MEDIA',
-        mensaje: alerta.mensaje,
-        estado: (alerta.estado as any) || 'ACTIVA',
-        fechaCreacion: alerta.fechaEnvio,
-        fechaResolucion: alerta.fechaLectura || undefined,
-        productoId: alerta.productoId || undefined,
-        ubicacionId: alerta.ubicacionId || undefined,
-        empresaId: alerta.empresaId,
+    return {
+      id: alerta.id,
+      sensorId: alerta.sensorId!,
+      tipo: 'TEMPERATURA', // Valor por defecto ya que no tenemos acceso al sensor
+      severidad: (alerta.severidad as any) || 'MEDIA',
+      mensaje: alerta.mensaje,
+      estado: (alerta.estado as any) || 'ACTIVA',
+      fechaCreacion: alerta.fechaEnvio,
+      fechaResolucion: alerta.fechaLectura || undefined,
+      productoId: alerta.productoId || undefined,
+      ubicacionId: alerta.ubicacionId || undefined,
+      empresaId: alerta.empresaId,
       umbralCriticoesExcedidos: condicionActivacion?.umbralCriticoesExcedidos || [],
       recomendaciones: condicionActivacion?.recomendaciones || [],
       accionesTomadas: [],
