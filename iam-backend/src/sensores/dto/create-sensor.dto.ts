@@ -1,5 +1,5 @@
 // dto/create-sensor.dto.ts
-import { IsString, IsEnum, IsNumber, IsOptional, IsNotEmpty, IsBoolean, IsObject, ValidateNested, IsIn } from 'class-validator';
+import { IsString, IsEnum, IsNumber, IsOptional, IsNotEmpty, IsBoolean, IsObject, ValidateNested, IsIn, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SensorTipo } from '@prisma/client';
 
@@ -54,6 +54,47 @@ export const CONFIGURACIONES_PREDEFINIDAS: Record<SensorTipo, SensorConfiguracio
   }
 };
 
+// Clase para umbrales personalizados
+export class UmbralesPersonalizadosDto {
+  @IsOptional()
+  @IsNumber({}, { message: 'El rango mínimo debe ser un número' })
+  rango_min?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El rango máximo debe ser un número' })
+  rango_max?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El umbral de alerta bajo debe ser un número' })
+  umbral_alerta_bajo?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El umbral de alerta alto debe ser un número' })
+  umbral_alerta_alto?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El umbral crítico bajo debe ser un número' })
+  umbral_critico_bajo?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El umbral crítico alto debe ser un número' })
+  umbral_critico_alto?: number;
+
+  @IsOptional()
+  @IsString({ message: 'La severidad debe ser un texto' })
+  @IsIn(['BAJA', 'MEDIA', 'ALTA', 'CRITICA'], { message: 'La severidad debe ser BAJA, MEDIA, ALTA o CRITICA' })
+  severidad?: string;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El intervalo de lectura debe ser un número' })
+  @Min(1000, { message: 'El intervalo de lectura debe ser al menos 1000ms' })
+  intervalo_lectura?: number;
+
+  @IsOptional()
+  @IsBoolean({ message: 'alertasActivas debe ser un booleano' })
+  alertasActivas?: boolean;
+}
+
 export class CreateSensorDto {
   @IsString()
   @IsNotEmpty({ message: 'El nombre del sensor es requerido' })
@@ -91,6 +132,21 @@ export class CreateSensorDto {
   @IsString()
   @IsIn(['AUTOMATICO', 'MANUAL'], { message: 'El modo debe ser AUTOMATICO o MANUAL' })
   modo?: 'AUTOMATICO' | 'MANUAL' = 'AUTOMATICO';
+
+  // 🚀 NUEVO: Umbrales personalizados durante la creación
+  @IsOptional()
+  @ValidateNested({ message: 'Los umbrales personalizados deben ser válidos' })
+  @Type(() => UmbralesPersonalizadosDto)
+  umbralesPersonalizados?: UmbralesPersonalizadosDto;
+
+  // 🚀 NUEVO: Configuración de notificaciones personalizada
+  @IsOptional()
+  @IsObject({ message: 'La configuración de notificaciones debe ser un objeto' })
+  configuracionNotificaciones?: {
+    email?: boolean;
+    sms?: boolean;
+    webSocket?: boolean;
+  };
 }
 
 // DTO simplificado para creación rápida

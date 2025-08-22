@@ -150,15 +150,36 @@ export function ConfiguracionUmbrales({ sensorId, sensorTipo, valoresActuales, o
     setIsLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${apiUrl}/sensor-alerts/sensores/${sensorId}/umbrales`, {
+      // 🚀 NUEVO: Usar la nueva API de umbrales
+      const response = await fetch(`${apiUrl}/sensores/${sensorId}/umbrales`, {
         method: 'GET',
         headers: getAuthHeaders(),
-        credentials: 'include' // Importante: incluir cookies
+        credentials: 'include'
       })
       if (response.ok) {
         const data = await response.json()
-        if (data.success && data.data?.umbrales) {
-          setUmbrales(data.data.umbrales)
+        if (data.umbralCritico && data.configuracionNotificacion) {
+          // Convertir la respuesta del backend al formato del frontend
+          const umbralesConvertidos = {
+            temperaturaMin: data.umbralCritico.rango_min,
+            temperaturaMax: data.umbralCritico.rango_max,
+            humedadMin: data.umbralCritico.rango_min,
+            humedadMax: data.umbralCritico.rango_max,
+            pesoMin: data.umbralCritico.rango_min,
+            pesoMax: data.umbralCritico.rango_max,
+            presionMin: data.umbralCritico.rango_min,
+            presionMax: data.umbralCritico.rango_max,
+            alertasActivas: data.umbralCritico.alertasActivas,
+            mensajeAlerta: 'Valor fuera del rango normal',
+            mensajeCritico: 'Valor crítico detectado',
+            destinatarios: data.destinatarios.map((d: { destinatario: { email: string; telefono: string | null } }) => d.destinatario.email || d.destinatario.telefono).filter(Boolean),
+            severidad: data.umbralCritico.severidad,
+            intervaloVerificacionMinutos: Math.floor(data.umbralCritico.intervalo_lectura / 60000),
+            notificacionEmail: data.configuracionNotificacion.email,
+            notificacionSMS: data.configuracionNotificacion.sms,
+            notificacionWebSocket: data.configuracionNotificacion.webSocket
+          }
+          setUmbrales(umbralesConvertidos)
         }
       } else if (response.status === 401) {
         setError('No autorizado. Por favor, inicia sesión nuevamente.')
@@ -262,17 +283,37 @@ export function ConfiguracionUmbrales({ sensorId, sensorTipo, valoresActuales, o
     }
     setIsSaving(true)
     try {
-      const response = await fetch(`${apiUrl}/sensor-alerts/sensores/${sensorId}/umbrales`, {
-        method: 'POST',
+      // 🚀 NUEVO: Convertir al formato del backend
+      const umbralesBackend = {
+        rango_min: umbrales.temperaturaMin || umbrales.humedadMin || umbrales.pesoMin || umbrales.presionMin || 0,
+        rango_max: umbrales.temperaturaMax || umbrales.humedadMax || umbrales.pesoMax || umbrales.presionMax || 100,
+        umbral_alerta_bajo: (umbrales.temperaturaMin || umbrales.humedadMin || umbrales.pesoMin || umbrales.presionMin || 0) + 5,
+        umbral_alerta_alto: (umbrales.temperaturaMax || umbrales.humedadMax || umbrales.pesoMax || umbrales.presionMax || 100) - 5,
+        umbral_critico_bajo: umbrales.temperaturaMin || umbrales.humedadMin || umbrales.pesoMin || umbrales.presionMin || 0,
+        umbral_critico_alto: umbrales.temperaturaMax || umbrales.humedadMax || umbrales.pesoMax || umbrales.presionMax || 100,
+        severidad: umbrales.severidad,
+        intervalo_lectura: (umbrales.intervaloVerificacionMinutos || 5) * 60000,
+        alertasActivas: umbrales.alertasActivas
+      }
+
+      // 🚀 NUEVO: Usar la nueva API de umbrales
+      const response = await fetch(`${apiUrl}/sensores/${sensorId}/umbrales`, {
+        method: 'PUT',
         headers: getAuthHeaders(),
-        credentials: 'include', // Importante: incluir cookies
-        body: JSON.stringify(umbrales)
+        credentials: 'include',
+        body: JSON.stringify(umbralesBackend)
       })
       if (response.ok) {
         const data = await response.json()
-        if (data.success) {
+        if (data.umbralCritico) {
           onConfiguracionGuardada(umbrales)
           setError(null)
+          // Assuming addToast is available from a context or imported
+          // addToast({
+          //   type: 'success',
+          //   title: 'Umbrales actualizados',
+          //   message: 'La configuración de umbrales se ha guardado correctamente'
+          // })
         } else {
           setError(data.message || 'Error al guardar')
         }

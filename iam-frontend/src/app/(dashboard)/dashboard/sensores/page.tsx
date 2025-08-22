@@ -12,6 +12,7 @@ import { ESP32AutoConfig } from '@/components/ui/esp32-auto-config'
 import { ESP32LecturasPeriodicasConfig } from '@/components/ui/esp32-lecturas-periodicas-config'
 import { SensorUmbralesConfig } from '@/components/ui/sensor-umbrales-config'
 import { SensorGridSkeleton, SensorStatsSkeleton } from '@/components/ui/sensor-skeleton'
+import { TestConnection } from '@/components/ui/test-connection'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -282,14 +283,13 @@ export default function SensoresPage() {
             ESP32 WebSocket
           </Button>
           <Button 
-            onClick={() => {}}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700" disabled
-            title="Crear sensor individual (deshabilitado)"
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
           >
             <Wifi className="w-4 h-4" />
             Sensor Individual
           </Button>
-          <Button onClick={() => {}} className="flex items-center gap-2" disabled title="Nuevo sensor (deshabilitado)">
+          <Button onClick={() => setShowWizard(true)} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700">
             <Plus className="w-4 h-4" />
             Nuevo Sensor
           </Button>
@@ -372,6 +372,9 @@ export default function SensoresPage() {
           </Card>
         </div>
       )}
+
+      {/* 🚀 NUEVO: Test de Conexión Backend */}
+      <TestConnection />
 
       {/* Filtros */}
       <Card>
@@ -612,7 +615,6 @@ export default function SensoresPage() {
             sensores={sensores}
             onComplete={() => {
               setShowUmbralesConfig(false)
-              // setSelectedSensorForUmbrales(null) // This variable was removed
               addToast({
                 title: 'Umbrales configurados exitosamente',
                 message: 'La configuración de alertas se ha guardado',
@@ -621,7 +623,6 @@ export default function SensoresPage() {
             }}
             onCancel={() => {
               setShowUmbralesConfig(false)
-              // setSelectedSensorForUmbrales(null) // This variable was removed
             }}
           />
         </DialogContent>
@@ -643,4 +644,4 @@ export default function SensoresPage() {
       </div>
     </div>
   )
-} 
+}

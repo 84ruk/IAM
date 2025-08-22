@@ -55,6 +55,10 @@ export interface CreateSensorDto {
   tipo: SensorTipo
   ubicacionId: number
   configuracion?: Record<string, string | number | boolean>
+  // 🚀 NUEVO: Umbrales personalizados durante la creación
+  umbralesPersonalizados?: UmbralesPersonalizadosDto
+  // 🚀 NUEVO: Configuración de notificaciones
+  configuracionNotificaciones?: ConfiguracionNotificacionesDto
 }
 
 export interface UpdateSensorDto {
@@ -282,6 +286,71 @@ export interface LecturasMultiplesResponse {
     estado: 'NORMAL' | 'ALERTA' | 'CRITICO'
     mensaje: string
   }>
+}
+
+// ===========================================
+// NUEVOS TIPOS PARA UMBRALES PERSONALIZADOS
+// ===========================================
+
+export interface UmbralesPersonalizadosDto {
+  rango_min: number
+  rango_max: number
+  umbral_alerta_bajo: number
+  umbral_alerta_alto: number
+  umbral_critico_bajo: number
+  umbral_critico_alto: number
+  severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA'
+  intervalo_lectura: number
+  alertasActivas: boolean
+}
+
+export interface ConfiguracionNotificacionesDto {
+  email?: boolean
+  sms?: boolean
+  webSocket?: boolean
+}
+
+// ===========================================
+// TIPOS PARA CONFIGURACIÓN DE UMBRALES VÍA API
+// ===========================================
+
+export interface UmbralesSensorDto {
+  rango_min: number
+  rango_max: number
+  umbral_alerta_bajo: number
+  umbral_alerta_alto: number
+  umbral_critico_bajo: number
+  umbral_critico_alto: number
+  severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA'
+  intervalo_lectura: number
+  alertasActivas: boolean
+}
+
+export interface ConfiguracionAlertaResponse {
+  id: number
+  sensorId: number
+  empresaId: number
+  umbralCritico: UmbralesSensorDto
+  configuracionNotificacion: {
+    email: boolean
+    sms: boolean
+    webSocket: boolean
+  }
+  destinatarios: Array<{
+    id: number
+    configuracionAlertaId: number
+    destinatarioId: number
+    userId: number | null
+    destinatario: {
+      tipo: 'USUARIO' | 'EMAIL' | 'TELEFONO'
+      nombre: string
+      activo: boolean
+      email: string
+      telefono: string | null
+    }
+  }>
+  createdAt: string
+  updatedAt: string
 }
 
 // Tipos para el sistema de alertas avanzado

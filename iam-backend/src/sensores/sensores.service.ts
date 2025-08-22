@@ -694,6 +694,15 @@ export class SensoresService {
 
       this.logger.log(`✅ Sensor registrado exitosamente: ${sensor.nombre} (ID: ${sensor.id}) en ubicación ${ubicacion.nombre}`);
       
+      // 🚀 NUEVO: Configurar alertas automáticamente para sensores nuevos
+      try {
+        await this.configurarAlertasAutomaticas(sensor, empresaId, dto.umbralesPersonalizados, dto.configuracionNotificaciones);
+        this.logger.log(`✅ Alertas configuradas automáticamente para sensor: ${sensor.id}`);
+      } catch (alertError) {
+        this.logger.warn('⚠️ Error configurando alertas automáticas:', alertError);
+        // No fallar el registro por error de configuración de alertas
+      }
+      
       // Emitir evento por WebSocket si está disponible
       try {
         this.logger.log(`📡 Intentando emitir evento WebSocket...`);
@@ -1299,6 +1308,323 @@ export class SensoresService {
     } catch (error) {
       this.logger.error('Error obteniendo dashboard alertas:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 🚀 Configura automáticamente alertas para un sensor recién creado
+   */
+  private async configurarAlertasAutomaticas(
+    sensor: SensorWithLocation, 
+    empresaId: number, 
+    umbralesPersonalizados?: any,
+    configuracionNotificaciones?: any
+  ): Promise<void> {
+    try {
+      this.logger.log(`🔧 Configurando alertas automáticas para sensor ${sensor.nombre} (${sensor.tipo})`);
+      
+      // Verificar si ya existe configuración para este sensor
+      const configuracionExistente = await this.prisma.configuracionAlerta.findFirst({
+        where: { sensorId: sensor.id }
+      });
+      
+      if (configuracionExistente) {
+        this.logger.log(`⚠️ Ya existe configuración para sensor ${sensor.nombre}, omitiendo`);
+        return;
+      }
+      
+      // 1. Crear configuración de umbrales según el tipo de sensor o usar personalizados
+      let umbralesConfig: any;
+      
+      if (umbralesPersonalizados) {
+        // Usar umbrales personalizados proporcionados por el usuario
+        this.logger.log(`🎯 Usando umbrales personalizados para sensor ${sensor.nombre}`);
+        
+        // Validar umbrales personalizados
+        this.validarUmbralesPersonalizados(umbralesPersonalizados);
+        
+        umbralesConfig = {
+          tipo: sensor.tipo,
+          unidad: this.obtenerUnidadPorTipo(sensor.tipo),
+          precision: 0.1,
+          rango_min: umbralesPersonalizados.rango_min,
+          rango_max: umbralesPersonalizados.rango_max,
+          umbral_alerta_bajo: umbralesPersonalizados.umbral_alerta_bajo,
+          umbral_alerta_alto: umbralesPersonalizados.umbral_alerta_alto,
+          umbral_critico_bajo: umbralesPersonalizados.umbral_critico_bajo,
+          umbral_critico_alto: umbralesPersonalizados.umbral_critico_alto,
+          severidad: umbralesPersonalizados.severidad || 'MEDIA',
+          intervalo_lectura: umbralesPersonalizados.intervalo_lectura || this.obtenerIntervaloDefecto(sensor.tipo),
+          alertasActivas: umbralesPersonalizados.alertasActivas ?? true
+        };
+      } else {
+        // Usar configuración por defecto según el tipo de sensor
+        this.logger.log(`⚙️ Usando umbrales por defecto para sensor ${sensor.nombre} (${sensor.tipo})`);
+        
+        switch (sensor.tipo) {
+        case 'TEMPERATURA':
+          umbralesConfig = {
+            tipo: 'TEMPERATURA',
+            unidad: '°C',
+            precision: 0.1,
+            rango_min: 15,
+            rango_max: 25,
+            umbral_alerta_bajo: 18,
+            umbral_alerta_alto: 22,
+            umbral_critico_bajo: 15,
+            umbral_critico_alto: 25,
+            severidad: 'MEDIA',
+            intervalo_lectura: 10000,
+            alertasActivas: true
+          };
+          break;
+        case 'HUMEDAD':
+          umbralesConfig = {
+            tipo: 'HUMEDAD',
+            unidad: '%',
+            precision: 0.1,
+            rango_min: 30,
+            rango_max: 80,
+            umbral_alerta_bajo: 35,
+            umbral_alerta_alto: 75,
+            umbral_critico_bajo: 30,
+            umbral_critico_alto: 80,
+            severidad: 'MEDIA',
+            intervalo_lectura: 30000,
+            alertasActivas: true
+          };
+          break;
+        case 'PESO':
+          umbralesConfig = {
+            tipo: 'PESO',
+            unidad: 'kg',
+            precision: 0.1,
+            rango_min: 100,
+            rango_max: 900,
+            umbral_alerta_bajo: 150,
+            umbral_alerta_alto: 850,
+            umbral_critico_bajo: 100,
+            umbral_critico_alto: 900,
+            severidad: 'MEDIA',
+            intervalo_lectura: 60000,
+            alertasActivas: true
+          };
+          break;
+        default:
+          umbralesConfig = {
+            tipo: sensor.tipo,
+            unidad: 'unidad',
+            precision: 0.1,
+            rango_min: 0,
+            rango_max: 100,
+            umbral_alerta_bajo: 10,
+            umbral_alerta_alto: 90,
+            umbral_critico_bajo: 0,
+            umbral_critico_alto: 100,
+            severidad: 'MEDIA',
+            intervalo_lectura: 30000,
+            alertasActivas: true
+          };
+      }
+      } // Fin del else
+      
+      // 2. Usar configuración de notificaciones personalizada o por defecto
+      const configNotificaciones = configuracionNotificaciones || {
+        email: true,
+        sms: true,
+        webSocket: true
+      };
+      
+      this.logger.log(`🔔 Configuración de notificaciones: Email=${configNotificaciones.email}, SMS=${configNotificaciones.sms}, WebSocket=${configNotificaciones.webSocket}`);
+      
+      // 3. Crear configuración de alertas
+      const configuracionAlerta = await this.prisma.configuracionAlerta.create({
+        data: {
+          empresaId: empresaId,
+          sensorId: sensor.id,
+          tipoAlerta: sensor.tipo,
+          activo: true,
+          frecuencia: 'IMMEDIATE',
+          ventanaEsperaMinutos: 5,
+          umbralCritico: umbralesConfig as any,
+          configuracionNotificacion: configNotificaciones as any
+        }
+      });
+      
+      this.logger.log(`✅ Configuración de alertas creada: ${configuracionAlerta.id}`);
+      
+      // 3. Crear o vincular destinatarios por defecto
+      await this.crearDestinatariosPorDefecto(sensor.id, empresaId, configuracionAlerta.id);
+      
+      this.logger.log(`✅ Configuración automática completada para sensor ${sensor.nombre}`);
+      
+    } catch (error) {
+      this.logger.error(`❌ Error configurando alertas automáticas para sensor ${sensor.nombre}:`, error);
+      // No fallar el proceso completo si falla la configuración de alertas
+    }
+  }
+
+  /**
+   * 🚀 Crea destinatarios por defecto para un sensor
+   */
+  private async crearDestinatariosPorDefecto(sensorId: number, empresaId: number, configuracionAlertaId: number): Promise<void> {
+    try {
+      // Buscar destinatarios existentes de la empresa
+      const destinatariosExistentes = await this.prisma.destinatarioAlerta.findMany({
+        where: { empresaId, activo: true }
+      });
+      
+      if (destinatariosExistentes.length > 0) {
+        // Vincular destinatarios existentes al sensor
+        for (const destinatario of destinatariosExistentes) {
+          // Verificar si ya está vinculado
+          const vinculoExistente = await this.prisma.configuracionAlertaDestinatario.findFirst({
+            where: {
+              configuracionAlertaId: configuracionAlertaId,
+              destinatarioId: destinatario.id
+            }
+          });
+          
+          if (!vinculoExistente) {
+            await this.prisma.configuracionAlertaDestinatario.create({
+              data: {
+                configuracionAlertaId: configuracionAlertaId,
+                destinatarioId: destinatario.id
+              }
+            });
+          }
+        }
+        this.logger.log(`✅ ${destinatariosExistentes.length} destinatarios existentes vinculados al sensor`);
+      } else {
+        // Crear destinatario por defecto basado en el usuario administrador de la empresa
+        const adminEmpresa = await this.prisma.usuario.findFirst({
+          where: { 
+            empresaId: empresaId, 
+            rol: 'ADMIN',
+            activo: true 
+          }
+        });
+        
+        if (adminEmpresa) {
+          // Verificar si ya existe un destinatario con este email
+          const destinatarioExistente = await this.prisma.destinatarioAlerta.findFirst({
+            where: {
+              empresaId: empresaId,
+              email: adminEmpresa.email
+            }
+          });
+          
+          let destinatarioDefecto;
+          if (destinatarioExistente) {
+            destinatarioDefecto = destinatarioExistente;
+          } else {
+            destinatarioDefecto = await this.prisma.destinatarioAlerta.create({
+              data: {
+                empresaId: empresaId,
+                nombre: adminEmpresa.nombre,
+                email: adminEmpresa.email,
+                telefono: adminEmpresa.telefono || null,
+                tipo: adminEmpresa.telefono ? 'AMBOS' : 'EMAIL',
+                activo: true
+              }
+            });
+          }
+          
+          // Vincular al sensor
+          await this.prisma.configuracionAlertaDestinatario.create({
+            data: {
+              configuracionAlertaId: configuracionAlertaId,
+              destinatarioId: destinatarioDefecto.id
+            }
+          });
+          
+          this.logger.log(`✅ Destinatario por defecto vinculado: ${destinatarioDefecto.nombre}`);
+        }
+      }
+    } catch (error) {
+      this.logger.error(`❌ Error creando destinatarios por defecto:`, error);
+    }
+  }
+
+  /**
+   * 🎯 Valida umbrales personalizados proporcionados por el usuario
+   */
+  private validarUmbralesPersonalizados(umbrales: any): void {
+    const errores: string[] = [];
+
+    // Validar que los campos requeridos estén presentes
+    if (umbrales.rango_min === undefined || umbrales.rango_max === undefined) {
+      errores.push('Los rangos mínimo y máximo son requeridos');
+    }
+
+    if (umbrales.umbral_alerta_bajo === undefined || umbrales.umbral_alerta_alto === undefined) {
+      errores.push('Los umbrales de alerta bajo y alto son requeridos');
+    }
+
+    if (umbrales.umbral_critico_bajo === undefined || umbrales.umbral_critico_alto === undefined) {
+      errores.push('Los umbrales críticos bajo y alto son requeridos');
+    }
+
+    // Validar que los rangos sean lógicos
+    if (umbrales.rango_min >= umbrales.rango_max) {
+      errores.push('El rango mínimo debe ser menor que el máximo');
+    }
+
+    if (umbrales.umbral_alerta_bajo >= umbrales.umbral_alerta_alto) {
+      errores.push('El umbral de alerta bajo debe ser menor que el alto');
+    }
+
+    if (umbrales.umbral_critico_bajo >= umbrales.umbral_critico_alto) {
+      errores.push('El umbral crítico bajo debe ser menor que el alto');
+    }
+
+    // Validar que los umbrales estén dentro del rango
+    if (umbrales.umbral_alerta_bajo < umbrales.rango_min) {
+      errores.push('El umbral de alerta bajo no puede ser menor que el rango mínimo');
+    }
+
+    if (umbrales.umbral_alerta_alto > umbrales.rango_max) {
+      errores.push('El umbral de alerta alto no puede ser mayor que el rango máximo');
+    }
+
+    if (umbrales.umbral_critico_bajo < umbrales.rango_min) {
+      errores.push('El umbral crítico bajo no puede ser menor que el rango mínimo');
+    }
+
+    if (umbrales.umbral_critico_alto > umbrales.rango_max) {
+      errores.push('El umbral crítico alto no puede ser mayor que el rango máximo');
+    }
+
+    if (errores.length > 0) {
+      throw new Error(`Umbrales personalizados inválidos: ${errores.join(', ')}`);
+    }
+
+    this.logger.log(`✅ Umbrales personalizados validados correctamente`);
+  }
+
+  /**
+   * 🔧 Obtiene la unidad por defecto según el tipo de sensor
+   */
+  private obtenerUnidadPorTipo(tipo: string): string {
+    switch (tipo) {
+      case 'TEMPERATURA': return '°C';
+      case 'HUMEDAD': return '%';
+      case 'PESO': return 'kg';
+      case 'PRESION': return 'Pa';
+      default: return 'unidad';
+    }
+  }
+
+  /**
+   * 🔧 Obtiene el intervalo de lectura por defecto según el tipo de sensor
+   */
+  private obtenerIntervaloDefecto(tipo: string): number {
+    switch (tipo) {
+      case 'TEMPERATURA': return 10000; // 10 segundos
+      case 'HUMEDAD': return 30000; // 30 segundos  
+      case 'PESO': return 60000; // 1 minuto
+      case 'PRESION': return 15000; // 15 segundos
+      default: return 30000; // 30 segundos por defecto
     }
   }
 }

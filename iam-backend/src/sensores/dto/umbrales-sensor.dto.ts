@@ -2,8 +2,52 @@ import { IsNumber, IsOptional, IsString, IsEnum, IsBoolean, IsArray, ValidateNes
 import { Type } from 'class-transformer';
 import { SensorTipo } from '@prisma/client';
 
-// DTO para umbralCriticoes específicos por tipo de sensor
+// 🚀 NUEVO: DTO para umbrales por rangos (sistema nuevo)
 export class UmbralesSensorDto {
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  rango_min: number;
+
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  rango_max: number;
+
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  umbral_alerta_bajo: number;
+
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  umbral_alerta_alto: number;
+
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  umbral_critico_bajo: number;
+
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  umbral_critico_alto: number;
+
+  @IsEnum(['BAJA', 'MEDIA', 'ALTA', 'CRITICA'])
+  severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+
+  @IsNumber()
+  @Min(1000)
+  @Max(3600000)
+  intervalo_lectura: number;
+
+  @IsBoolean()
+  alertasActivas: boolean;
+}
+
+// 🔧 COMPATIBILIDAD: DTO para umbrales específicos por tipo de sensor (sistema antiguo)
+export class UmbralesSensorLegacyDto {
   @IsOptional()
   @IsNumber()
   @Min(-50)
@@ -93,7 +137,19 @@ export class UmbralesSensorDto {
   configuracionNotificacionWebSocket?: boolean = true;
 }
 
-// DTO para configuración completa de umbralCriticoes por sensor
+// DTO para configuración de notificaciones
+export class ConfiguracionNotificacionesDto {
+  @IsBoolean()
+  email: boolean;
+
+  @IsBoolean()
+  sms: boolean;
+
+  @IsBoolean()
+  webSocket: boolean;
+}
+
+// DTO para configuración completa de umbrales por sensor
 export class ConfiguracionUmbralesSensorDto {
   @IsNumber()
   sensorId: number;
@@ -114,7 +170,7 @@ export class ConfiguracionUmbralesSensorDto {
   descripcion?: string;
 }
 
-// DTO para configuración de umbralCriticoes por ubicación
+// DTO para configuración de umbrales por ubicación
 export class ConfiguracionUmbralesUbicacionDto {
   @IsNumber()
   ubicacionId: number;
@@ -136,7 +192,7 @@ export class ConfiguracionUmbralesUbicacionDto {
   destinatariosGlobales?: string[];
 }
 
-// DTO para respuesta de umbralCriticoes configurados
+// DTO para respuesta de umbrales configurados
 export class UmbralesConfiguradosDto {
   id: number;
   sensorId: number;
@@ -150,7 +206,7 @@ export class UmbralesConfiguradosDto {
   proximaVerificacion: Date;
 }
 
-// DTO para validación de umbralCriticoes
+// DTO para validación de umbrales
 export class ValidacionUmbralesDto {
   @IsEnum(SensorTipo)
   tipo: SensorTipo;
@@ -208,7 +264,7 @@ export class ConfiguracionAlertasTiempoRealDto {
   configuracionNotificacionesPush?: boolean = false;
 }
 
-// DTO para configuración de umbralCriticoes por empresa
+// DTO para configuración de umbrales por empresa
 export class ConfiguracionUmbralesEmpresaDto {
   @IsNumber()
   empresaId: number;
@@ -233,4 +289,63 @@ export class ConfiguracionUmbralesEmpresaDto {
   @IsOptional()
   @IsBoolean()
   modoPrueba?: boolean = false;
+}
+
+// 🚀 NUEVO: DTO para umbrales personalizados durante la creación de sensores
+export class UmbralesPersonalizadosDto {
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  rango_min: number;
+
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  rango_max: number;
+
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  umbral_alerta_bajo: number;
+
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  umbral_alerta_alto: number;
+
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  umbral_critico_bajo: number;
+
+  @IsNumber()
+  @Min(-1000)
+  @Max(10000)
+  umbral_critico_alto: number;
+
+  @IsEnum(['BAJA', 'MEDIA', 'ALTA', 'CRITICA'])
+  severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+
+  @IsNumber()
+  @Min(1000)
+  @Max(3600000)
+  intervalo_lectura: number;
+
+  @IsBoolean()
+  alertasActivas: boolean;
+}
+
+// 🚀 NUEVO: DTO para configuración de notificaciones durante la creación
+export class ConfiguracionNotificacionesCreacionDto {
+  @IsOptional()
+  @IsBoolean()
+  email?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  sms?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  webSocket?: boolean = true;
 }

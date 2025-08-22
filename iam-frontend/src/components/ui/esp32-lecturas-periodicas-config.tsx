@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ESP32Configuracion, Ubicacion } from '@/types/sensor'
+import { ESP32Configuracion, Ubicacion, CreateSensorDto, UmbralesPersonalizadosDto, ConfiguracionNotificacionesDto, SensorTipo } from '@/types/sensor'
 import { sensorService } from '@/lib/services/sensorService'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -20,7 +20,8 @@ import {
   FileText,
   Copy,
   Eye,
-  EyeOff
+  EyeOff,
+  Bell
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { useServerUser } from '@/context/ServerUserContext'
@@ -90,6 +91,7 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
   const [configFile, setConfigFile] = useState<string>('')
   const [codigoArduino, setCodigoArduino] = useState<string>('')
   const [error, setError] = useState<string>('')
+  const [sensoresCreados, setSensoresCreados] = useState<Array<{ id: number; nombre: string; tipo: string }>>([])
   const { addToast } = useToast()
   const user = useServerUser()
 
@@ -271,9 +273,76 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
       setError('')
 
       // Filtrar solo los sensores habilitados
+      const sensoresHabilitados = config.sensores.filter(sensor => sensor.enabled)
+      
+      if (sensoresHabilitados.length === 0) {
+        setError('Debes habilitar al menos un sensor')
+        return
+      }
+
+      // 🚀 NUEVO: Crear sensores en el backend con umbrales personalizados
+      const sensoresCreadosTemp: Array<{ id: number; nombre: string; tipo: string }> = []
+      
+      for (const sensorConfig of sensoresHabilitados) {
+        try {
+          // Crear umbrales personalizados
+          const umbralesPersonalizados: UmbralesPersonalizadosDto = {
+            rango_min: sensorConfig.umbralMin,
+            rango_max: sensorConfig.umbralMax,
+            umbral_alerta_bajo: sensorConfig.umbralMin + (sensorConfig.umbralMax - sensorConfig.umbralMin) * 0.1,
+            umbral_alerta_alto: sensorConfig.umbralMax - (sensorConfig.umbralMax - sensorConfig.umbralMin) * 0.1,
+            umbral_critico_bajo: sensorConfig.umbralMin,
+            umbral_critico_alto: sensorConfig.umbralMax,
+            severidad: 'MEDIA',
+            intervalo_lectura: sensorConfig.intervalo,
+            alertasActivas: true
+          }
+
+          // Configuración de notificaciones
+          const configuracionNotificaciones: ConfiguracionNotificacionesDto = {
+            email: true,
+            sms: true,
+            webSocket: true
+          }
+
+          // Crear sensor con umbrales personalizados
+          const sensorData: CreateSensorDto = {
+            nombre: `${config.deviceName} - ${sensorConfig.nombre}`,
+            tipo: sensorConfig.tipo as SensorTipo,
+            ubicacionId: config.ubicacionId,
+            umbralesPersonalizados,
+            configuracionNotificaciones
+          }
+
+          const sensorCreado = await sensorService.crearSensorConUmbrales(sensorData)
+          sensoresCreadosTemp.push({
+            id: sensorCreado.id,
+            nombre: sensorCreado.nombre,
+            tipo: sensorCreado.tipo
+          })
+
+          addToast({
+            type: 'success',
+            title: 'Sensor creado',
+            message: `Sensor ${sensorConfig.nombre} creado exitosamente con umbrales personalizados`
+          })
+
+        } catch (error) {
+          console.error(`Error creando sensor ${sensorConfig.nombre}:`, error)
+          addToast({
+            type: 'error',
+            title: 'Error',
+            message: `No se pudo crear el sensor ${sensorConfig.nombre}`
+          })
+        }
+      }
+
+      setSensoresCreados(sensoresCreadosTemp)
+
+      // Generar código Arduino
       const configToSend = {
         ...config,
-        sensores: config.sensores.filter(sensor => sensor.enabled)
+        sensores: sensoresHabilitados
       }
 
       const response = await sensorService.generarCodigoArduino(configToSend)
@@ -283,16 +352,16 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
         setCodigoArduino(response.codigoArduino)
         addToast({
           type: 'success',
-          title: 'Código Generado',
-          message: 'El código Arduino y la configuración se han generado correctamente'
+          title: 'Configuración Completada',
+          message: `${sensoresCreadosTemp.length} sensores creados y código Arduino generado`
         })
         setStep(5)
       } else {
         setError(response.message)
       }
     } catch (err) {
-      setError('Error generando el código Arduino')
-      console.error('Error generating Arduino code:', err)
+      setError('Error en la configuración del sistema')
+      console.error('Error in ESP32 configuration:', err)
     } finally {
       setIsLoading(false)
     }
@@ -504,7 +573,7 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold mb-4">Resumen de Configuración</h3>
-        <p className="text-gray-600 mb-6">Revisa la configuración antes de generar el archivo</p>
+        <p className="text-gray-600 mb-6">Revisa la configuración antes de crear los sensores</p>
       </div>
 
       <div className="space-y-4">
@@ -550,12 +619,12 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Sensores Configurados ({config.sensores.filter(s => s.enabled).length})</CardTitle>
+            <CardTitle className="text-lg">Sensores a Crear ({config.sensores.filter(s => s.enabled).length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {config.sensores.filter(sensor => sensor.enabled).map((sensor) => (
-                <div key={sensor.tipo} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+              {config.sensores.filter(sensor => sensor.enabled).map((sensor, index) => (
+                <div key={`sensor-config-${sensor.tipo}-${index}`} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <div className="flex items-center gap-2">
                     <span>{SENSOR_OPTIONS.find(s => s.type === sensor.tipo)?.icon}</span>
                     <span className="font-medium">{sensor.nombre}</span>
@@ -568,6 +637,24 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
             </div>
           </CardContent>
         </Card>
+
+        {/* 🚀 NUEVO: Información sobre umbrales personalizados */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Configuración de Alertas Automática
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm text-blue-700">
+              <p>✅ Cada sensor se creará con umbrales personalizados configurados</p>
+              <p>✅ Sistema de alertas automáticamente configurado</p>
+              <p>✅ Notificaciones por email, SMS y WebSocket habilitadas</p>
+              <p>✅ Destinatarios vinculados automáticamente</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
@@ -576,9 +663,32 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
     <div className="space-y-6">
       <div className="text-center">
         <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Configuración Generada</h3>
-        <p className="text-gray-600 mb-6">Tu configuración está lista para usar</p>
+        <h3 className="text-lg font-semibold mb-2">Sistema Configurado Exitosamente</h3>
+        <p className="text-gray-600 mb-6">Tus sensores están creados y listos para funcionar</p>
       </div>
+
+      {/* 🚀 NUEVO: Resumen de sensores creados */}
+      <Card className="border-green-200 bg-green-50">
+        <CardHeader>
+          <CardTitle className="text-lg text-green-800 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5" />
+            Sensores Creados ({sensoresCreados.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {sensoresCreados.map((sensor, index) => (
+              <div key={`sensor-creado-${sensor.id}-${index}`} className="flex items-center justify-between p-2 bg-white rounded border">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600">✅</span>
+                  <span className="font-medium">{sensor.nombre}</span>
+                </div>
+                <span className="text-sm text-gray-600">ID: {sensor.id}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="space-y-4">
         <Card>
@@ -643,22 +753,22 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
           </CardContent>
         </Card>
 
-                          <Alert>
-                    <FileText className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Próximos pasos:</strong>
-                      <ol className="list-decimal list-inside mt-2 space-y-1">
-                        <li>Descarga el código Arduino (.ino) y súbelo al ESP32 usando Arduino IDE</li>
-                        <li>El ESP32 se conectará automáticamente al backend usando la URL configurada</li>
-                        <li>La configuración se descargará automáticamente desde el servidor</li>
-                        <li>Los datos se enviarán cada {config.intervalo / 1000} segundos</li>
-                        <li>Monitorea las lecturas en el dashboard en tiempo real</li>
-                      </ol>
-                      <div className="mt-3 p-2 bg-blue-50 rounded text-sm">
-                        <strong>💡 Ventaja:</strong> No necesitas archivos JSON. La configuración se obtiene automáticamente desde el backend.
-                      </div>
-                    </AlertDescription>
-                  </Alert>
+        <Alert>
+          <FileText className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Próximos pasos:</strong>
+            <ol className="list-decimal list-inside mt-2 space-y-1">
+              <li>Descarga el código Arduino (.ino) y súbelo al ESP32 usando Arduino IDE</li>
+              <li>El ESP32 se conectará automáticamente al backend usando la URL configurada</li>
+              <li>Los sensores ya están creados con umbrales personalizados y alertas configuradas</li>
+              <li>Los datos se enviarán cada {config.intervalo / 1000} segundos</li>
+              <li>Monitorea las lecturas y alertas en el dashboard en tiempo real</li>
+            </ol>
+            <div className="mt-3 p-2 bg-green-50 rounded text-sm">
+              <strong>🚀 Ventaja:</strong> Sistema completamente automático. Los sensores se crean con umbrales personalizados y el sistema de alertas está listo para funcionar.
+            </div>
+          </AlertDescription>
+        </Alert>
       </div>
     </div>
   )

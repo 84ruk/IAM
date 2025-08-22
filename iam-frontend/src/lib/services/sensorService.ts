@@ -12,7 +12,10 @@ import {
   DashboardAlertasDto,
   CreateSensorLecturaMultipleDto,
   ESP32Configuracion,
-  LecturasMultiplesResponse
+  LecturasMultiplesResponse,
+  // 🚀 NUEVOS TIPOS
+  UmbralesSensorDto,
+  ConfiguracionAlertaResponse
 } from '@/types/sensor'
 import { apiClient } from '../api/apiClient'
 
@@ -74,6 +77,24 @@ export const sensorService = {
   // Endpoint múltiple - Varios sensores a la vez
   async registrarSensoresMultiples(data: CreateSensorMultipleDto): Promise<Sensor[]> {
     const response = await apiClient.post('/mqtt-sensor/sensores/registrar-multiple', data) as Sensor[]
+    return response
+  },
+
+  // 🚀 NUEVO: Crear sensor con umbrales personalizados
+  async crearSensorConUmbrales(data: CreateSensorDto): Promise<Sensor> {
+    const response = await apiClient.post('/sensores', data) as Sensor
+    return response
+  },
+
+  // 🚀 NUEVO: Obtener umbrales de un sensor
+  async obtenerUmbralesSensor(sensorId: number): Promise<ConfiguracionAlertaResponse> {
+    const response = await apiClient.get(`/sensores/${sensorId}/umbrales`) as ConfiguracionAlertaResponse
+    return response
+  },
+
+  // 🚀 NUEVO: Actualizar umbrales de un sensor
+  async actualizarUmbralesSensor(sensorId: number, umbrales: UmbralesSensorDto): Promise<ConfiguracionAlertaResponse> {
+    const response = await apiClient.put(`/sensores/${sensorId}/umbrales`, umbrales) as ConfiguracionAlertaResponse
     return response
   },
 

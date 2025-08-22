@@ -37,6 +37,60 @@ export class SensoresController {
     private readonly prisma: PrismaService
   ) {}
 
+  // 🚀 NUEVO: Endpoint principal para crear sensores (POST /sensores)
+  @UseGuards(JwtAuthGuard, UnifiedEmpresaGuard, RolesGuard)
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  @Post()
+  async crearSensor(@Body() createSensorDto: CreateSensorDto, @CurrentUser() currentUser: JwtUser) {
+    try {
+      this.logger.log(`🔧 Usuario ${currentUser.email} creando sensor: ${createSensorDto.nombre}`);
+      
+      // Validar que el usuario tenga empresa asignada
+      if (!currentUser.empresaId) {
+        this.logger.error(`❌ Usuario ${currentUser.email} no tiene empresa asignada`);
+        throw new Error('Usuario no tiene empresa asignada');
+      }
+
+      // Validar datos requeridos
+      if (!createSensorDto.nombre || !createSensorDto.tipo || !createSensorDto.ubicacionId) {
+        this.logger.error(`❌ Datos incompletos para creación de sensor: ${JSON.stringify(createSensorDto)}`);
+        throw new Error('Datos incompletos para creación de sensor');
+      }
+
+      this.logger.log(`✅ Datos validados, procediendo con creación...`);
+      const sensor = await this.sensoresService.registrarSensor(createSensorDto, currentUser.empresaId!);
+      
+      this.logger.log(`🎉 Sensor creado exitosamente: ${sensor.nombre} (ID: ${sensor.id})`);
+      return {
+        success: true,
+        message: 'Sensor creado exitosamente',
+        data: sensor
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error en endpoint de creación de sensor:`, error);
+      throw error;
+    }
+  }
+
+  // 🔧 NUEVO: Endpoint para obtener todos los sensores (GET /sensores)
+  @UseGuards(JwtAuthGuard, UnifiedEmpresaGuard)
+  @Get()
+  async obtenerTodosSensores(@CurrentUser() currentUser: JwtUser, @Query('ubicacionId') ubicacionId?: string, @Query('estado') estado?: 'activos' | 'inactivos' | 'todos') {
+    try {
+      const ubicacionIdNum = ubicacionId ? parseInt(ubicacionId) : undefined;
+      const sensores = await this.sensoresService.obtenerSensores(currentUser.empresaId!, ubicacionIdNum, estado);
+      
+      return {
+        success: true,
+        message: 'Sensores obtenidos exitosamente',
+        data: sensores
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error obteniendo sensores:`, error);
+      throw error;
+    }
+  }
+
   @UseGuards(JwtAuthGuard, UnifiedEmpresaGuard)
   @Post('lectura')
   async recibirLectura(@Body() dto: CreateSensorLecturaDto, @Request() req) {

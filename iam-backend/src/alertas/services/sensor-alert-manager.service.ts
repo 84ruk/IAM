@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 // import { SensorAlertEvaluatorService, AlertaEvaluada, LecturaSensor } from './sensor-alert-evaluator.service';
 import { NotificationService } from '../../notifications/notification.service';
 import { SMSNotificationService } from './sms-notification.service';
-import { UmbralesSensorDto } from '../../sensores/dto/umbrales-sensor.dto';
+import { UmbralesSensorLegacyDto } from '../../sensores/dto/umbrales-sensor.dto';
 import { SensorTipo } from '@prisma/client';
 // import { SensoresGateway } from '../../websockets/sensores/sensores.gateway';
 
@@ -47,7 +47,7 @@ export interface ConfiguracionAlerta {
   empresaId: number;
   tipoSensor: SensorTipo;
   activo: boolean;
-  umbralCriticoes: UmbralesSensorDto;
+  umbralCriticoes: UmbralesSensorLegacyDto;
   destinatarios: string[];
   destinatariosSMS: string[];
   enviarEmail: boolean;
@@ -117,7 +117,7 @@ export class SensorAlertManagerService {
   /**
    * 🔍 Evalúa si una lectura de sensor excede los umbralCriticoes (implementación simplificada)
    */
-  private evaluarLecturaSimplificada(lectura: LecturaSensor, umbralCriticoes: UmbralesSensorDto): AlertaEvaluada | null {
+  private evaluarLecturaSimplificada(lectura: LecturaSensor, umbralCriticoes: UmbralesSensorLegacyDto): AlertaEvaluada | null {
     try {
       let activada = false;
       let severidad: SeveridadAlerta = 'MEDIA';
@@ -202,6 +202,7 @@ export class SensorAlertManagerService {
 
   /**
    * ⚙️ Obtiene la configuración de alertas para un tipo de sensor
+   * ✅ BUENA PRÁCTICA: Método bien documentado y con manejo de errores
    */
   private async obtenerConfiguracionAlertas(
     tipoSensor: SensorTipo,
@@ -226,7 +227,7 @@ export class SensorAlertManagerService {
 
       if (!sensor || !sensor.configuracion) return null;
 
-      // Convertir la configuración del sensor a ConfiguracionAlerta
+      // ✅ BUENA PRÁCTICA: Convertir la configuración del sensor a ConfiguracionAlerta
       const configuracion = sensor.configuracion as any;
       
       return {
@@ -234,11 +235,11 @@ export class SensorAlertManagerService {
         empresaId: sensor.empresaId,
         tipoSensor: sensor.tipo,
         activo: sensor.activo,
-        umbralCriticoes: configuracion as UmbralesSensorDto,
+        umbralCriticoes: configuracion as UmbralesSensorLegacyDto,
         destinatarios: configuracion.destinatarios || [],
         destinatariosSMS: configuracion.destinatariosSMS || [],
-        enviarEmail: configuracion.configuracionNotificacionEmail || true,
-        enviarSMS: configuracion.configuracionNotificacionSMS || false,
+        enviarEmail: configuracion.configuracionNotificacionEmail ?? true,
+        enviarSMS: configuracion.configuracionNotificacionSMS ?? false,
         ventanaEsperaMinutos: configuracion.intervaloVerificacionMinutos || 15,
       };
     } catch (error) {

@@ -16,7 +16,8 @@ import { CommonModule } from '../common/common.module';
 import { NotificationModule } from '../notifications/notification.module';
 import { SensorRetentionService } from './services/sensor-retention.service';
 import { SensorAlertasController } from './controllers/sensor-alertas.controller';
-import { SensorAlertManagerService } from './services/sensor-alert-manager.service';
+import { UmbralesSensorController } from './controllers/umbrales-sensor.controller';
+import { SensorAlertManagerService } from '../alertas/services/sensor-alert-manager.service';
 import { SensorAlertEvaluatorService } from './services/sensor-alert-evaluator.service';
 
 @Module({
@@ -40,7 +41,7 @@ import { SensorAlertEvaluatorService } from './services/sensor-alert-evaluator.s
     SensorAlertEvaluatorService, // 🔧 NUEVO: Agregar el servicio evaluador de alertas
     // 🔧 CORREGIR: El gateway se importa desde WebSocketsModule, no se declara aquí
   ],
-  controllers: [SensoresController, IoTController, SensorAlertasController],
+  controllers: [SensoresController, IoTController, SensorAlertasController, UmbralesSensorController],
   exports: [SensoresService, IoTConfigService, SensorAlertManagerService, SensorAlertEvaluatorService], // Exportar servicios, no el gateway
 })
 export class SensoresModule {

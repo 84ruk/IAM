@@ -9,7 +9,7 @@ import { SensorConfiguracion, CONFIGURACIONES_PREDEFINIDAS } from './dto/create-
 import { SensoresGateway } from '../websockets/sensores/sensores.gateway';
 import { CreateSensorLecturaDto } from './dto/create-sensor-lectura.dto';
 import { URLConfigService } from '../common/services/url-config.service';
-import { SensorAlertManagerService } from './services/sensor-alert-manager.service';
+import { SensorAlertManagerService } from '../alertas/services/sensor-alert-manager.service';
 import { AlertasAvanzadasService } from '../alertas/alertas-avanzadas.service';
 
 export interface SensorData {
@@ -174,8 +174,19 @@ export class ESP32SensorService {
       let mensaje = 'Lectura normal';
 
       try {
+        // 🔧 CORREGIDO: Convertir la lectura a la interfaz correcta
+        const lecturaParaAlertas = {
+          sensorId: lectura.sensorId || 0,
+          tipo: lectura.tipo,
+          valor: lectura.valor,
+          unidad: lectura.unidad,
+          ubicacionId: lectura.ubicacionId || 0,
+          productoId: lectura.productoId || undefined,
+          timestamp: lectura.fecha
+        };
+
         // Procesar alertas usando el SensorAlertManagerService
-        const alertaResult = await this.sensorAlertManager.procesarLecturaSensor(lectura, empresaId);
+        const alertaResult = await this.sensorAlertManager.procesarLecturaSensor(lecturaParaAlertas, empresaId);
         
         if (alertaResult) {
           alertaGenerada = alertaResult;
@@ -677,15 +688,24 @@ export class ESP32SensorService {
         this.logger.log(`🚨 Intentando procesar alertas con SensorAlertManager...`);
         
         // Procesar alertas usando el SensorAlertManagerService
-        const alertaResult = await this.sensorAlertManager.procesarLecturaSensor(lectura, dto.empresaId);
-        
-        if (alertaResult) {
-          alertaGenerada = alertaResult;
-          estado = 'ALERTA';
-          mensaje = alertaResult.mensaje;
-          this.logger.log(`🚨 Alerta generada por SensorAlertManager: ${alertaResult.id} - ${alertaResult.mensaje}`);
-        } else {
-          this.logger.log(`✅ SensorAlertManager no generó alerta (lectura normal)`);
+        if (sensor && sensor.activo) {
+          try {
+            // 🔧 CORREGIDO: Usar la interfaz LecturaSensor correcta
+            const lecturaParaAlertas = {
+              sensorId: sensor.id,
+              tipo: lectura.tipo,
+              valor: lectura.valor,
+              unidad: lectura.unidad,
+              ubicacionId: sensor.ubicacionId,
+              productoId: lectura.productoId || undefined, // 🔧 CORREGIDO: convertir null a undefined
+              timestamp: lectura.fecha // 🔧 CORREGIDO: usar timestamp en lugar de fecha
+            };
+
+            await this.sensorAlertManager.procesarLecturaSensor(lecturaParaAlertas, dto.empresaId);
+            this.logger.log(`Alerta procesada para sensor ${sensor.id}`);
+          } catch (error) {
+            this.logger.error(`Error procesando alerta para sensor ${sensor.id}:`, error);
+          }
         }
       } catch (error) {
         this.logger.warn(`⚠️ Error procesando alertas con SensorAlertManager: ${error.message}`);
@@ -802,6 +822,10 @@ export class ESP32SensorService {
       });
 
       this.logger.log(`✅ Sensor creado automáticamente: ${nombre} (${tipo})`);
+      
+      // 🚀 NUEVO: Configurar alertas automáticamente para el nuevo sensor
+      await this.configurarAlertasAutomaticas(sensor, dto.empresaId);
+      
     } else if (!sensor.dispositivoIoTId && dispositivo?.id) {
       // Vincular sensor existente al dispositivo si aún no está vinculado
       sensor = await this.prisma.sensor.update({
@@ -811,6 +835,172 @@ export class ESP32SensorService {
     }
 
     return sensor;
+  }
+
+  /**
+   * 🚀 Configura automáticamente alertas para un sensor recién creado
+   */
+  private async configurarAlertasAutomaticas(sensor: Sensor, empresaId: number): Promise<void> {
+    try {
+      this.logger.log(`🔧 Configurando alertas automáticas para sensor ${sensor.nombre} (${sensor.tipo})`);
+      
+      // 1. Crear configuración de umbrales según el tipo de sensor
+      let umbralesConfig: any;
+      
+      switch (sensor.tipo) {
+        case 'TEMPERATURA':
+          umbralesConfig = {
+            tipo: 'TEMPERATURA',
+            unidad: '°C',
+            precision: 0.1,
+            rango_min: 15,
+            rango_max: 25,
+            umbral_alerta_bajo: 18,
+            umbral_alerta_alto: 22,
+            umbral_critico_bajo: 15,
+            umbral_critico_alto: 25,
+            severidad: 'MEDIA',
+            intervalo_lectura: 10000,
+            alertasActivas: true
+          };
+          break;
+        case 'HUMEDAD':
+          umbralesConfig = {
+            tipo: 'HUMEDAD',
+            unidad: '%',
+            precision: 0.1,
+            rango_min: 30,
+            rango_max: 80,
+            umbral_alerta_bajo: 35,
+            umbral_alerta_alto: 75,
+            umbral_critico_bajo: 30,
+            umbral_critico_alto: 80,
+            severidad: 'MEDIA',
+            intervalo_lectura: 30000,
+            alertasActivas: true
+          };
+          break;
+        case 'PESO':
+          umbralesConfig = {
+            tipo: 'PESO',
+            unidad: 'kg',
+            precision: 0.1,
+            rango_min: 100,
+            rango_max: 900,
+            umbral_alerta_bajo: 150,
+            umbral_alerta_alto: 850,
+            umbral_critico_bajo: 100,
+            umbral_critico_alto: 900,
+            severidad: 'MEDIA',
+            intervalo_lectura: 60000,
+            alertasActivas: true
+          };
+          break;
+        default:
+          umbralesConfig = {
+            tipo: sensor.tipo,
+            unidad: 'unidad',
+            precision: 0.1,
+            rango_min: 0,
+            rango_max: 100,
+            umbral_alerta_bajo: 10,
+            umbral_alerta_alto: 90,
+            umbral_critico_bajo: 0,
+            umbral_critico_alto: 100,
+            severidad: 'MEDIA',
+            intervalo_lectura: 30000,
+            alertasActivas: true
+          };
+      }
+      
+      // 2. Crear configuración de alertas
+      const configuracionAlerta = await this.prisma.configuracionAlerta.create({
+        data: {
+          empresaId: empresaId,
+          sensorId: sensor.id,
+          tipoAlerta: sensor.tipo,
+          activo: true,
+          frecuencia: 'IMMEDIATE',
+          ventanaEsperaMinutos: 5,
+          umbralCritico: umbralesConfig as any,
+          configuracionNotificacion: {
+            email: true,
+            sms: true,
+            webSocket: true
+          } as any
+        }
+      });
+      
+      this.logger.log(`✅ Configuración de alertas creada: ${configuracionAlerta.id}`);
+      
+      // 3. Crear o vincular destinatarios por defecto
+      await this.crearDestinatariosPorDefecto(sensor.id, empresaId, configuracionAlerta.id);
+      
+      this.logger.log(`✅ Configuración automática completada para sensor ${sensor.nombre}`);
+      
+    } catch (error) {
+      this.logger.error(`❌ Error configurando alertas automáticas para sensor ${sensor.nombre}:`, error);
+      // No fallar el proceso completo si falla la configuración de alertas
+    }
+  }
+
+  /**
+   * 🚀 Crea destinatarios por defecto para un sensor
+   */
+  private async crearDestinatariosPorDefecto(sensorId: number, empresaId: number, configuracionAlertaId: number): Promise<void> {
+    try {
+      // Buscar destinatarios existentes de la empresa
+      const destinatariosExistentes = await this.prisma.destinatarioAlerta.findMany({
+        where: { empresaId, activo: true }
+      });
+      
+      if (destinatariosExistentes.length > 0) {
+        // Vincular destinatarios existentes al sensor
+        for (const destinatario of destinatariosExistentes) {
+          await this.prisma.configuracionAlertaDestinatario.create({
+            data: {
+              configuracionAlertaId: configuracionAlertaId,
+              destinatarioId: destinatario.id
+            }
+          });
+        }
+        this.logger.log(`✅ ${destinatariosExistentes.length} destinatarios existentes vinculados al sensor`);
+      } else {
+        // Crear destinatario por defecto basado en el usuario administrador de la empresa
+        const adminEmpresa = await this.prisma.usuario.findFirst({
+          where: { 
+            empresaId: empresaId, 
+            rol: 'ADMIN',
+            activo: true 
+          }
+        });
+        
+        if (adminEmpresa) {
+          const destinatarioDefecto = await this.prisma.destinatarioAlerta.create({
+            data: {
+              empresaId: empresaId,
+              nombre: adminEmpresa.nombre,
+              email: adminEmpresa.email,
+              telefono: adminEmpresa.telefono || null,
+              tipo: adminEmpresa.telefono ? 'AMBOS' : 'EMAIL',
+              activo: true
+            }
+          });
+          
+          // Vincular al sensor
+          await this.prisma.configuracionAlertaDestinatario.create({
+            data: {
+              configuracionAlertaId: configuracionAlertaId,
+              destinatarioId: destinatarioDefecto.id
+            }
+          });
+          
+          this.logger.log(`✅ Destinatario por defecto creado: ${destinatarioDefecto.nombre}`);
+        }
+      }
+    } catch (error) {
+      this.logger.error(`❌ Error creando destinatarios por defecto:`, error);
+    }
   }
 
   private analizarLectura(tipo: SensorTipo, valor: number): 'NORMAL' | 'ALERTA' | 'CRITICO' {
@@ -1123,12 +1313,12 @@ export class ESP32SensorService {
                     configuracionNotificacionEmail: true,
                     configuracionNotificacionSMS: true,  // ✅ SMS habilitado por defecto
                     configuracionNotificacionWebSocket: true
-                  },
+                  } as any,
                   configuracionNotificacion: {
                     email: true,
                     sms: true,  // ✅ SMS habilitado por defecto
                     webSocket: true
-                  }
+                  } as any
                 },
                 create: {
                   empresaId: config.empresaId,
@@ -1149,12 +1339,12 @@ export class ESP32SensorService {
                     configuracionNotificacionEmail: true,
                     configuracionNotificacionSMS: true,  // ✅ SMS habilitado por defecto
                     configuracionNotificacionWebSocket: true
-                  },
+                  } as any,
                   configuracionNotificacion: {
                     email: true,
                     sms: true,  // ✅ SMS habilitado por defecto
                     webSocket: true
-                  }
+                  } as any
                 }
               });
 
@@ -1163,7 +1353,7 @@ export class ESP32SensorService {
               // 4. 🔧 NUEVO: Crear destinatarios por defecto para las alertas
               try {
                 // ✅ AHORA HABILITADO: Depende de ConfiguracionAlerta
-                await this.crearDestinatariosPorDefecto(sensor.id, config.empresaId);
+                await this.crearDestinatariosPorDefectoLegacy(sensor.id, config.empresaId);
                 this.logger.log(`✅ Destinatarios por defecto creados para sensor ${sensorConfig.nombre}`);
               } catch (destinatarioError) {
                 this.logger.warn(`⚠️ Error creando destinatarios por defecto para sensor ${sensorConfig.nombre}:`, destinatarioError);
@@ -1297,10 +1487,10 @@ export class ESP32SensorService {
   }
 
   /**
-   * 🔧 NUEVO: Crea destinatarios por defecto para un sensor.
+   * 🔧 NUEVO: Crea destinatarios por defecto para un sensor (método legacy).
    * Esto asegura que las alertas tengan al menos un destinatario configurado.
    */
-  private async crearDestinatariosPorDefecto(sensorId: number, empresaId: number): Promise<void> {
+  private async crearDestinatariosPorDefectoLegacy(sensorId: number, empresaId: number): Promise<void> {
     try {
       // Buscar usuarios admin de la empresa para usar como destinatarios por defecto
       const usuariosAdmin = await this.prisma.usuario.findMany({

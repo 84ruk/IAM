@@ -1,403 +1,318 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, HttpStatus, HttpException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Put,
+  Body,
+  Param,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
+import { UnifiedEmpresaGuard } from '../../auth/guards/unified-empresa.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { EmpresaRequired } from '../../auth/decorators/empresa-required.decorator';
+import { JwtUser } from '../../auth/interfaces/jwt-user.interface';
 import { PrismaService } from '../../prisma/prisma.service';
-import { UmbralesSensorDto, ConfiguracionUmbralesSensorDto } from '../dto/umbrales-sensor.dto';
+import { UmbralesSensorDto } from '../dto/umbrales-sensor.dto';
 
-@ApiTags('Umbrales de Sensores')
-@Controller('sensores')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
+@Controller('sensores/:sensorId/umbrales')
+@UseGuards(JwtAuthGuard, RolesGuard, UnifiedEmpresaGuard)
+@EmpresaRequired()
 export class UmbralesSensorController {
   constructor(private readonly prisma: PrismaService) {}
 
-  @Get(':id/umbralCriticoes')
-  @ApiOperation({ summary: 'Obtener umbralCriticoes de un sensor' })
-  @ApiResponse({ status: 200, description: 'Umbrales obtenidos exitosamente' })
-  @ApiResponse({ status: 404, description: 'Sensor no encontrado' })
+  /**
+   * 🎯 Obtiene la configuración de umbrales de un sensor específico
+   */
+  @Get()
+  @Roles('SUPERADMIN', 'ADMIN', 'EMPLEADO')
   async obtenerUmbrales(
-    @Param('id') sensorId: string,
-    @CurrentUser() user: any
+    @Param('sensorId', ParseIntPipe) sensorId: number,
+    @CurrentUser() currentUser: JwtUser,
   ) {
     try {
+      // Verificar que el sensor pertenece a la empresa del usuario
       const sensor = await this.prisma.sensor.findFirst({
-        where: { 
-          id: parseInt(sensorId), 
-          empresaId: user.empresaId 
+        where: {
+          id: sensorId,
+          empresaId: currentUser.empresaId!,
+          activo: true,
         },
         include: {
-          ubicacion: true
-        }
+          configuracionAlerta: {
+            include: {
+              destinatarios: {
+                include: {
+                  destinatario: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!sensor) {
-        throw new HttpException('Sensor no encontrado', HttpStatus.NOT_FOUND);
+        throw new Error('Sensor no encontrado o no tienes acceso');
       }
 
-      // Obtener configuración actual del sensor
-      const configuracion = sensor.configuracion as any || {};
-      
-      // Construir respuesta con umbralCriticoes
-      const umbralCriticoes: UmbralesSensorDto = {
-        temperaturaMin: configuracion.temperaturaMin || 15,
-        temperaturaMax: configuracion.temperaturaMax || 25,
-        humedadMin: configuracion.humedadMin || 40,
-        humedadMax: configuracion.humedadMax || 60,
-        pesoMin: configuracion.pesoMin || 100,
-        pesoMax: configuracion.pesoMax || 900,
-        presionMin: configuracion.presionMin || 1000,
-        presionMax: configuracion.presionMax || 1500,
-        alertasActivas: configuracion.alertasActivas ?? true,
-        mensajeAlerta: configuracion.mensajeAlerta || 'Valor fuera del rango normal',
-        mensajeCritico: configuracion.mensajeCritico || 'Valor crítico detectado',
-        destinatarios: configuracion.destinatarios || [],
-        severidad: configuracion.severidad || 'MEDIA',
-        intervaloVerificacionMinutos: configuracion.intervaloVerificacionMinutos || 5,
-        configuracionNotificacionEmail: configuracion.configuracionNotificacionEmail ?? true,
-        configuracionNotificacionSMS: configuracion.configuracionNotificacionSMS ?? false,
-        configuracionNotificacionWebSocket: configuracion.configuracionNotificacionWebSocket ?? true
-      };
+      if (!sensor.configuracionAlerta) {
+        // Si no hay configuración, crear una por defecto
+        const configuracionPorDefecto = await this.crearConfiguracionPorDefecto(
+          sensorId,
+          currentUser.empresaId!,
+          sensor.tipo,
+        );
+        return {
+          success: true,
+          message: 'Configuración por defecto creada',
+          data: {
+            sensor: {
+              id: sensor.id,
+              nombre: sensor.nombre,
+              tipo: sensor.tipo,
+            },
+            configuracion: configuracionPorDefecto,
+          },
+        };
+      }
 
       return {
         success: true,
+        message: 'Configuración de umbrales obtenida',
         data: {
-          sensorId: sensor.id,
-          sensorNombre: sensor.nombre,
-          sensorTipo: sensor.tipo,
-          ubicacionId: sensor.ubicacionId,
-          ubicacionNombre: sensor.ubicacion?.nombre,
-          umbralCriticoes,
-          ultimaActualizacion: new Date(),
-          proximaVerificacion: new Date(Date.now() + ((umbralCriticoes.intervaloVerificacionMinutos || 5) * 60 * 1000))
-        }
+          sensor: {
+            id: sensor.id,
+            nombre: sensor.nombre,
+            tipo: sensor.tipo,
+          },
+          configuracion: sensor.configuracionAlerta,
+        },
       };
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new HttpException('Error obteniendo umbralCriticoes', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new Error(`Error obteniendo umbrales: ${error.message}`);
     }
   }
 
-  @Post(':id/umbralCriticoes')
-  @ApiOperation({ summary: 'Actualizar umbralCriticoes de un sensor' })
-  @ApiResponse({ status: 200, description: 'Umbrales actualizados exitosamente' })
-  @ApiResponse({ status: 400, description: 'Datos inválidos' })
-  @ApiResponse({ status: 404, description: 'Sensor no encontrado' })
+  /**
+   * 🎯 Actualiza la configuración de umbrales de un sensor
+   */
+  @Put()
+  @Roles('SUPERADMIN', 'ADMIN')
+  @HttpCode(HttpStatus.OK)
   async actualizarUmbrales(
-    @Param('id') sensorId: string,
-    @Body() umbralCriticoesDto: UmbralesSensorDto,
-    @CurrentUser() user: any
+    @Param('sensorId', ParseIntPipe) sensorId: number,
+    @Body() umbralesDto: UmbralesSensorDto,
+    @CurrentUser() currentUser: JwtUser,
   ) {
     try {
-      // Validar que el sensor existe y pertenece a la empresa
+      // Verificar que el sensor pertenece a la empresa del usuario
       const sensor = await this.prisma.sensor.findFirst({
-        where: { 
-          id: parseInt(sensorId), 
-          empresaId: user.empresaId 
-        }
+        where: {
+          id: sensorId,
+          empresaId: currentUser.empresaId!,
+          activo: true,
+        },
       });
 
       if (!sensor) {
-        throw new HttpException('Sensor no encontrado', HttpStatus.NOT_FOUND);
+        throw new Error('Sensor no encontrado o no tienes acceso');
       }
 
-      // Validar umbralCriticoes
-      this.validarUmbrales(umbralCriticoesDto);
+      // Validar los umbrales antes de guardar
+      this.validarUmbrales(umbralesDto);
 
-      // Obtener configuración actual
-      const configuracionActual = sensor.configuracion as any || {};
-      
-      // Actualizar configuración
-      const nuevaConfiguracion = {
-        ...configuracionActual,
-        ...umbralCriticoesDto,
-        ultimaActualizacion: new Date(),
-        actualizadoPor: user.id
-      };
-
-      // Guardar en la base de datos
-      const sensorActualizado = await this.prisma.sensor.update({
-        where: { id: parseInt(sensorId) },
-        data: {
-          configuracion: nuevaConfiguracion
+      // Buscar o crear configuración de alerta
+      let configuracion = await this.prisma.configuracionAlerta.findFirst({
+        where: {
+          sensorId: sensorId,
+          empresaId: currentUser.empresaId!,
         },
-        include: {
-          ubicacion: true
-        }
       });
 
-      // Crear log de auditoría
-      await this.prisma.auditLog.create({
-        data: {
-          action: 'ACTUALIZAR_UMBRALES',
-          resource: 'SENSOR',
-          resourceId: parseInt(sensorId),
-          userId: user.id,
-          userEmail: user.email || 'admin@empresa.com',
-          userName: user.nombre || 'Administrador',
-          details: JSON.stringify({
-            umbralCriticoesAnteriores: configuracionActual,
-            umbralCriticoesNuevos: umbralCriticoesDto,
-            motivo: 'Actualización desde frontend'
-          }),
-          ipAddress: 'N/A', // Se puede obtener del request
-          userAgent: 'N/A', // Se puede obtener del request
-          empresaId: user.empresaId,
-          empresaName: user.empresaNombre || 'Empresa'
-        }
-      });
+      if (!configuracion) {
+        // Crear nueva configuración
+        configuracion = await this.prisma.configuracionAlerta.create({
+          data: {
+            empresaId: currentUser.empresaId!,
+            sensorId: sensorId,
+            tipoAlerta: sensor.tipo,
+            activo: true,
+            frecuencia: 'IMMEDIATE',
+            ventanaEsperaMinutos: 5,
+            umbralCritico: umbralesDto as any,
+            configuracionNotificacion: {
+              email: true,
+              sms: true,
+              webSocket: true,
+            } as any,
+          },
+        });
+      } else {
+        // Actualizar configuración existente
+        configuracion = await this.prisma.configuracionAlerta.update({
+          where: { id: configuracion.id },
+          data: {
+            umbralCritico: umbralesDto as any,
+            updatedAt: new Date(),
+          },
+        });
+      }
 
       return {
         success: true,
-        message: 'Umbrales actualizados exitosamente',
+        message: 'Umbrales actualizados correctamente',
         data: {
-          sensorId: sensorActualizado.id,
-          sensorNombre: sensorActualizado.nombre,
-          umbralCriticoes: nuevaConfiguracion,
-          ultimaActualizacion: nuevaConfiguracion.ultimaActualizacion
-        }
+          sensor: {
+            id: sensor.id,
+            nombre: sensor.nombre,
+            tipo: sensor.tipo,
+          },
+          configuracion: configuracion,
+        },
       };
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new HttpException('Error actualizando umbralCriticoes', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new Error(`Error actualizando umbrales: ${error.message}`);
     }
   }
 
-  @Get('alertas/resumen')
-  @ApiOperation({ summary: 'Obtener resumen de alertas' })
-  @ApiResponse({ status: 200, description: 'Resumen obtenido exitosamente' })
-  async obtenerResumenAlertas(
-    @Query('empresaId') empresaId: string,
-    @CurrentUser() user: any
+  /**
+   * 🔧 Crea configuración por defecto para un sensor
+   */
+  private async crearConfiguracionPorDefecto(
+    sensorId: number,
+    empresaId: number,
+    tipoSensor: string,
   ) {
-    try {
-      const empresaIdNum = parseInt(empresaId) || user.empresaId;
+    let umbralesPorDefecto: any;
 
-      // Obtener alertas activas
-      const alertasActivas = await this.prisma.alertaHistorial.findMany({
-        where: { 
-          empresaId: empresaIdNum, 
-          estado: 'ACTIVA',
-          tipo: 'SENSOR'
-        },
-        include: { 
-          sensor: true, 
-          ubicacion: true 
-        },
-        orderBy: { fechaEnvio: 'desc' }
-      });
-
-      // Obtener alertas resueltas en las últimas 24 horas
-      const hace24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const alertasResueltas = await this.prisma.alertaHistorial.findMany({
-        where: { 
-          empresaId: empresaIdNum, 
-          estado: 'RESUELTA',
-          tipo: 'SENSOR',
-          fechaResolucion: { gte: hace24Horas }
-        },
-        include: { 
-          sensor: true, 
-          ubicacion: true 
-        }
-      });
-
-      // Calcular estadísticas
-      const porSeveridad = {
-        BAJA: alertasActivas.filter(a => a.severidad === 'BAJA').length,
-        MEDIA: alertasActivas.filter(a => a.severidad === 'MEDIA').length,
-        ALTA: alertasActivas.filter(a => a.severidad === 'ALTA').length,
-        CRITICA: alertasActivas.filter(a => a.severidad === 'CRITICA').length
-      };
-
-      const porTipo = {
-        TEMPERATURA: alertasActivas.filter(a => a.sensor?.tipo === 'TEMPERATURA').length,
-        HUMEDAD: alertasActivas.filter(a => a.sensor?.tipo === 'HUMEDAD').length,
-        PESO: alertasActivas.filter(a => a.sensor?.tipo === 'PESO').length,
-        PRESION: alertasActivas.filter(a => a.sensor?.tipo === 'PRESION').length
-      };
-
-      const porUbicacion = {};
-      alertasActivas.forEach(alerta => {
-        if (alerta.ubicacion?.nombre) {
-          porUbicacion[alerta.ubicacion.nombre] = (porUbicacion[alerta.ubicacion.nombre] || 0) + 1;
-        }
-      });
-
-      return {
-        success: true,
-        data: {
-          totalActivas: alertasActivas.length,
-          totalResueltas24h: alertasResueltas.length,
-          porSeveridad,
-          porTipo,
-          porUbicacion,
-          ultimaAlerta: alertasActivas.length > 0 ? alertasActivas[0].fechaEnvio : null,
-          proximaVerificacion: new Date(Date.now() + 5 * 60 * 1000), // 5 minutos
-          tendencia: this.calcularTendencia(alertasActivas)
-        }
-      };
-    } catch (error) {
-      throw new HttpException('Error obteniendo resumen de alertas', HttpStatus.INTERNAL_SERVER_ERROR);
+    switch (tipoSensor) {
+      case 'TEMPERATURA':
+        umbralesPorDefecto = {
+          tipo: 'TEMPERATURA',
+          unidad: '°C',
+          precision: 0.1,
+          rango_min: 15,
+          rango_max: 25,
+          umbral_alerta_bajo: 18,
+          umbral_alerta_alto: 22,
+          umbral_critico_bajo: 15,
+          umbral_critico_alto: 25,
+          severidad: 'MEDIA',
+          intervalo_lectura: 10000,
+          alertasActivas: true,
+        };
+        break;
+      case 'HUMEDAD':
+        umbralesPorDefecto = {
+          tipo: 'HUMEDAD',
+          unidad: '%',
+          precision: 0.1,
+          rango_min: 30,
+          rango_max: 80,
+          umbral_alerta_bajo: 35,
+          umbral_alerta_alto: 75,
+          umbral_critico_bajo: 30,
+          umbral_critico_alto: 80,
+          severidad: 'MEDIA',
+          intervalo_lectura: 30000,
+          alertasActivas: true,
+        };
+        break;
+      case 'PESO':
+        umbralesPorDefecto = {
+          tipo: 'PESO',
+          unidad: 'kg',
+          precision: 0.1,
+          rango_min: 100,
+          rango_max: 900,
+          umbral_alerta_bajo: 150,
+          umbral_alerta_alto: 850,
+          umbral_critico_bajo: 100,
+          umbral_critico_alto: 900,
+          severidad: 'MEDIA',
+          intervalo_lectura: 60000,
+          alertasActivas: true,
+        };
+        break;
+      default:
+        umbralesPorDefecto = {
+          tipo: tipoSensor,
+          unidad: 'unidad',
+          precision: 0.1,
+          rango_min: 0,
+          rango_max: 100,
+          umbral_alerta_bajo: 10,
+          umbral_alerta_alto: 90,
+          umbral_critico_bajo: 0,
+          umbral_critico_alto: 100,
+          severidad: 'MEDIA',
+          intervalo_lectura: 30000,
+          alertasActivas: true,
+        };
     }
+
+    const configuracion = await this.prisma.configuracionAlerta.create({
+      data: {
+        empresaId: empresaId,
+        sensorId: sensorId,
+        tipoAlerta: tipoSensor,
+        activo: true,
+        frecuencia: 'IMMEDIATE',
+        ventanaEsperaMinutos: 5,
+        umbralCritico: umbralesPorDefecto as any,
+        configuracionNotificacion: {
+          email: true,
+          sms: true,
+          webSocket: true,
+        } as any,
+      },
+    });
+
+    return configuracion;
   }
 
-  @Post('alertas/:id/resolver')
-  @ApiOperation({ summary: 'Resolver una alerta' })
-  @ApiResponse({ status: 200, description: 'Alerta resuelta exitosamente' })
-  @ApiResponse({ status: 404, description: 'Alerta no encontrada' })
-  async resolverAlerta(
-    @Param('id') alertaId: string,
-    @Body() body: { comentario?: string },
-    @CurrentUser() user: any
-  ) {
-    try {
-      const alerta = await this.prisma.alertaHistorial.findFirst({
-        where: { 
-          id: parseInt(alertaId), 
-          empresaId: user.empresaId 
-        }
-      });
+  /**
+   * ✅ Valida que los umbrales sean lógicos
+   */
+  private validarUmbrales(umbrales: UmbralesSensorDto) {
+    const errores: string[] = [];
 
-      if (!alerta) {
-        throw new HttpException('Alerta no encontrada', HttpStatus.NOT_FOUND);
-      }
-
-      // Actualizar alerta
-      const alertaActualizada = await this.prisma.alertaHistorial.update({
-        where: { id: parseInt(alertaId) },
-        data: {
-          estado: 'RESUELTA',
-          fechaResolucion: new Date(),
-          mensaje: body.comentario ? 
-            `${alerta.mensaje} - Resuelto: ${body.comentario}` : 
-            alerta.mensaje
-        }
-      });
-
-      // Crear log de auditoría
-      await this.prisma.auditLog.create({
-        data: {
-          action: 'RESOLVER_ALERTA',
-          resource: 'ALERTA',
-          resourceId: parseInt(alertaId),
-          userId: user.id,
-          userEmail: user.email || 'admin@empresa.com',
-          userName: user.nombre || 'Administrador',
-          details: JSON.stringify({
-            alertaId: parseInt(alertaId),
-            comentario: body.comentario,
-            estadoAnterior: 'ACTIVA',
-            estadoNuevo: 'RESUELTA'
-          }),
-          ipAddress: 'N/A',
-          userAgent: 'N/A',
-          empresaId: user.empresaId,
-          empresaName: user.empresaNombre || 'Empresa'
-        }
-      });
-
-      return {
-        success: true,
-        message: 'Alerta resuelta exitosamente',
-        data: {
-          alertaId: alertaActualizada.id,
-          estado: alertaActualizada.estado,
-          fechaResolucion: alertaActualizada.fechaResolucion
-        }
-      };
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new HttpException('Error resolviendo alerta', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  @Post('alertas/configuracion')
-  @ApiOperation({ summary: 'Guardar configuración de alertas' })
-  @ApiResponse({ status: 200, description: 'Configuración guardada exitosamente' })
-  async guardarConfiguracionAlertas(
-    @Body() configuracion: any,
-    @CurrentUser() user: any
-  ) {
-    try {
-      // Aquí implementarías la lógica para guardar la configuración
-      // Por ahora retornamos éxito
-      return {
-        success: true,
-        message: 'Configuración de alertas guardada exitosamente',
-        data: {
-          configuracion,
-          guardadoPor: user.id,
-          fechaGuardado: new Date()
-        }
-      };
-    } catch (error) {
-      throw new HttpException('Error guardando configuración', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  private validarUmbrales(umbralCriticoes: UmbralesSensorDto) {
-    // Validar temperatura
-    if (umbralCriticoes.temperaturaMin !== undefined && umbralCriticoes.temperaturaMax !== undefined) {
-      if (umbralCriticoes.temperaturaMin >= umbralCriticoes.temperaturaMax) {
-        throw new HttpException('La temperatura mínima debe ser menor que la máxima', HttpStatus.BAD_REQUEST);
-      }
+    // Validar que los rangos sean lógicos
+    if (umbrales.rango_min >= umbrales.rango_max) {
+      errores.push('El rango mínimo debe ser menor que el máximo');
     }
 
-    // Validar humedad
-    if (umbralCriticoes.humedadMin !== undefined && umbralCriticoes.humedadMax !== undefined) {
-      if (umbralCriticoes.humedadMin >= umbralCriticoes.humedadMax) {
-        throw new HttpException('La humedad mínima debe ser menor que la máxima', HttpStatus.BAD_REQUEST);
-      }
-      if (umbralCriticoes.humedadMin < 0 || umbralCriticoes.humedadMax > 100) {
-        throw new HttpException('La humedad debe estar entre 0% y 100%', HttpStatus.BAD_REQUEST);
-      }
+    if (umbrales.umbral_alerta_bajo >= umbrales.umbral_alerta_alto) {
+      errores.push('El umbral de alerta bajo debe ser menor que el alto');
     }
 
-    // Validar peso
-    if (umbralCriticoes.pesoMin !== undefined && umbralCriticoes.pesoMax !== undefined) {
-      if (umbralCriticoes.pesoMin >= umbralCriticoes.pesoMax) {
-        throw new HttpException('El peso mínimo debe ser menor que el máximo', HttpStatus.BAD_REQUEST);
-      }
-      if (umbralCriticoes.pesoMin < 0 || umbralCriticoes.pesoMax < 0) {
-        throw new HttpException('El peso debe ser positivo', HttpStatus.BAD_REQUEST);
-      }
+    if (umbrales.umbral_critico_bajo >= umbrales.umbral_critico_alto) {
+      errores.push('El umbral crítico bajo debe ser menor que el alto');
     }
 
-    // Validar presión
-    if (umbralCriticoes.presionMin !== undefined && umbralCriticoes.presionMax !== undefined) {
-      if (umbralCriticoes.presionMin >= umbralCriticoes.presionMax) {
-        throw new HttpException('La presión mínima debe ser menor que la máxima', HttpStatus.BAD_REQUEST);
-      }
+    // Validar que los umbrales estén dentro del rango
+    if (umbrales.umbral_alerta_bajo < umbrales.rango_min) {
+      errores.push('El umbral de alerta bajo no puede ser menor que el rango mínimo');
     }
 
-    // Validar intervalo de verificación
-    const intervalo = umbralCriticoes.intervaloVerificacionMinutos || 5;
-    if (intervalo < 1 || intervalo > 1440) {
-      throw new HttpException('El intervalo de verificación debe estar entre 1 y 1440 minutos', HttpStatus.BAD_REQUEST);
+    if (umbrales.umbral_alerta_alto > umbrales.rango_max) {
+      errores.push('El umbral de alerta alto no puede ser mayor que el rango máximo');
     }
-  }
 
-  private calcularTendencia(alertas: any[]): 'MEJORANDO' | 'ESTABLE' | 'EMPEORANDO' {
-    if (alertas.length < 3) return 'ESTABLE';
+    if (umbrales.umbral_critico_bajo < umbrales.rango_min) {
+      errores.push('El umbral crítico bajo no puede ser menor que el rango mínimo');
+    }
 
-    const ultimas3 = alertas.slice(0, 3);
-    const ahora = new Date();
-    const hace1h = new Date(ahora.getTime() - 60 * 60 * 1000);
-    
-    const alertasRecientes = ultimas3.filter(a => a.fechaEnvio > hace1h);
-    
-    if (alertasRecientes.length === 0) return 'MEJORANDO';
-    if (alertasRecientes.length === ultimas3.length) return 'EMPEORANDO';
-    
-    return 'ESTABLE';
+    if (umbrales.umbral_critico_alto > umbrales.rango_max) {
+      errores.push('El umbral crítico alto no puede ser mayor que el rango máximo');
+    }
+
+    if (errores.length > 0) {
+      throw new Error(`Umbrales inválidos: ${errores.join(', ')}`);
+    }
   }
 }

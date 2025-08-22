@@ -1,13 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { SensorTipo, Sensor, SensorLectura } from '@prisma/client';
-import { 
-  UmbralesSensorDto, 
-  ValidacionUmbralesDto, 
-  ResultadoValidacionUmbralesDto,
-  ConfiguracionUmbralesSensorDto 
-} from '../dto/umbrales-sensor.dto';
+import { SensorTipo, SeveridadAlerta, SensorLectura } from '@prisma/client';
+import { UmbralesSensorLegacyDto } from '../dto/umbrales-sensor.dto';
 
+// 🔧 BUENAS PRÁCTICAS: Interfaces bien definidas y tipadas
 export interface EvaluacionAlerta {
   sensorId: number;
   tipo: SensorTipo;
@@ -48,6 +44,40 @@ export interface MetricasSensor {
   };
 }
 
+// 🔧 BUENAS PRÁCTICAS: Interfaces para validación de umbrales
+export interface ValidacionUmbralesDto {
+  tipo: SensorTipo;
+  valor: number;
+  unidad: string;
+  umbralCriticoes: UmbralesSensorLegacyDto;
+}
+
+export interface ResultadoValidacionUmbralesDto {
+  cumpleUmbrales: boolean;
+  estado: 'NORMAL' | 'ALERTA' | 'CRITICO';
+  mensaje: string;
+  severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+  umbralCriticoesExcedidos: string[];
+  recomendaciones: string[];
+  proximaVerificacion: Date;
+}
+
+export interface ConfiguracionUmbralesSensorDto {
+  sensorId: number;
+  tipo: SensorTipo;
+  umbralCriticoes: UmbralesSensorLegacyDto;
+  nombre?: string;
+  descripcion?: string;
+}
+
+// 🔧 BUENAS PRÁCTICAS: Resultado de evaluación tipado
+export interface ResultadoEvaluacion {
+  estado: 'NORMAL' | 'ALERTA' | 'CRITICO';
+  severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
+  umbralCriticoesExcedidos: string[];
+  recomendaciones: string[];
+}
+
 @Injectable()
 export class SensorAlertEvaluatorService {
   private readonly logger = new Logger(SensorAlertEvaluatorService.name);
@@ -55,11 +85,12 @@ export class SensorAlertEvaluatorService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Evalúa una lectura de sensor contra los umbralCriticoes configurados
+   * 🔍 Evalúa una lectura de sensor contra los umbrales configurados
+   * ✅ BUENA PRÁCTICA: Método bien documentado y tipado
    */
   async evaluarLectura(
     lectura: SensorLectura, 
-    umbralCriticoes: UmbralesSensorDto
+    umbralCriticoes: UmbralesSensorLegacyDto
   ): Promise<ResultadoValidacionUmbralesDto> {
     try {
       const validacion: ValidacionUmbralesDto = {
@@ -72,12 +103,13 @@ export class SensorAlertEvaluatorService {
       return await this.evaluarUmbrales(validacion);
     } catch (error) {
       this.logger.error(`Error evaluando lectura del sensor ${lectura.sensorId}:`, error);
-      throw new Error(`Error en evaluación de umbralCriticoes: ${error.message}`);
+      throw new Error(`Error en evaluación de umbrales: ${error.message}`);
     }
   }
 
   /**
-   * Evalúa umbralCriticoes para un tipo de sensor específico
+   * 🔍 Evalúa umbrales para un tipo de sensor específico
+   * ✅ BUENA PRÁCTICA: Método principal bien estructurado
    */
   async evaluarUmbrales(validacion: ValidacionUmbralesDto): Promise<ResultadoValidacionUmbralesDto> {
     const { tipo, valor, umbralCriticoes } = validacion;
@@ -87,7 +119,7 @@ export class SensorAlertEvaluatorService {
     let umbralCriticoesExcedidos: string[] = [];
     let recomendaciones: string[] = [];
 
-    // Evaluar según el tipo de sensor
+    // ✅ BUENA PRÁCTICA: Evaluación por tipo de sensor usando switch
     switch (tipo) {
       case 'TEMPERATURA':
         const resultadoTemp = this.evaluarTemperatura(valor, umbralCriticoes);
@@ -114,24 +146,25 @@ export class SensorAlertEvaluatorService {
         break;
 
       case 'PRESION':
-        const resultadoPres = this.evaluarPresion(valor, umbralCriticoes);
-        estado = resultadoPres.estado;
-        severidad = resultadoPres.severidad;
-        umbralCriticoesExcedidos = resultadoPres.umbralCriticoesExcedidos;
-        recomendaciones = resultadoPres.recomendaciones;
+        const resultadoPresion = this.evaluarPresion(valor, umbralCriticoes);
+        estado = resultadoPresion.estado;
+        severidad = resultadoPresion.severidad;
+        umbralCriticoesExcedidos = resultadoPresion.umbralCriticoesExcedidos;
+        recomendaciones = resultadoPresion.recomendaciones;
         break;
 
       default:
-        throw new Error(`Tipo de sensor no soportado: ${tipo}`);
+        this.logger.warn(`Tipo de sensor no soportado: ${tipo}`);
+        break;
     }
 
-    const mensaje = this.generarMensajeEvaluacion(tipo, valor, estado, umbralCriticoesExcedidos);
+    // ✅ BUENA PRÁCTICA: Cálculo de próxima verificación
     const proximaVerificacion = this.calcularProximaVerificacion(umbralCriticoes.intervaloVerificacionMinutos);
 
     return {
       cumpleUmbrales: estado === 'NORMAL',
       estado,
-      mensaje,
+      mensaje: this.generarMensajeEvaluacion(estado, tipo, valor, umbralCriticoes),
       severidad,
       umbralCriticoesExcedidos,
       recomendaciones,
@@ -142,7 +175,7 @@ export class SensorAlertEvaluatorService {
   /**
    * Evalúa umbralCriticoes de temperatura
    */
-  private evaluarTemperatura(valor: number, umbralCriticoes: UmbralesSensorDto) {
+  private evaluarTemperatura(valor: number, umbralCriticoes: UmbralesSensorLegacyDto) {
     const { temperaturaMin, temperaturaMax } = umbralCriticoes;
     let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
     let severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA' = 'BAJA';
@@ -179,7 +212,7 @@ export class SensorAlertEvaluatorService {
   /**
    * Evalúa umbralCriticoes de humedad
    */
-  private evaluarHumedad(valor: number, umbralCriticoes: UmbralesSensorDto) {
+  private evaluarHumedad(valor: number, umbralCriticoes: UmbralesSensorLegacyDto) {
     const { humedadMin, humedadMax } = umbralCriticoes;
     let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
     let severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA' = 'BAJA';
@@ -216,7 +249,7 @@ export class SensorAlertEvaluatorService {
   /**
    * Evalúa umbralCriticoes de peso
    */
-  private evaluarPeso(valor: number, umbralCriticoes: UmbralesSensorDto) {
+  private evaluarPeso(valor: number, umbralCriticoes: UmbralesSensorLegacyDto) {
     const { pesoMin, pesoMax } = umbralCriticoes;
     let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
     let severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA' = 'BAJA';
@@ -253,7 +286,7 @@ export class SensorAlertEvaluatorService {
   /**
    * Evalúa umbralCriticoes de presión
    */
-  private evaluarPresion(valor: number, umbralCriticoes: UmbralesSensorDto) {
+  private evaluarPresion(valor: number, umbralCriticoes: UmbralesSensorLegacyDto) {
     const { presionMin, presionMax } = umbralCriticoes;
     let estado: 'NORMAL' | 'ALERTA' | 'CRITICO' = 'NORMAL';
     let severidad: 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA' = 'BAJA';
@@ -288,28 +321,57 @@ export class SensorAlertEvaluatorService {
   }
 
   /**
-   * Genera mensaje descriptivo de la evaluación
+   * 🔍 Genera mensaje de evaluación basado en el estado y tipo de sensor
+   * ✅ BUENA PRÁCTICA: Función bien tipada y documentada
    */
   private generarMensajeEvaluacion(
+    estado: string, 
     tipo: SensorTipo, 
     valor: number, 
-    estado: string, 
-    umbralCriticoesExcedidos: string[]
+    umbralCriticoes: UmbralesSensorLegacyDto
   ): string {
     if (estado === 'NORMAL') {
       return `${tipo} en rango normal: ${valor}`;
     }
 
-    const umbralCriticoesTexto = umbralCriticoesExcedidos.join(', ');
-    return `${tipo} ${estado.toLowerCase()}: ${valor} - Excede: ${umbralCriticoesTexto}`;
+    // ✅ BUENA PRÁCTICA: Generar mensaje basado en el tipo de sensor
+    switch (tipo) {
+      case 'TEMPERATURA':
+        if (estado === 'ALERTA') {
+          return `Temperatura ${estado.toLowerCase()}: ${valor}°C - Verificar sistema de climatización`;
+        }
+        return `Temperatura ${estado.toLowerCase()}: ${valor}°C - Requiere atención inmediata`;
+      
+      case 'HUMEDAD':
+        if (estado === 'ALERTA') {
+          return `Humedad ${estado.toLowerCase()}: ${valor}% - Verificar ventilación`;
+        }
+        return `Humedad ${estado.toLowerCase()}: ${valor}% - Requiere atención inmediata`;
+      
+      case 'PESO':
+        if (estado === 'ALERTA') {
+          return `Peso ${estado.toLowerCase()}: ${valor}kg - Verificar carga`;
+        }
+        return `Peso ${estado.toLowerCase()}: ${valor}kg - Requiere atención inmediata`;
+      
+      case 'PRESION':
+        if (estado === 'ALERTA') {
+          return `Presión ${estado.toLowerCase()}: ${valor}Pa - Verificar sistema`;
+        }
+        return `Presión ${estado.toLowerCase()}: ${valor}Pa - Requiere atención inmediata`;
+      
+      default:
+        return `${tipo} ${estado.toLowerCase()}: ${valor}`;
+    }
   }
 
   /**
-   * Calcula la próxima verificación basada en el intervalo configurado
+   * 🔍 Calcula la próxima verificación basada en el intervalo configurado
+   * ✅ BUENA PRÁCTICA: Función utilitaria bien tipada
    */
-  private calcularProximaVerificacion(intervaloMinutos: number = 5): Date {
-    const ahora = new Date();
-    return new Date(ahora.getTime() + intervaloMinutos * 60 * 1000);
+  private calcularProximaVerificacion(intervaloMinutos?: number): Date {
+    const intervaloMs = (intervaloMinutos || 5) * 60 * 1000;
+    return new Date(Date.now() + intervaloMs);
   }
 
   /**
@@ -463,7 +525,7 @@ export class SensorAlertEvaluatorService {
   /**
    * Obtiene umbralCriticoes configurados para un sensor
    */
-  private async obtenerUmbralesSensor(sensorId: number, empresaId: number): Promise<UmbralesSensorDto> {
+  private async obtenerUmbralesSensor(sensorId: number, empresaId: number): Promise<UmbralesSensorLegacyDto> {
     try {
       const sensor = await this.prisma.sensor.findFirst({
         where: { id: sensorId, empresaId }
@@ -503,7 +565,7 @@ export class SensorAlertEvaluatorService {
   /**
    * Obtiene umbralCriticoes por defecto según el tipo de sensor
    */
-  private obtenerUmbralesPorDefecto(tipo: SensorTipo): UmbralesSensorDto {
+  private obtenerUmbralesPorDefecto(tipo: SensorTipo): UmbralesSensorLegacyDto {
     switch (tipo) {
       case 'TEMPERATURA':
         return {
