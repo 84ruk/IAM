@@ -84,7 +84,13 @@ bool verificarConexionBackend() {
   
   Serial.println("🔍 Verificando conexión al backend: " + testUrl);
   
-  http.begin(testUrl);
+  // Iniciar conexión (HTTP/HTTPS)
+  if (testUrl.startsWith("https://")) {
+    secureClient.setInsecure(); // Permitir TLS sin cert en ESP32
+    http.begin(secureClient, testUrl);
+  } else {
+    http.begin(testUrl);
+  }
   http.addHeader("Content-Type", "application/json");
   http.addHeader("x-empresa-id", String(${config.empresaId}));
   http.addHeader("x-device-type", "esp32");
@@ -135,7 +141,13 @@ bool actualizarURLServidor() {
   
   Serial.println("🔍 Verificando URL del servidor: " + url);
   
-  http.begin(url);
+  // Iniciar conexión (HTTP/HTTPS)
+  if (url.startsWith("https://")) {
+    secureClient.setInsecure(); // Permitir TLS sin cert en ESP32
+    http.begin(secureClient, url);
+  } else {
+    http.begin(url);
+  }
   http.addHeader("Content-Type", "application/json");
   http.addHeader("x-empresa-id", String(${config.empresaId}));
   http.addHeader("x-device-type", "esp32");
@@ -335,7 +347,13 @@ bool obtenerConfiguracionDesdeBackend() {
   String authJson;
   serializeJson(authDoc, authJson);
   
-  http.begin(url);
+  // Iniciar conexión (HTTP/HTTPS)
+  if (url.startsWith("https://")) {
+    secureClient.setInsecure(); // Permitir TLS sin cert en ESP32
+    http.begin(secureClient, url);
+  } else {
+    http.begin(url);
+  }
   http.addHeader("Content-Type", "application/json");
   
   int httpCode = http.POST(authJson);
@@ -648,7 +666,13 @@ bool registrarSensoresEnBackend() {
       
       Serial.println("📤 Registrando sensor " + sensores[i].nombre + ": " + sensorJsonString);
       
-      http.begin(url);
+      // Iniciar conexión (HTTP/HTTPS)
+      if (url.startsWith("https://")) {
+        secureClient.setInsecure(); // Permitir TLS sin cert en ESP32
+        http.begin(secureClient, url);
+      } else {
+        http.begin(url);
+      }
       http.addHeader("Content-Type", "application/json");
       
       // 🔧 HEADERS ESP32 REQUERIDOS PARA EL BACKEND

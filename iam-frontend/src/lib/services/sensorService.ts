@@ -15,7 +15,9 @@ import {
   LecturasMultiplesResponse,
   // 🚀 NUEVOS TIPOS
   UmbralesSensorDto,
-  ConfiguracionAlertaResponse
+  ConfiguracionAlertaResponse,
+  UmbralesPersonalizadosDto,
+  ConfiguracionNotificacionesDto
 } from '@/types/sensor'
 import { apiClient } from '../api/apiClient'
 
@@ -95,6 +97,44 @@ export const sensorService = {
   // 🚀 NUEVO: Actualizar umbrales de un sensor
   async actualizarUmbralesSensor(sensorId: number, umbrales: UmbralesSensorDto): Promise<ConfiguracionAlertaResponse> {
     const response = await apiClient.put(`/sensores/${sensorId}/umbrales`, umbrales) as ConfiguracionAlertaResponse
+    return response
+  },
+
+  /**
+   * 🔧 NUEVO: Configura dispositivo IoT con umbrales predeterminados
+   */
+  async configurarDispositivoIoT(config: {
+    deviceId: string;
+    deviceName: string;
+    ubicacionId: number;
+    sensoresConfigurados: Array<{
+      tipo: string;
+      nombre: string;
+      umbrales: UmbralesPersonalizadosDto;
+      notificaciones: ConfiguracionNotificacionesDto;
+    }>;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    dispositivo: {
+      id: number;
+      deviceId: string;
+      deviceName: string;
+      apiToken: string;
+    };
+    sensoresConfigurados: number;
+  }> {
+    const response = await apiClient.post('/iot/configurar-dispositivo', config) as {
+      success: boolean;
+      message: string;
+      dispositivo: {
+        id: number;
+        deviceId: string;
+        deviceName: string;
+        apiToken: string;
+      };
+      sensoresConfigurados: number;
+    }
     return response
   },
 

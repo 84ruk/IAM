@@ -77,8 +77,8 @@ export class SensorAlertManagerService {
     try {
       this.logger.log(`Procesando lectura de sensor ${lectura.tipo} para empresa ${empresaId}`);
 
-      // 1. Obtener configuración de alertas para este tipo de sensor
-      const configuracion = await this.obtenerConfiguracionAlertas(lectura.tipo, empresaId);
+      // 1. Obtener configuración de alertas para este sensor específico
+      const configuracion = await this.obtenerConfiguracionAlertasPorSensor(lectura.sensorId, empresaId);
       if (!configuracion || !configuracion.activo) {
         this.logger.debug(`No hay configuración activa para sensor ${lectura.tipo}`);
         return null;
@@ -201,8 +201,75 @@ export class SensorAlertManagerService {
   }
 
   /**
-   * ⚙️ Obtiene la configuración de alertas para un tipo de sensor
-   * ✅ BUENA PRÁCTICA: Método bien documentado y con manejo de errores
+   * ⚙️ Obtiene la configuración de alertas para un sensor específico
+   * ✅ CORREGIDO: Busca por sensorId en la tabla ConfiguracionAlerta
+   */
+  private async obtenerConfiguracionAlertasPorSensor(
+    sensorId: number,
+    empresaId: number
+  ): Promise<ConfiguracionAlerta | null> {
+    try {
+      // 🔧 NUEVO: Buscar configuración específica del sensor
+      const configuracionAlerta = await this.prisma.configuracionAlerta.findFirst({
+        where: {
+          sensorId,
+          empresaId,
+          activo: true,
+        },
+        include: {
+          destinatarios: {
+            include: {
+              destinatario: true,
+            },
+          },
+        },
+      });
+
+      if (!configuracionAlerta) {
+        this.logger.debug(`No hay configuración de alerta para sensor ${sensorId}`);
+        return null;
+      }
+
+      // 🔧 NUEVO: Extraer configuración de notificaciones del JSON
+      const configNotificacion = (configuracionAlerta.configuracionNotificacion as { email?: boolean; sms?: boolean; webSocket?: boolean }) || {};
+      const umbralCritico = (configuracionAlerta.umbralCritico as UmbralesSensorLegacyDto) || {};
+
+      // 🔧 NUEVO: Extraer destinatarios por tipo (solo activos)
+      const destinatariosEmail = configuracionAlerta.destinatarios
+        .filter(d => d.destinatario.activo && d.destinatario.email)
+        .map(d => d.destinatario.email);
+
+      const destinatariosSMS = configuracionAlerta.destinatarios
+        .filter(d => d.destinatario.activo && d.destinatario.telefono)
+        .map(d => d.destinatario.telefono!);
+
+      this.logger.log(`✅ Configuración encontrada para sensor ${sensorId}:`);
+      this.logger.log(`   Email habilitado: ${configNotificacion.email}`);
+      this.logger.log(`   SMS habilitado: ${configNotificacion.sms}`);
+      this.logger.log(`   Destinatarios email: ${destinatariosEmail.length}`);
+      this.logger.log(`   Destinatarios SMS: ${destinatariosSMS.length}`);
+      
+      return {
+        id: configuracionAlerta.id,
+        empresaId: configuracionAlerta.empresaId,
+        tipoSensor: configuracionAlerta.tipoAlerta as SensorTipo,
+        activo: configuracionAlerta.activo,
+        umbralCriticoes: umbralCritico as UmbralesSensorLegacyDto,
+        destinatarios: destinatariosEmail,
+        destinatariosSMS: destinatariosSMS,
+        enviarEmail: configNotificacion.email ?? true,
+        enviarSMS: configNotificacion.sms ?? false,
+        ventanaEsperaMinutos: configuracionAlerta.ventanaEsperaMinutos || 15,
+      };
+    } catch (error) {
+      this.logger.error(`Error obteniendo configuración de alertas para sensor ${sensorId}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * ⚙️ Obtiene la configuración de alertas para un tipo de sensor (LEGACY)
+   * ⚠️ DEPRECADO: Usar obtenerConfiguracionAlertasPorSensor en su lugar
    */
   private async obtenerConfiguracionAlertas(
     tipoSensor: SensorTipo,

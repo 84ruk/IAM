@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ESP32Configuracion, Ubicacion, CreateSensorDto, UmbralesPersonalizadosDto, ConfiguracionNotificacionesDto, SensorTipo } from '@/types/sensor'
+import { ESP32Configuracion, Ubicacion } from '@/types/sensor'
 import { sensorService } from '@/lib/services/sensorService'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -36,6 +36,7 @@ const SENSOR_OPTIONS = [
   {
     type: 'TEMPERATURA',
     name: 'Temperatura (DHT22)',
+    sensorName: 'Temperatura (DHT22)', // Nombre que envía el ESP32
     description: 'Sensor de temperatura y humedad',
     icon: '🌡️',
     pin: 4,
@@ -48,6 +49,7 @@ const SENSOR_OPTIONS = [
   {
     type: 'HUMEDAD',
     name: 'Humedad (DHT22)',
+    sensorName: 'Humedad (DHT22)', // Nombre que envía el ESP32
     description: 'Sensor de humedad relativa',
     icon: '💧',
     pin: 4,
@@ -60,6 +62,7 @@ const SENSOR_OPTIONS = [
   {
     type: 'PESO',
     name: 'Peso (HX711)',
+    sensorName: 'Peso (HX711)', // Nombre que envía el ESP32
     description: 'Sensor de peso con celda de carga',
     icon: '⚖️',
     pin: 16,
@@ -72,6 +75,7 @@ const SENSOR_OPTIONS = [
   {
     type: 'PRESION',
     name: 'Presión (BMP280)',
+    sensorName: 'Presión (BMP280)', // Nombre que envía el ESP32
     description: 'Sensor de presión atmosférica',
     icon: '🌪️',
     pin: 21,
@@ -105,7 +109,7 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
       password: ''
     },
     api: {
-      baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+      baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.iaminventario.com.mx',
       token: '',
       endpoint: '/sensores/lecturas-multiples'
     },
@@ -280,64 +284,63 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
         return
       }
 
-      // 🚀 NUEVO: Crear sensores en el backend con umbrales personalizados
-      const sensoresCreadosTemp: Array<{ id: number; nombre: string; tipo: string }> = []
+      // 🎯 NUEVA ESTRATEGIA: Registrar dispositivo IoT con configuración de umbrales
+      // Los sensores se crean automáticamente cuando el ESP32 envíe lecturas
       
-      for (const sensorConfig of sensoresHabilitados) {
-        try {
-          // Crear umbrales personalizados
-          const umbralesPersonalizados: UmbralesPersonalizadosDto = {
+      const dispositivoConfig = {
+        deviceId: config.deviceId,
+        deviceName: config.deviceName,
+        ubicacionId: config.ubicacionId,
+        sensoresConfigurados: sensoresHabilitados.map(sensorConfig => ({
+          tipo: sensorConfig.tipo,
+          nombre: sensorConfig.nombre,
+          umbrales: {
             rango_min: sensorConfig.umbralMin,
             rango_max: sensorConfig.umbralMax,
             umbral_alerta_bajo: sensorConfig.umbralMin + (sensorConfig.umbralMax - sensorConfig.umbralMin) * 0.1,
             umbral_alerta_alto: sensorConfig.umbralMax - (sensorConfig.umbralMax - sensorConfig.umbralMin) * 0.1,
             umbral_critico_bajo: sensorConfig.umbralMin,
             umbral_critico_alto: sensorConfig.umbralMax,
-            severidad: 'MEDIA',
+            severidad: 'MEDIA' as const,
             intervalo_lectura: sensorConfig.intervalo,
             alertasActivas: true
-          }
-
-          // Configuración de notificaciones
-          const configuracionNotificaciones: ConfiguracionNotificacionesDto = {
+          },
+          notificaciones: {
             email: true,
             sms: true,
             webSocket: true
           }
-
-          // Crear sensor con umbrales personalizados
-          const sensorData: CreateSensorDto = {
-            nombre: `${config.deviceName} - ${sensorConfig.nombre}`,
-            tipo: sensorConfig.tipo as SensorTipo,
-            ubicacionId: config.ubicacionId,
-            umbralesPersonalizados,
-            configuracionNotificaciones
-          }
-
-          const sensorCreado = await sensorService.crearSensorConUmbrales(sensorData)
-          sensoresCreadosTemp.push({
-            id: sensorCreado.id,
-            nombre: sensorCreado.nombre,
-            tipo: sensorCreado.tipo
-          })
-
-          addToast({
-            type: 'success',
-            title: 'Sensor creado',
-            message: `Sensor ${sensorConfig.nombre} creado exitosamente con umbrales personalizados`
-          })
-
-        } catch (error) {
-          console.error(`Error creando sensor ${sensorConfig.nombre}:`, error)
-          addToast({
-            type: 'error',
-            title: 'Error',
-            message: `No se pudo crear el sensor ${sensorConfig.nombre}`
-          })
-        }
+        }))
       }
 
-      setSensoresCreados(sensoresCreadosTemp)
+      try {
+        // 🔧 Configurar dispositivo IoT con umbrales predeterminados
+        await sensorService.configurarDispositivoIoT(dispositivoConfig)
+        
+        // Por ahora, simular la configuración exitosa
+        const sensoresCreadosTemp = dispositivoConfig.sensoresConfigurados.map(sensor => ({
+          id: 0, // Se asignará cuando se cree automáticamente
+          nombre: sensor.nombre,
+          tipo: sensor.tipo
+        }))
+
+        setSensoresCreados(sensoresCreadosTemp)
+
+        addToast({
+          type: 'success',
+          title: 'Dispositivo configurado',
+          message: `Dispositivo ${config.deviceName} configurado con ${dispositivoConfig.sensoresConfigurados.length} sensores. Se crearán automáticamente con las primeras lecturas`
+        })
+
+      } catch (error) {
+        console.error('Error configurando dispositivo:', error)
+        addToast({
+          type: 'error',
+          title: 'Error',
+          message: 'No se pudo configurar el dispositivo IoT'
+        })
+        return
+      }
 
       // Generar código Arduino
       const configToSend = {
@@ -353,7 +356,7 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
         addToast({
           type: 'success',
           title: 'Configuración Completada',
-          message: `${sensoresCreadosTemp.length} sensores creados y código Arduino generado`
+          message: `${sensoresCreados.length} sensores configurados y código Arduino generado`
         })
         setStep(5)
       } else {

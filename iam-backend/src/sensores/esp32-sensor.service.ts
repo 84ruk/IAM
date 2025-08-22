@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { SeveridadAlerta } from '@prisma/client';
 import { CreateSensorLecturaMultipleDto, SensorReadingDto } from './dto/create-sensor-lectura-multiple.dto';
 import { ESP32ConfiguracionDto as ESP32Configuracion } from './dto/esp32-configuracion.dto';
@@ -824,7 +825,7 @@ export class ESP32SensorService {
       this.logger.log(`✅ Sensor creado automáticamente: ${nombre} (${tipo})`);
       
       // 🚀 NUEVO: Configurar alertas automáticamente para el nuevo sensor
-      await this.configurarAlertasAutomaticas(sensor, dto.empresaId);
+      await this.configurarAlertasAutomaticas(sensor, dto.empresaId, dto.deviceId);
       
     } else if (!sensor.dispositivoIoTId && dispositivo?.id) {
       // Vincular sensor existente al dispositivo si aún no está vinculado
@@ -838,16 +839,80 @@ export class ESP32SensorService {
   }
 
   /**
+   * 🔧 NUEVO: Configura umbrales predeterminados para futuros sensores de un dispositivo
+   */
+  async configurarUmbralesPredeterminados(
+    deviceId: string,
+    sensoresConfigurados: Array<{
+      tipo: string;
+      nombre: string;
+      umbrales: any;
+      notificaciones: any;
+    }>,
+    empresaId: number
+  ): Promise<void> {
+    try {
+      this.logger.log(`🔧 Configurando umbrales predeterminados para dispositivo ${deviceId}`);
+
+      // Guardar configuración de umbrales en el campo configuracion JSON existente
+      await this.prisma.dispositivoIoT.update({
+        where: { deviceId },
+        data: {
+          configuracion: {
+            umbralesPredeterminados: {
+              sensores: sensoresConfigurados.map(sensor => ({
+                tipo: sensor.tipo,
+                nombre: sensor.nombre,
+                umbrales: sensor.umbrales,
+                notificaciones: sensor.notificaciones,
+              }))
+            }
+          } as any
+        }
+      });
+
+      this.logger.log(`✅ Umbrales predeterminados configurados para ${sensoresConfigurados.length} tipos de sensores`);
+
+    } catch (error) {
+      this.logger.error(`Error configurando umbrales predeterminados para ${deviceId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * 🚀 Configura automáticamente alertas para un sensor recién creado
    */
-  private async configurarAlertasAutomaticas(sensor: Sensor, empresaId: number): Promise<void> {
+  private async configurarAlertasAutomaticas(sensor: Sensor, empresaId: number, deviceId?: string): Promise<void> {
     try {
       this.logger.log(`🔧 Configurando alertas automáticas para sensor ${sensor.nombre} (${sensor.tipo})`);
       
-      // 1. Crear configuración de umbrales según el tipo de sensor
-      let umbralesConfig: any;
+      // 1. Intentar obtener umbrales predeterminados del dispositivo
+      let umbralesConfig: any = null;
       
-      switch (sensor.tipo) {
+      if (deviceId) {
+        const dispositivo = await this.prisma.dispositivoIoT.findUnique({
+          where: { deviceId },
+          select: { configuracion: true }
+        });
+        
+        if (dispositivo?.configuracion) {
+          const config = dispositivo.configuracion as any;
+          const sensorConfig = config.umbralesPredeterminados?.sensores?.find((s: any) => 
+            s.tipo === sensor.tipo && s.nombre === sensor.nombre
+          );
+          
+          if (sensorConfig) {
+            umbralesConfig = sensorConfig.umbrales;
+            this.logger.log(`✅ Usando umbrales predeterminados para sensor ${sensor.nombre}`);
+          }
+        }
+      }
+      
+      // 2. Si no hay umbrales predeterminados, usar configuración por defecto
+      if (!umbralesConfig) {
+        this.logger.log(`⚙️ Usando umbrales por defecto para sensor ${sensor.nombre}`);
+        
+        switch (sensor.tipo) {
         case 'TEMPERATURA':
           umbralesConfig = {
             tipo: 'TEMPERATURA',
@@ -911,9 +976,10 @@ export class ESP32SensorService {
             intervalo_lectura: 30000,
             alertasActivas: true
           };
+        }
       }
       
-      // 2. Crear configuración de alertas
+      // 3. Crear configuración de alertas con umbrales obtenidos
       const configuracionAlerta = await this.prisma.configuracionAlerta.create({
         data: {
           empresaId: empresaId,
@@ -922,18 +988,18 @@ export class ESP32SensorService {
           activo: true,
           frecuencia: 'IMMEDIATE',
           ventanaEsperaMinutos: 5,
-          umbralCritico: umbralesConfig as any,
+          umbralCritico: umbralesConfig as unknown as Prisma.InputJsonValue,
           configuracionNotificacion: {
             email: true,
             sms: true,
             webSocket: true
-          } as any
+          } as unknown as Prisma.InputJsonValue
         }
       });
       
       this.logger.log(`✅ Configuración de alertas creada: ${configuracionAlerta.id}`);
       
-      // 3. Crear o vincular destinatarios por defecto
+      // 4. Crear o vincular destinatarios por defecto
       await this.crearDestinatariosPorDefecto(sensor.id, empresaId, configuracionAlerta.id);
       
       this.logger.log(`✅ Configuración automática completada para sensor ${sensor.nombre}`);

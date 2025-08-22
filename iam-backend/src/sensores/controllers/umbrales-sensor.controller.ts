@@ -17,6 +17,7 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { EmpresaRequired } from '../../auth/decorators/empresa-required.decorator';
 import { JwtUser } from '../../auth/interfaces/jwt-user.interface';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { UmbralesSensorDto } from '../dto/umbrales-sensor.dto';
 
 @Controller('sensores/:sensorId/umbrales')
@@ -37,7 +38,7 @@ export class UmbralesSensorController {
     try {
       // Verificar que el sensor pertenece a la empresa del usuario
       const sensor = await this.prisma.sensor.findFirst({
-        where: {
+        where: { 
           id: sensorId,
           empresaId: currentUser.empresaId!,
           activo: true,
@@ -111,7 +112,7 @@ export class UmbralesSensorController {
     try {
       // Verificar que el sensor pertenece a la empresa del usuario
       const sensor = await this.prisma.sensor.findFirst({
-        where: {
+        where: { 
           id: sensorId,
           empresaId: currentUser.empresaId!,
           activo: true,
@@ -143,20 +144,20 @@ export class UmbralesSensorController {
             activo: true,
             frecuencia: 'IMMEDIATE',
             ventanaEsperaMinutos: 5,
-            umbralCritico: umbralesDto as any,
+            umbralCritico: umbralesDto as unknown as Prisma.InputJsonValue,
             configuracionNotificacion: {
               email: true,
               sms: true,
               webSocket: true,
-            } as any,
+            } as unknown as Prisma.InputJsonValue,
           },
         });
       } else {
         // Actualizar configuración existente
         configuracion = await this.prisma.configuracionAlerta.update({
           where: { id: configuracion.id },
-          data: {
-            umbralCritico: umbralesDto as any,
+        data: {
+            umbralCritico: umbralesDto as unknown as Prisma.InputJsonValue,
             updatedAt: new Date(),
           },
         });
@@ -256,19 +257,19 @@ export class UmbralesSensorController {
     }
 
     const configuracion = await this.prisma.configuracionAlerta.create({
-      data: {
+        data: {
         empresaId: empresaId,
         sensorId: sensorId,
         tipoAlerta: tipoSensor,
         activo: true,
         frecuencia: 'IMMEDIATE',
         ventanaEsperaMinutos: 5,
-        umbralCritico: umbralesPorDefecto as any,
+        umbralCritico: umbralesPorDefecto as unknown as Prisma.InputJsonValue,
         configuracionNotificacion: {
           email: true,
           sms: true,
           webSocket: true,
-        } as any,
+        } as unknown as Prisma.InputJsonValue,
       },
     });
 

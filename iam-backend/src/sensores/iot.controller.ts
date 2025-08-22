@@ -8,6 +8,16 @@ import { IoTAuditService } from './services/iot-audit.service';
 import { IoTConfigService } from './services/iot-config.service';
 import { URLConfigService } from '../common/services/url-config.service';
 import { ESP32SensorService } from './esp32-sensor.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UnifiedEmpresaGuard } from '../auth/guards/unified-empresa.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Rol } from '@prisma/client';
+import { EmpresaRequired } from '../auth/decorators/empresa-required.decorator';
+
+interface RequestWithUser extends Request {
+  user: { empresaId: number; id: number; email: string };
+}
 
 @Controller('iot')
 export class IoTController {
@@ -172,6 +182,81 @@ export class IoTController {
         requestBody: data
       });
       
+      throw error;
+    }
+  }
+
+  /**
+   * 🔧 NUEVO: Endpoint para configurar dispositivo IoT con umbrales predefinidos
+   */
+  @UseGuards(JwtAuthGuard, UnifiedEmpresaGuard, RolesGuard)
+  @Roles(Rol.ADMIN, Rol.SUPERADMIN)
+  @EmpresaRequired()
+  @Post('configurar-dispositivo')
+  async configurarDispositivoIoT(
+    @Body() config: {
+      deviceId: string;
+      deviceName: string;
+      ubicacionId: number;
+      sensoresConfigurados: Array<{
+        tipo: string;
+        nombre: string;
+        umbrales: any;
+        notificaciones: any;
+      }>;
+    },
+    @Req() req: RequestWithUser
+  ) {
+    const empresaId = req.user.empresaId;
+    
+    try {
+      this.logger.log(`🔧 Configurando dispositivo IoT: ${config.deviceId} para empresa ${empresaId}`);
+      
+      // 1. Registrar o actualizar dispositivo IoT
+      const dispositivo = await this.prisma.dispositivoIoT.upsert({
+        where: { deviceId: config.deviceId },
+        update: {
+          deviceName: config.deviceName,
+          ubicacionId: config.ubicacionId,
+          empresaId,
+          sensoresConfigurados: config.sensoresConfigurados as any,
+          activo: true,
+        },
+        create: {
+          deviceId: config.deviceId,
+          deviceName: config.deviceName,
+          nombre: config.deviceName,
+          ubicacionId: config.ubicacionId,
+          empresaId,
+          sensoresConfigurados: config.sensoresConfigurados as any,
+          activo: true,
+          apiToken: this.generateApiToken(),
+        },
+      });
+
+      // 2. Configurar umbrales predeterminados para futuros sensores
+      await this.esp32Service.configurarUmbralesPredeterminados(
+        config.deviceId,
+        config.sensoresConfigurados,
+        empresaId
+      );
+
+      this.logger.log(`✅ Dispositivo configurado: ${config.deviceId} con ${config.sensoresConfigurados.length} sensores`);
+
+      return {
+        success: true,
+        message: 'Dispositivo IoT configurado exitosamente',
+        dispositivo: {
+          id: dispositivo.id,
+          deviceId: dispositivo.deviceId,
+          deviceName: dispositivo.deviceName,
+          apiToken: dispositivo.apiToken,
+        },
+        sensoresConfigurados: config.sensoresConfigurados.length,
+      };
+
+    } catch (error) {
+      this.logger.error(`Error configurando dispositivo IoT ${config.deviceId}:`, error);
       throw error;
     }
   }
@@ -379,5 +464,17 @@ export class IoTController {
            ((req as any).connection?.remoteAddress) ||
            ((req as any).socket?.remoteAddress) ||
            '0.0.0.0';
+  }
+
+  /**
+   * Genera un token API único para dispositivos IoT
+   */
+  private generateApiToken(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 32; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
   }
 }
