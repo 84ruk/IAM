@@ -25,6 +25,8 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
 import { useServerUser } from '@/context/ServerUserContext'
+import { TiposNotificacion } from '@/components/TiposNotificacion'
+import { NotificacionConfig } from '@/types/alertas'
 
 interface ESP32LecturasPeriodicasConfigProps {
   ubicaciones: Ubicacion[]
@@ -126,6 +128,14 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
     })),
     intervalo: 30000,
     timestamp: new Date().toISOString()
+  })
+
+  // 🚀 NUEVO: Estado para configuración de notificaciones personalizables
+  const [configuracionNotificaciones, setConfiguracionNotificaciones] = useState<NotificacionConfig>({
+    email: true,
+    sms: true,
+    webSocket: true,
+    push: false
   })
 
   // Generar token automáticamente
@@ -306,9 +316,10 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
             alertasActivas: true
           },
           notificaciones: {
-            email: true,
-            sms: true,
-            webSocket: true
+            email: configuracionNotificaciones.email,
+            sms: configuracionNotificaciones.sms,
+            webSocket: configuracionNotificaciones.webSocket,
+            push: configuracionNotificaciones.push
           }
         }))
       }
@@ -569,6 +580,30 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
           </AlertDescription>
         </Alert>
       )}
+
+      {/* 🚀 NUEVO: Configuración de Notificaciones Personalizables */}
+      {config.sensores.some(sensor => sensor.enabled) && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Configuración de Notificaciones
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-blue-700">
+                Configura qué tipos de notificaciones quieres recibir cuando se activen las alertas de los sensores.
+              </p>
+              <TiposNotificacion
+                config={configuracionNotificaciones}
+                onChange={setConfiguracionNotificaciones}
+                disabled={false}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 
@@ -600,6 +635,39 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
             <div className="flex justify-between">
               <span className="text-gray-600">Intervalo:</span>
               <span>{config.intervalo / 1000} segundos</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 🚀 NUEVO: Resumen de Configuración de Notificaciones */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Configuración de Notificaciones</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Email:</span>
+              <span className={configuracionNotificaciones.email ? 'text-green-600 font-medium' : 'text-gray-400'}>
+                {configuracionNotificaciones.email ? '✅ Habilitado' : '❌ Deshabilitado'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">SMS:</span>
+              <span className={configuracionNotificaciones.sms ? 'text-green-600 font-medium' : 'text-gray-400'}>
+                {configuracionNotificaciones.sms ? '✅ Habilitado' : '❌ Deshabilitado'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">WebSocket:</span>
+              <span className={configuracionNotificaciones.webSocket ? 'text-green-600 font-medium' : 'text-gray-400'}>
+                {configuracionNotificaciones.webSocket ? '✅ Habilitado' : '❌ Deshabilitado'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Push:</span>
+              <span className={configuracionNotificaciones.push ? 'text-green-600 font-medium' : 'text-gray-400'}>
+                {configuracionNotificaciones.push ? '✅ Habilitado' : '❌ Deshabilitado'}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -653,7 +721,7 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
             <div className="space-y-2 text-sm text-blue-700">
               <p>✅ Cada sensor se creará con umbrales personalizados configurados</p>
               <p>✅ Sistema de alertas automáticamente configurado</p>
-              <p>✅ Notificaciones por email, SMS y WebSocket habilitadas</p>
+              <p>✅ Notificaciones personalizables según tu configuración</p>
               <p>✅ Destinatarios vinculados automáticamente</p>
             </div>
           </CardContent>
@@ -789,19 +857,24 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
 
   return (
     <Dialog open={true} onOpenChange={() => onCancel?.()}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Zap className="w-5 h-5" />
-            Configuración ESP32 - Lecturas Periódicas
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <DialogHeader className="pb-6 border-b border-slate-200 dark:border-slate-700">
+          <DialogTitle className="flex items-center gap-3 text-xl font-semibold text-slate-800 dark:text-slate-200">
+            <div className="p-2 bg-blue-500 rounded-lg">
+              <Zap className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Configuración ESP32</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400 font-normal">Configuración de sensores para lecturas periódicas</p>
+            </div>
           </DialogTitle>
         </DialogHeader>
 
-        {/* Progress Bar */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Paso {step} de 5</span>
-            <span className="text-sm text-gray-500">
+        {/* Progress Bar Mejorada */}
+        <div className="mb-8 px-1">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Paso {step} de 5</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">
               {step === 1 && 'Información del Dispositivo'}
               {step === 2 && 'Configuración WiFi'}
               {step === 3 && 'Configuración de Sensores'}
@@ -809,11 +882,28 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
               {step === 5 && 'Completado'}
             </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(step / 5) * 100}%` }}
-            />
+          <div className="relative">
+            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 shadow-inner">
+              <div
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 shadow-sm"
+                style={{ width: `${(step / 5) * 100}%` }}
+              />
+            </div>
+            {/* Step indicators */}
+            <div className="absolute top-0 left-0 w-full h-3 flex justify-between items-center">
+              {[1, 2, 3, 4, 5].map((stepNumber) => (
+                <div
+                  key={stepNumber}
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs font-bold -mt-1 transition-all duration-300 ${
+                    stepNumber <= step
+                      ? 'bg-blue-500 border-blue-500 text-white shadow-md'
+                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-400'
+                  }`}
+                >
+                  {stepNumber}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -830,25 +920,27 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
           {renderStep()}
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="flex justify-between pt-6 border-t mt-4">
+        {/* Navigation Buttons Mejorados */}
+        <div className="flex justify-between pt-6 border-t border-slate-200 dark:border-slate-700 mt-6 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-t-lg -mx-6 px-6">
           <div>
             {step > 1 && step < 5 && (
-              <Button onClick={handleBack} variant="outline">
+              <Button onClick={handleBack} variant="outline" className="shadow-sm hover:shadow-md transition-shadow">
+                <span className="mr-2">←</span>
                 Anterior
               </Button>
             )}
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             {step < 4 && (
-              <Button onClick={handleNext} disabled={!validateStep(step)}>
+              <Button onClick={handleNext} disabled={!validateStep(step)} className="shadow-sm hover:shadow-md transition-all">
                 Siguiente
+                <span className="ml-2">→</span>
               </Button>
             )}
             
             {step === 4 && (
-              <Button onClick={handleGenerateConfig} disabled={isLoading}>
+              <Button onClick={handleGenerateConfig} disabled={isLoading} className="bg-green-600 hover:bg-green-700 shadow-md hover:shadow-lg transition-all">
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -864,12 +956,13 @@ export function ESP32LecturasPeriodicasConfig({ ubicaciones, onComplete, onCance
             )}
             
             {step === 5 && (
-              <Button onClick={onComplete}>
+              <Button onClick={onComplete} className="bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all">
+                <CheckCircle className="w-4 h-4 mr-2" />
                 Completar
               </Button>
             )}
             
-            <Button onClick={onCancel} variant="outline">
+            <Button onClick={onCancel} variant="outline" className="shadow-sm hover:shadow-md transition-shadow">
               Cancelar
             </Button>
           </div>

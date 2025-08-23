@@ -58,6 +58,7 @@ export interface SensorWithReadings extends Sensor {
     nombre: string;
   };
   lecturas: SensorLectura[];
+  nombreTecnico?: string;
 }
 
 export interface SensorWithCount extends Sensor {
@@ -68,6 +69,7 @@ export interface SensorWithCount extends Sensor {
   _count: {
     lecturas: number;
   };
+  nombreTecnico?: string;
 }
 
 @Injectable()
@@ -922,7 +924,21 @@ export class SensoresService {
         },
       });
 
-      return sensores;
+      // 🎯 NUEVO: Mostrar nombre original del frontend cuando esté disponible
+      const sensoresConNombreOriginal = sensores.map(sensor => {
+        const configuracion = sensor.configuracion as any;
+        const nombreDisplay = configuracion?.nombreDisplay;
+        
+        return {
+          ...sensor,
+          // Si hay nombreDisplay en configuración, úsalo; sino usa el nombre de DB
+          nombre: nombreDisplay || sensor.nombre,
+          // Mantener el nombre técnico en caso de necesitarlo
+          nombreTecnico: sensor.nombre
+        };
+      });
+
+      return sensoresConNombreOriginal;
     } catch (error) {
       this.logger.error('Error obteniendo sensores:', error);
       throw error;
@@ -957,7 +973,17 @@ export class SensoresService {
         throw new Error('Sensor no encontrado');
       }
 
-      return sensor;
+      // 🎯 NUEVO: Mostrar nombre original del frontend cuando esté disponible
+      const configuracion = sensor.configuracion as any;
+      const nombreDisplay = configuracion?.nombreDisplay;
+      
+      return {
+        ...sensor,
+        // Si hay nombreDisplay en configuración, úsalo; sino usa el nombre de DB
+        nombre: nombreDisplay || sensor.nombre,
+        // Mantener el nombre técnico en caso de necesitarlo
+        nombreTecnico: sensor.nombre
+      };
     } catch (error) {
       this.logger.error('Error obteniendo sensor:', error);
       throw error;

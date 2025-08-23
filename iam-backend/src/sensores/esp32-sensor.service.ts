@@ -691,6 +691,9 @@ export class ESP32SensorService {
         // Procesar alertas usando el SensorAlertManagerService
         if (sensor && sensor.activo) {
           try {
+            this.logger.log(`🚨🚨🚨 INICIANDO PROCESAMIENTO DE ALERTAS 🚨🚨🚨`);
+            this.logger.log(`🚨 Sensor ID: ${sensor.id}, Tipo: ${sensor.tipo}, Valor: ${valor}`);
+            
             // 🔧 CORREGIDO: Usar la interfaz LecturaSensor correcta
             const lecturaParaAlertas = {
               sensorId: sensor.id,
@@ -702,10 +705,12 @@ export class ESP32SensorService {
               timestamp: lectura.fecha // 🔧 CORREGIDO: usar timestamp en lugar de fecha
             };
 
+            this.logger.log(`🚨 Llamando a SensorAlertManager.procesarLecturaSensor...`);
             await this.sensorAlertManager.procesarLecturaSensor(lecturaParaAlertas, dto.empresaId);
-            this.logger.log(`Alerta procesada para sensor ${sensor.id}`);
+            this.logger.log(`✅✅✅ ALERTA PROCESADA EXITOSAMENTE para sensor ${sensor.id} ✅✅✅`);
           } catch (error) {
-            this.logger.error(`Error procesando alerta para sensor ${sensor.id}:`, error);
+            this.logger.error(`❌❌❌ ERROR PROCESANDO ALERTA para sensor ${sensor.id}: ${error.message} ❌❌❌`);
+            this.logger.error(`❌ Stack: ${error.stack}`);
           }
         }
       } catch (error) {
@@ -839,6 +844,25 @@ export class ESP32SensorService {
   }
 
   /**
+   * 🔧 CORREGIDO: Mapea tipos de sensor desde string a enum de Prisma
+   */
+  private mapearTipoSensor(tipoString: string): SensorTipo {
+    switch (tipoString.toUpperCase()) {
+      case 'TEMPERATURA':
+        return SensorTipo.TEMPERATURA;
+      case 'HUMEDAD':
+        return SensorTipo.HUMEDAD;
+      case 'PESO':
+        return SensorTipo.PESO;
+      case 'PRESION':
+        return SensorTipo.PRESION;
+      default:
+        this.logger.warn(`⚠️ Tipo de sensor desconocido: ${tipoString}, usando TEMPERATURA por defecto`);
+        return SensorTipo.TEMPERATURA;
+    }
+  }
+
+  /**
    * 🔧 NUEVO: Configura umbrales predeterminados para futuros sensores de un dispositivo
    */
   async configurarUmbralesPredeterminados(
@@ -852,9 +876,11 @@ export class ESP32SensorService {
     empresaId: number
   ): Promise<void> {
     try {
-      this.logger.log(`🔧 Configurando umbrales predeterminados para dispositivo ${deviceId}`);
+      this.logger.log(`🔧 [DEBUG] INICIANDO configurarUmbralesPredeterminados para dispositivo ${deviceId}`);
+      this.logger.log(`🔧 [DEBUG] sensoresConfigurados recibidos:`, JSON.stringify(sensoresConfigurados, null, 2));
+      this.logger.log(`🔧 [DEBUG] empresaId: ${empresaId}`);
 
-      // Guardar configuración de umbrales en el campo configuracion JSON existente
+      // 1. Guardar configuración de umbrales en el campo configuracion JSON existente
       await this.prisma.dispositivoIoT.update({
         where: { deviceId },
         data: {
@@ -873,6 +899,87 @@ export class ESP32SensorService {
 
       this.logger.log(`✅ Umbrales predeterminados configurados para ${sensoresConfigurados.length} tipos de sensores`);
 
+      // 2. 🚀 NUEVO: Crear sensores automáticamente con la configuración guardada
+      const dispositivo = await this.prisma.dispositivoIoT.findUnique({
+        where: { deviceId },
+        select: { id: true, ubicacionId: true }
+      });
+
+      if (!dispositivo) {
+        throw new Error(`Dispositivo IoT no encontrado: ${deviceId}`);
+      }
+
+      this.logger.log(`🔧 [DEBUG] Creando ${sensoresConfigurados.length} sensores automáticamente para dispositivo ${deviceId}`);
+
+      for (const sensorConfig of sensoresConfigurados) {
+        try {
+          this.logger.log(`🔧 [DEBUG] Procesando sensor: ${sensorConfig.nombre} de tipo ${sensorConfig.tipo}`);
+          
+          // Crear sensor con configuración personalizada
+          // 🔧 CORREGIDO: Mapear tipos de string a enum de Prisma
+          const tipoSensorMapeado = this.mapearTipoSensor(sensorConfig.tipo);
+          this.logger.log(`🔧 [DEBUG] Tipo mapeado: ${sensorConfig.tipo} -> ${tipoSensorMapeado}`);
+          
+          this.logger.log(`🔧 [DEBUG] Creando sensor en DB con datos:`, {
+            nombre: sensorConfig.nombre,
+            tipo: tipoSensorMapeado,
+            ubicacionId: dispositivo.ubicacionId,
+            empresaId: empresaId,
+            dispositivoIoTId: dispositivo.id
+          });
+          
+          // 🔧 CORREGIDO: Usar nombre + deviceId para constraint único pero mantener nombre original
+          const sensor = await this.prisma.sensor.upsert({
+            where: {
+              nombre_ubicacionId: {
+                nombre: `${sensorConfig.nombre}_${deviceId}`,
+                ubicacionId: dispositivo.ubicacionId
+              }
+            },
+            update: {
+              tipo: tipoSensorMapeado,
+              descripcion: `Sensor ${sensorConfig.tipo} automático - ${deviceId}`,
+              empresaId: empresaId,
+              activo: true,
+              dispositivoIoTId: dispositivo.id,
+              configuracion: {
+                ...sensorConfig.umbrales,
+                // 🎯 NUEVO: Mantener nombre original en configuración
+                nombreDisplay: sensorConfig.nombre,
+                deviceId: deviceId
+              } as any,
+            },
+            create: {
+              nombre: `${sensorConfig.nombre}_${deviceId}`,
+              tipo: tipoSensorMapeado,
+              descripcion: `Sensor ${sensorConfig.tipo} automático - ${deviceId}`,
+              ubicacionId: dispositivo.ubicacionId,
+              empresaId: empresaId,
+              activo: true,
+              dispositivoIoTId: dispositivo.id,
+              configuracion: {
+                ...sensorConfig.umbrales,
+                // 🎯 NUEVO: Guardar nombre original en configuración
+                nombreDisplay: sensorConfig.nombre,
+                deviceId: deviceId
+              } as any,
+            },
+          });
+
+          const esNuevo = sensor.createdAt.getTime() === sensor.updatedAt.getTime();
+          this.logger.log(`✅ [configurarUmbralesPredeterminados] Sensor ${sensor.nombre} (ID: ${sensor.id}) - ${esNuevo ? 'CREADO NUEVO' : 'ACTUALIZADO EXISTENTE'}`);
+
+          // 3. Configurar alertas automáticamente para el nuevo sensor
+          await this.configurarAlertasAutomaticas(sensor, empresaId, deviceId);
+
+        } catch (sensorError) {
+          this.logger.error(`❌ Error creando sensor ${sensorConfig.nombre}:`, sensorError);
+          // Continuar con el siguiente sensor
+        }
+      }
+
+      this.logger.log(`✅ Proceso completado: ${sensoresConfigurados.length} sensores creados y configurados`);
+
     } catch (error) {
       this.logger.error(`Error configurando umbrales predeterminados para ${deviceId}:`, error);
       throw error;
@@ -886,8 +993,9 @@ export class ESP32SensorService {
     try {
       this.logger.log(`🔧 Configurando alertas automáticas para sensor ${sensor.nombre} (${sensor.tipo})`);
       
-      // 1. Intentar obtener umbrales predeterminados del dispositivo
+      // 1. Intentar obtener umbrales y notificaciones predeterminados del dispositivo
       let umbralesConfig: any = null;
+      let notificacionesConfig: any = null;
       
       if (deviceId) {
         const dispositivo = await this.prisma.dispositivoIoT.findUnique({
@@ -903,12 +1011,14 @@ export class ESP32SensorService {
           
           if (sensorConfig) {
             umbralesConfig = sensorConfig.umbrales;
+            notificacionesConfig = sensorConfig.notificaciones;
             this.logger.log(`✅ Usando umbrales predeterminados para sensor ${sensor.nombre}`);
+            this.logger.log(`📧 Configuración notificaciones del dispositivo:`, JSON.stringify(notificacionesConfig, null, 2));
           }
         }
       }
       
-      // 2. Si no hay umbrales predeterminados, usar configuración por defecto
+      // 2. Si no hay configuración predeterminada, usar valores por defecto
       if (!umbralesConfig) {
         this.logger.log(`⚙️ Usando umbrales por defecto para sensor ${sensor.nombre}`);
         
@@ -978,10 +1088,33 @@ export class ESP32SensorService {
           };
         }
       }
+
+      // 2.5. Si no hay configuración de notificaciones predeterminada, usar valores por defecto
+      if (!notificacionesConfig) {
+        this.logger.log(`⚙️ Usando notificaciones por defecto para sensor ${sensor.nombre}`);
+        notificacionesConfig = {
+          email: true,
+          sms: true,
+          webSocket: true
+        };
+      }
       
-      // 3. Crear configuración de alertas con umbrales obtenidos
-      const configuracionAlerta = await this.prisma.configuracionAlerta.create({
-        data: {
+      this.logger.log(`📧 Configuración notificaciones FINAL para sensor ${sensor.nombre}:`, JSON.stringify(notificacionesConfig, null, 2));
+      
+      // 3. 🔧 CORREGIDO: Usar upsert para crear/actualizar configuración de alertas
+      const configuracionAlerta = await this.prisma.configuracionAlerta.upsert({
+        where: {
+          sensorId: sensor.id
+        },
+        update: {
+          tipoAlerta: sensor.tipo,
+          activo: true,
+          frecuencia: 'IMMEDIATE',
+          ventanaEsperaMinutos: 5,
+          umbralCritico: umbralesConfig as unknown as Prisma.InputJsonValue,
+          configuracionNotificacion: notificacionesConfig as unknown as Prisma.InputJsonValue
+        },
+        create: {
           empresaId: empresaId,
           sensorId: sensor.id,
           tipoAlerta: sensor.tipo,
@@ -989,15 +1122,11 @@ export class ESP32SensorService {
           frecuencia: 'IMMEDIATE',
           ventanaEsperaMinutos: 5,
           umbralCritico: umbralesConfig as unknown as Prisma.InputJsonValue,
-          configuracionNotificacion: {
-            email: true,
-            sms: true,
-            webSocket: true
-          } as unknown as Prisma.InputJsonValue
+          configuracionNotificacion: notificacionesConfig as unknown as Prisma.InputJsonValue
         }
       });
       
-      this.logger.log(`✅ Configuración de alertas creada: ${configuracionAlerta.id}`);
+      this.logger.log(`✅ Configuración de alertas actualizada: ${configuracionAlerta.id} - SMS: ${notificacionesConfig.sms ? 'HABILITADO' : 'DESHABILITADO'}`);
       
       // 4. Crear o vincular destinatarios por defecto
       await this.crearDestinatariosPorDefecto(sensor.id, empresaId, configuracionAlerta.id);
@@ -1023,8 +1152,18 @@ export class ESP32SensorService {
       if (destinatariosExistentes.length > 0) {
         // Vincular destinatarios existentes al sensor
         for (const destinatario of destinatariosExistentes) {
-          await this.prisma.configuracionAlertaDestinatario.create({
-            data: {
+          // 🔧 CORREGIDO: Usar upsert para evitar duplicados en destinatarios
+          await this.prisma.configuracionAlertaDestinatario.upsert({
+            where: {
+              configuracionAlertaId_destinatarioId: {
+                configuracionAlertaId: configuracionAlertaId,
+                destinatarioId: destinatario.id
+              }
+            },
+            update: {
+              // No necesitamos actualizar nada, solo asegurar que existe
+            },
+            create: {
               configuracionAlertaId: configuracionAlertaId,
               destinatarioId: destinatario.id
             }
@@ -1353,7 +1492,7 @@ export class ESP32SensorService {
               }
             });
 
-            this.logger.log(`✅ Sensor ${sensorConfig.nombre} creado/actualizado: ID ${sensor.id}`);
+            this.logger.log(`✅ [procesarSensorDesdeEsp32] Sensor ${sensorConfig.nombre} procesado: ID ${sensor.id}`);
 
             // 3. 🔧 NUEVO: Crear configuración de alertas para el sensor
             try {

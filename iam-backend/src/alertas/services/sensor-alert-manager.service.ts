@@ -1,4 +1,4 @@
-import { SeveridadAlerta } from '@prisma/client';
+import { SeveridadAlerta, Prisma } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 // import { SensorAlertEvaluatorService, AlertaEvaluada, LecturaSensor } from './sensor-alert-evaluator.service';
@@ -42,18 +42,16 @@ export interface AlertaGenerada {
   configuracionNotificacionesEnviadas: boolean;
 }
 
-export interface ConfiguracionAlerta {
-  id: number;
-  empresaId: number;
-  tipoSensor: SensorTipo;
-  activo: boolean;
-  umbralCriticoes: UmbralesSensorLegacyDto;
-  destinatarios: string[];
-  destinatariosSMS: string[];
-  enviarEmail: boolean;
-  enviarSMS: boolean;
-  ventanaEsperaMinutos: number;
-}
+// Tipo de ConfiguracionAlerta con destinatarios incluidos
+type ConfiguracionAlertaCompleta = Prisma.ConfiguracionAlertaGetPayload<{
+  include: {
+    destinatarios: {
+      include: {
+        destinatario: true;
+      }
+    }
+  }
+}>;
 
 @Injectable()
 export class SensorAlertManagerService {
@@ -78,11 +76,20 @@ export class SensorAlertManagerService {
       this.logger.log(`Procesando lectura de sensor ${lectura.tipo} para empresa ${empresaId}`);
 
       // 1. Obtener configuración de alertas para este sensor específico
+      this.logger.log(`🔍 BUSCANDO CONFIGURACIÓN: sensorId=${lectura.sensorId}, empresaId=${empresaId}`);
       const configuracion = await this.obtenerConfiguracionAlertasPorSensor(lectura.sensorId, empresaId);
-      if (!configuracion || !configuracion.activo) {
-        this.logger.debug(`No hay configuración activa para sensor ${lectura.tipo}`);
+      
+      if (!configuracion) {
+        this.logger.error(`❌ NO SE ENCONTRÓ CONFIGURACIÓN para sensor ${lectura.sensorId}`);
         return null;
       }
+      
+      if (!configuracion.activo) {
+        this.logger.error(`❌ CONFIGURACIÓN INACTIVA para sensor ${lectura.sensorId}`);
+        return null;
+      }
+      
+      this.logger.log(`✅ CONFIGURACIÓN ENCONTRADA: ID=${configuracion.id}, Destinatarios=${configuracion.destinatarios.length}`);
 
       // 2. Verificar si ya se envió una alerta recientemente (evitar spam)
       if (await this.verificarVentanaEspera(lectura, configuracion)) {
@@ -91,7 +98,7 @@ export class SensorAlertManagerService {
       }
 
       // 3. Evaluar si la lectura activa una alerta (implementación simplificada)
-      const alertaEvaluada = this.evaluarLecturaSimplificada(lectura, configuracion.umbralCriticoes);
+      const alertaEvaluada = this.evaluarLecturaSimplificada(lectura, configuracion.umbralCritico as UmbralesSensorLegacyDto);
       if (!alertaEvaluada) {
         return null;
       }
@@ -119,25 +126,37 @@ export class SensorAlertManagerService {
    */
   private evaluarLecturaSimplificada(lectura: LecturaSensor, umbralCriticoes: UmbralesSensorLegacyDto): AlertaEvaluada | null {
     try {
+      this.logger.log(`🔍 EVALUANDO LECTURA: ${lectura.tipo} = ${lectura.valor}${lectura.unidad}`);
+      this.logger.log(`🔍 UMBRALES RECIBIDOS:`, JSON.stringify(umbralCriticoes, null, 2));
+      
       let activada = false;
       let severidad: SeveridadAlerta = 'MEDIA';
       let mensaje = '';
       let detalles: Record<string, unknown> = {};
       let requiereAccion = false;
 
-      // Evaluar temperatura
-      if (umbralCriticoes.temperaturaMin !== undefined && lectura.valor < umbralCriticoes.temperaturaMin) {
-        activada = true;
-        severidad = 'ALTA';
-        mensaje = `Temperatura por debajo del umbralCritico mínimo: ${lectura.valor}${lectura.unidad} < ${umbralCriticoes.temperaturaMin}${lectura.unidad}`;
-        detalles = { tipo: 'TEMPERATURA_BAJA', valor: lectura.valor, umbralCritico: umbralCriticoes.temperaturaMin };
-        requiereAccion = true;
-      } else if (umbralCriticoes.temperaturaMax !== undefined && lectura.valor > umbralCriticoes.temperaturaMax) {
-        activada = true;
-        severidad = 'CRITICA';
-        mensaje = `Temperatura por encima del umbralCritico máximo: ${lectura.valor}${lectura.unidad} > ${umbralCriticoes.temperaturaMax}${lectura.unidad}`;
-        detalles = { tipo: 'TEMPERATURA_ALTA', valor: lectura.valor, umbralCritico: umbralCriticoes.temperaturaMax };
-        requiereAccion = true;
+      // Evaluar temperatura usando los campos correctos del sistema
+      if (lectura.tipo === 'TEMPERATURA') {
+        this.logger.log(`🔍 EVALUANDO TEMPERATURA: valor=${lectura.valor}, umbral_critico=${(umbralCriticoes as any).umbral_critico}, umbralCritico_critico=${(umbralCriticoes as any).umbralCritico_critico}`);
+        
+        // Usar umbral_critico del sistema de configuración de sensores
+        if ((umbralCriticoes as any).umbral_critico !== undefined && lectura.valor > (umbralCriticoes as any).umbral_critico) {
+          activada = true;
+          severidad = 'CRITICA';
+          mensaje = `Temperatura crítica: ${lectura.valor}${lectura.unidad} > ${(umbralCriticoes as any).umbral_critico}${lectura.unidad}`;
+          detalles = { tipo: 'TEMPERATURA_CRITICA', valor: lectura.valor, umbralCritico: (umbralCriticoes as any).umbral_critico };
+          requiereAccion = true;
+          this.logger.log(`🚨 TEMPERATURA CRÍTICA DETECTADA: ${mensaje}`);
+        }
+        // También verificar umbralCritico_critico si existe
+        else if ((umbralCriticoes as any).umbralCritico_critico !== undefined && lectura.valor > (umbralCriticoes as any).umbralCritico_critico) {
+          activada = true;
+          severidad = 'CRITICA';
+          mensaje = `Temperatura muy alta: ${lectura.valor}${lectura.unidad} > ${(umbralCriticoes as any).umbralCritico_critico}${lectura.unidad}`;
+          detalles = { tipo: 'TEMPERATURA_MUY_ALTA', valor: lectura.valor, umbralCritico: (umbralCriticoes as any).umbralCritico_critico };
+          requiereAccion = true;
+          this.logger.log(`🚨 TEMPERATURA MUY ALTA DETECTADA: ${mensaje}`);
+        }
       }
 
       // Evaluar humedad
@@ -185,8 +204,14 @@ export class SensorAlertManagerService {
         requiereAccion = true;
       }
 
-      if (!activada) return null;
+      this.logger.log(`🔍 RESULTADO EVALUACIÓN: activada=${activada}, severidad=${severidad}`);
+      
+      if (!activada) {
+        this.logger.log(`❌ NO SE ACTIVÓ ALERTA - Lectura normal`);
+        return null;
+      }
 
+      this.logger.log(`✅ ALERTA ACTIVADA: ${mensaje}`);
       return {
         tipo: `ALERTA_${lectura.tipo}`,
         severidad,
@@ -207,7 +232,7 @@ export class SensorAlertManagerService {
   private async obtenerConfiguracionAlertasPorSensor(
     sensorId: number,
     empresaId: number
-  ): Promise<ConfiguracionAlerta | null> {
+  ): Promise<ConfiguracionAlertaCompleta | null> {
     try {
       // 🔧 NUEVO: Buscar configuración específica del sensor
       const configuracionAlerta = await this.prisma.configuracionAlerta.findFirst({
@@ -231,7 +256,9 @@ export class SensorAlertManagerService {
       }
 
       // 🔧 NUEVO: Extraer configuración de notificaciones del JSON
+      this.logger.log(`🔍 DEBUG: configuracionNotificacion RAW:`, JSON.stringify(configuracionAlerta.configuracionNotificacion, null, 2));
       const configNotificacion = (configuracionAlerta.configuracionNotificacion as { email?: boolean; sms?: boolean; webSocket?: boolean }) || {};
+      this.logger.log(`🔍 DEBUG: configNotificacion PROCESADA:`, JSON.stringify(configNotificacion, null, 2));
       const umbralCritico = (configuracionAlerta.umbralCritico as UmbralesSensorLegacyDto) || {};
 
       // 🔧 NUEVO: Extraer destinatarios por tipo (solo activos)
@@ -249,18 +276,7 @@ export class SensorAlertManagerService {
       this.logger.log(`   Destinatarios email: ${destinatariosEmail.length}`);
       this.logger.log(`   Destinatarios SMS: ${destinatariosSMS.length}`);
       
-      return {
-        id: configuracionAlerta.id,
-        empresaId: configuracionAlerta.empresaId,
-        tipoSensor: configuracionAlerta.tipoAlerta as SensorTipo,
-        activo: configuracionAlerta.activo,
-        umbralCriticoes: umbralCritico as UmbralesSensorLegacyDto,
-        destinatarios: destinatariosEmail,
-        destinatariosSMS: destinatariosSMS,
-        enviarEmail: configNotificacion.email ?? true,
-        enviarSMS: configNotificacion.sms ?? false,
-        ventanaEsperaMinutos: configuracionAlerta.ventanaEsperaMinutos || 15,
-      };
+      return configuracionAlerta;
     } catch (error) {
       this.logger.error(`Error obteniendo configuración de alertas para sensor ${sensorId}: ${error.message}`);
       return null;
@@ -274,7 +290,7 @@ export class SensorAlertManagerService {
   private async obtenerConfiguracionAlertas(
     tipoSensor: SensorTipo,
     empresaId: number
-  ): Promise<ConfiguracionAlerta | null> {
+  ): Promise<ConfiguracionAlertaCompleta | null> {
     try {
       // Buscar un sensor del tipo especificado con configuración
       const sensor = await this.prisma.sensor.findFirst({
@@ -297,18 +313,8 @@ export class SensorAlertManagerService {
       // ✅ BUENA PRÁCTICA: Convertir la configuración del sensor a ConfiguracionAlerta
       const configuracion = sensor.configuracion as any;
       
-      return {
-        id: sensor.id,
-        empresaId: sensor.empresaId,
-        tipoSensor: sensor.tipo,
-        activo: sensor.activo,
-        umbralCriticoes: configuracion as UmbralesSensorLegacyDto,
-        destinatarios: configuracion.destinatarios || [],
-        destinatariosSMS: configuracion.destinatariosSMS || [],
-        enviarEmail: configuracion.configuracionNotificacionEmail ?? true,
-        enviarSMS: configuracion.configuracionNotificacionSMS ?? false,
-        ventanaEsperaMinutos: configuracion.intervaloVerificacionMinutos || 15,
-      };
+      // ⚠️ DEPRECADO: Esta función ya no se usa, devolver null
+      return null;
     } catch (error) {
       this.logger.error(`Error obteniendo configuración de alertas: ${error.message}`);
       return null;
@@ -320,14 +326,14 @@ export class SensorAlertManagerService {
    */
   private async verificarVentanaEspera(
     lectura: LecturaSensor,
-    configuracion: ConfiguracionAlerta
+    configuracion: ConfiguracionAlertaCompleta
   ): Promise<boolean> {
     const cacheKey = `${lectura.sensorId}_${lectura.tipo}`;
     const alertaEnCache = this.alertasEnCache.get(cacheKey);
 
     if (alertaEnCache) {
       const tiempoTranscurrido = Date.now() - alertaEnCache.fecha.getTime();
-      const ventanaMs = configuracion.ventanaEsperaMinutos * 60 * 1000;
+      const ventanaMs = (configuracion.ventanaEsperaMinutos || 15) * 60 * 1000;
       
       if (tiempoTranscurrido < ventanaMs) {
         return true; // Aún en ventana de espera
@@ -343,10 +349,21 @@ export class SensorAlertManagerService {
   private async generarAlerta(
     lectura: LecturaSensor,
     alertaEvaluada: AlertaEvaluada,
-    configuracion: ConfiguracionAlerta,
+    configuracion: ConfiguracionAlertaCompleta,
     empresaId: number
   ): Promise<AlertaGenerada> {
     try {
+      // 🔧 DEBUG: Verificar destinatarios antes de guardar
+      const destinatariosEmails = configuracion.destinatarios
+        .map(d => d.destinatario.email)
+        .filter(Boolean);
+      
+      this.logger.log(`🔍 DEBUG: Guardando alerta con destinatarios:`);
+      this.logger.log(`   Configuración ID: ${configuracion.id}`);
+      this.logger.log(`   Total destinatarios: ${configuracion.destinatarios.length}`);
+      this.logger.log(`   Emails válidos: ${destinatariosEmails.length}`);
+      this.logger.log(`   Emails: ${destinatariosEmails.join(', ')}`);
+      
       // Crear la alerta en la base de datos
       const alertaDB = await this.prisma.alertaHistorial.create({
         data: {
@@ -359,7 +376,7 @@ export class SensorAlertManagerService {
           ubicacionId: lectura.ubicacionId,
           productoId: lectura.productoId,
           estado: 'PENDIENTE',
-          destinatarios: configuracion.destinatarios,
+          destinatarios: destinatariosEmails,
           condicionActivacion: JSON.parse(JSON.stringify(alertaEvaluada.detalles)),
         },
       });
@@ -400,33 +417,75 @@ export class SensorAlertManagerService {
   }
 
   /**
-   * 📧 Envía configuracionNotificaciones por email y SMS según la configuración
+   * 📧 Envía notificaciones por email y SMS según la configuración
    */
   private async enviarNotificaciones(
     alerta: AlertaGenerada,
-    configuracion: ConfiguracionAlerta
+    configuracion: ConfiguracionAlertaCompleta
   ): Promise<void> {
     try {
-      const configuracionNotificaciones: Promise<void>[] = [];
+      this.logger.log(`🔔 Iniciando envío de notificaciones para alerta ${alerta.id}`);
+      
+      // 🔧 NUEVO: Extraer configuración de notificaciones del JSON
+      const configNotificacion = (configuracion.configuracionNotificacion as { email?: boolean; sms?: boolean; webSocket?: boolean }) || {};
+      
+      this.logger.log(`📋 Configuración notificaciones: ${JSON.stringify(configNotificacion)}`);
+      
+      // 🔧 NUEVO: Extraer destinatarios por tipo (solo activos)
+      const destinatariosEmail = configuracion.destinatarios
+        .filter(d => d.destinatario.activo && d.destinatario.email)
+        .map(d => d.destinatario.email);
 
-      // 1. Enviar email si está habilitado
-      if (configuracion.enviarEmail && configuracion.destinatarios.length > 0) {
-        configuracionNotificaciones.push(this.enviarEmailAlerta(alerta, configuracion));
+      const destinatariosSMS = configuracion.destinatarios
+        .filter(d => d.destinatario.activo && d.destinatario.telefono)
+        .map(d => d.destinatario.telefono!);
+
+      this.logger.log(`📧 Destinatarios Email: ${destinatariosEmail.length} - ${destinatariosEmail.join(', ')}`);
+      this.logger.log(`📱 Destinatarios SMS: ${destinatariosSMS.length} - ${destinatariosSMS.join(', ')}`);
+
+      const notificacionesPromises: Promise<void>[] = [];
+
+      // 1. 📧 Enviar email si está habilitado
+      if (configNotificacion.email && destinatariosEmail.length > 0) {
+        this.logger.log(`📧 Enviando email a ${destinatariosEmail.length} destinatarios`);
+        notificacionesPromises.push(this.enviarEmailAlerta(alerta, { ...configuracion, destinatarios: destinatariosEmail } as any));
+      } else {
+        this.logger.log(`📧 Email omitido: habilitado=${configNotificacion.email}, destinatarios=${destinatariosEmail.length}`);
       }
 
-      // 2. Enviar SMS si está habilitado
-      if (configuracion.enviarSMS && configuracion.destinatariosSMS.length > 0) {
-        configuracionNotificaciones.push(this.enviarSMSAlerta(alerta, configuracion));
+      // 2. 📱 Enviar SMS si está habilitado
+      if (configNotificacion.sms && destinatariosSMS.length > 0) {
+        this.logger.log(`📱 Enviando SMS a ${destinatariosSMS.length} destinatarios`);
+        notificacionesPromises.push(this.enviarSMSAlerta(alerta, { ...configuracion, destinatariosSMS } as any));
+      } else {
+        this.logger.log(`📱 SMS omitido: habilitado=${configNotificacion.sms}, destinatarios=${destinatariosSMS.length}`);
       }
 
-      // Ejecutar configuracionNotificaciones en paralelo
-      await Promise.allSettled(configuracionNotificaciones);
+      // Ejecutar notificaciones en paralelo
+      const resultados = await Promise.allSettled(notificacionesPromises);
 
-      // Marcar como notificada
-      await this.marcarAlertaNotificada(alerta.id);
+      // Log de resultados
+      let emailExitoso = false;
+      let smsExitoso = false;
+      resultados.forEach((resultado, index) => {
+        if (resultado.status === 'fulfilled') {
+          if (index === 0 && configNotificacion.email) emailExitoso = true;
+          if (index === 1 && configNotificacion.sms) smsExitoso = true;
+        } else {
+          this.logger.error(`Error en notificación ${index}: ${resultado.reason}`);
+        }
+      });
+
+      this.logger.log(`✅ Notificaciones completadas - Email: ${emailExitoso}, SMS: ${smsExitoso}`);
+
+      // Marcar como notificada solo si al menos una notificación fue exitosa
+      if (emailExitoso || smsExitoso) {
+        await this.marcarAlertaNotificada(alerta.id);
+      }
 
     } catch (error) {
-      this.logger.error(`Error enviando configuracionNotificaciones: ${error.message}`);
+      this.logger.error(`❌ Error enviando notificaciones: ${error.message}`);
+      this.logger.error(`❌ Stack: ${error.stack}`);
     }
   }
 
@@ -435,7 +494,7 @@ export class SensorAlertManagerService {
    */
   private async enviarEmailAlerta(
     alerta: AlertaGenerada,
-    configuracion: ConfiguracionAlerta
+    configuracion: ConfiguracionAlertaCompleta
   ): Promise<void> {
     try {
       await this.notificationService.sendSensorAlert({
@@ -464,12 +523,16 @@ export class SensorAlertManagerService {
    */
   private async enviarSMSAlerta(
     alerta: AlertaGenerada,
-    configuracion: ConfiguracionAlerta
+    configuracion: ConfiguracionAlertaCompleta
   ): Promise<void> {
     try {
       const mensaje = this.generarMensajeSMS(alerta, configuracion);
 
-      const mensajesSMS = configuracion.destinatariosSMS.map(telefono => ({
+      const destinatariosSMS = configuracion.destinatarios
+        .filter(d => d.destinatario.activo && d.destinatario.telefono)
+        .map(d => d.destinatario.telefono!);
+      
+      const mensajesSMS = destinatariosSMS.map(telefono => ({
         to: telefono,
         message: mensaje,
         priority: this.mapearPrioridadSMS(alerta.severidad),
@@ -528,7 +591,7 @@ export class SensorAlertManagerService {
   /**
    * 📝 Genera el contenido del email de alerta
    */
-  private generarContenidoEmail(alerta: AlertaGenerada, configuracion: ConfiguracionAlerta): string {
+  private generarContenidoEmail(alerta: AlertaGenerada, configuracion: ConfiguracionAlertaCompleta): string {
     return `
       <h2>🚨 ALERTA DE SENSOR</h2>
       <p><strong>Tipo:</strong> ${alerta.tipo}</p>
@@ -549,7 +612,7 @@ export class SensorAlertManagerService {
   /**
    * 📱 Genera el mensaje de SMS de alerta
    */
-  private generarMensajeSMS(alerta: AlertaGenerada, configuracion: ConfiguracionAlerta): string {
+  private generarMensajeSMS(alerta: AlertaGenerada, configuracion: ConfiguracionAlertaCompleta): string {
     const emoji = this.mapearEmojiSeveridad(alerta.severidad);
     const accion = alerta.requiereAccion ? 'REQUIERE ACCIÓN' : 'INFORMATIVA';
     

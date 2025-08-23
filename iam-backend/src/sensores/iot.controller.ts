@@ -235,6 +235,11 @@ export class IoTController {
       });
 
       // 2. Configurar umbrales predeterminados para futuros sensores
+      this.logger.log(`🔧 Llamando a configurarUmbralesPredeterminados con:`);
+      this.logger.log(`   - deviceId: ${config.deviceId}`);
+      this.logger.log(`   - sensoresConfigurados: ${JSON.stringify(config.sensoresConfigurados, null, 2)}`);
+      this.logger.log(`   - empresaId: ${empresaId}`);
+      
       await this.esp32Service.configurarUmbralesPredeterminados(
         config.deviceId,
         config.sensoresConfigurados,
